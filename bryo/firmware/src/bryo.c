@@ -106,6 +106,7 @@ static void ui_redraw(void);
 #endif
 #include "reel.c"                /* user reels: your sounds in flash */
 #include "project.c"             /* projects: save and recall the whole instrument */
+#include "tpreset.c"             /* track presets: one track's sound saved and recalled; the track snapshot */
 #include "vdisk.c"               /* the drive: the volume behind USB Mass Storage */
 #include "settings.c"            /* the settings record (shared with Felucca installs: settings.c) */
 

@@ -171,7 +171,7 @@ Why:
 | DRUM | 3,700 pool + 1,650 main RAM | 4 tracks × 5 voices (a voice's coefficients and state, 176 B) in the pool; each track's pattern, accents and the instruments' own knobs (304 B a track), the undo and the screen's render in main RAM |
 
 Measured now (KiB, 32-bit build, 2026-10-09 with DRUM): the pool holds 326.2 of 336 (9.8 spare; build.py keeps 8),
-main RAM's .bss 81.0 of 96 (it was 87.2 before the RAM pass below). DRUM's voices first sat in main RAM and took
+main RAM's .bss 81.0 of 96 (it was 87.2 before the RAM pass below; 82.0 since the track snapshot, 2026-10-10). DRUM's voices first sat in main RAM and took
 it to 90.3; they're ISR-only state, so they moved to the pool with the rest of it.
 
 The RAM pass (2026-10-09). Main RAM's .bss isn't all overhead: 50.7 KB of it is sound (24 chunks of the shared
@@ -223,6 +223,7 @@ A device like COLOR or SPACE costs 2 to 6 KB of code, a page of the UI 1 to 3 KB
 | Area | Bytes | What |
 | --- | ---: | --- |
 | Projects | 6 × 4 KiB × 2 (A/B) = 48 KiB | Machine state: devices, sources, patterns, mixer, routing, modulators, which reel each tape holds; packed, about 2 KB each (see "Projects, as built": eight didn't fit beside the reels) |
+| Track presets | 1 × 4 KiB × 2 (A/B) = 8 KiB (0xDF000, 0xFE000) | Eight tracks' sounds, A..H, about 250 B each packed (see "Track presets and SCL's reset, as built") |
 | Reel slots | 6 × 40 KiB = 240 KiB | Saved tapes and uploaded audio, all the same format; a long one spans the slots after it (21.5 s at most); a project points to reels |
 | Settings | unchanged | 0xFC000–0xFEFFF, as Felucca |
 
@@ -1086,6 +1087,60 @@ cut; the Felucca record; the project view's every control, both questions, delet
 
 **Not yet:** the device itself (the run sheet has two rows for it), names (projects are P1 to P6), and p-locks (when
 they come, they're a new array in the stream: older projects just won't have them).
+
+## Track presets and SCL's reset, as built (2026-10-10)
+
+Two ways back from a sound that got away from me: put a knob (or a page) back to where it started, or save a track's
+sound I like and bring it back on any track later.
+
+**SCL resets.** SCL had nothing on it (the system menu was only ever proposed), so it's the reset key:
+
+- **SCL held + turn a knob:** that knob jumps to its default. One detent is enough; the direction doesn't matter.
+- **SCL held + the page's own pad** (HOME on a source page, EDIT on GRAIN or RESONATOR, FX on COLOR or SPACE, a
+  slot's pad on its page, GLO on the mixer, EDIT on the channel and master pages): every knob on the page shown goes
+  to its default, and the pad doesn't do its usual thing (no page turn). It's `focus_btn()`, the same function that
+  lights the pad, so the "page's pad" is always the lit one.
+- **SAVE held** puts back everything the hold reset: the first reset of an SCL hold takes a snapshot of the track
+  (and the levels, REC IN and the master, since a reset can be on those pages) and sets the undo to it.
+- What isn't reset: PATN (turning it writes a pattern over the one there, so a reset would be a pattern write;
+  SCL + PATN says "TURN IT" instead) and the modulation depths (MONO clears those, so the two stay separate).
+- While SCL is held the footer reads KNOB:DEFAULT PAD:PAGE.
+
+**Track presets.** A preset is one track's *sound*, A to H, eight of them, on the PRESETS view's second page (EDIT
+steps the view's pages, as it steps the mixer's):
+
+- **What's in one:** the source and its knobs (DRUM's with each instrument's own), the four devices, the channel
+  strip, the four modulator slots (engines, knobs, a SEQ's steps) and the depths.
+- **What isn't:** the music and the mix. The DRUM pattern, and PATN and LEN (which belong to it), the level, mute,
+  octave and REC IN stay with the track a preset is loaded into. A tape is far too big, so a preset names the reel the
+  track was playing; a track on its own tape names none, and the track it's loaded into keeps the reel it's on.
+- **The sources a track isn't on are left out** (stored as empty arrays, so the loading track keeps its own values
+  there). That halved a preset: a default track is about 200 bytes packed, one I'd actually make about 250.
+- **OCT+** loads the preset pointed at into the focused track, with no question, so I can step through presets with
+  PRESETS and OCT+ and listen. **SAVE held** puts the track back as it was before the last load (the same snapshot
+  SCL uses). **SAVE** saves the focused track there (over another one: SAVE again within 3 s). **POLY held** deletes
+  it. The strip shows the preset's letter, source, slots' engines and depth count, and the track it goes to.
+
+**Where they live.** Flash had exactly two 4 KiB sectors left: 0xDF000 (after the sixth project) and 0xFE000
+(Felucca's second copy of its FM6 bank, which Bryo never uses). They're one more A/B pair, so the bank is the
+projects' seventh "slot" (`pj_sector(PJ_N, c)`) with the same commit record, CRC and power-cut behaviour: a save
+writes the other copy and commits it last. The bank is a stream like a project's ('B' 'K', a version, the count,
+then each preset as its unpacked length and its record), packed with the same PackBits writer. A save or delete
+copies the other presets forward from the copy in charge a record at a time (the length prefix means they're copied
+as bytes, never parsed), so no RAM holds the bank. The record's length comes from a dry run of the writer
+(`pw.dry`), the same code counting instead of writing.
+
+**How many fit:** eight typical presets use about half the bank's 3,840 bytes. The test fills it with the densest
+tracks I can build (DRUM, every knob and every SEQ step random, 32 depths) and six fit before a save says
+"PRESETS FULL"; that refusal changes nothing (the new copy never gets its commit record).
+
+**What it costs:** the snapshot is a whole track plus its depths in main RAM, 1,000 bytes: .bss went from 81.0 to
+82.0 of 96 KiB, leaving 14 KiB for the stack (its deepest path is about 4 KB with the audio interrupt nested).
+
+**Tested** (`test_tpresets`): a save and the list; a load into another track (what comes, what stays, the reel
+rules both ways, DRUM's pattern knobs kept, the project counted as changed); the snapshot back; a power cycle; an
+empty preset refused; a delete; a save cut by a power cut (the bank as it was); a full bank; the view's SAVE (asked
+over another), OCT+, SAVE held, POLY held and EDIT; SCL on a knob, on a page, PATN, the mixer's levels, and its undo.
 
 ## Sends: ROUT, as built (2026-10-09)
 

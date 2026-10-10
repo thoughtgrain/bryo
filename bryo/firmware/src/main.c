@@ -114,6 +114,7 @@ static void bryo_init(void)
     sys.master_q12 = 2048;
     sys.keys_live = 1;
     pj_boot();                                    /* the project saved last, if there is one (project.c) */
+    tpr_boot();                                   /* the track presets' list (tpreset.c) */
 }
 
 static void fm1_main(void)

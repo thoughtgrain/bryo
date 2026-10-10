@@ -19,7 +19,9 @@
 
 /* flash map (FL_DATA 0x97000..0xDFFFF, FL_GLOB 0xFC000..): settings 0xFC000, projects 0x97000..0x9EFFF,
  * user sample slots 0xA0000..0xDBFFF (eng_sample.c), user preset banks 0xDC000..0xDFFFF (upreset.c), the user
- * presets' FM6 patches (up_fm6.c, since 1.0.3): copy A 0x9F000, copy B 0xFE000.
+ * presets' FM6 patches (up_fm6.c, since 1.0.3): copy A 0x9F000, copy B 0xFE000. (That was Felucca's. Bryo keeps only
+ * OBJ_SETTINGS here, at 0xFC000/0xFD000; project.c holds its projects in the rest of the data area, user reels in the
+ * sample slots, and the track presets in 0xDF000 and 0xFE000, under its own magic.)
  * Those two sectors held the FM6 patch bank of 1.0..1.0.2 (OBJ_FM6BANK, retired): both objects use the same pair,
  * told apart by the commit record's type. The bank is only read, once, to move its patches into the user presets
  * (up_fm6.c upf_boot); the first write of the new object goes to the sector that does not hold the bank's newest

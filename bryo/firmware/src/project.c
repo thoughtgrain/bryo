@@ -39,12 +39,14 @@ static uint8_t pj_wver = PJ_VERSION;    /* the version written (always PJ_VERSIO
 #define PJ_PAYLOAD_MAX (PJ_SECTOR - PJ_PAYLOAD)
 
 /* the sectors: slot s, copy c (0 A, 1 B). Slots 1-4 sit where Felucca kept its four projects, slot 5 over its FM6
- * bank and the first of its preset sectors, slot 6 in the rest of the preset area (0xDF000 is left over) */
+ * bank and the first of its preset sectors, slot 6 in the rest of the preset area. A seventh pair (PJ_N) holds the
+ * track presets (tpreset.c): the last sector of the data area and the FM6 bank's old copy B, the only two left */
 static uint32_t pj_sector(uint32_t s, uint32_t c)
 {
-    static const uint32_t SEC[PJ_N][2] = {{0x97000u, 0x98000u}, {0x99000u, 0x9A000u}, {0x9B000u, 0x9C000u},
-                                          {0x9D000u, 0x9E000u}, {0x9F000u, 0xDC000u}, {0xDD000u, 0xDE000u}};
-    return SEC[s % PJ_N][c & 1u];
+    static const uint32_t SEC[PJ_N + 1u][2] = {{0x97000u, 0x98000u}, {0x99000u, 0x9A000u}, {0x9B000u, 0x9C000u},
+                                               {0x9D000u, 0x9E000u}, {0x9F000u, 0xDC000u}, {0xDD000u, 0xDE000u},
+                                               {0xDF000u, 0xFE000u}};
+    return SEC[s <= PJ_N ? s : 0u][c & 1u];
 }
 
 typedef struct {                     /* the commit record, at the sector's start, programmed last */
@@ -114,6 +116,7 @@ static struct {
     uint8_t lit[128];
     uint32_t nl, rn;
     uint8_t rb;
+    uint8_t dry;                     /* counting only (raw): how long a record is before it's written */
 } pw;
 
 static void pw_out(uint8_t b)
@@ -164,6 +167,8 @@ static void pw_run_close(void)
 static void pw_byte(uint8_t b)
 {
     pw.raw++;
+    if (pw.dry)
+        return;
     if (pw.rn && b == pw.rb && pw.rn < 128u) {
         pw.rn++;
         return;

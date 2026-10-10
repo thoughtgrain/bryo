@@ -22,7 +22,7 @@
 #define UI_MSG_FRAMES 70             /* a message holds the visualization panel ~1 s (~66 frames/s) */
 
 enum { FOCUS_DEV, FOCUS_SLOT };
-enum { UNDO_TAPE, UNDO_MOD, UNDO_DRUM };
+enum { UNDO_TAPE, UNDO_MOD, UNDO_DRUM, UNDO_TRACK };
 #define SLOT_NONE 0xFFu
 enum { CHAN_LEVELS, CHAN_STRIP, CHAN_MASTER };   /* ui.chan: the mixer's page */      /* what the strip shows: a device of the track, or a modulator slot */
 enum { VIEW_PAGE, VIEW_MIXER, VIEW_ROUTE, VIEW_USBREC, VIEW_PROJECT };   /* VIEW_PROJECT: PRESETS turned, the
@@ -51,11 +51,16 @@ static struct {
                                       * the page shown, and the pad let go first calls it off */
     uint32_t mono_t0;
     uint8_t undo;                    /* what SAVE held undoes: UNDO_TAPE (POLY's clear), UNDO_MOD (MONO's), UNDO_DRUM
-                                      * (POLY's clear of a DRUM pattern, or PATN over an edited one) */
+                                      * (POLY's clear of a DRUM pattern, or PATN over an edited one), UNDO_TRACK (a
+                                      * track preset loaded, or SCL's reset: tpreset.c's snapshot) */
     uint8_t home_held, home_used;    /* a DRUM track: HOME down on its page (it turns the page as it's let go, unless
                                       * a white key or SELECT was used meanwhile) */
     uint8_t drm_inst;                /* a DRUM page: the white key held (+1; 0: none): KNOB 1..4 are its own knobs */
     uint8_t pj_sel;                  /* the project view: the slot PRESETS points at */
+    uint8_t pj_page;                 /* .. its page: PROJECTS (0) or the track PRESETS (1), EDIT tapped steps them */
+    uint8_t tpr_sel;                 /* .. the track preset PRESETS points at (A..H) */
+    uint8_t scl_held, scl_used;      /* SCL down (a knob turned: its default; the page's pad: the page's defaults), and
+                                      * a reset done meanwhile (the snapshot for SAVE held is taken once a hold) */
     uint8_t pj_ask;                  /* .. an action waiting for its second press (PJ_ASK_*), until pj_ask_t */
     uint32_t pj_ask_t;
     uint8_t slot_held, slot_used;    /* a slot's pad down (SLOT_NONE: none), and a knob or SELECT turned meanwhile: a
@@ -164,11 +169,14 @@ static void draw_head(void)
     char ti[16], box[4] = {'T', (char)('1' + sys.sel), 0, 0}, bpm[8];
     uint32_t sig;
     int slot = ui.kind == FOCUS_SLOT && ui.view == VIEW_PAGE;
-    uint32_t pages = ui.view != VIEW_PAGE ? 1u
+    uint32_t pages = ui.view == VIEW_PROJECT ? 2u : ui.view != VIEW_PAGE ? 1u
                    : pdesc_pages(slot ? ME_P[tp[sys.sel].engine[ui.slot]] : dev_p(sys.sel, ui.dev));
+    uint32_t page = ui.view == VIEW_PROJECT ? ui.pj_page : ui.page;
     if (ui.view == VIEW_USBREC) {
         str_cpy(ti, "USB RECORD", sizeof ti);
         str_cpy(box, "IN", sizeof box);
+    } else if (ui.view == VIEW_PROJECT && ui.pj_page) {   /* the track presets: the box is the track they go to */
+        str_cpy(ti, "PRESETS", sizeof ti);
     } else if (ui.view == VIEW_PROJECT) {
         str_cpy(ti, "PROJECTS", sizeof ti);
         box[0] = 'P';
@@ -192,7 +200,7 @@ static void draw_head(void)
         box[1] = (char)('1' + ui.slot_held);
     }
     fmt_int(bpm, sys.bpm);
-    sig = hash_str(hash_str(hash_str(2166136261u, ti), bpm), box) + pages * 977u + ui.page * 61u + sys.playing * 7u + ((sys.rec >> sys.sel) & 1u) * 131u +
+    sig = hash_str(hash_str(hash_str(2166136261u, ti), bpm), box) + pages * 977u + page * 61u + sys.playing * 7u + ((sys.rec >> sys.sel) & 1u) * 131u +
           ux.theme * 3u + (ur.state == UR_RECORDING) * 524287u;
     if (!ui.force && sig == ui.sig_head)
         return;
@@ -207,7 +215,7 @@ static void draw_head(void)
         if (pages > 1u) {                                  /* the pages, side by side: the shown one a block, the other a dot */
             uint32_t g;
             for (g = 0; g < pages; g++) {
-                if (g == ui.page)
+                if (g == page)
                     px_box(x + 2 + (int32_t)g * 4, 5, 3, 3, px_ink);
                 else
                     px_dot(x + 3 + (int32_t)g * 4, 6, px_ink);
@@ -359,8 +367,12 @@ static void draw_strip(void)
     }
     if (ui.view == VIEW_PROJECT) {                      /* the project view: the slot PRESETS points at */
         const pj_sum_t *m = &pj_sum[ui.pj_sel % PJ_N];
+        const tpr_sum_t *q = &tpr_sum[ui.tpr_sel % TPR_N];
         sig += ui.pj_sel * 7u + m->used * 131u + m->bpm * 1031u + m->src[0] + m->src[1] * 4u + m->src[2] * 16u +
                m->src[3] * 64u + pj_cur * 104729u + (uint32_t)pj_changed() * 524287u + ui.pj_ask * 15485863u;
+        if (ui.pj_page)                                 /* (the track presets' page) */
+            sig = sig * 31u + 0x7A11u + ui.tpr_sel * 3u + q->used * 17u + q->src * 257u + q->ndep * 4099u +
+                  (q->eng[0] | q->eng[1] << 2 | q->eng[2] << 4 | (uint32_t)q->eng[3] << 6) * 65537u + sys.sel * 7u;
         if (!ui.force && sig == ui.sig_strip)
             return;
         ui.sig_strip = sig;
@@ -462,6 +474,8 @@ static void draw_foot(void)
                    : "REC:STOP HOME:THROW AWAY") : "REC:START HOME:LEAVE", sizeof a);
     else if (ui.view == VIEW_PROJECT)                 /* the project view: what the buttons do there */
         str_cpy(a, "OCT+:LOAD SAVE OCT-:BACK", sizeof a);
+    else if (ui.scl_held)                             /* SCL held: what a knob and the page's pad do */
+        str_cpy(a, "KNOB:DEFAULT PAD:PAGE", sizeof a);
     else if (ui.slot_held < NSLOT)                    /* a slot's pad held: what it does */
         str_cpy(a, "KNOB:DEPTH SEL:ENGINE", sizeof a);
     else if (ui.view == VIEW_PAGE && ui.kind == FOCUS_SLOT && tp[sys.sel].engine[ui.slot] == ME_SEQ)

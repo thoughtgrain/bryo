@@ -16,17 +16,21 @@
  *   EDIT on the mixer  the selected track's channel (LOW HIGH FILT PAN) on KNOB 1..4: held, while held; tapped,
  *                  latched, as GLO's mixer and the 0 key's freeze. Tapped again: MASTER (the compressor: AMT ATK
  *                  REL MIX); again: the levels
- *   SCL            unassigned (the PRD's SEL; track picking moved under GLO)
+ *   SCL            held + a knob: that knob to its default; held + the page's own pad: the page's knobs to their
+ *                  defaults (PATN excepted: it writes a pattern). SAVE held puts back what the hold reset
  *   PLAY           start / stop
  *   REC            arm the focused track (playing: as it goes down, so a punch-in lands where it's pressed;
  *                  stopped: as it's let go). Held a second while stopped: the USB record mode (usbrec.c): REC
  *                  starts and stops the take, the white keys pick its track, REC again puts it there, HOME goes
  *                  back a step
- *   OCT- / OCT+    the white keys' octave (a DRUM track: the bar STEP shows)
+ *   OCT- / OCT+    the white keys' octave (DRUM's own pages: the bar STEP shows)
  *   PRESETS        the project view (project.c): turned again, the slot it points at. There OCT+ loads it, SAVE
  *                  saves into it, POLY held deletes it, OCT- (or any page pad) goes back. Loading over changes
- *                  not saved, or saving over another project, wants a second press within 3 s
- *   SAVE tapped    save into the project loaded or saved last (P1 to start with); held: undo the last clear
+ *                  not saved, or saving over another project, wants a second press within 3 s. EDIT: its second
+ *                  page, the track PRESETS (tpreset.c, A..H): OCT+ loads one into the focused track (SAVE held
+ *                  puts the track back), SAVE saves the focused track there, POLY held deletes it
+ *   SAVE tapped    save into the project loaded or saved last (P1 to start with); held: undo the last clear (or
+ *                  the last preset load or SCL reset)
  *   DRUM           HOME turns its pages as it's let go; held + a white key: STEP's instrument (heard). On PATTERN,
  *                  VARY and KIT the white keys play the kit, and one held makes KNOB 1..4 its own TUNE DEC LVL
  *                  TONE; on STEP they toggle the bar's steps (HITS, ACC), or play and write (LIVE), or wipe (ERAS).
@@ -246,6 +250,8 @@ static void pj_turn(int32_t d)
         ui.chan_latched = 0;
         ui.glo_latched = 0;
         ui.pj_sel = pj_cur;
+    } else if (ui.pj_page) {                            /* (the track presets' page: A..H) */
+        ui.tpr_sel = (uint8_t)clamp((int32_t)ui.tpr_sel + d, 0, (int32_t)TPR_N - 1);
     } else {
         ui.pj_sel = (uint8_t)clamp((int32_t)ui.pj_sel + d, 0, (int32_t)PJ_N - 1);
     }
@@ -297,9 +303,14 @@ static void pj_do_save(uint32_t s)
 
 /* SAVE tapped: on the project view into the slot pointed at (over another project: asked first), elsewhere into the
  * project loaded or saved last */
+static void tpr_save_tap(void);
 static void pj_save_tap(void)
 {
     uint32_t s = ui.view == VIEW_PROJECT ? ui.pj_sel : pj_cur;
+    if (ui.view == VIEW_PROJECT && ui.pj_page) {
+        tpr_save_tap();
+        return;
+    }
     if (ui.view == VIEW_PROJECT && pj_sum[s].used && s != pj_cur) {
         char m[40] = "P";
         m[1] = (char)('1' + s);
@@ -325,7 +336,60 @@ static void pj_load_press(void)
     }
     if (pj_changed() && !pj_confirmed(PJ_ASK_LOAD, "CHANGES NOT SAVED: OCT+ AGAIN"))
         return;
+    trk_undo.valid = 0;                                 /* (the snapshot belonged to the session before) */
     str_cpy(m + 2, pj_load(s) == 0 ? " LOADED" : " CAN'T BE READ", 16);
+    ui_message(m);
+}
+
+/* ------------------------------------------------------------- track presets (tpreset.c) --- */
+/* "PRESET A", into m */
+static void tpr_name(char *m, uint32_t p)
+{
+    str_cpy(m, "PRESET ", 8);
+    m[7] = (char)('A' + p % TPR_N);
+    m[8] = 0;
+}
+
+/* SAVE tapped on the presets' page: the focused track saved as the preset pointed at (over another: asked first) */
+static void tpr_save_tap(void)
+{
+    uint32_t p = ui.tpr_sel;
+    char m[40];
+    int rc;
+    tpr_name(m, p);
+    if (tpr_sum[p].used) {
+        str_cpy(m + 8, " HOLDS ONE: SAVE AGAIN", 24);
+        if (!pj_confirmed(PJ_ASK_SAVE, m))
+            return;
+        tpr_name(m, p);
+    }
+    rc = tpr_save(p, sys.sel);
+    str_cpy(m + 8, rc == 0 ? " SAVED FROM T" : rc == -2 ? " NOT SAVED: PRESETS FULL" : " NOT SAVED: FLASH", 26);
+    if (rc == 0) {
+        m[str_len(m) + 1] = 0;
+        m[str_len(m)] = (char)('1' + sys.sel);
+    }
+    ui_message(m);
+}
+
+/* OCT+ on the presets' page: the preset pointed at, into the focused track (no question: SAVE held puts the track
+ * back, so presets can be tried one after another) */
+static void tpr_load_press(void)
+{
+    uint32_t p = ui.tpr_sel;
+    char m[40];
+    tpr_name(m, p);
+    if (!tpr_sum[p].used) {
+        str_cpy(m + 8, " IS EMPTY", 12);
+    } else if (tpr_load(p, sys.sel) == 0) {
+        str_cpy(m + 8, " INTO T", 8);
+        m[15] = (char)('1' + sys.sel);
+        m[16] = 0;
+        str_cpy(m + 16, ". HOLD SAVE: UNDO", 18);
+        ui.undo = UNDO_TRACK;
+    } else {
+        str_cpy(m + 8, " CAN'T BE READ", 16);
+    }
     ui_message(m);
 }
 
@@ -359,12 +423,22 @@ static void usbrec_open(void)
 static void on_button(uint32_t b)
 {
     switch (b) {
+    case B_SCL:                                         /* held: a knob or the page's pad back to the default(s) */
+        ui.scl_held = 1;
+        ui.scl_used = 0;
+        break;
     case B_HOME:                                        /* the source, its next page: as HOME is let go (the slot
                                                          * pads' way), so it can be held for SELECT or a DRUM key */
         ui.home_held = 1;
         ui.home_used = 0;
         break;
     case B_EDIT:                                        /* GRAIN's pages, RESONATOR's; on the mixer: the channel */
+        if (ui.view == VIEW_PROJECT) {                  /* the project view's pages: PROJECTS, PRESETS (as EDIT
+                                                         * steps the mixer's) */
+            ui.pj_page = (uint8_t)!ui.pj_page;
+            ui.pj_ask = PJ_ASK_NONE;
+            break;
+        }
         if (ui.view == VIEW_MIXER) {                    /* (held: while held; tapped: latched; tapped again: off) */
             if (ui.chan == CHAN_MASTER && ui.chan_latched) {   /* LEVELS -> CHANNEL -> MASTER -> LEVELS */
                 ui.chan = CHAN_LEVELS;
@@ -412,7 +486,10 @@ static void on_button(uint32_t b)
     case B_OCTUP:
         if (ui.view == VIEW_PROJECT) {                  /* the project view: OCT+ loads, OCT- goes back */
             if (b == B_OCTUP) {
-                pj_load_press();
+                if (ui.pj_page)
+                    tpr_load_press();
+                else
+                    pj_load_press();
             } else {
                 ui.view = VIEW_PAGE;
                 ui.pj_ask = PJ_ASK_NONE;
@@ -475,6 +552,13 @@ static void hold_keys(void)
         if (!((fm1_in.notes >> k) & 1u)) {
             ui.poly_held = 0;
             ui.msg_t = 1;                               /* (the message ends next frame) */
+        } else if ((uint32_t)(fm1_ms - ui.poly_t0) >= 500u && ui.view == VIEW_PROJECT && ui.pj_page) {   /* a preset */
+            char m[40];
+            ui.poly_held = 0;
+            tpr_name(m, ui.tpr_sel);
+            str_cpy(m + 8, !tpr_sum[ui.tpr_sel].used ? " IS EMPTY" : tpr_delete(ui.tpr_sel) == 0 ? " DELETED"
+                                                                                                : " NOT DELETED: FLASH", 22);
+            ui_message(m);
         } else if ((uint32_t)(fm1_ms - ui.poly_t0) >= 500u && ui.view == VIEW_PROJECT) {   /* a project, deleted */
             char m[40] = "P";
             ui.poly_held = 0;
@@ -580,10 +664,71 @@ static void hold_keys(void)
             pj_save_tap();
         } else if ((uint32_t)(fm1_ms - ui.save_t0) >= hold) {
             ui.save_held = 0;
-            ui_message((ui.undo == UNDO_MOD ? mod_undo() : ui.undo == UNDO_DRUM ? drm_undo() : tape_undo_clear()) >= 0
-                       ? "CLEAR UNDONE" : "NOTHING TO UNDO");
+            int r = ui.undo == UNDO_MOD ? mod_undo() : ui.undo == UNDO_DRUM ? drm_undo() : ui.undo == UNDO_TRACK
+                    ? trk_restore() : tape_undo_clear();
+            ui_message(r < 0 ? "NOTHING TO UNDO" : ui.undo == UNDO_TRACK ? "THE TRACK IS BACK" : "CLEAR UNDONE");
         }
     }
+}
+
+/* ------------------------------------------------------------- SCL: back to the defaults --- */
+/* SCL physically down (ui.scl_held clears as it's let go) */
+static int scl_down(void) { return ui.scl_held && ((fm1_in.buttons >> panel.btn[B_SCL]) & 1u); }
+
+/* knob c of the page shown (descriptor p, value at vp) to its default. 0: nothing there (or PATN, which writes a
+ * pattern when it moves: it's turned, not reset). The first reset of an SCL hold snapshots the track (SAVE held) */
+static int scl_default(uint32_t c, const pdesc_t *p, int16_t *vp)
+{
+    int16_t v = p->def;
+    if (pdesc_empty(p) || p == &DRM_P[DM_PATN])
+        return 0;
+    if (!ui.scl_used) {
+        trk_snap(sys.sel);
+        ui.undo = UNDO_TRACK;
+        ui.scl_used = 1;
+    }
+    if (ui.view == VIEW_MIXER && !ui.chan)
+        track[c].level = (uint8_t)v;
+    else if (ui.view == VIEW_ROUTE)
+        tp[c].recin = (uint8_t)v;
+    else
+        *vp = v;
+    if (p == &DRM_P[DM_LEN] && tp[sys.sel].drm[DM_BAR] > v)   /* (the bar shown stays in the pattern) */
+        tp[sys.sel].drm[DM_BAR] = v;
+    return 1;
+}
+
+/* SCL held + KNOB c: that knob to its default */
+static void scl_knob(uint32_t c)
+{
+    int16_t *vp;
+    const pdesc_t *p = ui_page(c, &vp);
+    char m[40];
+    if (p == &DRM_P[DM_PATN]) {
+        ui_message("PATN WRITES A PATTERN: TURN IT");
+        return;
+    }
+    if (!scl_default(c, p, vp))
+        return;
+    str_cpy(m, p->label, 6);
+    str_cpy(m + str_len(m), " TO DEFAULT. HOLD SAVE: UNDO", 30);
+    ui_message(m);
+    ui.hot = (uint8_t)c;
+    ui.hot_t = 33;
+    ui.last = (uint8_t)c;
+}
+
+/* SCL held + the page's own pad: every knob on the page shown to its default */
+static void scl_page(void)
+{
+    uint32_t c, n = 0;
+    for (c = 0; c < 4u; c++) {
+        int16_t *vp;
+        const pdesc_t *p = ui_page(c, &vp);
+        n += (uint32_t)scl_default(c, p, vp);
+    }
+    ui_message(n ? "PAGE TO DEFAULTS. HOLD SAVE: UNDO" : "NOTHING ON THIS PAGE TO RESET");
+    ui.last = 0xFF;
 }
 
 /* KNOB c turned by d detents: the value on screen; it lights up (hot) for half a second */
@@ -621,6 +766,10 @@ static void on_knob(uint32_t c, int32_t d)
         ui.slot_used = 1;
     if (ui.view == VIEW_PROJECT)                        /* (the project view: the knobs have nothing there) */
         return;
+    if (scl_down()) {                                   /* SCL held: the knob back to its default */
+        scl_knob(c);
+        return;
+    }
     if (seq_page() && c == 0u && ui.steps_held) {      /* a SEQ page, white keys held: KNOB 1 sets their steps */
         uint32_t k;
         for (k = 0; k < 16u; k++)
@@ -706,7 +855,9 @@ static void ui_input(void)
     for (id = 0; id < NB; id++)
         if ((pressed >> id) & 1u) {
             uint32_t b = panel_btn_of(id);
-            if (b < NB)
+            if (b < NB && b != B_SCL && b == focus_btn() && scl_down())
+                scl_page();                             /* SCL held + the page's own pad: its defaults */
+            else if (b < NB)
                 on_button(b);
         }
     if (ui.chan_held && (((released >> panel.btn[B_EDIT]) & 1u) || !((fm1_in.buttons >> panel.btn[B_EDIT]) & 1u))) {
@@ -721,6 +872,8 @@ static void ui_input(void)
         }
     }
     hold_keys();
+    if (ui.scl_held && !((fm1_in.buttons >> panel.btn[B_SCL]) & 1u))
+        ui.scl_held = 0;                                /* (SCL let go) */
     if (ui.glo_held && (((released >> panel.btn[B_GLO]) & 1u) || !((fm1_in.buttons >> panel.btn[B_GLO]) & 1u)))
         glo_up();
     if (ui.home_held && !((fm1_in.buttons >> panel.btn[B_HOME]) & 1u)) {   /* HOME let go: the source's next page,

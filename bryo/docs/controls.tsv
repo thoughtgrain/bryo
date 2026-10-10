@@ -4,7 +4,7 @@
 #
 # context   where the row applies: any | power-on | page (any device or slot page) | page:tape | page:grain |
 #           page:resonator | page:color | page:space | page:drum (a DRUM track's own pages) | page:slot | mixer (GLO's
-#           view) | glo-held | slot-held |
+#           view) | glo-held | slot-held | scl-held (SCL down: the reset) |
 #           slot-held+step (a SEQ slot's pad and a white key held) | project-view | routing-view | usb-record (the
 #           USB record mode: REC held a second)
 # control   BTN_<label> (the 14 buttons) | ENC_<role> (the 7 encoders) | POT_MASTER | WHITE_<n> (1..16, or a
@@ -28,8 +28,8 @@ page	BTN_SEQ	tap	modulator slot 3's page as the pad is let go (default engine SE
 page	BTN_ARP	tap	modulator slot 4's page as the pad is let go (default engine LFO on its random shape, RND); again: its next page	now	-	PRD 2.2
 page	BTN_GLO	tap	open the mixer and keep it up	now	-	change
 page	BTN_GLO	hold	the mixer while held; letting go returns to the page	now	-	change
-page	BTN_SCL	press	nothing (the PRD's SEL; track picking moved under GLO)	unassigned	-	change
-page	BTN_SCL	hold	open the system menu (palette, speaker EQ, LEDs, USB serial, about)	proposed	-	change
+page	BTN_SCL	press	down: the reset (scl-held); on its own, nothing	now	-	change
+page	BTN_SCL	hold	held: a knob turned goes to its default, the page's own pad resets the page (scl-held). SAVE held puts back what the hold reset. (The system menu proposed here before needs another place)	now	-	change
 page	BTN_PLAY	press	start / stop the transport: every track's tape plays its loop from the start (STOP fades them out in 2 ms)	now	-	PRD 2.2
 page	BTN_REC	press	arm / disarm the focused track's tape: while playing it records the other tracks' mix (old x DUB + new x GAIN); armed on a reel, the reel is copied onto the tape first (refused if the tape holds a take). Playing: as REC goes down (a punch-in lands where it's pressed); stopped: as it's let go	now	-	PRD 2.2
 page	BTN_REC	hold	held a second while stopped: the USB record mode (the tracks stop, the output plays the computer); playing: a hint to stop first	now	-	change
@@ -95,11 +95,18 @@ slot-held	BLACK_MONO	hold	held 0.5 s with the pad: clear that slot's depths on t
 slot-held	ENC_SELECT	hold-turn	that slot's engine (LFO ADSR SEQ FOLLOW), starting from that engine's defaults; its depths stay; the tempo is left alone	now	-	change
 page	BTN_HOME	hold	held + SELECT, from any page: the track's source engine, TAPE, SYNTH, POLY, DRUM, shown on its first page; each keeps its own knobs, the switch crossfades	now	-	change
 slot-held+step	ENC_K1-4	hold-turn	the depth for that step only (p-lock); release the key and pad to commit (waiting on a decision: SEQ's step values are in, per-step depths are not)	proposed	-	PRD 4.3
-project-view	ENC_PRESETS	turn	point at the next or previous of the six project slots	now	-	change
-project-view	BTN_OCTUP	press	load the slot pointed at (it stops the transport); with changes not saved, asked first: OCT+ again within 3 s	now	-	change
+scl-held	ENC_K1-4	hold-turn	that knob to its default (any view with knobs: a page, the mixer's levels, channel and master, REC IN); PATN is turned, not reset (it writes a pattern)	now	-	change
+scl-held	BTN_HOME	combo	on a source page: every knob on the page shown to its default, no page turn (the page's own pad, the lit one, does this on every page)	now	-	change
+scl-held	BTN_EDIT	combo	on GRAIN or RESONATOR (or the mixer's channel and master pages): the page shown to its defaults	now	-	change
+scl-held	BTN_FX	combo	on COLOR or SPACE: the page shown to its defaults	now	-	change
+scl-held	BTN_GLO	combo	on the mixer's levels: every track's level to 100	now	-	change
+scl-held	BTN_LFO	combo	on slot 1's page (and ENV, SEQ, ARP on theirs): the page shown to its defaults; the slot's depths stay (MONO clears those)	now	-	change
+project-view	ENC_PRESETS	turn	point at the next or previous of the six project slots (on the PRESETS page: of the eight track presets, A..H)	now	-	change
+project-view	BTN_EDIT	press	the view's pages, round: PROJECTS, PRESETS (a track's sound: source and its knobs, the devices, the channel strip, the slots and depths; not the pattern, level or REC IN), as EDIT steps the mixer's	now	-	change
+project-view	BTN_OCTUP	press	load the slot pointed at (it stops the transport); with changes not saved, asked first: OCT+ again within 3 s. On the PRESETS page: the preset into the focused track, no question (SAVE held puts the track back), playing on	now	-	change
 project-view	BTN_OCTDN	press	leave the project view (any page pad does too)	now	-	change
-project-view	BTN_SAVE	tap	save into the slot pointed at; over another project, asked first: SAVE again within 3 s	now	-	PRD 2.1
-project-view	BLACK_POLY	hold	held 0.5 s: delete the project pointed at (the user reels it saved stay)	now	-	change
+project-view	BTN_SAVE	tap	save into the slot pointed at; over another project, asked first: SAVE again within 3 s. On the PRESETS page: the focused track saved as the preset pointed at (over another, asked the same way)	now	-	PRD 2.1
+project-view	BLACK_POLY	hold	held 0.5 s: delete the project pointed at (the user reels it saved stay); on the PRESETS page, the preset	now	-	change
 project-view	ENC_K1-4	turn	nothing (the view has no knobs)	now	-	change
 routing-view	ENC_ALGORITHM	turn	the focused track's REC IN (AUTO OTHR T1-T4; its own number: SELF)	now	-	change
 routing-view	ENC_K1-4	turn	track 1..4's REC IN: AUTO (as before: the others on TAPE, its own source on SYNTH or POLY), OTHR (the others' mix), T1-T4 (one track; its own: SELF)	now	-	change

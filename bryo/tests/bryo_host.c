@@ -103,6 +103,7 @@ static int rf_prog(uint32_t off, const void *src, uint32_t n)
 }
 #include "../firmware/src/reel.c"
 #include "../firmware/src/project.c"
+#include "../firmware/src/tpreset.c"
 #include "../firmware/src/settings.c"
 #include "../firmware/src/ui_px.c"
 #include "../firmware/src/ui.c"
@@ -149,6 +150,8 @@ static void power_on(void)
     memset(drm_dirty, 0, sizeof drm_dirty);
     drm_rq_w = drm_rq_r = 0;
     memset(pj_sum, 0, sizeof pj_sum);                    /* (the projects' RAM side: as at boot, before pj_boot) */
+    memset(tpr_sum, 0, sizeof tpr_sum);                  /* (the track presets' list, and the snapshot) */
+    memset(&trk_undo, 0, sizeof trk_undo);
     pj_cur = 0;
     pj_seq = 0;
     pj_hash_at = 0;
@@ -5183,6 +5186,259 @@ static void test_projects(void)
     power_on();
 }
 
+/* track presets (tpreset.c): one track's sound saved, loaded into another, what stays with the track, the undo, a
+ * power cycle, a delete, a save cut by a power cut, a full bank; and SCL's reset to the defaults */
+static void tpr_wipe(void)
+{
+    rf_erase(pj_sector(TPR_BANK, 0));
+    rf_erase(pj_sector(TPR_BANK, 1));
+    tpr_scan();
+}
+static void test_tpresets(void)
+{
+    uint32_t i, k, g, ok;
+    int rc;
+    power_on();
+    tpr_wipe();
+    for (ok = 1, i = 0; i < TPR_N; i++)
+        ok &= !tpr_sum[i].used;
+    check("track presets: an empty bank, eight empty presets (A..H)", ok && TPR_N == 8u);
+
+    /* track 1: SYNTH, some knobs, three depths, a SEQ's steps */
+    tp[0].src = SRC_SYNTH;
+    tp[0].syn[SY_CUT] = 40;
+    tp[0].syn[SY_RES] = 77;
+    tp[0].dev[DEV_SPACE][4] = 33;
+    tp[0].ch[CH_PAN] = -20;
+    tp[0].steps[2][3] = 9;
+    tp[0].mod[0][0] = 99;
+    mod_nudge(0, 0, MOD_TSRC + SRC_SYNTH * NPK + SY_CUT, 30);
+    mod_nudge(0, 1, MOD_TG(DEV_COLOR, 0), -15);
+    mod_nudge(0, 2, MOD_TCH + CH_PAN, 40);
+    rc = tpr_save(0, 0);
+    check("track 1 saved as A: the list shows SYNTH, its engines, 3 depths",
+          rc == 0 && tpr_sum[0].used && tpr_sum[0].src == SRC_SYNTH && tpr_sum[0].ndep == 3u &&
+          tpr_sum[0].eng[1] == ME_ADSR && !tpr_sum[1].used);
+
+    /* track 2: a TAPE track on factory reel 3, a pattern, its own level and octave, POLY knobs of its own */
+    tp[1].dev[DEV_SRC][TK_REEL] = 3;
+    tp[1].pol[PL_CUT] = 50;
+    tp[1].dpat[0][5] = 0x11;
+    tp[1].drm[DM_PATN] = 4;
+    track[1].level = 60;
+    track[1].octave = 5;
+    tp[1].recin = RIN_OTHR;
+    mod_nudge(1, 3, MOD_TG(DEV_GRAIN, 0), 50);
+    pj_hash_at = pj_hash();
+    rc = tpr_load(0, 1);
+    check("A into track 2: the project counts as changed", pj_changed());
+    for (ok = 1, k = 0; k < NPK; k++)
+        ok &= tp[1].syn[k] == tp[0].syn[k] && tp[1].mod[0][k] == tp[0].mod[0][k] &&
+              tp[1].dev[DEV_SPACE][k] == tp[0].dev[DEV_SPACE][k];
+    check("A into track 2: SYNTH with track 1's knobs, devices, slots and channel strip",
+          rc == 0 && ok && tp[1].src == SRC_SYNTH && tp[1].ch[CH_PAN] == -20 && tp[1].steps[2][3] == 9);
+    check("..its depths, and only those (track 2's own one gone)",
+          mod_count(1) == 3u && mod_dep(1, 0, MOD_TSRC + SRC_SYNTH * NPK + SY_CUT) == 30 &&
+          mod_dep(1, 2, MOD_TCH + CH_PAN) == 40 && !mod_dep(1, 3, MOD_TG(DEV_GRAIN, 0)));
+    check("..what isn't the sound stays: the pattern, level, octave, REC IN, POLY's knobs (a source it isn't on)",
+          tp[1].dpat[0][5] == 0x11 && tp[1].drm[DM_PATN] == 4 && track[1].level == 60 && track[1].octave == 5u &&
+          tp[1].recin == RIN_OTHR && tp[1].pol[PL_CUT] == 50);
+    check("..a preset from a track on its own tape names no reel: track 2 keeps reel 3",
+          tp[1].dev[DEV_SRC][TK_REEL] == 3);
+    rc = trk_restore();
+    check("the snapshot back (SAVE held's): track 2 as it was, its own depth too",
+          rc == 0 && tp[1].src == SRC_TAPE && tp[1].syn[SY_CUT] == SYN_P[SY_CUT].def && mod_count(1) == 1u &&
+          mod_dep(1, 3, MOD_TG(DEV_GRAIN, 0)) == 50 && trk_restore() == -1);
+
+    /* a TAPE track on its own tape saved as E: no reel named, so the track it goes to keeps its own */
+    tp[3].src = SRC_TAPE;
+    tp[3].dev[DEV_SRC][TK_REEL] = 0;
+    tp[3].dev[DEV_SRC][TK_SPD] = 150;
+    tpr_save(4, 3);
+    tp[1].src = SRC_TAPE;
+    tp[1].dev[DEV_SRC][TK_REEL] = 3;
+    tpr_load(4, 1);
+    check("E (a TAPE track on its own tape) into a track on reel 3: SPD comes, reel 3 stays",
+          tp[1].dev[DEV_SRC][TK_SPD] == 150 && tp[1].dev[DEV_SRC][TK_REEL] == 3);
+    tpr_delete(4);
+
+    /* a TAPE track on factory reel 2 saved as C: the reel is named */
+    tp[2].dev[DEV_SRC][TK_REEL] = 2;
+    tp[2].dev[DEV_SRC][TK_SPD] = -50;
+    tpr_save(2, 2);
+    tpr_load(2, 1);
+    check("C (a TAPE track on reel 2) into track 2: the reel comes with it", tp[1].src == SRC_TAPE &&
+          tp[1].dev[DEV_SRC][TK_REEL] == 2 && tp[1].dev[DEV_SRC][TK_SPD] == -50);
+
+    /* DRUM: the kit's sound comes, the pattern's own knobs stay */
+    tp[3].src = SRC_DRUM;
+    tp[3].drm[DM_TONE] = 40;
+    tp[3].drm[DM_LEN] = 4;
+    tp[3].dins[DI_SD][DIN_TUNE] = 5;
+    tpr_save(3, 3);
+    tp[0].src = SRC_DRUM;
+    tp[0].drm[DM_LEN] = 2;
+    tp[0].drm[DM_PATN] = 7;
+    tpr_load(3, 0);
+    check("D (DRUM) into track 1: TONE and the snare's tune come, LEN and PATN (the pattern's) stay",
+          tp[0].drm[DM_TONE] == 40 && tp[0].dins[DI_SD][DIN_TUNE] == 5 && tp[0].drm[DM_LEN] == 2 &&
+          tp[0].drm[DM_PATN] == 7);
+
+    /* a power cycle: the bank's still there */
+    power_on();
+    tpr_boot();
+    check("after a power cycle: A, C and D listed, B empty", tpr_sum[0].used && !tpr_sum[1].used && tpr_sum[2].used &&
+                                                           tpr_sum[3].used && tpr_sum[3].src == SRC_DRUM);
+    rc = tpr_load(0, 0);
+    check("..and A loads", rc == 0 && tp[0].src == SRC_SYNTH && tp[0].syn[SY_RES] == 77);
+    check("an empty preset doesn't load (nothing changes)", tpr_load(1, 0) == -1 && tp[0].src == SRC_SYNTH);
+
+    /* a delete; a save cut short by a power cut leaves the bank as it was */
+    rc = tpr_delete(2);
+    check("C deleted: the others stay", rc == 0 && !tpr_sum[2].used && tpr_sum[0].used && tpr_sum[3].used);
+    host_prog_limit = 300;
+    rc = tpr_save(5, 1);
+    host_prog_limit = 0xFFFFFFFFu;
+    tpr_scan();
+    check("a save cut by a power cut: refused, the bank as it was (A and D, no F)",
+          rc != 0 && tpr_sum[0].used && tpr_sum[3].used && !tpr_sum[5].used);
+
+    /* a full bank: the densest tracks there can be, until one doesn't fit */
+    {
+        uint32_t r = 99, s, n = 0;
+        int last = 0;
+        for (s = 0; s < NDEV; s++)
+            for (k = 0; k < NPK; k++)
+                if (!pdesc_empty(&DEV_P[s][k]))
+                    tp[2].dev[s][k] = (int16_t)(DEV_P[s][k].min + (r = r * 1103515245u + 12345u) % (uint32_t)(DEV_P[s][k].max - DEV_P[s][k].min + 1));
+        for (s = 0; s < NSLOT; s++) {
+            param_engine(2, s, ME_SEQ);
+            for (k = 0; k < 16u; k++)
+                tp[2].steps[s][k] = (int8_t)((r = r * 1103515245u + 12345u) >> 16) % 100;
+        }
+        for (s = 0; s < NSLOT; s++)                      /* (every slot knob and DRUM's kit: random too) */
+            for (k = 0; k < 12u; k++)
+                tp[2].mod[s][k] = (int16_t)(ME_P[ME_SEQ][k].min + (r = r * 1103515245u + 12345u) % (uint32_t)(ME_P[ME_SEQ][k].max - ME_P[ME_SEQ][k].min + 1));
+        for (s = 0; s < DRM_NINST; s++)
+            for (k = 0; k < NDIN; k++)
+                tp[2].dins[s][k] = (int16_t)(DRI_P[k].min + (r = r * 1103515245u + 12345u) % (uint32_t)(DRI_P[k].max - DRI_P[k].min + 1));
+        for (k = 0; k < NPK; k++)
+            if (!pdesc_empty(&DRM_P[k]))
+                tp[2].drm[k] = (int16_t)(DRM_P[k].min + (r = r * 1103515245u + 12345u) % (uint32_t)(DRM_P[k].max - DRM_P[k].min + 1));
+        tp[2].src = SRC_DRUM;
+        for (g = 0, n = 0; g < MOD_NTGT && n < MOD_MAX; g++)
+            if (mod_tdesc(g) && mod_nudge(2, g % 4u, g, (int32_t)((r = r * 1103515245u + 12345u) >> 16) % 200 - 100) != -128)
+                n++;
+        for (i = 0; i < TPR_N && (last = tpr_save(i, 2)) == 0; i++)
+            ;
+        {
+            char m[120];
+            snprintf(m, sizeof m, "a bank of the densest tracks there can be: %u fit, then it says it's full (-2)", i);
+            check(m, i >= 5u && (i == TPR_N || last == -2));
+        }
+        tpr_scan();
+        check("..and what it held before the refusal is still there", tpr_sum[0].used && tpr_sum[4].used);
+    }
+
+    /* the view: PRESETS turned, EDIT to the presets' page, SAVE, OCT+, POLY held; SAVE held undoes the load */
+    power_on();
+    tpr_wipe();
+    tp[0].src = SRC_POLY;
+    tp[0].pol[PL_CUT] = 30;
+    host_enc[panel.enc[EN_PRESET]] = 1;
+    ui_input();
+    press(B_EDIT);
+    check("PRESETS, then EDIT: the track presets' page (A pointed at)", ui.view == VIEW_PROJECT && ui.pj_page == 1u &&
+                                                                       ui.tpr_sel == 0u);
+    host_enc[panel.enc[EN_PRESET]] = 1;
+    ui_input();
+    tap(B_SAVE);
+    check("..PRESETS to B, SAVE tapped: track 1 saved as B", ui.tpr_sel == 1u && tpr_sum[1].used &&
+                                                             tpr_sum[1].src == SRC_POLY &&
+                                                             !strcmp(ui.msg, "PRESET B SAVED FROM T1"));
+    ui.msg_t = 0;                                        /* (the message off: the page itself) */
+    shot("BRYO", "presets");
+    tap(B_SAVE);
+    check("..again over it: asked first", ui.pj_ask == PJ_ASK_SAVE);
+    tap(B_SAVE);
+    check("..SAVE again: saved over", ui.pj_ask == PJ_ASK_NONE && !strcmp(ui.msg, "PRESET B SAVED FROM T1"));
+    sys.sel = 2;
+    press(B_OCTUP);
+    check("OCT+: B into the focused track (T3), no question, HOLD SAVE offered",
+          tp[2].src == SRC_POLY && tp[2].pol[PL_CUT] == 30 && ui.undo == UNDO_TRACK &&
+          !strcmp(ui.msg, "PRESET B INTO T3. HOLD SAVE: UNDO"));
+    fm1_ms = 50000;
+    hold(B_SAVE);
+    fm1_ms = 50000 + HOLD_MS[settings_hold % 4u];
+    ui_input();
+    let_go(B_SAVE);
+    check("..SAVE held: track 3 back as it was", tp[2].src == SRC_TAPE && tp[2].pol[PL_CUT] == POL_P[PL_CUT].def &&
+                                                 !strcmp(ui.msg, "THE TRACK IS BACK"));
+    {
+        uint32_t pn = black_note(BK_POLY);
+        fm1_ms = 60000;
+        fm1_in.notes |= 1u << pn;
+        key_edge(pn);
+        fm1_ms = 60510;
+        ui_input();
+        fm1_in.notes &= ~(1u << pn);
+        ui_input();
+        check("POLY held on the presets' page: B deleted", !tpr_sum[1].used && !strcmp(ui.msg, "PRESET B DELETED"));
+    }
+    press(B_EDIT);
+    check("EDIT again: back to PROJECTS", ui.view == VIEW_PROJECT && ui.pj_page == 0u);
+    press(B_OCTDN);
+    sys.sel = 0;
+
+    /* SCL held + a knob: that knob's default; + the page's pad: the page's; SAVE held puts them back */
+    power_on();
+    press(B_FX);                                         /* COLOR */
+    tp[0].dev[DEV_COLOR][CP_DRIV] = 70;
+    tp[0].dev[DEV_COLOR][CP_CRSH] = 50;
+    tp[0].dev[DEV_COLOR][CP_TILT] = -40;
+    hold(B_SCL);
+    shot("BRYO", "scl_held");
+    turn(0, 3);
+    check("SCL held + KNOB 1 on COLOR: DRV to its default (0), the others as they were",
+          tp[0].dev[DEV_COLOR][CP_DRIV] == 0 && tp[0].dev[DEV_COLOR][CP_CRSH] == 50 &&
+          !strcmp(ui.msg, "DRV TO DEFAULT. HOLD SAVE: UNDO"));
+    press(B_FX);
+    check("..+ FX (the page's pad): the whole page to its defaults, and the page stays",
+          tp[0].dev[DEV_COLOR][CP_CRSH] == 0 && tp[0].dev[DEV_COLOR][CP_TILT] == 0 && ui.dev == DEV_COLOR &&
+          ui.page == 0u);
+    check("..the footer says what SCL does", ui.scl_held == 1u);
+    let_go(B_SCL);
+    turn(1, 4);
+    check("SCL let go: a knob turns as usual", tp[0].dev[DEV_COLOR][CP_CRSH] == 4);
+    fm1_ms = 70000;
+    hold(B_SAVE);
+    fm1_ms = 70000 + HOLD_MS[settings_hold % 4u];
+    ui_input();
+    let_go(B_SAVE);
+    check("SAVE held: the knobs as they were before SCL (one undo for the whole hold)",
+          tp[0].dev[DEV_COLOR][CP_DRIV] == 70 && tp[0].dev[DEV_COLOR][CP_CRSH] == 50 &&
+          tp[0].dev[DEV_COLOR][CP_TILT] == -40);
+    tp[0].src = SRC_DRUM;
+    focus_dev(DEV_SRC, 0);
+    tp[0].drm[DM_PATN] = 3;
+    hold(B_SCL);
+    turn(0, 1);
+    check("SCL + PATN: not reset (it writes a pattern as it moves): said so", tp[0].drm[DM_PATN] == 3 &&
+                                                                             !strcmp(ui.msg, "PATN WRITES A PATTERN: TURN IT"));
+    press(B_HOME);
+    check("..+ HOME on PATTERN: the rest of the page (SWNG, ACNT, LEN) to defaults, PATN kept, no page turn",
+          tp[0].drm[DM_PATN] == 3 && tp[0].drm[DM_ACNT] == DRM_P[DM_ACNT].def && ui.page == 0u);
+    let_go(B_SCL);
+    hold(B_GLO);
+    track[2].level = 30;
+    hold(B_SCL);
+    turn(2, -1);
+    check("GLO's mixer + SCL + KNOB 3: track 3's level to its default (100)", track[2].level == 100);
+    let_go(B_SCL);
+    let_go(B_GLO);
+    tpr_wipe();
+}
+
 /* Modulation reaches the sound: for a knob of each kind of array (a device, each source, DRUM, the channel) and each
  * engine, ~1.1 s of track 1 with a slot's depth on it against the same without. The knob values are checked
  * elsewhere (test_mod, test_mod_engines); this checks the audio itself moves, and that a depth of 0 is exactly the
@@ -5669,6 +5925,7 @@ int main(int argc, char **argv)
     test_drum();
     test_sends();
     test_projects();
+    test_tpresets();
     test_input();
     test_settings();
     palette_set(UI_GREY_INDEX);                          /* (the screens are one ink now, whatever the palette) */

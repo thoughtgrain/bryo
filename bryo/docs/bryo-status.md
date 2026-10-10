@@ -82,7 +82,7 @@ One core, no RTOS. Three contexts, and the rules between them are most of the ar
 **Memory.** Sound lives in one pool of 152 chunks (28 s of tape-format sound: `mem.c`) handed out by use: tapes as
 long as what's on them, GRAIN's live buffers, RESONATOR's strings and SPACE's lines while they're on. Nothing is
 set aside per track. When it runs short: a cleared tape's chunks first, then a parked track's tape, then the end of
-the longest tape. Main RAM holds 81.0 of 96 KiB (.bss; 50.7 of it sound on purpose, the rest of the 96 the stack's), the pool 326.2 of 336 KiB (2026-10-09 with DRUM, 32-bit
+the longest tape. Main RAM holds 82.0 of 96 KiB (.bss; 50.7 of it sound on purpose, the rest of the 96 the stack's), the pool 326.2 of 336 KiB (2026-10-09 with DRUM, 32-bit
 build: the firmware preprocessed, its inline assembly taken out, compiled `-m32 -Os`, `size -A`).
 
 **Parameters.** `param.c` holds every knob as an integer in its own range (`tp[t]`), with a descriptor (name,
@@ -117,6 +117,7 @@ Felucca's `felucca.c` did); `tests/bryo_host.c` includes the same files for the 
 | `chain.c` | a control block of the whole instrument; TRACKS; shedding; the main loop's memory polls |
 | `reel.c`, `vdisk.c`, `msc.c` | user reels in flash; the FM-1 as a USB drive (FAT12, WAV in and out) |
 | `project.c` | projects: six A/B slots in flash, the packed stream, takes into reels, the last one at power-on |
+| `tpreset.c` | track presets: eight tracks' sounds (A..H) in the seventh A/B pair, copied forward unparsed; the track snapshot SAVE held puts back (a preset load, SCL's reset) |
 | `ui.c`, `ui_input.c`, `ui_px.c`, `ui_viz.c` | the screen's regions; buttons, keys and knobs into actions; the dot grid and pictograms; the pictures |
 | kept from Felucca | `main.c`, `audio.c`, `usb.c`, `panel.c`, `settings.c`, `storage*.c`, `console.c`, `ota*.c`, `lcd.c`, `gfx.c`, `midi_uart.c`, the HAL in `firmware/hal/` |
 
@@ -125,7 +126,7 @@ Tests and tools:
 | File | What |
 | --- | --- |
 | `tests/run_tests.sh` | everything below that's quick, plus Felucca's kept hardware and installer tests; ends "ALL HOST TESTS PASSED" |
-| `tests/bryo_host.c` | Bryo's chain, input and screens on the host: 545 checks, and every screen rendered |
+| `tests/bryo_host.c` | Bryo's chain, input and screens on the host: 579 checks, and every screen rendered |
 | `tests/bryo_golden.txt`, `ui_golden.py` | each screen's pixel fingerprint |
 | `tests/checkpoint_sim.sh` | the hardware checkpoint on the host: 28 runs rendered to WAV, each one's cost under callgrind, and a stress test with the audio and USB interrupts cutting into the main loop while the memory's books are checked |
 | `tests/mod_audit.sh` | every knob a modulator can move: does it change the sound, does it step at the blocks, what it costs (`--cost`) |
@@ -227,6 +228,10 @@ number.
 - **2026-10-10: one spelling and one meaning per idea across sources, devices and modulators** (the consistency
   review in the architecture doc): TYPE for a filter's LP/BP/HP, DRV, DEC, times shown as times, a track's loop
   as the modulators see it is its own (DRUM's: the pattern), and a depth turned back to 0 catches there.
+- **2026-10-10: a way back, and a sound to keep.** SCL held + a knob resets it, + the page's pad resets the page;
+  a track's sound saves as one of eight presets (the PRESETS view's second page) and loads into any track without a
+  question, since SAVE held puts the track back. A preset is the sound, not the music or the mix: the pattern,
+  level and REC IN stay with the track. They live in the last two free flash sectors, as one more A/B pair.
 - **2026-10-10: the pages follow two rules, through a layout, not by moving storage.** LVL is KNOB 4 of a source's
   last page (ROUT left of it); a modulator's AMT OFS are KNOB 3-4 of its last page; SYNTH turns its pages in
   POLY's order. `PLAYOUT` maps page places to stored knobs, so the DSP, the depths and the projects didn't move
