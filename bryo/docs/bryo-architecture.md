@@ -1188,11 +1188,22 @@ now, and the PRD's gesture sets where they go.
   slot's depth to that knob, -100..100 %. While the pad is held, the header's box says M1..M4 and the strip's value
   row shows the slot's depths instead of the knobs' values ("--" where there can't be one). Let go and you're still
   on the page you were on. A knob any slot moves gets a small mark in its cell's corner.
+- **Turn a depth back to 0 and it catches there.** A depth that would reach or cross 0 stops at 0 (and is gone from
+  the list), and a turn that keeps going in that direction stays at 0 until the knob rests for 250 ms; after that
+  it goes on into the other sign. Turning back the way it came isn't held. I added it because removing a depth
+  meant landing on exactly 0 with an accelerated encoder, and overshooting to -3 left a quiet depth you couldn't
+  see on any other page. The clamp lives in `mod_nudge` (so every caller gets it); the 250 ms hold is the UI's
+  (`ui.catch_*` in `on_knob`), since only a hand turning a knob needs it.
 - **Hold it and turn SELECT** and the slot changes engine (LFO, ADSR, SEQ, FOLLOW) without opening its page; a
   message names the new engine. Its depths stay, so you can try an envelope where an LFO was without re-routing.
 - **MONO held half a second** clears the focused track's depths, every slot (the slots' own knobs stay). **SAVE held**
   undoes it, or the tape clear, whichever came last. It's the same half-second, same undo as POLY's tape clear,
   so there's one rule for the two destructive keys.
+- **A slot's pad + MONO held half a second** clears only that slot's depths on the page shown (`mod_clear_slot`,
+  the page's four targets from `page_target`); the other slots' depths on the same knobs, and that slot's depths on
+  other pages, stay. SAVE held undoes it the same way, since it snapshots the track's list into MONO's undo. The
+  slot is read as MONO goes down (`ui.mono_slot`), and letting the pad go first calls the clear off: otherwise a
+  pad released a moment early would turn a one-slot clear into a whole-track one.
 - **A SEQ page** takes the white keys: hold one or more and KNOB 1 sets those steps' values (they're framed on
   screen); let go and KNOB 1 is LEN again. The keys don't play the track while a SEQ page is up, the way GLO's
   view borrows them to pick tracks.

@@ -47,6 +47,8 @@ static struct {
     uint8_t poly_held, save_held;    /* the POLY key (clear the tape) and SAVE (undo) held, waiting for HOLD */
     uint32_t poly_t0, save_t0;
     uint8_t mono_held;               /* the MONO key (clear the track's modulation) held, waiting for half a second */
+    uint8_t mono_slot;               /* .. a slot's pad held as it went down (SLOT_NONE: none): that slot's depths on
+                                      * the page shown, and the pad let go first calls it off */
     uint32_t mono_t0;
     uint8_t undo;                    /* what SAVE held undoes: UNDO_TAPE (POLY's clear), UNDO_MOD (MONO's), UNDO_DRUM
                                       * (POLY's clear of a DRUM pattern, or PATN over an edited one) */
@@ -58,6 +60,11 @@ static struct {
     uint32_t pj_ask_t;
     uint8_t slot_held, slot_used;    /* a slot's pad down (SLOT_NONE: none), and a knob or SELECT turned meanwhile: a
                                       * tap opens the slot's page as it's let go, a hold sets depths (mod.c) */
+    uint8_t catch_g, catch_s;        /* a depth turned to 0 (the catch, mod_nudge): its target and slot, and the way
+                                      * the turn went (0: no catch); turning on that way stays at 0 until the knob
+                                      * rests CATCH_MS */
+    int8_t catch_dir;
+    uint32_t catch_t;
     uint16_t steps_held;             /* a SEQ page: the white keys held, the steps KNOB 1 sets */
     uint8_t zero_held;               /* the 0 key down: let go before HOLD, a tap (the freeze latches or lets go) */
     uint8_t rec_held, rec_said;      /* REC down (stopped: its arm waits for the let-go; held a second: USB record),
@@ -97,6 +104,7 @@ static void ui_init(void)
     ui.dev = DEV_SRC;
     ui.last = 0xFF;
     ui.slot_held = SLOT_NONE;
+    ui.mono_slot = SLOT_NONE;
     ui.force = 1;
 }
 

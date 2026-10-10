@@ -170,6 +170,7 @@ static void slot_down(uint32_t s)
 {
     ui.slot_held = (uint8_t)s;
     ui.slot_used = 0;
+    ui.catch_dir = 0;
 }
 
 static void slot_up(void)
@@ -187,6 +188,8 @@ static int drm_page(void)
 }
 /* .. its STEP page */
 static int drm_step_page(void) { return drm_page() && ui.page == 3u; }
+
+#define CATCH_MS 250u                                   /* a depth caught at 0 holds a turn this long */
 
 /* the target (mod.c) knob c of the page shown can be modulated as, or MOD_NTGT: none (a slot's page, the levels,
  * the master, the routing) */
@@ -443,10 +446,14 @@ static void on_black(uint32_t k)
                                                          * the key); tapped, latched until the next tap */
         ui.zero_held = 1;
         ui.zero_t0 = fm1_ms;
-    } else if (k == BK_MONO) {                          /* held half a second: clear the track's modulation */
+    } else if (k == BK_MONO) {                          /* held half a second: clear the track's modulation (a
+                                                         * slot's pad held too: that slot's on the page shown) */
         ui.mono_held = 1;
         ui.mono_t0 = fm1_ms;
-        ui_message("KEEP HOLDING MONO TO CLEAR MODULATION");
+        ui.mono_slot = ui.slot_held;
+        if (ui.slot_held < NSLOT)
+            ui.slot_used = 1;                           /* (the pad's let-go doesn't open its page) */
+        ui_message(ui.slot_held < NSLOT ? "KEEP HOLDING: CLEAR THIS SLOT'S DEPTHS HERE" : "KEEP HOLDING MONO TO CLEAR MODULATION");
     } else if (k == BK_POLY) {                          /* held HOLD: clear the focused track's tape (DRUM: its
                                                          * pattern) */
         ui.poly_held = 1;
@@ -499,6 +506,27 @@ static void hold_keys(void)
         if (!((fm1_in.notes >> k) & 1u)) {
             ui.mono_held = 0;
             ui.msg_t = 1;
+        } else if (ui.mono_slot < NSLOT && ui.slot_held != ui.mono_slot) {   /* the pad let go first: off */
+            ui.mono_held = 0;
+            ui_message("CLEAR CALLED OFF");
+        } else if ((uint32_t)(fm1_ms - ui.mono_t0) >= 500u && ui.mono_slot < NSLOT) {   /* one slot, this page */
+            uint32_t g[4], n = 0, c;
+            char m[40] = "SLOT ";
+            ui.mono_held = 0;
+            for (c = 0; c < 4u; c++)
+                if (page_target(c) < MOD_NTGT)
+                    g[n++] = page_target(c);
+            m[5] = (char)('1' + ui.mono_slot);
+            m[6] = 0;
+            if (!n) {
+                str_cpy(m + 6, ": NO DEPTHS ON THIS PAGE", 26);
+            } else if (mod_clear_slot(sys.sel, ui.mono_slot, g, n)) {
+                str_cpy(m + 6, " CLEARED HERE. SAVE: UNDO", 28);
+                ui.undo = UNDO_MOD;
+            } else {
+                str_cpy(m + 6, " HAS NO DEPTHS HERE", 22);
+            }
+            ui_message(m);
         } else if ((uint32_t)(fm1_ms - ui.mono_t0) >= 500u) {
             char m[40] = "T";
             ui.mono_held = 0;
@@ -563,13 +591,28 @@ static void on_knob(uint32_t c, int32_t d)
     const pdesc_t *p = ui_page(c, &vp);
     int16_t v;
     if (ui.slot_held != SLOT_NONE && page_target(c) < MOD_NTGT) {   /* a slot's pad held: its depth to this knob */
+        uint32_t g = page_target(c);
+        int32_t o = mod_dep(sys.sel, ui.slot_held, g), v;
         ui.slot_used = 1;
-        if (mod_nudge(sys.sel, ui.slot_held, page_target(c), d) == -128)
-            ui_message(pdesc_empty(p) ? "NO KNOB THERE" : mod_tdesc(page_target(c)) ? "32 DEPTHS ON THIS TRACK: MONO CLEARS"
-                                                                                    : "THE REEL CAN'T BE MODULATED");
         ui.hot = (uint8_t)c;
         ui.hot_t = 33;
         ui.last = (uint8_t)c;
+        if (ui.catch_dir && ui.catch_g == g && ui.catch_s == ui.slot_held && d * ui.catch_dir > 0
+            && (uint32_t)(fm1_ms - ui.catch_t) < CATCH_MS) {
+            ui.catch_t = fm1_ms;                        /* (caught at 0: a turn that keeps going stays there) */
+            return;
+        }
+        ui.catch_dir = 0;
+        v = mod_nudge(sys.sel, ui.slot_held, g, d);
+        if (o && !v) {                                  /* reached 0 from either side: the catch */
+            ui.catch_g = (uint8_t)g;
+            ui.catch_s = ui.slot_held;
+            ui.catch_dir = (int8_t)(d < 0 ? -1 : 1);
+            ui.catch_t = fm1_ms;
+        }
+        if (v == -128)
+            ui_message(pdesc_empty(p) ? "NO KNOB THERE" : mod_tdesc(page_target(c)) ? "32 DEPTHS ON THIS TRACK: MONO CLEARS"
+                                                                                    : "THE REEL CAN'T BE MODULATED");
         return;
     }
     if (ui.slot_held != SLOT_NONE)                      /* (a page without depths: the knob as usual) */

@@ -198,15 +198,20 @@ static void mod_rebuild(uint32_t t)
 /* main loop: the depths that aren't 0 on track t */
 static uint32_t mod_count(uint32_t t) { return t < NTRK ? mdl[t].n : 0u; }
 
-/* main loop: slot s's depth to target g on track t, nudged by d (%). Returns the new depth, or -128 when g can't be
- * modulated or the track already has MOD_MAX depths */
+/* main loop: slot s's depth to target g on track t, nudged by d (%). A depth that would reach or cross 0 stops at 0
+ * (it's gone: the catch, so a turn back down can't overshoot into the other sign; the UI holds a turn that keeps
+ * going there for a moment). Returns the new depth, or -128 when g can't be modulated or the track already has
+ * MOD_MAX depths */
 static int32_t mod_nudge(uint32_t t, uint32_t s, uint32_t g, int32_t d)
 {
-    int32_t v;
+    int32_t v, o;
     if (t >= NTRK || s >= NSLOT || !mod_tdesc(g))
         return -128;
-    v = clamp(mod_dep(t, s, g) + d, -100, 100);
-    if (!mod_dep(t, s, g) && v && mod_count(t) >= MOD_MAX)
+    o = mod_dep(t, s, g);
+    v = clamp(o + d, -100, 100);
+    if ((o > 0 && v < 0) || (o < 0 && v > 0))
+        v = 0;
+    if (!o && v && mod_count(t) >= MOD_MAX)
         return -128;
     mod_dep_set(t, s, g, v);
     mod_rebuild(t);
@@ -232,6 +237,34 @@ static int mod_clear(uint32_t t)
     mod_undo_buf.trk = (uint8_t)t;
     mod_undo_buf.valid = 1;
     mdl[t].n = 0;
+    mod_rebuild(t);
+    return 1;
+}
+
+/* main loop: a slot's pad and MONO held. Slot s's depths to the n targets in g go from track t (the page shown; kept
+ * for SAVE's undo, as MONO's whole clear is); the other slots' and other pages' stay. 0: there were none */
+static int mod_clear_slot(uint32_t t, uint32_t s, const uint32_t *g, uint32_t n)
+{
+    mod_deps_t *L;
+    uint32_t i, j, o;
+    if (t >= NTRK)
+        return 0;
+    L = &mdl[t];
+    for (i = j = 0; j < n; j++)
+        i |= (uint32_t)(mod_dep(t, s, g[j]) != 0);
+    if (!i)                                      /* (nothing to clear: an earlier undo stays as it was) */
+        return 0;
+    mod_undo_buf.dep = *L;
+    for (i = o = 0; i < L->n; i++) {
+        uint32_t hit = 0;
+        for (j = 0; j < n; j++)
+            hit |= (uint32_t)(L->e[i].s == s && L->e[i].g == g[j]);
+        if (!hit)
+            L->e[o++] = L->e[i];                 /* (the order kept: still sorted) */
+    }
+    L->n = (uint8_t)o;
+    mod_undo_buf.trk = (uint8_t)t;
+    mod_undo_buf.valid = 1;
     mod_rebuild(t);
     return 1;
 }

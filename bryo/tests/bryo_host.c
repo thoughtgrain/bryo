@@ -4278,6 +4278,90 @@ static void test_mod(void)
         check("..no key: KNOB 1 is LEN again", tp[0].mod[2][0] == len - 1);
     }
 
+    /* the catch at 0: a depth turned back through 0 stops there; a turn that keeps going stays until the knob rests */
+    power_on();
+    press(B_FX);                                         /* COLOR */
+    fm1_ms = 20000;
+    hold(B_LFO);
+    {
+        uint32_t g = MOD_TG(DEV_COLOR, 1);
+        turn(1, 5);
+        turn(1, -8);
+        check("catch: a depth of 5 turned down 8 stops at 0 (gone)", mod_dep(0, 0, g) == 0 && mod_count(0) == 0u);
+        turn(1, -3);
+        fm1_ms += CATCH_MS - 10u;
+        turn(1, -2);
+        check("..a turn that keeps going stays at 0 (each detent holds the catch)", mod_dep(0, 0, g) == 0);
+        fm1_ms += CATCH_MS;
+        turn(1, -4);
+        check("..the knob rested: the next turn goes past, to -4", mod_dep(0, 0, g) == -4);
+        turn(1, 6);
+        check("..from below too: -4 up 6 stops at 0", mod_dep(0, 0, g) == 0);
+        turn(1, -2);
+        check("..turning back the way it came isn't held", mod_dep(0, 0, g) == -2);
+        turn(1, 2);
+        turn(2, 3);                                      /* another knob: no catch of its own */
+        check("..the catch is that knob's alone", mod_dep(0, 0, g) == 0 && mod_dep(0, 0, MOD_TG(DEV_COLOR, 2)) == 3);
+        check("mod_nudge: from 0 a turn either way just sets it", mod_nudge(0, 1, g, -7) == -7 && mod_nudge(0, 1, g, 7) == 0
+                                                                && mod_nudge(0, 1, g, 7) == 7);
+    }
+    let_go(B_LFO);
+    check("..the pad let go after turns: no page change", ui.kind == FOCUS_DEV && ui.dev == DEV_COLOR);
+
+    /* a slot's pad + MONO held 0.5 s: that slot's depths on the page shown go; other slots' and other pages' stay */
+    power_on();
+    {
+        uint32_t mn = black_note(BK_MONO), cr = MOD_TG(DEV_COLOR, 1), dr = MOD_TG(DEV_COLOR, 2), n0;
+        mod_nudge(0, 0, cr, 30);
+        mod_nudge(0, 0, dr, -20);
+        mod_nudge(0, 1, cr, 40);                         /* slot 2, same page: stays */
+        mod_nudge(0, 0, MOD_TG(DEV_COLOR, 4), 25);       /* slot 1, COLOR page 2: stays */
+        mod_nudge(0, 0, MOD_TSRC + TK_SPD, 10);          /* slot 1, TAPE: stays */
+        mod_nudge(0, 2, PAN, 15);                        /* slot 3, the channel: stays */
+        n0 = mod_count(0);
+        press(B_FX);                                     /* COLOR page 1 */
+        fm1_ms = 30000;
+        hold(B_LFO);
+        fm1_in.notes |= 1u << mn;
+        key_edge(mn);
+        fm1_ms = 30200;
+        let_go(B_LFO);                                   /* the pad first: called off */
+        fm1_ms = 30600;
+        ui_input();
+        fm1_in.notes &= ~(1u << mn);
+        ui_input();
+        check("slot pad + MONO: the pad let go first calls it off (no whole-track clear)", mod_count(0) == n0);
+        check("..and the pad's let-go didn't open its page", ui.kind == FOCUS_DEV && ui.dev == DEV_COLOR);
+        fm1_ms = 31000;
+        hold(B_LFO);
+        fm1_in.notes |= 1u << mn;
+        key_edge(mn);
+        fm1_ms = 31510;
+        ui_input();
+        fm1_in.notes &= ~(1u << mn);
+        ui_input();
+        let_go(B_LFO);
+        check("slot pad + MONO held 0.5 s: slot 1's depths on COLOR page 1 gone", !mod_dep(0, 0, cr) && !mod_dep(0, 0, dr)
+                                                                                    && mod_count(0) == n0 - 2u);
+        check("..slot 2's on the same knob stay", mod_dep(0, 1, cr) == 40);
+        check("..slot 1's on another page, the source and the channel stay", mod_dep(0, 0, MOD_TG(DEV_COLOR, 4)) == 25 &&
+                                                                              mod_dep(0, 0, MOD_TSRC + TK_SPD) == 10 &&
+                                                                              mod_dep(0, 2, PAN) == 15);
+        check("..the pad's let-go stays on COLOR", ui.kind == FOCUS_DEV && ui.dev == DEV_COLOR);
+        fm1_ms = 32000;
+        hold(B_SAVE);
+        fm1_ms = 32000 + HOLD_MS[settings_hold % 4u];
+        ui_input();
+        let_go(B_SAVE);
+        check("..SAVE held: undone, every depth back", mod_count(0) == n0 && mod_dep(0, 0, cr) == 30 && mod_dep(0, 0, dr) == -20);
+        {
+            uint32_t g1[1] = {cr};
+            mod_clear(1);                                /* (track 2 has none: an earlier undo isn't touched) */
+            check("mod_clear_slot: nothing to clear leaves the undo alone", mod_clear_slot(0, 3, g1, 1) == 0 &&
+                                                                            mod_undo() == -1);
+        }
+    }
+
     /* the limit: 32 depths a track */
     power_on();
     {
