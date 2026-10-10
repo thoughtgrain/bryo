@@ -104,6 +104,7 @@ static int rf_prog(uint32_t off, const void *src, uint32_t n)
 #include "../firmware/src/reel.c"
 #include "../firmware/src/project.c"
 #include "../firmware/src/tpreset.c"
+#include "../firmware/src/tpfactory.c"
 #include "../firmware/src/settings.c"
 #include "../firmware/src/ui_px.c"
 #include "../firmware/src/ui.c"
@@ -5439,6 +5440,116 @@ static void test_tpresets(void)
     tpr_wipe();
 }
 
+/* the factory track presets (tpfactory.c): each loads, holds to its knobs' ranges, sounds (not silent, nothing past
+ * full scale) and sounds unlike its source's defaults; what stays with the track stays; the view and its refusals */
+static int32_t tf_a[44100 * 2], tf_b[44100 * 2];
+static uint32_t tf_render(int32_t *buf, uint32_t f, int factory, int32_t *pk)   /* (2 s of track 1, the master out) */
+{
+    uint32_t b, i, n = 2756u, clip = 0;
+    power_on();
+    track[1].mute = track[2].mute = track[3].mute = 1;
+    tp[0].dev[DEV_SRC][TK_REEL] = 2;                     /* (a factory reel for TAPE, POLY's default for POLY) */
+    sys.bpm = 120;
+    if (factory)
+        tpf_load(f, 0);
+    else
+        tp[0].src = TPF[f].src;
+    if (tp[0].src == SRC_SYNTH || tp[0].src == SRC_POLY)
+        fm1_in.notes = note_bit_of_white(4);             /* (a key held the whole time) */
+    sys.playing = 1;
+    *pk = 0;
+    for (b = 0; b < n; b++) {
+        chain_block(out, CTL);
+        chain_poll();                                    /* (the main loop: the devices' memory as it's wanted) */
+        for (i = 0; i < CTL; i++) {
+            int32_t v = out[2u * i], a = v < 0 ? -v : v;
+            buf[(b * CTL + i) % (44100u * 2u)] = v;
+            if (a > *pk)
+                *pk = a;
+            clip += a >= 32767;
+        }
+    }
+    fm1_in.notes = 0;
+    sys.playing = 0;
+    render(2, 0);
+    return clip;
+}
+static void test_tpfactory(void)   /* (and each within 3 dB of its defaults' peak: no jump in level) */
+{
+    uint32_t f, k;
+    char m[160];
+    for (f = 0; f < TPF_N; f++) {
+        int32_t pa, pb;
+        uint32_t clip, ok = 1;
+        double diff = 0, e = 0;
+        clip = tf_render(tf_a, f, 1, &pa);
+        for (k = 0; k < TPF[f].nset; k++) {                 /* every knob it sets is in range and set */
+            const pdesc_t *ds = 0;
+            const int16_t *v = tpf_arr(0, TPF[f].set[k].a, &ds);
+            ok &= v && ds && TPF[f].set[k].v >= ds[TPF[f].set[k].k].min && TPF[f].set[k].v <= ds[TPF[f].set[k].k].max;
+        }
+        ok &= mod_count(0) == TPF[f].ndep && tp[0].src == TPF[f].src;
+        tf_render(tf_b, f, 0, &pb);
+        for (k = 0; k < 44100u * 2u; k++) {
+            double d = (double)tf_a[k] - tf_b[k];
+            diff += d * d;
+            e += (double)tf_b[k] * tf_b[k];
+        }
+        snprintf(m, sizeof m, "factory %u %s (%s): its knobs in range, %u depths; peak %.1f dBFS, %u samples at full "
+                 "scale (the defaults: %.1f); %.1f dB from the defaults' sound", f + 1u, TPF[f].name, SRC_NAME[TPF[f].src],
+                 TPF[f].ndep, 20.0 * log10((pa > 0 ? pa : 1) / 32767.0), clip, 20.0 * log10((pb > 0 ? pb : 1) / 32767.0),
+                 10.0 * log10((diff + 1.0) / (e + 1.0)));
+        check(m, ok && pa > 1000 && clip == 0u && diff > e * 0.01 && fabs(20.0 * log10((double)pa / pb)) <= 3.0);
+    }
+
+    /* what stays with the track */
+    power_on();
+    tp[0].src = SRC_DRUM;
+    tp[0].drm[DM_PATN] = 5;
+    tp[0].drm[DM_LEN] = 3;
+    tp[0].dpat[1][2] = 0x21;
+    tp[0].dev[DEV_SRC][TK_REEL] = 4;
+    track[0].level = 70;
+    tpf_load(7, 0);                                      /* DUB */
+    check("DUB loaded: the pattern, PATN, LEN, the reel and the level stay; SEED and VARY are the preset's",
+          tp[0].drm[DM_PATN] == 5 && tp[0].drm[DM_LEN] == 3 && tp[0].dpat[1][2] == 0x21 &&
+          tp[0].dev[DEV_SRC][TK_REEL] == 4 && track[0].level == 70 && tp[0].drm[DM_SEED] == 7 &&
+          tp[0].drm[DM_VARY] == 50);
+    check("..and SAVE held's snapshot puts the track back", trk_restore() == 0 && tp[0].drm[DM_SEED] == 0 &&
+                                                            tp[0].drm[DM_DECY] == 0);
+
+    /* the view: past H, the factory ones */
+    power_on();
+    tpr_wipe();
+    host_enc[panel.enc[EN_PRESET]] = 1;
+    ui_input();
+    press(B_EDIT);
+    host_enc[panel.enc[EN_PRESET]] = (int32_t)TPR_N + 2;
+    ui_input();
+    check("PRESETS turned past H: factory 3 (BASS)", ui.tpr_sel == TPR_N + 2u);
+    shot("BRYO", "presets_factory");
+    press(B_OCTUP);
+    check("..OCT+: BASS into T1", tp[0].src == SRC_SYNTH && tp[0].syn[SY_VOIC] == 1 && tp[0].syn[SY_TUNE] == -12 &&
+                                  !strcmp(ui.msg, "BASS INTO T1. HOLD SAVE: UNDO"));
+    tap(B_SAVE);
+    check("..SAVE on a factory one: refused, says where to save", !strcmp(ui.msg, "FACTORY: SAVE INTO A..H"));
+    {
+        uint32_t pn = black_note(BK_POLY);
+        fm1_ms = 80000;
+        fm1_in.notes |= 1u << pn;
+        key_edge(pn);
+        fm1_ms = 80510;
+        ui_input();
+        fm1_in.notes &= ~(1u << pn);
+        ui_input();
+        check("..POLY held on it: it stays", !strcmp(ui.msg, "FACTORY PRESETS STAY"));
+    }
+    host_enc[panel.enc[EN_PRESET]] = 20;
+    ui_input();
+    check("..the last is factory 8", ui.tpr_sel == TPR_N + TPF_N - 1u);
+    press(B_OCTDN);
+}
+
 /* Modulation reaches the sound: for a knob of each kind of array (a device, each source, DRUM, the channel) and each
  * engine, ~1.1 s of track 1 with a slot's depth on it against the same without. The knob values are checked
  * elsewhere (test_mod, test_mod_engines); this checks the audio itself moves, and that a depth of 0 is exactly the
@@ -5926,6 +6037,7 @@ int main(int argc, char **argv)
     test_sends();
     test_projects();
     test_tpresets();
+    test_tpfactory();
     test_input();
     test_settings();
     palette_set(UI_GREY_INDEX);                          /* (the screens are one ink now, whatever the palette) */

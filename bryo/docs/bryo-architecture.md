@@ -1121,6 +1121,32 @@ steps the view's pages, as it steps the mixer's):
   SCL uses). **SAVE** saves the focused track there (over another one: SAVE again within 3 s). **POLY held** deletes
   it. The strip shows the preset's letter, source, slots' engines and depth count, and the track it goes to.
 
+**Factory presets.** After A..H, PRESETS turns on into eight factory ones, two a source (`tpfactory.c`):
+
+| # | Name | Source | What it is |
+|---|---|---|---|
+| 1 | DRIFT | TAPE | the tape through soft grains (WET 40, 220 ms), warmed (TILT -25), a long room and a short echo; an LFO sways the grains' spray over a bar |
+| 2 | RINGS | TAPE | the tape ringing RESONATOR's strings tuned to a major chord (WET 45); a SEQ steps their root on semitones |
+| 3 | BASS | SYNTH | one saw voice, a low filter (217 Hz) its envelope opens, a short glide, drive, an octave down |
+| 4 | PAD | SYNTH | detuned saws, a 1 s attack and 2 s release, the cutoff breathing over four bars, a big room |
+| 5 | KEYS | POLY | a plucked envelope, the filter a little closed and following it, a small room |
+| 6 | SWELL | POLY | notes that fade in and hang, through grains and a large room, the cutoff drifting |
+| 7 | TIGHT | DRUM | short, bright drums with a little drive and more accent |
+| 8 | DUB | DRUM | longer, darker drums that vary (SEED 7, VARY 50) into a feedback delay whose feedback swells |
+
+Each is a short list of knobs away from the defaults, kept in the program (a few hundred bytes for all eight), not
+in the presets' flash. Loading one sets the track's sound to its defaults (devices, channel strip, slots, the
+source's knobs) and then the list, with the same rules as a preset of my own: the pattern, level, REC IN and reels
+stay with the track. They can't be saved over or deleted; a changed one saves into A..H.
+
+How I checked them, since I can't listen here: `test_tpfactory` loads each onto a track and plays two seconds (TAPE
+on a factory reel, SYNTH and POLY with a key held, DRUM its pattern), with the main loop's memory polls running so
+GRAIN, RESONATOR and SPACE get their buffers. Each has to sound (peak over -30 dBFS), never reach full scale, differ
+from its source's defaults (more than -20 dB of difference energy), and peak within 3 dB of the default sound it
+replaces, so stepping through them doesn't jump in level. That last one needed each source's LVL trimmed (BASS -6,
+DUB -7, TIGHT -3, DRIFT +3, SWELL +4); they now land within about 2 dB. Whether they *sound good* is for the
+hardware run sheet: these are starting points, and I'd expect to retune them by ear.
+
 **Where they live.** Flash had exactly two 4 KiB sectors left: 0xDF000 (after the sixth project) and 0xFE000
 (Felucca's second copy of its FM6 bank, which Bryo never uses). They're one more A/B pair, so the bank is the
 projects' seventh "slot" (`pj_sector(PJ_N, c)`) with the same commit record, CRC and power-cut behaviour: a save

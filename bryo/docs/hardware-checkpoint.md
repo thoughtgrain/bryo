@@ -130,6 +130,8 @@ Write down the CPU reading for each, and anything you hear.
 | 23 | Tracks 2 to 4 to DRUM too, each its own PATN (run 28's case) | four drum machines at once | CPU at the most voices there can be |
 | 24 | Record a take on track 1 (its own tape), change some knobs, tap SAVE; power-cycle | "P1 SAVED"; after the power cycle the same session, track 1 playing user reel P1T1 | how long the save stutters the sound; is everything back? |
 | 25 | PRESETS: turn to P2, SAVE (empty: saved at once); change the tempo; turn back to P1, OCT+, OCT+ again | P1 loaded after the second press, the tempo it had | does the second-press question read clearly? |
+| 26 | PRESETS, EDIT (the PRESETS page), turn past H to the factory ones; for each, focus a track of its source (TAPE on a reel, a SYNTH, POLY, DRUM track), OCT+, play it; SAVE held after one | each loads with no question and sounds like its name; none much louder or quieter than the last; SAVE held puts the track back | by ear: which to retune (they were level-matched on the host, not listened to) |
+| 27 | On a track: SCL held, turn a knob; SCL held, press the lit pad; SAVE held. Then save the track as preset A, power-cycle, load A into another track | the knob, then the page, to defaults; SAVE held brings them back; A survives the power cycle and loads | that SCL is held (not a tap) |
 
 ## What I'll do with the numbers
 

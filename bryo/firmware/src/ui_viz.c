@@ -1758,11 +1758,16 @@ static void viz_project(void)
 
 /* the track presets' strip: the one PRESETS points at, large (A..H); whether it holds one, its source, the track it
  * would load into (or be saved from); each slot's engine and the depths (or "-" while it's empty) */
+static void viz_tpf_strip(void);
 static void viz_tpr_strip(void)
 {
     const tpr_sum_t *q = &tpr_sum[ui.tpr_sel % TPR_N];
     char n[2] = {(char)('A' + ui.tpr_sel % TPR_N), 0}, b[20];
     uint32_t s;
+    if (ui.tpr_sel >= TPR_N) {
+        viz_tpf_strip();
+        return;
+    }
     px_text_big(2, 3, 3, n, px_ink);
     px_text(30, 3, PXF_5B, q->used ? SRC_NAME[q->src % NSRC] : "EMPTY", q->used ? px_ink : px_dim);
     if (q->used) {
@@ -1787,9 +1792,59 @@ static void viz_tpr_strip(void)
 
 /* the track presets' picture: the eight, four by two, each its letter and its source (or EMPTY); the one PRESETS
  * points at inverted */
+/* a factory preset on the strip: its number large, its name, its source and depths, each slot's engine */
+static void viz_tpf_strip(void)
+{
+    const tpf_t *F = &TPF[(ui.tpr_sel - TPR_N) % TPF_N];
+    char n[2] = {(char)('1' + (ui.tpr_sel - TPR_N) % TPF_N), 0}, b[24];
+    uint32_t s;
+    px_text_big(2, 3, 3, n, px_ink);
+    px_text(30, 3, PXF_5B, F->name, px_ink);
+    str_cpy(b, SRC_NAME[F->src % NSRC], sizeof b);
+    if (F->ndep) {                                                     /* (none: just the source, it's full width) */
+        str_cpy(b + str_len(b), ", ", 3);
+        fmt_int(b + str_len(b), F->ndep);
+        str_cpy(b + str_len(b), F->ndep == 1u ? " DEPTH" : " DEPTHS", 8);
+    }
+    px_text(30, 13, PXF_5, b, px_ink);
+    px_tag(30, 22, PXF_3, "FACTORY: OCT+ LOADS", px_ink, px_bg);
+    b[0] = 'T';
+    b[1] = (char)('1' + sys.sel);
+    b[2] = 0;
+    px_text(116 - px_text_w(PXF_5B, b), 3, PXF_5B, b, px_ink);
+    for (s = 0; s < NSLOT; s++) {
+        int32_t x = 30 * (int32_t)s;
+        char sn[3] = {'M', (char)('1' + s), 0};
+        px_line(x + 2, 31, x + 27, 31, px_dim, 2);
+        px_text_c(x, 30, 34, PXF_3, sn, px_dim);
+        px_text_c(x, 30, 41, PXF_5, ME_NAME[F->eng[s] % NME], px_ink);
+    }
+}
+
+/* the factory presets' picture: the eight, four by two, each its number and name; the one pointed at inverted */
+static void viz_tpf(void)
+{
+    uint32_t f;
+    for (f = 0; f < TPF_N; f++) {
+        int32_t x = 1 + (int32_t)(f % 4u) * 30, y = 1 + (int32_t)(f / 4u) * 21, sel = f + TPR_N == ui.tpr_sel;
+        uint16_t ink = sel ? px_bg : px_ink;
+        char n[2] = {(char)('1' + f), 0};
+        if (sel)
+            px_box(x, y, 28, 19, px_ink);
+        else
+            px_frame(x, y, 28, 19, px_ink, 1);
+        px_text(x + 3, y + 3, PXF_5B, n, ink);
+        px_text(x + 3, y + 12, PXF_3, TPF[f].name, ink);
+    }
+}
+
 static void viz_tpr(void)
 {
     uint32_t p;
+    if (ui.tpr_sel >= TPR_N) {                                         /* (past H: the factory ones) */
+        viz_tpf();
+        return;
+    }
     for (p = 0; p < TPR_N; p++) {
         const tpr_sum_t *q = &tpr_sum[p];
         int32_t x = 1 + (int32_t)(p % 4u) * 30, y = 1 + (int32_t)(p / 4u) * 21, sel = p == ui.tpr_sel;

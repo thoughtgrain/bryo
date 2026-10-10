@@ -251,7 +251,7 @@ static void pj_turn(int32_t d)
         ui.glo_latched = 0;
         ui.pj_sel = pj_cur;
     } else if (ui.pj_page) {                            /* (the track presets' page: A..H) */
-        ui.tpr_sel = (uint8_t)clamp((int32_t)ui.tpr_sel + d, 0, (int32_t)TPR_N - 1);
+        ui.tpr_sel = (uint8_t)clamp((int32_t)ui.tpr_sel + d, 0, (int32_t)(TPR_N + TPF_N) - 1);   /* A..H, 1..8 */
     } else {
         ui.pj_sel = (uint8_t)clamp((int32_t)ui.pj_sel + d, 0, (int32_t)PJ_N - 1);
     }
@@ -356,6 +356,10 @@ static void tpr_save_tap(void)
     uint32_t p = ui.tpr_sel;
     char m[40];
     int rc;
+    if (p >= TPR_N) {                                   /* (a factory one) */
+        ui_message("FACTORY: SAVE INTO A..H");
+        return;
+    }
     tpr_name(m, p);
     if (tpr_sum[p].used) {
         str_cpy(m + 8, " HOLDS ONE: SAVE AGAIN", 24);
@@ -378,6 +382,18 @@ static void tpr_load_press(void)
 {
     uint32_t p = ui.tpr_sel;
     char m[40];
+    if (p >= TPR_N) {                                   /* a factory one: its name */
+        str_cpy(m, TPF[(p - TPR_N) % TPF_N].name, 8);
+        if (tpf_load(p - TPR_N, sys.sel) == 0) {
+            str_cpy(m + str_len(m), " INTO T", 8);
+            m[str_len(m) + 1] = 0;
+            m[str_len(m)] = (char)('1' + sys.sel);
+            str_cpy(m + str_len(m), ". HOLD SAVE: UNDO", 18);
+            ui.undo = UNDO_TRACK;
+        }
+        ui_message(m);
+        return;
+    }
     tpr_name(m, p);
     if (!tpr_sum[p].used) {
         str_cpy(m + 8, " IS EMPTY", 12);
@@ -556,8 +572,11 @@ static void hold_keys(void)
             char m[40];
             ui.poly_held = 0;
             tpr_name(m, ui.tpr_sel);
-            str_cpy(m + 8, !tpr_sum[ui.tpr_sel].used ? " IS EMPTY" : tpr_delete(ui.tpr_sel) == 0 ? " DELETED"
-                                                                                                : " NOT DELETED: FLASH", 22);
+            if (ui.tpr_sel >= TPR_N)                    /* (a factory one) */
+                str_cpy(m, "FACTORY PRESETS STAY", sizeof m);
+            else
+                str_cpy(m + 8, !tpr_sum[ui.tpr_sel].used ? " IS EMPTY" : tpr_delete(ui.tpr_sel) == 0 ? " DELETED"
+                                                                                                    : " NOT DELETED: FLASH", 22);
             ui_message(m);
         } else if ((uint32_t)(fm1_ms - ui.poly_t0) >= 500u && ui.view == VIEW_PROJECT) {   /* a project, deleted */
             char m[40] = "P";
