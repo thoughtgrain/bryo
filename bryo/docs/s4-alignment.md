@@ -104,7 +104,7 @@ resonator tuned to a root note. Same family, different engine. The knob names ca
 | CUTOFF, RES, SLOPE | none | A filter in front of the resonator: cutoff, resonance, and SLOPE morphing LP → BP → HP. One state-variable filter does all three cheaply. Page 2. |
 | SCALE | none | Tunes the resonator's partials (or its 4 strings) to a scale: CHR MAJ MIN PEN *(the S-4's list unverified)*. Page 2. |
 
-That gives two pages: PTCH DEC TONE WET / CUT RES SLOP SCAL, and ROUT (INS or SEND) on a page 3 since. **Done.** SCAL is HARM (the root's harmonics, as
+That gives two pages: PTCH DEC TONE WET / CUT RES TYPE SCAL, and ROUT (INS or SEND) on a page 3 since. **Done.** SCAL is HARM (the root's harmonics, as
 before), MAJ, MIN or PEN (that scale's chord tones stacked over three octaves). The filter starts open (CUT at the
 top, RES 0, LP), so nothing changes until you turn it. TONE runs the other way from DAMP: 0 is dark.
 
@@ -112,7 +112,7 @@ top, RES 0, LP), so nothing changes until you turn it. TONE runs the other way f
 
 | S-4 | Bryo | Notes |
 | --- | --- | --- |
-| DRIVE | DRIV | the same |
+| DRIVE | DRV | the same |
 | CRUSH (modes BIT, REDUX, BIT + REDUX) | CRSH + SRR | The S-4 uses one knob plus a mode. I'd do the same and free a knob: CRSH amount, CMOD (BIT, RATE, BOTH). |
 | TILT | TONE | Rename to TILT. |
 | NOISE | NOIS | the same |
@@ -121,7 +121,7 @@ top, RES 0, LP), so nothing changes until you turn it. TONE runs the other way f
 | WET | MIX | Rename to WET. |
 | none | LVL | Bryo's output trim. Keep (drive adds level). |
 
-That gives two pages: DRIV CRSH NOIS TILT / NDEC NTON CMOD WET, and LVL ROUT on page 3. **Done.** TILT and NTON are
+That gives two pages: DRV CRSH NOIS TILT / NDEC NTON CMOD WET, and LVL ROUT on page 3. **Done.** TILT and NTON are
 bipolar (0 is flat).
 
 ## SPACE (the S-4's VAST)

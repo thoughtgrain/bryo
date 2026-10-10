@@ -89,14 +89,14 @@ static const pdesc_t DEV_P[NDEV][NPK] = {
     {   /* RESONATOR (the S-4's RING) */
         {"PTCH", 33, 81, 45, F_NOTE}, {"DEC", 0, 100, 60, F_PCT},
         {"TONE", 0, 100, 60, F_PCT}, {"WET", 0, 100, 0, F_PCT},
-        /* 2: a filter before the strings (cutoff, resonance, its slope: low-, band- or high-pass), and the
+        /* 2: a filter before the strings (cutoff, resonance, its TYPE: low-, band- or high-pass, as POLY's), and the
          * strings' tuning: the root's harmonics, or a scale's chord tones from the root */
         {"CUT", 0, 127, 127, F_HZ}, {"RES", 0, 100, 0, F_PCT},
-        {"SLOP", 0, 2, 0, F_ENUM, N_SLOP}, {"SCAL", 0, 3, 0, F_ENUM, N_RSCAL},
+        {"TYPE", 0, 2, 0, F_ENUM, N_SLOP}, {"SCAL", 0, 3, 0, F_ENUM, N_RSCAL},
         /* 3: how WET mixes the strings in (ROUT: INS or SEND) */
         P_ROUT, {""}, {""}, {""}},
     {   /* COLOR (the S-4's DEFORM) */
-        {"DRIV", 0, 100, 0, F_PCT}, {"CRSH", 0, 100, 0, F_PCT},
+        {"DRV", 0, 100, 0, F_PCT}, {"CRSH", 0, 100, 0, F_PCT},
         {"NOIS", 0, 100, 0, F_PCT}, {"TILT", -100, 100, 0, F_BIPCT},
         /* 2: the noise's decay after the sound that opens it, the noise's tone, what CRUSH takes (bits, the sample
          * rate, both), dry/wet */
@@ -186,7 +186,7 @@ static const pdesc_t DRM_P[NPK] = {
     {"SEED", 0, 200, 0, F_NUM}, {"VARY", 0, 100, 40, F_PCT}, {"FILL", 0, 100, 25, F_PCT},
     {"EVOL", 0, 4, 0, F_ENUM, N_EVOL},
     /* KIT: every instrument's pitch (semitones), decay (-100: a quarter, +100: four times), brightness, drive */
-    {"TUNE", -12, 12, 0, F_ST}, {"DECY", -100, 100, 0, F_BIPCT}, {"TONE", -100, 100, 0, F_BIPCT},
+    {"TUNE", -12, 12, 0, F_ST}, {"DEC", -100, 100, 0, F_BIPCT}, {"TONE", -100, 100, 0, F_BIPCT},
     {"DRV", 0, 100, 0, F_PCT},
     /* STEP: the instrument the keys write (HOME held + a white key picks it too), the bar they show (OCT- / OCT+),
      * what a key does (HITS, ACC: toggles that step; LIVE: plays and writes at the nearest step; ERAS: held, wipes
@@ -196,7 +196,7 @@ static const pdesc_t DRM_P[NPK] = {
 /* an instrument's own knobs (a white key held on PATTERN, VARY or KIT: KNOB 1..4 are that instrument's) */
 enum { DIN_TUNE, DIN_DECY, DIN_LVL, DIN_TONE, NDIN };
 static const pdesc_t DRI_P[NDIN] = {
-    {"TUNE", -12, 12, 0, F_ST}, {"DECY", -100, 100, 0, F_BIPCT}, {"LVL", -24, 6, 0, F_DB}, {"TONE", -100, 100, 0, F_BIPCT}};
+    {"TUNE", -12, 12, 0, F_ST}, {"DEC", -100, 100, 0, F_BIPCT}, {"LVL", -24, 6, 0, F_DB}, {"TONE", -100, 100, 0, F_BIPCT}};
 
 /* an unused knob on a page (no label) */
 static int pdesc_empty(const pdesc_t *d) { return !d->label || !d->label[0]; }
@@ -253,17 +253,18 @@ static const pdesc_t ME_P[NME][NPK] = {
         {"CURV", -100, 100, 0, F_BIPCT}, {"SMTH", 0, 100, 0, F_PCT}, {"VAR", 0, 100, 0, F_PCT}, {"LEN", 1, 16, 8, F_NUM},
         P_AMT, P_OFS, P_PHAS, P_SPRD,
         {"SYNC", 0, 1, 1, F_ENUM, N_CLK}, P_TRIG, {"FADE", 0, 100, 0, F_PCT}, {""}},
-    {   /* ADSR: the four stages, then their curves (0 straight, - logarithmic, + exponential) and SPRD, then the
-         * key's velocity, looping (attack and decay cycling), depth and offset */
-        {"ATK", 0, 127, 10, F_NUM}, {"DEC", 0, 127, 50, F_NUM}, {"SUS", 0, 100, 60, F_PCT}, {"REL", 0, 127, 50, F_NUM},
+    {   /* ADSR: the four stages (the same time curve as SYNTH's and POLY's envelopes, shown the same way), then
+         * their curves (0 straight, - logarithmic, + exponential) and SPRD, then the key's velocity, looping (attack
+         * and decay cycling), depth and offset */
+        {"ATK", 0, 127, 10, F_TIME}, {"DEC", 0, 127, 50, F_TIME}, {"SUS", 0, 100, 60, F_PCT}, {"REL", 0, 127, 50, F_TIME},
         {"ACRV", -100, 100, 0, F_BIPCT}, {"DCRV", -100, 100, 0, F_BIPCT}, {"RCRV", -100, 100, 0, F_BIPCT}, P_SPRD,
         {"VEL", 0, 100, 0, F_PCT}, {"LOOP", 0, 1, 0, F_ENUM, N_OFFON}, P_AMT, P_OFS},
     {   /* SEQ (the PRD's): 16 steps of values (a white key held + KNOB 1 sets one), a step a RATE (1 bar .. 1/32),
          * then their order, restart, chance and first step */
         {"LEN", 1, 16, 16, F_NUM}, {"RATE", 0, 5, 2, F_ENUM, N_SRATE}, {"SLEW", 0, 100, 0, F_PCT}, {"SWNG", 0, 100, 0, F_PCT},
         {"DIR", 0, 3, 0, F_ENUM, N_DIR}, P_TRIG, {"PROB", 0, 100, 100, F_PCT}, {"STRT", 1, 16, 1, F_NUM}},
-    {   /* FOLLOW: the envelope of a track's sound (SELF: this track's tape) or USB in; GAIN into it, how fast it
-         * rises and falls; then sample-and-hold to the tempo, depth, offset, spread */
+    {   /* FOLLOW: the envelope of a track's sound (SELF: this track's own, whatever its source) or USB in; GAIN
+         * into it, how fast it rises and falls; then sample-and-hold to the tempo, depth, offset, spread */
         {"SRC", 0, 5, 0, F_ENUM, N_SRC}, {"GAIN", -12, 12, 0, F_DB}, {"RISE", 0, 127, 10, F_NUM},
         {"FALL", 0, 127, 50, F_NUM},
         {"HOLD", 0, 4, 0, F_ENUM, N_HOLD}, P_AMT, P_OFS, P_SPRD},
@@ -288,7 +289,7 @@ typedef struct {
     int16_t drm[NPK];            /* DRUM's */
     uint16_t dpat[DRM_NBAR][16]; /* DRUM's pattern: per bar and step, the instruments that hit (a bit each) */
     uint16_t dacc[DRM_NBAR];     /* .. the accented steps of each bar (a bit each) */
-    int16_t dins[16][NDIN];       /* .. each instrument's own TUNE DECY LVL TONE */
+    int16_t dins[16][NDIN];       /* .. each instrument's own TUNE DEC LVL TONE */
 } track_params_t;
 static track_params_t tp[NTRK];
 

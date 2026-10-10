@@ -409,7 +409,8 @@ static inline int32_t mod_pitch16(uint32_t t, uint32_t f, int32_t knob)   /* a p
     return (mod_fmask[t] >> f) & 1u ? (mod_f8[t][f] + 8) >> 4 : knob * 16;
 }
 static uint32_t mod_keys_prev[NTRK];
-static volatile uint8_t mod_seam;              /* a bit per track: its tape crossed its loop's start (tape.c) */
+static volatile uint8_t mod_seam;              /* a bit per track: its loop started (tape.c: the tape's; drum.c: the
+                                                * pattern's) */
 static uint32_t mod_phrase_n;
 
 static uint32_t mod_rand(uint32_t *s)          /* xorshift32: the RND steps and SEQ's chances */
@@ -708,11 +709,12 @@ static void mod_tick(uint32_t keys, uint32_t sel, const int32_t *const *last)
             mclk.beat++;
         }
     }
-    ph = mclk.beat / MOD_PHRASE;                     /* a SYNTH or POLY track's loop: every four bars */
+    ph = mclk.beat / MOD_PHRASE;                     /* a SYNTH or POLY track's loop: every four bars (TAPE and
+                                                     * DRUM have their own: the tape's, the pattern's) */
     if (ph != mod_phrase_n || mclk.started) {
         mod_phrase_n = ph;
         for (t = 0; t < NTRK; t++)
-            if (tp[t].src != SRC_TAPE)
+            if (tp[t].src == SRC_SYNTH || tp[t].src == SRC_POLY)
                 seam |= 1u << t;
     }
     for (t = 0; t < NTRK; t++) {

@@ -8,7 +8,7 @@
  * at the first four partials SCAL keeps above the root: HARM the root's harmonics 1 2 3 4 (each string adds its own
  * overtones on top, so all the harmonics ring), MAJ root, third, fifth, octave; MIN the same with a minor third; PEN
  * root, second, third, fifth. What excites them is the track's sound after GRAIN, through a filter first (CUT RES
- * SLOP: the same state-variable filter as POLY's, low-, band- or high-pass), and WET blends the strings with it. The
+ * TYPE: the same state-variable filter as POLY's, low-, band- or high-pass), and WET blends the strings with it. The
  * strings sit across the stereo field, 1 and 3 to the left, 2 and 4 to the right.
  *
  * The root is PTCH, or the last white key played on the RESONATOR page (until PTCH is turned again). On a TAPE track

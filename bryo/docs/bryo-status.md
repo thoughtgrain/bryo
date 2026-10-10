@@ -1,6 +1,6 @@
 # Bryo: where it stands, and how to pick it up
 
-Updated 2026-10-09. This is the page I'd want to read first after a break, or hand to anyone joining: what Bryo
+Updated 2026-10-10. This is the page I'd want to read first after a break, or hand to anyone joining: what Bryo
 is right now, how it's put together, how to build, test and measure it, what I decided and why, and what's still
 open. It points into the longer docs instead of repeating them. When something here and the code disagree, the
 code wins, and this page needs fixing.
@@ -125,7 +125,7 @@ Tests and tools:
 | File | What |
 | --- | --- |
 | `tests/run_tests.sh` | everything below that's quick, plus Felucca's kept hardware and installer tests; ends "ALL HOST TESTS PASSED" |
-| `tests/bryo_host.c` | Bryo's chain, input and screens on the host: 523 checks, and every screen rendered |
+| `tests/bryo_host.c` | Bryo's chain, input and screens on the host: 527 checks, and every screen rendered |
 | `tests/bryo_golden.txt`, `ui_golden.py` | each screen's pixel fingerprint |
 | `tests/checkpoint_sim.sh` | the hardware checkpoint on the host: 28 runs rendered to WAV, each one's cost under callgrind, and a stress test with the audio and USB interrupts cutting into the main loop while the memory's books are checked |
 | `tests/mod_audit.sh` | every knob a modulator can move: does it change the sound, does it step at the blocks, what it costs (`--cost`) |
@@ -224,9 +224,15 @@ number.
   with instruments the pattern already uses.
 - **2026-10-09: pitches and filter cutoffs modulate finer than their knobs** (1/256 of a step), so vibrato and
   resonant sweeps glide; a SEQ's steps on a pitch still land on semitones.
+- **2026-10-10: one spelling and one meaning per idea across sources, devices and modulators** (the consistency
+  review in the architecture doc): TYPE for a filter's LP/BP/HP, DRV, DEC, times shown as times, a track's loop
+  as the modulators see it is its own (DRUM's: the pattern), and a depth turned back to 0 catches there.
 
 ## Known considerations and open questions
 
+- **Six layout and gesture questions from the consistency review** (where LVL and ROUT sit, SYNTH's and POLY's
+  page order, AMT and OFS on the modulators and SEQ's lack of them, DRUM hits as triggers, HOME on press or on
+  let-go, OCT on a DRUM track): listed in the architecture doc, waiting on a decision.
 - **P-locks** (a SEQ step's own depth): waiting on a decision. SEQ's step values are in.
 - **SPRD on PAN** pulses (a tremolo) at 100 instead of moving the sound, because PAN is a balance. Left for now; the
   options are in the architecture doc ("Modulation, as built", open points). My lean: let SPRD reach every knob of

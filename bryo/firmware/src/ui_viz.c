@@ -17,9 +17,9 @@
  *              under its window with the playhead running its way; the cursor and SPRY's reach; FROZEN
  *   RESONATOR  the response over 8 octaves: peaks on PTCH's partials (harmonics, or a scale's chord tones; a node on
  *              each, the root's filled and named), as sharp as DEC makes them, kept up top by TONE, shaped by the
- *              filter before them (dotted: CUT RES SLOP), blended with the dotted dry line by WET
+ *              filter before them (dotted: CUT RES TYPE), blended with the dotted dry line by WET
  *   COLOR      a sine through the device (dotted: in; solid: out); the inset follows the last-turned knob: the
- *              transfer curve (DRIV, CRSH, CMOD), the noise after a hit (NOIS, NDEC), its filter (NTON), TILT
+ *              transfer curve (DRV, CRSH, CMOD), the noise after a hit (NOIS, NDEC), its filter (NTON), TILT
  *   SPACE      the dry hit, the echoes as stems with nodes (TIME apart, falling by FDBK) and the reverb tail
  *   MOD slots  LFO's shape (RND: its loop of steps) and its next time round dotted, ADSR's envelope with its
  *              stages named and bent, SEQ's 16 steps as bars of their values, FOLLOW's envelope over what it listens to
@@ -386,7 +386,7 @@ static const uint8_t PART_N[4] = {24, 10, 10, 16};
 /* x as a pitch: MIDI 28 (E1, 41 Hz) .. 124 (8 octaves), in 1/16 semitones */
 static int32_t reso_n16(int32_t x) { return 28 * 16 + (x - DX0) * 96 * 16 / DW; }
 
-/* the filter before the strings (CUT, RES, SLOP) at pitch n16, 0..1000 (+ the resonance's peak, up to 2000):
+/* the filter before the strings (CUT, RES, TYPE) at pitch n16, 0..1000 (+ the resonance's peak, up to 2000):
  * CUT's index is about a semitone a step from 30 Hz (MIDI 23) */
 static int32_t reso_filter(const int16_t *v, int32_t n16)
 {
@@ -423,7 +423,6 @@ static int32_t reso_at(const int16_t *v, int32_t x)
 
 static void viz_reso(const int16_t *v, uint32_t f)
 {
-    static const char *const NAME[9] = {"PTCH", "DEC", "TONE", "WET", "CUT", "RES", "SLOP", "SCAL", "ROUT"};
     int32_t x, k, py = 0, top = DY0 + 6, base = DY1 + 2, sc = clamp(v[7], 0, 3);
     px_line(DX0, base - 350 * (base - top) / 1000, DX1, base - 350 * (base - top) / 1000, px_dim, 2);   /* dry */
     px_line(DX0, base + 1, DX1, base + 1, px_dim, 2);
@@ -455,14 +454,14 @@ static void viz_reso(const int16_t *v, uint32_t f)
     }
     vz_label(DX0 + 8, "E1", 0);
     vz_label(DX1 - 8, "E9", 0);
-    vz_label((DX0 + DX1) / 2, f == RP_ROUT ? N_ROUT[clamp(v[RP_ROUT], 0, 1)] : f >= 1u && f < 9u ? NAME[f] : N_RSCAL[sc],
+    vz_label((DX0 + DX1) / 2, f == RP_ROUT ? N_ROUT[clamp(v[RP_ROUT], 0, 1)] : f >= 1u && f < 9u ? DEV_P[DEV_RESO][f].label : N_RSCAL[sc],
              f >= 1u && f < 9u);
     if (f >= 4u && f < 8u)
         vz_ktag(118, DY0 - 1, &DEV_P[DEV_RESO][f], v[f]);
 }
 
 /* ------------------------------------------------------------- COLOR --- */
-/* the mappings color.c plays (color_shape there: the drive and the bits): DRIV 0..100 -> gain 1..16 into the soft
+/* the mappings color.c plays (color_shape there: the drive and the bits): DRV 0..100 -> gain 1..16 into the soft
  * clip (0: none); CRSH 0..100 takes, by CMOD, 16..2 bits (BIT), a hold of 1..12 samples (RATE), or both; NOIS:
  * noise riding the signal's envelope, which falls over NDEC after the sound; NTON: a one-pole filter on that noise
  * (- dark .. + bright); TILT: the low end against the high (on a sine: nothing to draw, so the inset shows it); WET:
@@ -478,7 +477,6 @@ static int32_t color_out(int32_t x, int32_t shaped, const int16_t *v)   /* WET (
 
 static void viz_color(const int16_t *v, uint32_t f)
 {
-    static const char *const NAME[10] = {"DRIV", "CRSH", "NOIS", "TILT", "NDEC", "NTON", "CMOD", "WET", "LVL", "ROUT"};
     int32_t bx = DX0, bw = 32, wx = DX0 + 37, ww = DX1 - wx, i, py = 0, held = 0;
     int32_t hold = (int32_t)col_hold(v);                              /* CMOD RATE or BOTH: hold a value */
     int32_t fall = 1000 - 2000 / (2 + (int32_t)TIME_MS_X10[v[4] & 127] / 40), env = 0;   /* NDEC, per dot x1000 */
@@ -535,7 +533,7 @@ static void viz_color(const int16_t *v, uint32_t f)
         }
         py = y;
     }
-    vz_label(bx + bw / 2, f == CP_ROUT ? N_ROUT[clamp(v[CP_ROUT], 0, 1)] : f < 10u ? NAME[f] : "CURVE", f < 10u);
+    vz_label(bx + bw / 2, f == CP_ROUT ? N_ROUT[clamp(v[CP_ROUT], 0, 1)] : f < 10u ? DEV_P[DEV_COLOR][f].label : "CURVE", f < 10u);
     vz_label(wx + ww / 2, "IN : OUT", 0);
     if (f >= 4u && f < 9u)
         vz_ktag(118, DY0 - 1, &DEV_P[DEV_COLOR][f], v[f]);

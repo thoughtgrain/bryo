@@ -250,10 +250,10 @@ static double run(int n, char *say, size_t sz)
             n8 += space[t].dly.bits8 + space[t].pre.bits8;
         }
         snprintf(say, sz, "%s: SPACE %u chunks (%u lines 8-bit), %u grains, %u strings, %.1f s free",
-                 n == 13 ? "COLOR on all four (DRIV 60, CRSH 40 BOTH, NOIS 30, TILT 30)" :
+                 n == 13 ? "COLOR on all four (DRV 60, CRSH 40 BOTH, NOIS 30, TILT 30)" :
                  n == 14 ? "SPACE on all four (DLY 50, VERB 40)" :
                  n == 15 ? "everything on all four (GRAIN at the cap, RESONATOR, COLOR, SPACE)" :
-                           "TRACKS 3, GRAIN WET 100, DRIV 40, SPACE",
+                           "TRACKS 3, GRAIN WET 100, DRV 40, SPACE",
                  nsp, n8, sounding(), reso[0].nch + reso[1].nch + reso[2].nch + reso[3].nch,
                  mem_count(MEM_FREE) * 4096.0 / 22050);
         return 6;

@@ -442,7 +442,7 @@ static void test_input(void)
     press(B_EDIT);
     check("..again: RESONATOR", ui.dev == DEV_RESO && ui.page == 0u);
     press(B_EDIT);
-    check("..again: RESONATOR's page 2 (CUT RES SLOP SCAL)", ui.dev == DEV_RESO && ui.page == 1u);
+    check("..again: RESONATOR's page 2 (CUT RES TYPE SCAL)", ui.dev == DEV_RESO && ui.page == 1u);
     press(B_EDIT);
     check("..again: RESONATOR's page 3 (ROUT)", ui.dev == DEV_RESO && ui.page == 2u &&
           !strcmp(dev_p(0, DEV_RESO)[RP_ROUT].label, "ROUT"));
@@ -742,7 +742,7 @@ static void screens_in(const char *pal)
     turn(0, 7);
     turn(1, 40);
     shot(pal, "drum_vary");
-    press(B_HOME);                                       /* KIT: the instrument STEP picks (BD), DECY +30 */
+    press(B_HOME);                                       /* KIT: the instrument STEP picks (BD), DEC +30 */
     turn(1, 30);
     shot(pal, "drum_kit");
     fm1_in.notes = note_bit_of_white(4);                 /* the low conga held: its own knobs, TUNE -3 */
@@ -938,7 +938,7 @@ static void screens_in(const char *pal)
     shot(pal, "mod3_steps");
     fm1_in.notes &= ~(note_bit_of_white(1) | note_bit_of_white(2));
     ui_input();
-    press(B_FX);                                         /* COLOR, LFO's pad held: DRIV +40 %, CRSH -25 % */
+    press(B_FX);                                         /* COLOR, LFO's pad held: DRV +40 %, CRSH -25 % */
     hold(B_LFO);
     turn(0, 40);
     turn(1, -25);
@@ -2553,7 +2553,7 @@ static void test_color(void)
     sine_fill(l, r, N, 441, 16000);
     dev_run(color_block, l, r, N);
     a = peak_of(l + CTL, N - CTL) / rms_of(l, CTL, N);
-    snprintf(b, sizeof b, "DRIV 100: the sine clipped near square (crest %.2f, a sine's 1.41), under full scale", a);
+    snprintf(b, sizeof b, "DRV 100: the sine clipped near square (crest %.2f, a sine's 1.41), under full scale", a);
     check(b, a < 1.15 && peak_of(l, N) <= 32767);
     p[CP_DRIV] = 0;
     p[CP_CRSH] = 100;                                    /* CMOD BIT: 2 bits */
@@ -2652,7 +2652,7 @@ static void test_color(void)
     dev_run(color_block, l, r, N);                       /* (WET ramps over a block) */
     sine_fill(l, r, N, 441, 20000);
     dev_run(color_block, l, r, N);
-    check("WET 0: the dry sound, however much DRIV", !memcmp(l, l0, sizeof l0));
+    check("WET 0: the dry sound, however much DRV", !memcmp(l, l0, sizeof l0));
     p[CP_WET] = 100;
 
     for (i = 0; i < 9; i++)                              /* every knob at its corner, a sound past full scale */
@@ -4127,7 +4127,7 @@ static void test_mod(void)
         sys.playing = 0;
     }
 
-    /* SEQ in slot 3 on COLOR DRIV: LEN 4 at 1/16 (a quarter beat: 172 blocks at 120 BPM), steps 0 100 0 100 */
+    /* SEQ in slot 3 on COLOR DRV: LEN 4 at 1/16 (a quarter beat: 172 blocks at 120 BPM), steps 0 100 0 100 */
     power_on();
     {
         uint32_t g = MOD_TG(DEV_COLOR, 0), b, ups = 0;
@@ -4145,7 +4145,7 @@ static void test_mod(void)
             chain_block(out, CTL);
             v = TPD(0, DEV_COLOR)[0];
             if (b == 10u)
-                check("mod: SEQ step 1 (0): DRIV at its knob", v == 0);
+                check("mod: SEQ step 1 (0): DRV at its knob", v == 0);
             if (b == 172u + 10u)
                 check("..step 2 (100): at the top", v == 100);
             if (prev >= 0 && v > prev)
@@ -4276,6 +4276,53 @@ static void test_mod(void)
         ui_input();
         turn(0, -1);
         check("..no key: KNOB 1 is LEN again", tp[0].mod[2][0] == len - 1);
+    }
+
+    /* an ADSR's loop restart follows the track's own loop: on DRUM the pattern's (3 bars here), not SYNTH's 4 bars */
+    power_on();
+    {
+        uint32_t b, n = 0, at[4] = {0}, was = ENV_IDLE;
+        tp[0].src = SRC_DRUM;
+        tp[0].drm[DM_LEN] = 3;
+        sys.bpm = 120;
+        mod_nudge(0, 1, MOD_TSRC + SRC_DRUM * NPK + DM_TONE, 50);   /* slot 2 (ADSR) on DRUM's TONE */
+        sys.playing = 1;
+        for (b = 0; b < 12000u; b++) {                   /* (a bar at 120 BPM: 2756.25 blocks) */
+            render(1, 0);
+            if (mrt[0][1].stage == ENV_ATK && was != ENV_ATK && n < 4u)
+                at[n++] = b;
+            was = mrt[0][1].stage;
+        }
+        sys.playing = 0;
+        check("DRUM: an ADSR restarts as the pattern does (LEN 3: every 3 bars, 8,269 blocks), not every 4 bars",
+              n == 2u && at[0] <= 2u && at[1] >= 8268u && at[1] <= 8272u);
+        render(1, 0);                                    /* (the clock sees the stop) */
+        tp[0].src = SRC_SYNTH;                           /* SYNTH: every four bars, as before */
+        mod_rebuild(0);
+        n = 0;
+        was = ENV_IDLE;
+        sys.playing = 1;
+        for (b = 0; b < 12000u; b++) {
+            render(1, 0);
+            if (mrt[0][1].stage == ENV_ATK && was != ENV_ATK && n < 4u)
+                at[n++] = b;
+            was = mrt[0][1].stage;
+        }
+        sys.playing = 0;
+        check("..SYNTH: every four bars (11,025 blocks)", n == 2u && at[0] <= 2u && at[1] >= 11024u && at[1] <= 11027u);
+    }
+
+    /* OP5 and OP6 flip the tape's REV and HALF; on another source they say so and leave the tape alone */
+    power_on();
+    {
+        uint32_t o5 = black_note(BK_OP5);
+        tp[0].src = SRC_DRUM;
+        key_edge(o5);
+        check("OP5 on a DRUM track: the tape's REV untouched, a message says why",
+              tp[0].dev[DEV_SRC][TK_REV] == 0 && !strcmp(ui.msg, "REVERSE: TAPE TRACKS ONLY"));
+        tp[0].src = SRC_TAPE;
+        key_edge(o5);
+        check("..on a TAPE track: REV on", tp[0].dev[DEV_SRC][TK_REV] == 1);
     }
 
     /* the catch at 0: a depth turned back through 0 stops there; a turn that keeps going stays until the knob rests */
@@ -4577,7 +4624,7 @@ static void test_drum(void)
     snprintf(m, sizeof m, "..RMBA: the congas vary (%u steps in 200 versions), runs and moves stay on its two drums",
              differs);
     check(m, !foreign && differs > 200u);
-    check("DECY: x2 every 50 % (-100: a quarter, +25: 1.5 times, +100: four times)", drm_scale(-100) == 64u &&
+    check("DEC: x2 every 50 % (-100: a quarter, +25: 1.5 times, +100: four times)", drm_scale(-100) == 64u &&
           drm_scale(25) == 384u && drm_scale(100) == 1024u && drm_scale(0) == 256u);
     p[DM_SEED] = 5;
     p[DM_EVOL] = 1;
@@ -5031,7 +5078,7 @@ static void test_mod_audio(void)
         int32_t dep;
     } C[] = {
         {"an LFO on TAPE's SPD (a source knob)", SRC_TAPE, ME_WAVE, MOD_TSRC + SRC_TAPE * NPK + TK_SPD, 40},
-        {"an LFO on COLOR's DRIV (a device)", SRC_TAPE, ME_WAVE, MOD_TG(DEV_COLOR, CP_DRIV), 80},
+        {"an LFO on COLOR's DRV (a device)", SRC_TAPE, ME_WAVE, MOD_TG(DEV_COLOR, CP_DRIV), 80},
         {"an ADSR on SYNTH's CUT, a note held", SRC_SYNTH, ME_ADSR, MOD_TSRC + SRC_SYNTH * NPK + SY_CUT, 60},
         {"an LFO on POLY's TUNE, a note held", SRC_POLY, ME_WAVE, MOD_TSRC + SRC_POLY * NPK + PL_TUNE, 30},
         {"a SEQ on DRUM's TUNE, the pattern playing", SRC_DRUM, ME_SEQ, MOD_TSRC + SRC_DRUM * NPK + DM_TUNE, 60},
@@ -5058,14 +5105,14 @@ static void test_rails(void)
     int32_t set, lo, hi, now, last = -1, nmin = 99, nmax = -1;
     power_on();
     sys.playing = 1;
-    press(B_FX);                                         /* COLOR: DRIV 50, an LFO a beat on it at depth 40 */
+    press(B_FX);                                         /* COLOR: DRV 50, an LFO a beat on it at depth 40 */
     tp[0].dev[DEV_COLOR][CP_DRIV] = 50;
     tp[0].mod[0][0] = 100;
     tp[0].mod[0][12] = 0;
     mod_nudge(0, 0, MOD_TG(DEV_COLOR, CP_DRIV), 40);
     ui_draw();
     check("rails: none under a knob nothing modulates (CRSH)", !rail_of(1, &set, &lo, &hi, &now));
-    check("..DRIV's: set at 50 %, its reach both ways for an LFO (10 % .. 90 %)",
+    check("..DRV's: set at 50 %, its reach both ways for an LFO (10 % .. 90 %)",
           rail_of(0, &set, &lo, &hi, &now) && set == 11 && lo == 2 && hi == 20);
     sstrip = ui.sig_strip;
     sig0 = ui.sig_rail;

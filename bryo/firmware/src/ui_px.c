@@ -955,9 +955,9 @@ static const uint8_t DEV_PK[NDEV][NPK] = {
      PK_PATTERN, PK_SCALE, PK_VAR, PK_ROUTE,         /*        PATN SCAL PRND ROUT */
      PK_SCAN, PK_SPEED, PK_START, PK_LOOP},          /*        SCAN WARP OFST FDBK */
     {PK_KEYS, PK_DECAY, PK_TONE, PK_MIX,             /* RESONATOR: PTCH DEC TONE WET */
-     PK_CUTOFF, PK_RES, PK_SLOPE, PK_SCALE,          /*            CUT RES SLOP SCAL */
+     PK_CUTOFF, PK_RES, PK_SLOPE, PK_SCALE,          /*            CUT RES TYPE SCAL */
      PK_ROUTE, PK_NONE, PK_NONE, PK_NONE},           /*            ROUT */
-    {PK_DRIVE, PK_STAIRS, PK_NOISE, PK_TONE,         /* COLOR: DRIV CRSH NOIS TILT */
+    {PK_DRIVE, PK_STAIRS, PK_NOISE, PK_TONE,         /* COLOR: DRV CRSH NOIS TILT */
      PK_DECAY, PK_TONE, PK_CMOD, PK_MIX,             /*        NDEC NTON CMOD WET */
      PK_FADER, PK_ROUTE, PK_NONE, PK_NONE},          /*        LVL ROUT */
     {PK_CLOCK, PK_LOOP, PK_ROOM, PK_DECAY,           /* SPACE: TIME FDBK SIZE DEC */
@@ -978,9 +978,9 @@ static const uint8_t POL_PK[NPK] = {
 static const uint8_t DRM_PK[NPK] = {
     PK_PATTERN, PK_LENGTH, PK_SWING, PK_FADER,       /* DRUM: PATN LEN SWNG ACNT */
     PK_DOTS, PK_VAR, PK_STAIRS, PK_LOOP,             /*       SEED VARY FILL EVOL */
-    PK_KNOB, PK_DECAY, PK_TONE, PK_DRIVE,            /*       TUNE DECY TONE DRV */
+    PK_KNOB, PK_DECAY, PK_TONE, PK_DRIVE,            /*       TUNE DEC TONE DRV */
     PK_SRC, PK_STEPS, PK_SRC, PK_FADER};             /*       INST BAR MODE LVL */
-static const uint8_t DRI_PK[NDIN] = {PK_KNOB, PK_DECAY, PK_FADER, PK_TONE};   /* an instrument: TUNE DECY LVL TONE */
+static const uint8_t DRI_PK[NDIN] = {PK_KNOB, PK_DECAY, PK_FADER, PK_TONE};   /* an instrument: TUNE DEC LVL TONE */
 /* the pictograms of device d's knobs on track t (the source: the chosen source's) */
 static const uint8_t *dev_pk(uint32_t t, uint32_t d)
 {

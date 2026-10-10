@@ -2,7 +2,7 @@
 /* Bryo: COLOR, the device after RESONATOR (docs/bryo-architecture.md, "COLOR, as built"): the S-4's DEFORM. What
  * it does to a sound, in order:
  *
- *   DRIV   gain 1..16 into a tanh soft clip (0: no clip at all, so the default is the sound untouched)
+ *   DRV   gain 1..16 into a tanh soft clip (0: no clip at all, so the default is the sound untouched)
  *   CRSH   by CMOD: the bits (16 down to 2, BIT), a sample held for 1..12 samples (RATE), or both
  *   NOIS   noise riding the sound's envelope: it opens with the sound and falls over NDEC after it, so a hit gets a
  *          breath of noise and silence stays silent; NTON a one-pole filter on it (- dark .. + bright)
@@ -29,7 +29,7 @@ typedef struct {                     /* ISR only */
 
 static color_t color[NTRK];
 
-/* DRIV 0..100 as a gain, Q8: 1..16 */
+/* DRV 0..100 as a gain, Q8: 1..16 */
 static inline int32_t col_g8(int32_t driv) { return 256 + driv * 3840 / 100; }
 
 /* the drive and the bits (before the hold, the noise, TILT, WET and LVL): x in, Q15-ish; the picture uses it too */

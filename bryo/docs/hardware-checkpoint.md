@@ -38,10 +38,10 @@ first six runs cost about 40 more than at the first checkpoint, the two new devi
 | 10 | a 20 s WAV over TAPE3.WAV while playing | - | the tape 20.00 s, TRACK 3'S TAPE REPLACED |
 | 11 | RESONATOR WET 60 on all four | 1,847 | 16 strings |
 | 12 | RESONATOR and GRAIN dense | 3,248 | 16 strings, 16 grains |
-| 13 | COLOR on all four (DRIV 60, CRSH 40 BOTH, NOIS 30, TILT 30) | 1,630 | |
+| 13 | COLOR on all four (DRV 60, CRSH 40 BOTH, NOIS 30, TILT 30) | 1,630 | |
 | 14 | SPACE on all four (DLY 50, VERB 40) | 1,784 | 72 chunks, all 16-bit, 14.5 s free |
 | 15 | everything on all four | 4,859 | 16 grains, 16 strings, 72 chunks of SPACE, 3.3 s free |
-| 16 | TRACKS 3, GRAIN WET 100, DRIV 40, SPACE | 2,310 | 54 chunks of SPACE, 11.7 s free |
+| 16 | TRACKS 3, GRAIN WET 100, DRV 40, SPACE | 2,310 | 54 chunks of SPACE, 11.7 s free |
 | 17 | the mixer: LOW HIGH FILT PAN on all four, the compressor at AMT 60 | 1,701 | 5.7 dB taken off |
 | 23 | GRAIN dense on one track alone (the pool: 32), the others plain reels | 2,976 | 31 grains |
 
@@ -116,7 +116,7 @@ Write down the CPU reading for each, and anything you hear.
 | 10 | Plug into a computer, copy a 20 s WAV onto the drive as TAPE3.WAV, eject, replug | track 3's tape is the whole 20 s (memory allowing) | the length on TAPE's page; any audio dropout while it copied |
 | 11 | Power-cycle. Each track: RESONATOR WET 60 (FX until RESONATOR, KNOB 4) | four strings ring through each track | CPU |
 | 12 | Same, plus each track's GRAIN at the cap (run 3's settings) | the strings and the grains together | CPU; crackle? |
-| 13 | Power-cycle. Each track's COLOR: DRIV 60, CRSH 40, NOIS 30, TILT 30 (FX, KNOB 1-4); CMOD BOTH (COLOR 2) | every track driven, crushed and noisy | CPU |
+| 13 | Power-cycle. Each track's COLOR: DRV 60, CRSH 40, NOIS 30, TILT 30 (FX, KNOB 1-4); CMOD BOTH (COLOR 2) | every track driven, crushed and noisy | CPU |
 | 14 | Power-cycle. Each track's SPACE 2: DLY 50, VERB 40 | echoes and a room on every track | CPU; does the mixer's memory ribbon show it? |
 | 15 | Runs 12, 13 and 14 together (everything on) | the hardest case there is | CPU; does it crackle, does shedding settle it? |
 | 15b | TRACKS 4 again, GRAIN off on tracks 2-4 (WET 0), track 1 still at RATE 100, SIZE 500 | one track with the whole pool: "31 OF 32 GRAINS" on GRAIN's page | CPU |

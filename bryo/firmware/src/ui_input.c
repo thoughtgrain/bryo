@@ -28,7 +28,7 @@
  *                  not saved, or saving over another project, wants a second press within 3 s
  *   SAVE tapped    save into the project loaded or saved last (P1 to start with); held: undo the last clear
  *   DRUM           HOME turns its pages as it's let go; held + a white key: STEP's instrument (heard). On PATTERN,
- *                  VARY and KIT the white keys play the kit, and one held makes KNOB 1..4 its own TUNE DECY LVL
+ *                  VARY and KIT the white keys play the kit, and one held makes KNOB 1..4 its own TUNE DEC LVL
  *                  TONE; on STEP they toggle the bar's steps (HITS, ACC), or play and write (LIVE), or wipe (ERAS).
  *                  POLY held clears the pattern (SAVE held: undo)
  *   KNOB 1..4      the four values on screen; SELECT: the tempo
@@ -440,8 +440,12 @@ static void on_black(uint32_t k)
     int16_t *tk = tp[sys.sel].dev[DEV_SRC];
     if (k <= BK_OP4) {
         track[k].mute = (uint8_t)!track[k].mute;
-    } else if (k == BK_OP5 || k == BK_OP6) {           /* the focused track's tape: reverse, half speed */
-        tk[k == BK_OP5 ? TK_REV : TK_HALF] = (int16_t)!tk[k == BK_OP5 ? TK_REV : TK_HALF];
+    } else if (k == BK_OP5 || k == BK_OP6) {           /* the focused track's tape: reverse, half speed (another
+                                                         * source: said, not flipped out of sight) */
+        if (tp[sys.sel].src != SRC_TAPE)
+            ui_message(k == BK_OP5 ? "REVERSE: TAPE TRACKS ONLY" : "HALF SPEED: TAPE TRACKS ONLY");
+        else
+            tk[k == BK_OP5 ? TK_REV : TK_HALF] = (int16_t)!tk[k == BK_OP5 ? TK_REV : TK_HALF];
     } else if (k == BK_ZERO) {                          /* GRAIN's freeze: held, while it's held (the ISR reads
                                                          * the key); tapped, latched until the next tap */
         ui.zero_held = 1;
@@ -521,7 +525,7 @@ static void hold_keys(void)
             if (!n) {
                 str_cpy(m + 6, ": NO DEPTHS ON THIS PAGE", 26);
             } else if (mod_clear_slot(sys.sel, ui.mono_slot, g, n)) {
-                str_cpy(m + 6, " CLEARED HERE. SAVE: UNDO", 28);
+                str_cpy(m + 6, " CLEARED HERE. HOLD SAVE: UNDO", 33);
                 ui.undo = UNDO_MOD;
             } else {
                 str_cpy(m + 6, " HAS NO DEPTHS HERE", 22);
@@ -532,7 +536,7 @@ static void hold_keys(void)
             ui.mono_held = 0;
             fmt_int(m + 1, (int32_t)sys.sel + 1);
             if (mod_clear(sys.sel)) {
-                str_cpy(m + str_len(m), " MODULATION CLEARED. SAVE: UNDO", 32);
+                str_cpy(m + str_len(m), " MODULATION CLEARED. HOLD SAVE: UNDO", 37);
                 ui.undo = UNDO_MOD;
             } else {
                 str_cpy(m + str_len(m), " HAS NO MODULATION", 20);

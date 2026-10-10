@@ -467,7 +467,7 @@ static void drm_poll(void)
     }
 }
 
-/* DECY (-150..150 %) as a decay scale, Q8: x2 every 50 (straight between) */
+/* DEC (-150..150 %) as a decay scale, Q8: x2 every 50 (straight between) */
 static uint32_t drm_scale(int32_t d)
 {
     uint32_t s = 256;
@@ -555,6 +555,8 @@ static void drm_block(uint32_t t, uint32_t keys, const int32_t *rec, int32_t *ou
             r->last = c;
             drm_now[t] = (uint8_t)s;
             drm_pass[t] = (uint16_t)pass;
+            if (!s)                                      /* the pattern's start: the track's loop (an ADSR's) */
+                mod_seam |= (uint8_t)(1u << t);
             drm_step(t, p, drm_version(p, pass), bar, s & 15u, &h);
             if (r->skip && r->skip_s == s) {
                 h.hit &= (uint16_t)~r->skip;

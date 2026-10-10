@@ -411,7 +411,7 @@ After phase 1, two changes to the screen, from your review:
     length, a keyboard with the root key lit, chevrons for tape speed, stacked takes for DUB, a dot field for
     density. FDBK's dial ring turns to chaos as feedback rises: a slow wobble first, then jitter near the top, the
     way a loop close to self-oscillation smears. Every point stays within 2 dots of the circle, so however wild it
-    gets it never leaves its box or touches its neighbours. The label sits under it (4 letters, Elektron-style: `STRT`, `TUNE`, `DRIV`, `SWNG`), the value
+    gets it never leaves its box or touches its neighbours. The label sits under it (4 letters, Elektron-style: `STRT`, `TUNE`, `DRV`, `SWNG`), the value
     under that in the dim ink.
   - **The plot below** speaks the same language (TAPE is a reel-to-reel with the reels close over the middle, so it
     reads in proportion, and no tape path from the reels down, which only cluttered it; the run along the bottom is the whole tape with the sample drawn on it, lit inside the
@@ -862,7 +862,7 @@ exactly that: A3 measures 220.0 Hz.
 | MIN | root, minor third, fifth, octave |
 | PEN | root, second, third, fifth |
 
-**What rings them** is the track's sound after GRAIN, through a filter first: CUT, RES and SLOP (low-, band- or
+**What rings them** is the track's sound after GRAIN, through a filter first: CUT, RES and TYPE (low-, band- or
 high-pass) on the same state-variable filter POLY uses. The filter is skipped while it's open, so it costs nothing
 until you turn it. How much of the sound goes in falls as DEC rises: a long ring builds up louder from the same input,
 and this keeps it from building without bound (the loop clamps besides). WET blends the strings with the track,
@@ -902,22 +902,22 @@ played. In order:
 
 | Knob | What it does | How |
 | --- | --- | --- |
-| DRIV | gain 1..16 into a soft clip | Felucca's tanh table. At 0 there's no clip at all, so the default leaves the sound sample for sample untouched |
+| DRV | gain 1..16 into a soft clip | Felucca's tanh table. At 0 there's no clip at all, so the default leaves the sound sample for sample untouched |
 | CRSH, CMOD | 16 down to 2 bits (BIT), a sample held 1..12 samples (RATE), or both | bits cut toward zero, so no DC creeps in |
 | NOIS, NDEC, NTON | noise riding the sound's envelope | the envelope opens at once and falls 60 dB over NDEC; NTON is a one-pole filter on the noise. Silence stays silent |
 | TILT | the low end against the high around 700 Hz | ±6 dB each way at ±100 |
 | WET, LVL | dry against coloured; the output, -24..+6 dB | both ramp across a block |
 
-I changed two things from the picture's first draft while building it. DRIV's gain is now continuous (Q8) instead of
+I changed two things from the picture's first draft while building it. DRV's gain is now continuous (Q8) instead of
 16 integer steps, since 1 → 2 was a 6 dB jump on the first detent; and the clip isn't normalised to full scale
-any more, because that made DRIV 1 already 2.4 dB louder. The picture changed with it.
+any more, because that made DRV 1 already 2.4 dB louder. The picture changed with it.
 
 **Load**: nothing while every colouring knob is at 0 and LVL at 0 dB (the default). With everything on, 182 host
 instructions a sample a track; the first draft was 205 before I moved its state into locals (the compiler couldn't
 know the sample buffers didn't alias it, so it reloaded every field every sample). That's six times my 30 estimate,
 but the estimate only counted the drive: it's spread evenly across the features, so there's no single thing to cut.
 
-**Tests** (`test_color`): the defaults leave a sine bit-exact; LVL -6 halves it; DRIV 100 squares a sine (crest
+**Tests** (`test_color`): the defaults leave a sine bit-exact; LVL -6 halves it; DRV 100 squares a sine (crest
 1.04); CRSH 100 leaves 2 bits, RATE holds 12 samples, BOTH does both; NOIS on silence is silence, after a hit it's
 there and gone by twice NDEC; NTON -100 against +100; TILT ±100 moves 100 Hz and 8 kHz the right ways; WET 0 is the
 dry sound however much drive; every knob at either end with a square past full scale stays bounded.
@@ -972,10 +972,10 @@ at 0 give every chunk back.
 | Run | What | Host cost |
 | --- | --- | ---: |
 | 1 | four reels, nothing on (the baseline) | 902 |
-| 13 | COLOR on all four (DRIV 60, CRSH 40 BOTH, NOIS 30, TILT 30) | 1,630 |
+| 13 | COLOR on all four (DRV 60, CRSH 40 BOTH, NOIS 30, TILT 30) | 1,630 |
 | 14 | SPACE on all four (DLY 50, VERB 40): 72 chunks, all 16-bit, 14.5 s still free | 1,784 |
 | 15 | everything on all four: GRAIN at the cap, RESONATOR, COLOR, SPACE | 5,842 |
-| 16 | three tracks as I'd play them: TRACKS 3, GRAIN WET 100, DRIV 40, SPACE | 2,310 |
+| 16 | three tracks as I'd play them: TRACKS 3, GRAIN WET 100, DRV 40, SPACE | 2,310 |
 
 Run 15 is 6.5 times the baseline: the 2,000 target holds only for setups like run 16. That's the hardware
 checkpoint's question now, more than before. If the FM-1 can't carry run 15, the shedding order (grains, then
@@ -1013,7 +1013,7 @@ isn't drawn twice. The test runs an LFO for 1.8 s: 104 block moves across the re
 strip; not on a slot's own page (its knobs aren't targets) or with a DRUM instrument held (its own knobs aren't
 either).
 
-**Tested** (`test_rails`): no rail under an unmodulated knob; DRIV's set position and its LFO reach (10 % to 90 % at
+**Tested** (`test_rails`): no rail under an unmodulated knob; DRV's set position and its LFO reach (10 % to 90 % at
 50 % +- 40); the block following the LFO, the band redrawing and the strip not; and the six screens it changes in the
 goldens.
 
@@ -1114,7 +1114,7 @@ is about 100; without the ramp it's 912). While nothing changes and ROUT is INS,
 INS sounds exactly as it did. The cost of the extra branch: run 19 went from 1,602 to 1,615, run 15 from 4,875 to
 4,909.
 
-One thing to know about COLOR as a send: with nothing colouring (DRIV, CRSH, NOIS and TILT at 0), the "coloured"
+One thing to know about COLOR as a send: with nothing colouring (DRV, CRSH, NOIS and TILT at 0), the "coloured"
 sound is the dry itself, so a send adds the dry to itself: +6 dB at WET 100. That's what parallel processing does,
 and COLOR's LVL sits right beside ROUT for it. With drive on, it's parallel saturation: the transients stay clean
 and the drive fills in underneath.
@@ -1367,7 +1367,7 @@ slot knobs and clears and undoes while the audio interrupt cuts in, and checks e
 range and every array is read from the right place.
 
 **Modulation reaches the sound (a guard in the suite, 2026-10-09).** test_mod and test_mod_engines check the knob
-values modulation produces; `test_mod_audio` checks the audio. For a knob of each kind (TAPE's SPD, COLOR's DRIV,
+values modulation produces; `test_mod_audio` checks the audio. For a knob of each kind (TAPE's SPD, COLOR's DRV,
 SYNTH's CUT under an ADSR with a note held, POLY's TUNE, DRUM's TUNE under a SEQ, the channel's FILT under FOLLOW),
 1.1 s of track 1 with the depth against the same without: each differs by 2 to 5 dB of the sound for the pitch and
 drive ones (the waves no longer line up), -10 and -15 dB for the filters; and a depth of 0 renders exactly the sound
@@ -1414,7 +1414,7 @@ with a soft knee above.
 | --- | --- | --- | --- | --- |
 | PATTERN | PATN: a written rhythm, written over the pattern when turned | LEN: 2 to 4 bars | SWNG: off-sixteenths up to a third of a step late | ACNT: an accented step's extra punch |
 | VARY | SEED: 0 as written, 1 to 200 a version | VARY: how far a version strays | FILL: the chance of a fill in the last bar | EVOL: a new version every 1, 2, 4 or 8 loops |
-| KIT | TUNE: every instrument, semitones | DECY: every decay, a quarter to four times | TONE: every filter, an octave each way | DRV: drive over the kit |
+| KIT | TUNE: every instrument, semitones | DEC: every decay, a quarter to four times | TONE: every filter, an octave each way | DRV: drive over the kit |
 | STEP | INST: the instrument the keys write | BAR: the bar shown (OCT- / OCT+ too) | MODE: HITS, ACC, LIVE, ERAS | LVL: the source's level |
 
 PATN, LEN, INST, BAR and MODE aren't modulation targets (`pdesc_t.nomod`): PATN writes the pattern, the rest are the
@@ -1422,7 +1422,7 @@ page's own state. Everything else is, so an LFO on SEED, or a SEQ stepping it, g
 versions.
 
 **The keys.** On PATTERN, VARY and KIT the white keys play the kit; holding one makes KNOB 1 to 4 that instrument's
-own TUNE, DECY, LVL and TONE (the header's box shows its code; the picture shows its sound). On STEP they follow MODE:
+own TUNE, DEC, LVL and TONE (the header's box shows its code; the picture shows its sound). On STEP they follow MODE:
 HITS toggles step n of the bar for INST, ACC toggles the step's accent, LIVE plays and, while the transport runs,
 writes the hit at the nearest sixteenth, ERAS wipes the held instrument as the playhead passes.
 HOME held + a white key picks INST and plays it. POLY held clears the pattern; SAVE held brings it back (a PATN
@@ -1477,7 +1477,7 @@ layer, specialising each loop and skipping quiet layers brought the realistic gr
 **Tested** (`tests/bryo_host.c`, `test_drum_voices` and `test_drum`): every instrument rings out, peaks in range,
 has no DC and renders the same every hit, and an accent is louder; the chokes; two bars of ROCK play exactly as
 written and on the grid; swing; SEED's determinism, SEED 0, the backbone never dropped, nothing foreign coming in
-(ROCK, BOSA, RMBA), the congas varying on their own drums; EVOL; DECY's scale; the voice steal; PATN, POLY's clear
+(ROCK, BOSA, RMBA), the congas varying on their own drums; EVOL; DEC's scale; the voice steal; PATN, POLY's clear
 and SAVE's undo (and an empty clear); STEP's HITS and ACC, OCT on the bar, HOME + key; an instrument's own knobs;
 LIVE (no double strike) and ERAS. The LIVE and ERAS checks were confirmed to fail with their logic taken out. The
 modulation audit covers DRUM's targets; FILL and EVOL show "no change" there because they act at the pattern's end,
@@ -1486,6 +1486,60 @@ past the audit's 3 s window (a two-bar loop at 120 BPM is 4 s).
 **Open, for later:** the kit is voiced by measurement (pitch, level, decay) and waits on a listen; the hats and
 maracas are bright (energy to 17 kHz), the bass drum sits low for a small speaker. The cymbal takes 9 s to ring out
 at its designed decay. The patterns aren't saved yet (phase 8, with everything else).
+
+## Consistency review: sources, devices, modulators (2026-10-10)
+
+I went through every page (the descriptor tables in `param.c`), every gesture (`controls.tsv`, `ui_input.c`) and
+how the modulators meet each source (`mod.c`, `chain.c`), looking for the same idea done two ways. Here's what I
+found and what I did with it.
+
+**Already one rule everywhere** (I checked, nothing to change):
+
+- The destructive holds: POLY (tape, or a DRUM pattern), MONO (modulation) and PATN over an edited pattern all
+  take half a second and one level of SAVE-held undo. Now the slot pad + MONO clear joins them.
+- A pad held + SELECT picks that pad's thing: HOME the source, a slot its engine.
+- A slot's pad + a knob sets a depth on any page that has targets: the four devices, every source's own knobs, the
+  channel strip. The things the main loop acts on (the reels, PATN, DRUM's LEN INST BAR MODE, ROUT) are left out
+  the same way, by `nomod` or `mod_tdesc`.
+- Every source keeps its own knobs when you switch away and back; every source ends on a page with LVL, -24..+6 dB.
+
+**Fixed now:**
+
+- **The same filter list had two names.** RESONATOR's `SLOP` and POLY's `TYPE` both choose LP / BP / HP (the same
+  `N_SLOP` names). It's a type, not a slope, so RESONATOR's is `TYPE` now.
+- **Drive and decay were spelled two ways.** COLOR said `DRIV` where SYNTH and DRUM say `DRV`; DRUM said `DECY`
+  where SYNTH, POLY, RESONATOR, SPACE and the ADSR say `DEC`. Both now use the common spelling (labels only: the
+  code's enum names stay, so nothing else moves). The COLOR and RESONATOR pictures had their own copies of the
+  labels; they read the descriptors now, so a rename can't leave them behind again.
+- **The ADSR modulator showed raw numbers.** Its ATK DEC REL run on the same `TIME_MS_X10` curve as SYNTH's and
+  POLY's envelopes, which show milliseconds and seconds; the modulator's showed 0..127. They show times now.
+  (FOLLOW's RISE and FALL stay numbers: they're a different curve, `mod_coef`.)
+- **A DRUM track's loop, as the modulators saw it, was 4 bars.** The ADSR restarts (one-shot, or LOOP) on the
+  track's loop: TAPE's is the tape's, SYNTH's and POLY's every 4 bars. DRUM got the 4 bars too, so with LEN 3 the
+  envelope drifted against the pattern. `drm_block` now marks the pattern's start (`mod_seam`), the way `tape.c`
+  marks the tape's, and the 4-bar phrase is only SYNTH's and POLY's.
+- **OP5 and OP6 flipped a hidden tape.** On a SYNTH, POLY or DRUM track they toggled the TAPE's REV and HALF out of
+  sight, which you only found when you switched back to TAPE. They now say "TAPE TRACKS ONLY" and leave it alone.
+- **The undo hint read two ways** ("HOLD SAVE: UNDO" for the tape and DRUM clears, "SAVE: UNDO" for MONO's). It's
+  "HOLD SAVE: UNDO" everywhere, since a tap of SAVE saves.
+- **The controls map** had HOME's hold under the slot-held context and a POLY-only HOME row that the general row
+  already covered; both are fixed.
+
+**Open, waiting on a decision** (each moves knobs or changes a gesture, so I didn't do them on my own; a moved knob
+also needs the project format's version bumped so older projects load into the new places):
+
+1. **LVL and ROUT sit in different places.** LVL: TAPE page 3 KNOB 3, SYNTH page 5 KNOB 1, POLY page 4 KNOB 1, DRUM
+   page 4 KNOB 4, COLOR page 3 KNOB 1. ROUT: GRAIN page 3 KNOB 4, RESONATOR page 3 KNOB 1, COLOR page 3 KNOB 2.
+2. **SYNTH and POLY turn their pages in a different order**: SYNTH is oscillators, filter, envelope; POLY is
+   sample, envelope, filter.
+3. **The modulators' AMT and OFS move around**: LFO page 3 KNOB 1-2, ADSR page 3 KNOB 3-4, FOLLOW page 2 KNOB 2-3,
+   and SEQ has neither, so it's the only engine you can't scale as a whole.
+4. **A DRUM pattern doesn't trigger the modulators.** ADSR and TRIG KEY follow the white keys you play on the
+   focused track; a DRUM track's own hits don't fire them, though for a drum machine they're its notes.
+5. **HOME turns the page as it goes down** on TAPE, SYNTH and POLY, but **as it's let go** on DRUM (so HOME + a key
+   can pick an instrument). The slot pads already open on the let-go.
+6. **OCT on a DRUM track is always the bar**, on every page, so on that track's RESONATOR page the strings' root
+   can't change octave.
 
 ## USB record mode (2026-10-08)
 

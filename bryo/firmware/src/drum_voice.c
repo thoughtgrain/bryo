@@ -166,7 +166,7 @@ static void dk_setup(dk_coef_t *c, const dk_patch_t *p, const dk_knobs_t *k)
         c->gnoise = 32767 - c->gmetal;
         tsvf_coef_k(&c->f, dk_cut(p->cut + k->tune + br * 192 / 127), 4096 * 16 / (p->q16 | 1));
         c->krise = p->rise10 ? (uint32_t)dk_kfast((uint32_t)p->rise10 * 100u) : 0u;
-        c->khit = (uint32_t)dk_kfast(hit - hit / 4u + dk_us(p->hit_ms, sc) / 4u);   /* a quarter of DECY's
+        c->khit = (uint32_t)dk_kfast(hit - hit / 4u + dk_us(p->hit_ms, sc) / 4u);   /* a quarter of DEC's
                                                           * stretch: a hit stays a hit */
         c->ghit = p->hit_lv * 32767 / 127;
         c->ghit += (c->ghit * acc) >> 8;                 /* the accent: up to +6 dB more on the hit */
