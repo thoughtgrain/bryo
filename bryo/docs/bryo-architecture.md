@@ -748,7 +748,7 @@ latches the mixer) stops every buffer recording and holds its bars, and the grai
 them: a loop locked to the tempo. Change the tempo while frozen and the loop's pace follows. It's a transition tool:
 freeze, switch the source or mute, let go to carry on.
 
-**SCAN** (page 4, with WARP, OFST and FDBK beside it: set it up left to right) picks what grains read and where they
+**SCAN** (page 3, with WARP, OFST and FDBK beside it: set it up left to right) picks what grains read and where they
 start, the cursor:
 
 | SCAN | Reads | The cursor |
@@ -1096,9 +1096,9 @@ full and the effect added. So each of the three now has ROUT, INS or SEND, on it
 
 | Device | Where ROUT is | INS (as before) | SEND |
 | --- | --- | --- | --- |
-| GRAIN | page 3, KNOB 4 | dry x (1 - WET) + grains x WET | dry + grains x WET |
-| RESONATOR | page 3 (its own page), KNOB 1 | dry x (1 - WET) + strings x WET | dry + strings x WET |
-| COLOR | page 3, KNOB 2 | dry x (1 - WET) + coloured x WET, then LVL | dry + coloured x WET, then LVL |
+| GRAIN | page 4, KNOB 4 | dry x (1 - WET) + grains x WET | dry + grains x WET |
+| RESONATOR | page 3 (its own page), KNOB 4 | dry x (1 - WET) + strings x WET | dry + strings x WET |
+| COLOR | page 3, KNOB 3 (left of LVL) | dry x (1 - WET) + coloured x WET, then LVL | dry + coloured x WET, then LVL |
 
 SPACE has no ROUT: DLY and VERB were always levels added to a full dry, which is a send already.
 
@@ -1468,8 +1468,9 @@ one off), else a quiet voice, else the oldest. A voice that's rung out (-84 dB) 
 a layer that has gone quiet is skipped (the bass drum's 2 ms thud doesn't cost its whole second).
 
 **What it costs** (host instructions per output sample, `checkpoint_sim.sh`): DRUM busy alone (run 26: FUNK at
-VARY 100, FILL 100, long decays, the others plain reels) 1,301, against 938 for the reels alone; the four-track groove
-with a DRUM track in place of its drum reel (run 27) 1,885; four DRUM tracks at once, every voice (run 28) 2,474.
+VARY 100, FILL 100, long decays, the others plain reels) 1,308, against 938 for the reels alone; the four-track groove
+with a DRUM track in place of its drum reel (run 27) 1,898; four DRUM tracks at once, every voice (run 28) 2,482 (2026-10-10: the hits
+triggering the modulators and SEQ's AMT OFS added about half a percent).
 The first version of the voice loop cost 1,473, 2,071 and 3,720: it decided per sample what's fixed for a block
 (the filter's mode, the metal's squares, drive) and kept computing layers that had gone silent. Splitting it by
 layer, specialising each loop and skipping quiet layers brought the realistic groove back under my 2,000 target.
@@ -1525,21 +1526,35 @@ found and what I did with it.
 - **The controls map** had HOME's hold under the slot-held context and a POLY-only HOME row that the general row
   already covered; both are fixed.
 
-**Open, waiting on a decision** (each moves knobs or changes a gesture, so I didn't do them on my own; a moved knob
-also needs the project format's version bumped so older projects load into the new places):
+**Decided and built (the six questions this review left open):**
 
-1. **LVL and ROUT sit in different places.** LVL: TAPE page 3 KNOB 3, SYNTH page 5 KNOB 1, POLY page 4 KNOB 1, DRUM
-   page 4 KNOB 4, COLOR page 3 KNOB 1. ROUT: GRAIN page 3 KNOB 4, RESONATOR page 3 KNOB 1, COLOR page 3 KNOB 2.
-2. **SYNTH and POLY turn their pages in a different order**: SYNTH is oscillators, filter, envelope; POLY is
-   sample, envelope, filter.
-3. **The modulators' AMT and OFS move around**: LFO page 3 KNOB 1-2, ADSR page 3 KNOB 3-4, FOLLOW page 2 KNOB 2-3,
-   and SEQ has neither, so it's the only engine you can't scale as a whole.
-4. **A DRUM pattern doesn't trigger the modulators.** ADSR and TRIG KEY follow the white keys you play on the
-   focused track; a DRUM track's own hits don't fire them, though for a drum machine they're its notes.
-5. **HOME turns the page as it goes down** on TAPE, SYNTH and POLY, but **as it's let go** on DRUM (so HOME + a key
-   can pick an instrument). The slot pads already open on the let-go.
-6. **OCT on a DRUM track is always the bar**, on every page, so on that track's RESONATOR page the strings' root
-   can't change octave.
+1. **One place for the output knobs.** A source's LVL (and COLOR's) is KNOB 4 of its last page; ROUT sits just
+   left of it, or on KNOB 4 where there's no LVL. TAPE 3 reads REEL ROTA . LVL, SYNTH 5 and POLY 4 . . . LVL,
+   COLOR 3 . . ROUT LVL, RESONATOR 3 . . . ROUT, DRUM's STEP already ended in LVL. GRAIN's pages 3 and 4 swapped,
+   so its ROUT (with PATN SCAL PRND) is on its last page and SCAN WARP OFST FDBK come first.
+2. **SYNTH turns its pages in POLY's order**: OSC, AMP (the envelope), FILTER, VOICE, LEVEL.
+3. **AMT and OFS are KNOB 3 and 4 of every modulator's last page.** LFO's page 3 is its timing (SYNC TRIG FADE),
+   page 4 PHAS SPRD AMT OFS; ADSR already ended VEL LOOP AMT OFS; FOLLOW's page 2 is HOLD SPRD AMT OFS. SEQ has a
+   third page, . SPRD AMT OFS: AMT and OFS place its steps the way they place every engine's output, and SPRD lags
+   its right side as ADSR's and FOLLOW's do (0: the right side is the left, exactly).
+4. **A DRUM pattern's hits are its notes.** Each step that strikes something sets a bit (`mod_hit`, from
+   `drm_block`), and the next block treats it as a key going down on that track: an ADSR plays a one-shot (attack,
+   decay, release: a hit has no length to sustain over), and an LFO or SEQ on TRIG KEY restarts. It works on every
+   DRUM track, focused or not, since the pattern plays whatever's focused.
+5. **HOME turns the page as it's let go, on every source** (the slot pads' way). Held, it does something else
+   instead: + SELECT picks the source from any page (and shows it), + a white key picks DRUM's instrument. The cost
+   is a page turn on the let-go rather than the press, a few tens of milliseconds.
+6. **OCT moves DRUM's bar only on DRUM's own pages.** On the track's device pages it's the octave again, so a
+   DRUM track's RESONATOR root can change octave like any other.
+
+How the pages move without anything else moving: the knob tables stay in the order the knobs are stored, and a
+layout (`PLAYOUT` in `param.c`) says which stored knob each page position shows. Only the code that turns a page
+and a KNOB into a knob goes through it (`ui_page`, `page_target`, the pictogram lookup, the picture's
+last-turned knob, `pdesc_pages`), so the DSP, the modulation targets (a depth is stored by knob, not by place),
+the pictures and the projects are untouched. A test checks every layout puts each knob on exactly one place and
+that the two rules hold. The one stored change is SEQ's three new knobs, so the project format is version 2: a
+version 1 project's SEQ slots get AMT 100 (and SPRD, OFS 0) instead of the 0s they stored there, which would
+have silenced them.
 
 ## USB record mode (2026-10-08)
 

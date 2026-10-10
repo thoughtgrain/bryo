@@ -40,7 +40,9 @@ container; everything is verified on the host.
 
 - A new `.c` module: `firmware/src/bryo.c` and `tests/bryo_host.c` include every module in the same order; add it
   to both, and to `tests/coverage.py`.
-- A new knob: its descriptor in `param.c` (up to 20 a device: `NPK`), its pictogram in `ui_px.c` (`DEV_PK`,
+- A new knob: its descriptor in `param.c` (up to 20 a device: `NPK`; the tables are in stored order, and where a
+  device's pages show them in another order its `PLAYOUT` row places it: LVL is KNOB 4 of a source's last page, ROUT
+  left of it, a modulator's AMT OFS KNOB 3-4 of its last page), its pictogram in `ui_px.c` (`DEV_PK`,
   `SYN_PK`, `POL_PK`, `ME_PK`), the controls map if a gesture changes, the screens' goldens. It's a modulation
   target automatically (`mod.c` numbers targets by `NPK`); a reel choice or anything the main loop allocates for
   must be excluded in `mod_tdesc`.

@@ -199,7 +199,7 @@ static uint32_t page_target(uint32_t c)
         return MOD_TCH + c;
     if (ui.view != VIEW_PAGE || ui.kind != FOCUS_DEV || ui.drm_inst)   /* (an instrument's own knobs: none) */
         return MOD_NTGT;
-    c += 4u * ui.page;
+    c = pdesc_at(dev_p(sys.sel, ui.dev), c + 4u * ui.page);   /* (the page's position: the stored knob) */
     return ui.dev == DEV_SRC ? MOD_TSRC + (tp[sys.sel].src % NSRC) * NPK + c : MOD_TG(ui.dev, c);
 }
 
@@ -359,13 +359,10 @@ static void usbrec_open(void)
 static void on_button(uint32_t b)
 {
     switch (b) {
-    case B_HOME:                                        /* TAPE, its page 2 (DRUM: as it's let go) */
-        if (drm_page()) {
-            ui.home_held = 1;
-            ui.home_used = 0;
-        } else {
-            pad_devices(DEV_SRC, DEV_SRC);
-        }
+    case B_HOME:                                        /* the source, its next page: as HOME is let go (the slot
+                                                         * pads' way), so it can be held for SELECT or a DRUM key */
+        ui.home_held = 1;
+        ui.home_used = 0;
         break;
     case B_EDIT:                                        /* GRAIN's pages, RESONATOR's; on the mixer: the channel */
         if (ui.view == VIEW_MIXER) {                    /* (held: while held; tapped: latched; tapped again: off) */
@@ -421,7 +418,8 @@ static void on_button(uint32_t b)
                 ui.pj_ask = PJ_ASK_NONE;
                 ui.last = 0xFF;
             }
-        } else if (tp[sys.sel].src == SRC_DRUM) {              /* a DRUM track: the bar STEP shows */
+        } else if (drm_page()) {                       /* DRUM's own pages: the bar STEP shows (elsewhere, as on
+                                                         * every track, the octave: RESONATOR's root) */
             int16_t *bp = &tp[sys.sel].drm[DM_BAR];
             *bp = (int16_t)clamp(*bp + (b == B_OCTUP ? 1 : -1), 1, tp[sys.sel].drm[DM_LEN]);
         } else if (b == B_OCTDN && track[sys.sel].octave > 1u) {
@@ -725,9 +723,10 @@ static void ui_input(void)
     hold_keys();
     if (ui.glo_held && (((released >> panel.btn[B_GLO]) & 1u) || !((fm1_in.buttons >> panel.btn[B_GLO]) & 1u)))
         glo_up();
-    if (ui.home_held && !((fm1_in.buttons >> panel.btn[B_HOME]) & 1u)) {   /* HOME let go (DRUM): the next page */
+    if (ui.home_held && !((fm1_in.buttons >> panel.btn[B_HOME]) & 1u)) {   /* HOME let go: the source's next page,
+                                                                           * unless it was held for something */
         ui.home_held = 0;
-        if (!ui.home_used && drm_page())
+        if (!ui.home_used)
             pad_devices(DEV_SRC, DEV_SRC);
     }
     ui.steps_held = (uint16_t)(seq_page() ? white_keys(fm1_in.notes) : 0u);
@@ -746,7 +745,7 @@ static void ui_input(void)
             ui.drm_inst = 0;
         }
     }
-    sys.keys_live = (uint8_t)(!ui.glo_held && !seq_page() && !ui.home_held &&
+    sys.keys_live = (uint8_t)(!ui.glo_held && !seq_page() && !(ui.home_held && drm_page()) &&
                               !(drm_step_page() && sys.drum_mode == DMODE_HITS));   /* under GLO the white keys pick
                                                                 * the track, on a SEQ page the steps, on DRUM's STEP
                                                                 * (HITS, ACC) the bar's steps: they don't play */
@@ -789,12 +788,11 @@ static void ui_input(void)
                 str_cpy(m + str_len(m), ME_NAME[e], 8);
                 ui_message(m);
             }
-        } else if (ui.view == VIEW_PAGE && ui.kind == FOCUS_DEV && ui.dev == DEV_SRC &&
-                   ((fm1_in.buttons >> panel.btn[B_HOME]) & 1u)) {
-            /* HOME held + SELECT: the track's source (TAPE, SYNTH, POLY, DRUM); each keeps its own knobs */
+        } else if (ui.home_held && ((fm1_in.buttons >> panel.btn[B_HOME]) & 1u)) {
+            /* HOME held + SELECT, from any page: the track's source (TAPE, SYNTH, POLY, DRUM), shown on its first
+             * page; each keeps its own knobs */
             tp[sys.sel].src = (uint8_t)(((int32_t)tp[sys.sel].src + d % (int32_t)NSRC + (int32_t)NSRC) % (int32_t)NSRC);
-            ui.page = 0;
-            ui.last = 0xFF;
+            focus_dev(DEV_SRC, 0);
             ui.home_used = 1;
         } else if (ui.glo_held) {                       /* GLO held + SELECT: TRACKS (how many are in use), as a pad
                                                          * held + SELECT picks that pad's thing elsewhere */

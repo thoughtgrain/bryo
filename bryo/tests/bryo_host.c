@@ -669,9 +669,9 @@ static void screens_in(const char *pal)
     press(B_HOME);                                       /* TAPE 3: REEL KEYS, ROTA 25 % (playing starts there), LVL -6 */
     turn(0, 1);
     turn(1, 25);
-    turn(2, -6);
+    turn(3, -6);
     shot(pal, "tape3");
-    turn(2, 6);
+    turn(3, 6);
     press(B_HOME);
     sys.playing = 1;                                     /* the head running, then REC armed */
     render(600, 0);
@@ -691,20 +691,20 @@ static void screens_in(const char *pal)
     turn(2, 20);
     turn(3, 20);
     shot(pal, "synth_osc");
+    press(B_HOME);                                       /* AMP (POLY's order: the envelope, then the filter) */
+    turn(0, 30);
+    shot(pal, "synth_amp");
     press(B_HOME);                                       /* FILTER: CUT down, RES up */
     turn(0, -20);
     turn(1, 50);
     shot(pal, "synth_filter");
-    press(B_HOME);                                       /* AMP */
-    turn(0, 30);
-    shot(pal, "synth_amp");
     press(B_HOME);                                       /* VOICE: GLID, DRV, TUNE */
     turn(1, 70);
     turn(2, 60);
     turn(3, -5);
     shot(pal, "synth_voice");
-    press(B_HOME);                                       /* LEVEL: -9 dB */
-    turn(0, -9);
+    press(B_HOME);                                       /* LEVEL: -9 dB (KNOB 4, as every source's) */
+    turn(3, -9);
     shot(pal, "synth_level");
     hold(B_HOME);                                        /* POLY: its four pages */
     host_enc[panel.enc[EN_SELECT]] = 1;
@@ -726,7 +726,7 @@ static void screens_in(const char *pal)
     turn(3, 40);
     shot(pal, "poly_filter");
     press(B_HOME);                                       /* LEVEL: +4 dB */
-    turn(0, 4);
+    turn(3, 4);
     shot(pal, "poly_level");
     hold(B_HOME);                                        /* DRUM: its four pages */
     host_enc[panel.enc[EN_SELECT]] = 1;
@@ -774,11 +774,12 @@ static void screens_in(const char *pal)
     turn(2, 50);
     turn(3, 40);
     shot(pal, "grain2");
-    press(B_EDIT);                                       /* GRAIN 3: PATN SWNG, SCAL MAJ, PRND 5 */
+    press(B_EDIT);
+    press(B_EDIT);                                       /* GRAIN 4: PATN SWNG, SCAL MAJ, PRND 5 */
     turn(0, -2);
     turn(1, 2);
     turn(2, 5);
-    shot(pal, "grain3");
+    shot(pal, "grain4");
     {   /* playing a bar into the buffer, then the 0 black key held: the buffer frozen, the grains looping it */
         uint32_t u, z = 0;
         for (u = 0; u < 27u; u++)
@@ -794,13 +795,13 @@ static void screens_in(const char *pal)
         render(40, 0);
         shot(pal, "grain_frozen");
         fm1_in.notes = 0;
-        press(B_EDIT);                                   /* GRAIN 4: SCAN DLY, WARP 52 %, OFST 50, FDBK 30 */
+        focus_dev(DEV_GRAIN, 2);                         /* GRAIN 3: SCAN DLY, WARP 52 %, OFST 50, FDBK 30 */
         turn(0, 2);
         turn(1, -12);
         turn(2, 25);
         turn(3, 30);
         render(400, 0);
-        shot(pal, "grain4");
+        shot(pal, "grain3");
         turn(0, -3);                                     /* SCAN TAPE: grains of the tape, its field zoomed */
         render(400, 0);
         shot(pal, "grain_tape");
@@ -811,7 +812,7 @@ static void screens_in(const char *pal)
         sys.playing = 0;
         render(400, 0);
     }
-    press(B_EDIT);
+    focus_dev(DEV_RESO, 0);
     shot(pal, "resonator");
     turn(1, 35);                                         /* DEC 95: sharp peaks */
     turn(2, 30);                                         /* TONE 90: the upper partials kept */
@@ -844,7 +845,7 @@ static void screens_in(const char *pal)
     turn(3, -30);
     shot(pal, "color2");
     press(B_FX);                                         /* COLOR 3: LVL -6 dB */
-    turn(0, -6);
+    turn(3, -6);
     shot(pal, "color3");
     press(B_FX);
     shot(pal, "space");
@@ -876,15 +877,15 @@ static void screens_in(const char *pal)
     turn(2, 40);
     turn(3, -4);
     shot(pal, "mod1_p2");
-    press(B_LFO);                                        /* LFO 3: AMT 70, OFS +20, PHAS 90, SPRD 50 */
-    turn(0, -30);
-    turn(1, 20);
-    turn(2, 90);
-    turn(3, 50);
-    shot(pal, "mod1_p3");
-    press(B_LFO);                                        /* LFO 4: TRIG KEY, FADE 40 (SYNC stays BPM) */
+    press(B_LFO);                                        /* LFO 3: TRIG KEY, FADE 40 (SYNC stays BPM) */
     turn(1, 1);
     turn(2, 40);
+    shot(pal, "mod1_p3");
+    press(B_LFO);                                        /* LFO 4: PHAS 90, SPRD 50, AMT 70, OFS +20 */
+    turn(0, 90);
+    turn(1, 50);
+    turn(2, -30);
+    turn(3, 20);
     shot(pal, "mod1_p4");
     press(B_ENV);                                        /* ADSR 2: ACRV -60, DCRV +60, RCRV +40, SPRD 40 */
     press(B_ENV);
@@ -914,12 +915,13 @@ static void screens_in(const char *pal)
     turn(2, 40);
     turn(3, 4);
     shot(pal, "mod4_smooth");
-    press(B_ARP);                                        /* LFO 3: AMT 80, OFS +20, PHAS 90, SPRD 40 */
-    turn(0, -20);
-    turn(1, 20);
-    turn(2, 90);
-    turn(3, 40);
-    shot(pal, "mod4_p3");
+    press(B_ARP);
+    press(B_ARP);                                        /* LFO 4: PHAS 90, SPRD 40, AMT 80, OFS +20 */
+    turn(0, 90);
+    turn(1, 40);
+    turn(2, -20);
+    turn(3, 20);
+    shot(pal, "mod4_p4");
     hold(B_ARP);                                         /* slot 4 runs FOLLOW: RISE 4, FALL 30, GAIN +6 */
     host_enc[panel.enc[EN_SELECT]] = -1;
     ui_input();
@@ -4153,6 +4155,21 @@ static void test_mod(void)
             prev = v;
         }
         check("..stepping every 1/16: 4 rises in 8 steps", ups == 4u);
+        {                                                /* AMT and OFS place it, as every engine's output */
+            uint32_t hi = 0, lo = 100;
+            tp[0].mod[2][9] = 50;                        /* AMT 50 */
+            tp[0].mod[2][10] = 20;                       /* OFS +20 */
+            for (b = 0; b < 172u * 4u; b++) {
+                chain_block(out, CTL);
+                if ((uint32_t)TPD(0, DEV_COLOR)[0] > hi)
+                    hi = (uint32_t)TPD(0, DEV_COLOR)[0];
+                if ((uint32_t)TPD(0, DEV_COLOR)[0] < lo)
+                    lo = (uint32_t)TPD(0, DEV_COLOR)[0];
+            }
+            check("..AMT 50, OFS +20: the steps 0 and 100 land at 20 and 70", lo == 20u && hi == 70u);
+            tp[0].mod[2][9] = 100;
+            tp[0].mod[2][10] = 0;
+        }
         tp[0].mod[2][6] = 0;                             /* PROB 0: no step plays after the first, it holds */
         sys.playing = 0;
         render(1, 0);
@@ -4284,6 +4301,7 @@ static void test_mod(void)
         uint32_t b, n = 0, at[4] = {0}, was = ENV_IDLE;
         tp[0].src = SRC_DRUM;
         tp[0].drm[DM_LEN] = 3;
+        memset(tp[0].dpat, 0, sizeof tp[0].dpat);       /* (no hits: they'd trigger it too, below) */
         sys.bpm = 120;
         mod_nudge(0, 1, MOD_TSRC + SRC_DRUM * NPK + DM_TONE, 50);   /* slot 2 (ADSR) on DRUM's TONE */
         sys.playing = 1;
@@ -4310,6 +4328,47 @@ static void test_mod(void)
         }
         sys.playing = 0;
         check("..SYNTH: every four bars (11,025 blocks)", n == 2u && at[0] <= 2u && at[1] >= 11024u && at[1] <= 11027u);
+        render(1, 0);
+    }
+
+    /* a DRUM pattern's hits are its notes: each step that strikes fires an ADSR (one-shot) and restarts a TRIG KEY LFO */
+    power_on();
+    {
+        uint32_t b, st, want = 0, n = 0, was = ENV_IDLE, lfo0 = 0, lfo_ok = 1;
+        tp[0].src = SRC_DRUM;
+        drm_load(0, 0);                                  /* ROCK */
+        tp[0].drm[DM_FILL] = 0;
+        for (st = 0; st < 16u; st++)
+            want += tp[0].dpat[0][st] != 0;
+        sys.bpm = 120;
+        mod_nudge(0, 1, MOD_TSRC + SRC_DRUM * NPK + DM_TONE, 50);   /* slot 2: ADSR */
+        tp[0].mod[1][0] = 0;                             /* (ATK and DEC short: each hit a fresh attack) */
+        tp[0].mod[1][1] = 0;
+        tp[0].mod[1][2] = 0;
+        mod_nudge(0, 0, MOD_TSRC + SRC_DRUM * NPK + DM_DRV, 50);    /* slot 1: LFO, TRIG KEY, slow */
+        tp[0].mod[0][13] = 1;
+        tp[0].mod[0][12] = 0;
+        tp[0].mod[0][0] = 0;
+        sys.playing = 1;
+        for (b = 0; b < 2756u; b++) {                    /* one bar */
+            render(1, 0);
+            if (mrt[0][1].stage == ENV_ATK && was != ENV_ATK)
+                n++;
+            was = mrt[0][1].stage;
+            if (b == 300u)
+                lfo0 = mrt[0][0].ph;
+            if (b > 300u && b < 400u && mrt[0][0].ph < lfo0)   /* (step 3's hat at block 344) */
+                lfo_ok = 0;
+        }
+        sys.playing = 0;
+        render(1, 0);
+        {
+            char m[96];
+            snprintf(m, sizeof m, "DRUM: an ADSR fires on each step that strikes (ROCK's bar 1: %u of %u)", n, want);
+            check(m, n == want && want >= 8u);
+        }
+        check("..and the LFO (TRIG KEY) restarts with them: its phase falls back at the hat on step 3",
+              !lfo_ok);
     }
 
     /* OP5 and OP6 flip the tape's REV and HALF; on another source they say so and leave the tape alone */
@@ -4324,6 +4383,91 @@ static void test_mod(void)
         key_edge(o5);
         check("..on a TAPE track: REV on", tp[0].dev[DEV_SRC][TK_REV] == 1);
     }
+
+    /* the pages' layout: every knob once; a source's LVL on KNOB 4 of its last page, ROUT left of it (or KNOB 4);
+     * every modulator's AMT and OFS on KNOB 3 and 4 of its last page */
+    {
+        static const struct { const pdesc_t *p; const char *a, *b; } R[] = {
+            {DEV_P[DEV_SRC], 0, "LVL"}, {SYN_P, 0, "LVL"}, {POL_P, 0, "LVL"}, {DRM_P, 0, "LVL"},
+            {DEV_P[DEV_COLOR], "ROUT", "LVL"}, {DEV_P[DEV_GRAIN], 0, "ROUT"}, {DEV_P[DEV_RESO], 0, "ROUT"},
+            {ME_P[ME_WAVE], "AMT", "OFS"}, {ME_P[ME_ADSR], "AMT", "OFS"}, {ME_P[ME_SEQ], "AMT", "OFS"},
+            {ME_P[ME_FOLLOW], "AMT", "OFS"}, {DEV_P[DEV_SPACE], 0, 0}};
+        uint32_t i, k, ok = 1, rule = 1;
+        for (i = 0; i < sizeof R / sizeof R[0]; i++) {
+            uint32_t n = 4u * pdesc_pages(R[i].p), seen = 0, labelled = 0;
+            for (k = 0; k < n; k++) {
+                uint32_t at = pdesc_at(R[i].p, k);
+                if (at >= NPK || ((seen >> at) & 1u))
+                    ok = 0;
+                seen |= 1u << at;
+            }
+            for (k = 0; k < NPK; k++)
+                if (!pdesc_empty(&R[i].p[k]))
+                    labelled |= 1u << k;
+            ok &= (labelled & ~seen) == 0u;              /* (every knob that has a label is on a page) */
+            if (R[i].b)
+                rule &= !strcmp(R[i].p[pdesc_at(R[i].p, n - 1u)].label, R[i].b);
+            if (R[i].a)
+                rule &= !strcmp(R[i].p[pdesc_at(R[i].p, n - 2u)].label, R[i].a);
+        }
+        check("layout: every page position is one stored knob, every knob is on a page", ok);
+        check("..LVL is KNOB 4 of the last page (ROUT left of it, or KNOB 4); AMT OFS are KNOB 3-4 of a modulator's last",
+              rule);
+    }
+    power_on();
+    press(B_HOME);
+    press(B_HOME);                                       /* TAPE page 3 (the source shows from power-on) */
+    turn(3, -2);
+    check("TAPE page 3, KNOB 4: LVL", ui.page == 2u && tp[0].dev[DEV_SRC][TK_LVL] == -2);
+    press(B_FX);
+    press(B_FX);
+    press(B_FX);                                         /* COLOR page 3 */
+    turn(2, 1);
+    turn(3, -3);
+    check("COLOR page 3: KNOB 3 ROUT, KNOB 4 LVL", tp[0].dev[DEV_COLOR][CP_ROUT] == 1 &&
+                                                     tp[0].dev[DEV_COLOR][CP_LVL] == -3);
+    tp[0].src = SRC_SYNTH;
+    press(B_HOME);
+    press(B_HOME);                                       /* SYNTH page 2: the envelope (POLY's order) */
+    turn(0, 3);
+    check("SYNTH page 2: the envelope (ATK first), as POLY's", tp[0].syn[SY_ATK] == SYN_P[SY_ATK].def + 3);
+    press(B_HOME);
+    turn(0, -2);
+    check("..page 3: the filter (CUT)", tp[0].syn[SY_CUT] == SYN_P[SY_CUT].def - 2);
+
+    /* HOME turns the page as it's let go, from any page; held + SELECT picks the source and shows it */
+    power_on();
+    press(B_FX);                                         /* COLOR */
+    hold(B_HOME);
+    check("HOME down: nothing yet (the page turns as it's let go)", ui.dev == DEV_COLOR);
+    let_go(B_HOME);
+    check("..let go: the source", ui.dev == DEV_SRC && ui.page == 0u);
+    hold(B_HOME);
+    let_go(B_HOME);
+    check("..again: its next page", ui.dev == DEV_SRC && ui.page == 1u);
+    press(B_FX);
+    hold(B_HOME);
+    host_enc[panel.enc[EN_SELECT]] = 1;
+    ui_input();
+    check("HOME held + SELECT on COLOR: the next source, shown on its first page", tp[0].src == SRC_SYNTH &&
+                                                                                 ui.dev == DEV_SRC && ui.page == 0u);
+    let_go(B_HOME);
+    check("..let go after SELECT: the page stays", ui.dev == DEV_SRC && ui.page == 0u && sys.bpm == 120);
+
+    /* OCT on a DRUM track: the bar on DRUM's own pages, the octave elsewhere (RESONATOR's root) */
+    power_on();
+    tp[0].src = SRC_DRUM;
+    press(B_HOME);
+    press(B_OCTUP);
+    check("OCT+ on a DRUM page: the bar STEP shows", tp[0].drm[DM_BAR] == 2 && track[0].octave == 3u);
+    press(B_EDIT);
+    press(B_EDIT);
+    press(B_EDIT);
+    press(B_EDIT);
+    press(B_EDIT);                                       /* RESONATOR */
+    press(B_OCTUP);
+    check("..on the track's RESONATOR page: the octave", ui.dev == DEV_RESO && track[0].octave == 4u &&
+                                                         tp[0].drm[DM_BAR] == 2);
 
     /* the catch at 0: a depth turned back through 0 stops there; a turn that keeps going stays until the knob rests */
     power_on();
@@ -5017,6 +5161,24 @@ static void test_projects(void)
     sys.bpm = 101;
     tap(B_SAVE);
     check("SAVE tapped on a page: into the current project (P3)", pj_cur == 2 && pj_sum[2].used && pj_sum[2].bpm == 101);
+
+    /* a version 1 project (before SEQ had SPRD AMT OFS): its SEQ slots load with those knobs' defaults */
+    pj_wipe();
+    power_on();
+    tp[0].mod[2][9] = 37;                                /* (slot 3, SEQ: an AMT a version 1 project can't have) */
+    tp[0].mod[2][0] = 5;                                 /* LEN */
+    pj_wver = 1;
+    rc = pj_save(0);
+    pj_wver = PJ_VERSION;
+    power_on();
+    rc |= pj_load(0);
+    check("a version 1 project loads; its SEQ slot gets AMT 100 (the default), its other knobs as saved",
+          rc == 0 && tp[0].engine[2] == ME_SEQ && tp[0].mod[2][9] == 100 && tp[0].mod[2][0] == 5);
+    tp[0].mod[2][9] = 37;
+    rc = pj_save(0);
+    power_on();
+    rc |= pj_load(0);
+    check("..a version 2 one keeps SEQ's AMT as saved", rc == 0 && tp[0].mod[2][9] == 37);
     pj_wipe();
     power_on();
 }

@@ -371,7 +371,8 @@ typedef struct {                     /* ISR only: a slot's running state */
     uint32_t t0;                     /* the beat (Q16) of the last restart (LFO and SEQ synced to it) */
     uint32_t fade;                   /* LFO: cycles since the restart, Q16 (saturates) */
     int32_t sm, smr;                 /* LFO: SMTH's slewed outputs */
-    int32_t lv, from;                /* ADSR: the level, and where the stage started (Q15); SEQ: the glide's start */
+    int32_t lv, from;                /* ADSR: the level, and where the stage started (Q15); SEQ: the step's value as
+                                      * it glides (before AMT and OFS), and the glide's start */
     int32_t out, outr;               /* this block's outputs, Q15: left, right (SPRD) */
     int32_t env, held;               /* FOLLOW */
     int16_t rnd[16];                 /* LFO: RND's steps, and the other shapes' level per cycle (VAR) */
@@ -409,6 +410,8 @@ static inline int32_t mod_pitch16(uint32_t t, uint32_t f, int32_t knob)   /* a p
     return (mod_fmask[t] >> f) & 1u ? (mod_f8[t][f] + 8) >> 4 : knob * 16;
 }
 static uint32_t mod_keys_prev[NTRK];
+static volatile uint8_t mod_hit;               /* a bit per track: its DRUM pattern struck (drum.c): its notes, as
+                                                * a key going down is (ADSR, TRIG KEY) */
 static volatile uint8_t mod_seam;              /* a bit per track: its loop started (tape.c: the tape's; drum.c: the
                                                 * pattern's) */
 static uint32_t mod_phrase_n;
@@ -543,7 +546,8 @@ static void mod_lfo(mod_rt_t *m, const int16_t *v, int restart)
     m->outr = mod_place(yr, v, 8u, -32767);
 }
 
-/* ADSR: gate (a key held on the track), press (a key went down), loop (the track's loop started) */
+/* ADSR: gate (a key held on the track), press (a key went down), loop (the track's loop started, or its DRUM pattern
+ * struck: a one-shot either way) */
 static void mod_adsr(mod_rt_t *m, const int16_t *v, int gate, int press, int loop)
 {
     int32_t to, c, t1000;
@@ -592,7 +596,8 @@ static void mod_adsr(mod_rt_t *m, const int16_t *v, int gate, int press, int loo
     m->outr = mod_slew(m->outr, m->out, mod_lag(v[7]));
 }
 
-/* SEQ: the step under the beat (from the restart: TRIG KEY, or PLAY), its value glided into by SLEW */
+/* SEQ: the step under the beat (from the restart: TRIG KEY, or PLAY), its value glided into by SLEW, then placed
+ * by AMT and OFS as every engine's output is */
 static void mod_seq(mod_rt_t *m, const int16_t *v, const int8_t *steps, int restart)
 {
     uint32_t div = SEQ_DIV[clamp(v[1], 0, 5)], len = (uint32_t)clamp(v[0], 1, 16), rel, n, in, c, fr, i;
@@ -616,17 +621,18 @@ static void mod_seq(mod_rt_t *m, const int16_t *v, const int8_t *steps, int rest
         }
         i = (i + (uint32_t)clamp(v[7], 1, 16) - 1u) % 16u;            /* from STRT */
         m->last_n = c;
-        m->from = m->out;
+        m->from = m->lv;
         if (mod_hash(c, 91u) % 100u < (uint32_t)v[6] || m->step < 0) {   /* PROB: this step plays (else it holds) */
             m->step = (int16_t)i;
             m->sval = (int16_t)(clamp(steps[i], 0, 100) * 32767 / 100);
         }
     }
     if (v[2] && fr < (uint32_t)v[2] * 655u)                           /* SLEW: a straight glide over SLEW % */
-        m->out = m->from + (m->sval - m->from) * (int32_t)(fr >> 4) / (int32_t)((uint32_t)v[2] * 655u >> 4);
+        m->lv = m->from + (m->sval - m->from) * (int32_t)(fr >> 4) / (int32_t)((uint32_t)v[2] * 655u >> 4);
     else
-        m->out = m->sval;
-    m->outr = m->out;
+        m->lv = m->sval;
+    m->out = mod_place(m->lv, v, 9u, 0);                              /* AMT, OFS (knobs 9, 10) */
+    m->outr = v[8] ? mod_slew(m->outr, m->out, mod_lag(v[8])) : m->out;   /* SPRD: the right side lags */
 }
 
 /* FOLLOW: the envelope of a block of sound in (0: silence), GAIN into it, RISE and FALL, HOLD to the tempo */
@@ -688,8 +694,9 @@ static void mod_init(void)
  * input) */
 static void mod_tick(uint32_t keys, uint32_t sel, const int32_t *const *last)
 {
-    uint32_t t, s, e, seam = mod_seam, playing = sys.playing, ph;
+    uint32_t t, s, e, seam = mod_seam, hits = mod_hit, playing = sys.playing, ph;
     mod_seam = 0;
+    mod_hit = 0;
     mclk.started = (uint8_t)(playing && !mclk.was_playing);
     mclk.was_playing = (uint8_t)playing;
     if (mclk.started) {
@@ -719,7 +726,7 @@ static void mod_tick(uint32_t keys, uint32_t sel, const int32_t *const *last)
     }
     for (t = 0; t < NTRK; t++) {
         const mod_list_t *L;
-        uint32_t k = t == sel ? keys : 0u, press = k & ~mod_keys_prev[t], i, a, arrs;
+        uint32_t k = t == sel ? keys : 0u, press = k & ~mod_keys_prev[t], hit = (hits >> t) & 1u, i, a, arrs;
         int loop;
         mod_keys_prev[t] = k;
         mod_fmask[t] = 0;
@@ -755,9 +762,9 @@ static void mod_tick(uint32_t keys, uint32_t sel, const int32_t *const *last)
                 fresh = 1;
             }
             switch (e) {
-            case ME_WAVE: mod_lfo(m, v, fresh || mclk.started || (trig && press)); break;
-            case ME_ADSR: mod_adsr(m, v, k != 0u, press != 0u, loop); break;
-            case ME_SEQ: mod_seq(m, v, tp[t].steps[s], fresh || mclk.started || (trig && press)); break;
+            case ME_WAVE: mod_lfo(m, v, fresh || mclk.started || (trig && (press || hit))); break;
+            case ME_ADSR: mod_adsr(m, v, k != 0u, press != 0u, loop || hit); break;   /* (a hit: one-shot) */
+            case ME_SEQ: mod_seq(m, v, tp[t].steps[s], fresh || mclk.started || (trig && (press || hit))); break;
             default: {
                 int32_t src = clamp(v[0], 0, 5);
                 mod_follow(m, v, src == 0 ? last[t] : src <= (int32_t)NTRK ? last[src - 1] : 0);   /* (USB: none yet) */

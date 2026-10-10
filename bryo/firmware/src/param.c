@@ -57,6 +57,8 @@ static const char *const N_ROUT[2] = {"INS", "SEND"};
  * sound added at WET (dry + device x WET), the way an aux send works, per track. SPACE is always a send (DLY and
  * VERB are levels added to the dry). Not a modulation target: a switch flipping at an LFO's rate isn't a sound */
 #define P_ROUT {"ROUT", 0, 1, 0, F_ENUM, N_ROUT, 1}
+/* (each table in the order its knobs are stored; the "1:", "2:" notes are those blocks of four. Where a page shows
+ * them otherwise, PLAYOUT below says so) */
 static const pdesc_t DEV_P[NDEV][NPK] = {
     {   /* TAPE (the source when it's TAPE: SYNTH and POLY have their own tables) */
         {"STRT", 0, 100, 0, F_PCT}, {"LEN", 1, 100, 100, F_PCT},
@@ -122,9 +124,9 @@ static const pdesc_t DEV_P[NDEV][NPK] = {
 enum { SRC_TAPE, SRC_SYNTH, SRC_POLY, SRC_DRUM, NSRC };
 static const char *const SRC_NAME[NSRC] = {"TAPE", "SYNTH", "POLY", "DRUM"};
 
-/* SYNTH (synth.c): a small subtractive voice from Felucca's ANALOG engine, up to three per track. Four pages, the
- * way a synth's panel reads left to right: the oscillators, the filter, the envelope (one ADSR for the level and,
- * by ENV, the cutoff), then how the keys play it. */
+/* SYNTH (synth.c): a small subtractive voice from Felucca's ANALOG engine, up to three per track. Stored here as
+ * the oscillators, the filter, the envelope (one ADSR for the level and, by ENV, the cutoff), how the keys play it
+ * and the level; the pages show them in POLY's order (OSC, AMP, FILTER, VOICE, LEVEL: PLAYOUT below). */
 enum { SY_WAVE, SY_DTUN, SY_MIX, SY_NOIS, SY_CUT, SY_RES, SY_ENV, SY_KTRK, SY_ATK, SY_DEC, SY_SUS, SY_REL, SY_VOIC,
        SY_GLID, SY_DRV, SY_TUNE, SY_LVL };
 #define SYN_NV 3u                /* voices per track */
@@ -201,14 +203,6 @@ static const pdesc_t DRI_P[NDIN] = {
 /* an unused knob on a page (no label) */
 static int pdesc_empty(const pdesc_t *d) { return !d->label || !d->label[0]; }
 
-/* a device's or an engine's pages: up to the first page whose first knob has no label */
-static uint32_t pdesc_pages(const pdesc_t *p)
-{
-    uint32_t n = 1;
-    while (n < NPK / 4u && !pdesc_empty(&p[4u * n]))
-        n++;
-    return n;
-}
 
 /* each track's channel strip, after the chain and before the mix (the mixer's second page: EDIT on the mixer, held or tapped).
  * LOW and HIGH are shelves (+-12 dB); FILT is one knob for two filters, a low-pass turning left of 0 and a
@@ -260,9 +254,10 @@ static const pdesc_t ME_P[NME][NPK] = {
         {"ACRV", -100, 100, 0, F_BIPCT}, {"DCRV", -100, 100, 0, F_BIPCT}, {"RCRV", -100, 100, 0, F_BIPCT}, P_SPRD,
         {"VEL", 0, 100, 0, F_PCT}, {"LOOP", 0, 1, 0, F_ENUM, N_OFFON}, P_AMT, P_OFS},
     {   /* SEQ (the PRD's): 16 steps of values (a white key held + KNOB 1 sets one), a step a RATE (1 bar .. 1/32),
-         * then their order, restart, chance and first step */
+         * then their order, restart, chance and first step, then spread, depth and offset */
         {"LEN", 1, 16, 16, F_NUM}, {"RATE", 0, 5, 2, F_ENUM, N_SRATE}, {"SLEW", 0, 100, 0, F_PCT}, {"SWNG", 0, 100, 0, F_PCT},
-        {"DIR", 0, 3, 0, F_ENUM, N_DIR}, P_TRIG, {"PROB", 0, 100, 100, F_PCT}, {"STRT", 1, 16, 1, F_NUM}},
+        {"DIR", 0, 3, 0, F_ENUM, N_DIR}, P_TRIG, {"PROB", 0, 100, 100, F_PCT}, {"STRT", 1, 16, 1, F_NUM},
+        P_SPRD, P_AMT, P_OFS},   /* (SPRD: the right side lags, as ADSR's and FOLLOW's) */
     {   /* FOLLOW: the envelope of a track's sound (SELF: this track's own, whatever its source) or USB in; GAIN
          * into it, how fast it rises and falls; then sample-and-hold to the tempo, depth, offset, spread */
         {"SRC", 0, 5, 0, F_ENUM, N_SRC}, {"GAIN", -12, 12, 0, F_DB}, {"RISE", 0, 127, 10, F_NUM},
@@ -272,6 +267,56 @@ static const pdesc_t ME_P[NME][NPK] = {
 /* a SEQ slot's steps before you set them: a pattern with an accent on each beat, so the page shows the idea
  * (the slot's depth is 0 until it's assigned, so this moves nothing) */
 static const int8_t SEQ_DEF[16] = {100, 25, 60, 25, 80, 25, 60, 40, 100, 25, 60, 25, 80, 50, 35, 20};
+
+/* Where the knobs sit on the pages. A table above is in the order its knobs are stored (the DSP, the modulation
+ * targets and the projects number them that way); a page shows them in the order below. Two rules hold for every
+ * device and engine: a source's (and COLOR's) LVL is KNOB 4 of its last page, with ROUT just left of it (no LVL:
+ * ROUT is KNOB 4); a modulator's AMT and OFS are KNOB 3 and 4 of its last page. at[]: the stored knob at each page
+ * position (an empty knob's index where the position is empty). A table not listed shows in stored order. */
+typedef struct {
+    const pdesc_t *p;
+    uint8_t pages;
+    uint8_t at[NPK];
+} playout_t;
+static const playout_t PLAYOUT[] = {
+    {DEV_P[DEV_SRC], 3, {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 10}},                 /* TAPE: REEL ROTA . LVL */
+    {DEV_P[DEV_GRAIN], 4, {0, 1, 2, 3, 4, 5, 6, 7, 12, 13, 14, 15, 8, 9, 10, 11}},   /* GRAIN: SCAN.. then PATN..ROUT */
+    {DEV_P[DEV_RESO], 3, {0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 8}},               /* RESONATOR: . . . ROUT */
+    {DEV_P[DEV_COLOR], 3, {0, 1, 2, 3, 4, 5, 6, 7, 10, 11, 9, 8}},              /* COLOR: . . ROUT LVL */
+    {SYN_P, 5, {0, 1, 2, 3, 8, 9, 10, 11, 4, 5, 6, 7, 12, 13, 14, 15, 17, 18, 19, 16}},   /* OSC AMP FILTER VOICE, LVL */
+    {POL_P, 4, {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 12}},         /* POLY: . . . LVL */
+    {ME_P[ME_WAVE], 4, {0, 1, 2, 3, 4, 5, 6, 7, 12, 13, 14, 15, 10, 11, 8, 9}},  /* LFO: timing, then PHAS SPRD AMT OFS */
+    {ME_P[ME_SEQ], 3, {0, 1, 2, 3, 4, 5, 6, 7, 11, 8, 9, 10}},                  /* SEQ: . SPRD AMT OFS */
+    {ME_P[ME_FOLLOW], 2, {0, 1, 2, 3, 4, 7, 5, 6}},                             /* FOLLOW: HOLD SPRD AMT OFS */
+};
+
+static const playout_t *pdesc_layout(const pdesc_t *p)
+{
+    uint32_t i;
+    for (i = 0; i < sizeof PLAYOUT / sizeof PLAYOUT[0]; i++)
+        if (PLAYOUT[i].p == p)
+            return &PLAYOUT[i];
+    return 0;
+}
+
+/* the stored knob of table p at page position pos (4 x page + knob) */
+static uint32_t pdesc_at(const pdesc_t *p, uint32_t pos)
+{
+    const playout_t *l = pdesc_layout(p);
+    return l && pos < NPK ? l->at[pos] : pos;
+}
+
+/* a device's or an engine's pages: its layout's, else up to the first page whose first knob has no label */
+static uint32_t pdesc_pages(const pdesc_t *p)
+{
+    const playout_t *l = pdesc_layout(p);
+    uint32_t n = 1;
+    if (l)
+        return l->pages;
+    while (n < NPK / 4u && !pdesc_empty(&p[4u * n]))
+        n++;
+    return n;
+}
 
 /* the slots' default engines: the pads are labelled LFO ENV SEQ ARP (PRD 2.2) */
 static const uint8_t SLOT_DEF_ENGINE[NSLOT] = {ME_WAVE, ME_ADSR, ME_SEQ, ME_WAVE};   /* slot 4: the LFO, RND */

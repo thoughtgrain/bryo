@@ -802,8 +802,9 @@ static void vz_filter(int32_t c, int32_t res, int32_t type, int32_t env, int32_t
 
 static void viz_synth(const int16_t *v, uint32_t f)
 {
+    uint32_t bp = pdesc_at(SYN_P, 4u * ui.page) / 4u;   /* the stored block the page shows */
     int32_t x, k;
-    if (ui.page == 0u) {
+    if (bp == 0u) {
         uint32_t w = (uint32_t)clamp(v[SY_WAVE], 0, 4);
         int32_t py = 0, m2 = v[SY_MIX], dr = v[SY_DTUN];
         vz_seed = 77u;
@@ -824,9 +825,9 @@ static void viz_synth(const int16_t *v, uint32_t f)
         vz_label(45, "DTUN", f == 1u);
         vz_label(75, "MIX", f == 2u);
         vz_label(105, "NOIS", f == 3u);
-    } else if (ui.page == 1u) {
+    } else if (bp == 1u) {
         vz_filter(v[SY_CUT], v[SY_RES], 0, v[SY_ENV], v[SY_KTRK], f < NPK ? f % 4u : 0xFFu, SYN_P + 4, v + 4, 2u);
-    } else if (ui.page == 2u) {
+    } else if (bp == 2u) {
         int16_t a[NPK] = {0};
         a[0] = v[SY_ATK];
         a[1] = v[SY_DEC];
@@ -834,7 +835,7 @@ static void viz_synth(const int16_t *v, uint32_t f)
         a[3] = v[SY_REL];
         a[10] = 100;                                  /* (AMT 100, OFS 0: the envelope as it is) */
         viz_adsr(a, f < 4u ? f : 0xFFu);
-    } else if (ui.page >= 4u) {
+    } else if (bp >= 4u) {
         vz_level(v[SY_LVL], &SYN_P[SY_LVL], f == SY_LVL);
     } else {
         static const char NOTE[12][3] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
@@ -893,9 +894,10 @@ static void viz_synth(const int16_t *v, uint32_t f)
  * FILTER: the response, its TYPE, dotted where ENV takes it */
 static void viz_poly(const int16_t *v, uint32_t f)
 {
+    uint32_t bp = pdesc_at(POL_P, 4u * ui.page) / 4u;   /* the stored block the page shows */
     static const char NOTE[12][3] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
     int32_t x, k;
-    if (ui.page == 0u) {
+    if (bp == 0u) {
         tape_view_t vw;
         int32_t sx = DX0 + v[PL_STRT] * DW / 100, mid = 11, lo, hi, nv = v[PL_VOIC];
         char b[24];
@@ -929,7 +931,7 @@ static void viz_poly(const int16_t *v, uint32_t f)
         vz_label(DX1 - 18, "VOIC", f == 3u);
         if (f == 2u)
             vz_ktag(78, DLBL - 1, &POL_P[PL_TUNE], v[PL_TUNE]);
-    } else if (ui.page == 1u) {
+    } else if (bp == 1u) {
         int16_t a[NPK] = {0};
         a[0] = v[PL_ATK];
         a[1] = v[PL_DEC];
@@ -937,7 +939,7 @@ static void viz_poly(const int16_t *v, uint32_t f)
         a[3] = v[PL_REL];
         a[10] = 100;
         viz_adsr(a, f >= 4u && f < 8u ? f - 4u : 0xFFu);
-    } else if (ui.page >= 3u) {
+    } else if (bp >= 3u) {
         vz_level(v[PL_LVL], &POL_P[PL_LVL], f == PL_LVL);
     } else {
         vz_filter(v[PL_CUT], v[PL_RES], clamp(v[PL_TYPE], 0, 2), v[PL_ENV], 0, f < NPK ? f % 4u : 0xFFu, POL_P + 8,
@@ -1834,7 +1836,8 @@ static uint32_t viz_sig(void)
 
 static void draw_viz(void)
 {
-    uint32_t sig = viz_sig(), f = ui.last < 4u ? 4u * ui.page + ui.last : 0xFFu;
+    uint32_t sig = viz_sig(), f = ui.last < 4u ? pdesc_at(ui.kind == FOCUS_SLOT ? ME_P[tp[sys.sel].engine[ui.slot]]
+                                                          : dev_p(sys.sel, ui.dev), 4u * ui.page + ui.last) : 0xFFu;
     const int16_t *v = ui.kind == FOCUS_SLOT ? tp[sys.sel].mod[ui.slot] : dev_v(sys.sel, ui.dev);   /* both pages */
     if (!ui.force && sig == ui.sig_viz)
         return;

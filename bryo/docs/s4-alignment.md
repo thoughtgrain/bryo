@@ -63,7 +63,7 @@ architecture doc already plans TAPE, SYNTH and POLY.
 | LENGTH | LEN | On the S-4, LENGTH past the sample adds silence. Bryo's is a % of what's there. Mine is simpler, so I'm keeping it. |
 | SOS (bipolar) | DUB (-100..100, **done**) | A balance between the loop and the input. At 0 both are kept whole: plain sound on sound. Toward +100 the input fades and the loop stays; at +100 REC changes nothing (it doesn't even re-encode). Toward -100 the loop fades on each pass under the input; at -100 the input replaces it. So -50 with nothing coming in halves the loop every pass: the tape-loop decay people use SOS for. *(Unverified: whether the S-4's negative half is the same.)* |
 | XFADE | XFAD (**done**) | the same idea (the seam's crossfade). Four letters on the strip. |
-| ROTATE | ROTA (**done**, page 3 beside REEL) | Where in the loop window playing starts, and where slice 1 is counted from, against the transport. The seam's crossfade stays where it was, so rotating never adds a click. A slice can now run over the seam, so a slice played while stopped ends after its length rather than at a position. |
+| ROTATE | ROTA (**done**, page 3 beside REEL; LVL is KNOB 4 there) | Where in the loop window playing starts, and where slice 1 is counted from, against the transport. The seam's crossfade stays where it was, so rotating never adds a click. A slice can now run over the seam, so a slice played while stopped ends after its length rather than at a position. |
 | LEVEL | GAIN (record gain), and now LVL | Different jobs: GAIN is what REC puts on the tape. The S-4 has a LEVEL on every source (TAPE, POLY, DISC), so Bryo now does too: LVL on each source's last page (TAPE 3, SYNTH 5, POLY 4), -24..+6 dB, a modulation target. Keep GAIN. **Done (2026-10-09).** |
 | FREE / SYNC timing | none | In SYNC, START and LENGTH are in beats and bars. That needs the sequencer clock (phase 7), so I'll note it there. |
 | none | REV, HALF | Bryo's own (OP5 and OP6 flip them). Keep. |
@@ -78,17 +78,17 @@ architecture doc already plans TAPE, SYNTH and POLY.
 | CONTOUR | CONT (was WIN) | the grain's window. **done** |
 | SPRAY | SPRY (was JIT) | the jitter of where grains read. **done** (SPRD stays: it's the stereo spread, Bryo's own) |
 | WET | WET (was MIX) | **done** |
-| WARP | WARP (-200..200 %, page 4) | How fast the read point moves: 100 % keeps pace, 0 holds it, negative runs backwards. **done**. (OS 2.2 folded WARP into SPRAY's modes; Bryo keeps it a knob, beside SCAN.) |
-| SCAN (OS 2.2) | SCAN (TAPE STR POS DLY, page 4) + OFST | What grains read: the track's tape, or a live buffer of the last bars read stretching (STR), at a spot (POS) or a delay behind the write head (DLY). **done** (see "GRAIN, as built") |
-| FEEDBACK (OS 2.2) | FDBK (page 4) | How much of the buffer stays as new sound goes in. **done** |
+| WARP | WARP (-200..200 %, page 3) | How fast the read point moves: 100 % keeps pace, 0 holds it, negative runs backwards. **done**. (OS 2.2 folded WARP into SPRAY's modes; Bryo keeps it a knob, beside SCAN.) |
+| SCAN (OS 2.2) | SCAN (TAPE STR POS DLY, page 3) + OFST | What grains read: the track's tape, or a live buffer of the last bars read stretching (STR), at a spot (POS) or a delay behind the write head (DLY). **done** (see "GRAIN, as built") |
+| FEEDBACK (OS 2.2) | FDBK (page 3) | How much of the buffer stays as new sound goes in. **done** |
 | buffer lock (OS 2.2) | the 0 key | Freeze: held momentary, tapped latched; the buffer stops recording and the grains loop it. **done** |
-| PATTERN | PATN (EVEN SWNG CLST RND, page 3) | The order grains fire in *(the S-4's own patterns unverified)*. RND is the default, the scatter GRAIN always had. **done** |
-| pitch scale | SCAL (OFF CHR MAJ MIN PEN, page 3) | holds grain pitch to a scale. **done** |
-| random pitch | PRND (0..12 st, page 3) | a random pitch per grain. **done** |
+| PATTERN | PATN (EVEN SWNG CLST RND, page 4) | The order grains fire in *(the S-4's own patterns unverified)*. RND is the default, the scatter GRAIN always had. **done** |
+| pitch scale | SCAL (OFF CHR MAJ MIN PEN, page 4) | holds grain pitch to a scale. **done** |
+| random pitch | PRND (0..12 st, page 4) | a random pitch per grain. **done** |
 | reverse | REV | the chance a grain plays backwards: stays |
 
 So four pages: SIZE RATE PTCH SPRD / WET SPRY CONT REV / PATN SCAL PRND ROUT / SCAN WARP OFST FDBK (ROUT, 2026-10-09: INS or SEND, not the S-4's). Not taken from OS
-2.2 yet: RAND RATE, RAND SIZE and RAND AMP (page 3's fourth knob is free for one).
+2.2 yet: RAND RATE, RAND SIZE and RAND AMP (GRAIN's pages are full now: ROUT took the last knob; a fifth page if they come).
 
 ## RESONATOR (the S-4's RING)
 
@@ -104,7 +104,7 @@ resonator tuned to a root note. Same family, different engine. The knob names ca
 | CUTOFF, RES, SLOPE | none | A filter in front of the resonator: cutoff, resonance, and SLOPE morphing LP → BP → HP. One state-variable filter does all three cheaply. Page 2. |
 | SCALE | none | Tunes the resonator's partials (or its 4 strings) to a scale: CHR MAJ MIN PEN *(the S-4's list unverified)*. Page 2. |
 
-That gives two pages: PTCH DEC TONE WET / CUT RES TYPE SCAL, and ROUT (INS or SEND) on a page 3 since. **Done.** SCAL is HARM (the root's harmonics, as
+That gives two pages: PTCH DEC TONE WET / CUT RES TYPE SCAL, and ROUT (INS or SEND) on a page 3 since (KNOB 4: a device's output knob is the last). **Done.** SCAL is HARM (the root's harmonics, as
 before), MAJ, MIN or PEN (that scale's chord tones stacked over three octaves). The filter starts open (CUT at the
 top, RES 0, LP), so nothing changes until you turn it. TONE runs the other way from DAMP: 0 is dark.
 
@@ -121,7 +121,7 @@ top, RES 0, LP), so nothing changes until you turn it. TONE runs the other way f
 | WET | MIX | Rename to WET. |
 | none | LVL | Bryo's output trim. Keep (drive adds level). |
 
-That gives two pages: DRV CRSH NOIS TILT / NDEC NTON CMOD WET, and LVL ROUT on page 3. **Done.** TILT and NTON are
+That gives two pages: DRV CRSH NOIS TILT / NDEC NTON CMOD WET, and ROUT LVL on page 3 (KNOB 3 and 4: LVL is always KNOB 4 of the last page). **Done.** TILT and NTON are
 bipolar (0 is flat).
 
 ## SPACE (the S-4's VAST)

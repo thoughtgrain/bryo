@@ -29,7 +29,11 @@
 
 #define PJ_N 6u                      /* project slots */
 #define PJ_MAGIC 0x50595242u         /* "BRYP" */
-#define PJ_VERSION 1u
+#define PJ_VERSION 2u                   /* 2: SEQ's slots have SPRD AMT OFS (a version 1 project's SEQ gets their
+                                         * defaults, not the 0s it stored there) */
+static uint8_t pj_ver;                  /* the version of the project being read */
+static uint8_t pj_wver = PJ_VERSION;    /* the version written (always PJ_VERSION; the host tests write a 1 to
+                                         * check an older project still loads) */
 #define PJ_SECTOR 4096u
 #define PJ_PAYLOAD 256u              /* the payload starts after the commit record's page */
 #define PJ_PAYLOAD_MAX (PJ_SECTOR - PJ_PAYLOAD)
@@ -303,7 +307,7 @@ static void pj_write_state(void)
     uint32_t t, s, b, n = 0, i;
     pw_byte('B');
     pw_byte('P');
-    pw_byte(PJ_VERSION);
+    pw_byte(pj_wver);
     pw_u16(sys.bpm);
     pw_byte(sys.ntrk);
     pw_a16(mst, NMS);
@@ -372,7 +376,10 @@ static uint32_t pj_target(uint32_t a, uint32_t k)
 static int pj_read_state(void)
 {
     uint32_t t, s, b, n, i, nt;
-    if (pr_byte() != 'B' || pr_byte() != 'P' || pr_byte() != PJ_VERSION || pr.bad)
+    if (pr_byte() != 'B' || pr_byte() != 'P' || pr.bad)
+        return -1;
+    pj_ver = pr_byte();
+    if (pj_ver < 1u || pj_ver > PJ_VERSION || pr.bad)
         return -1;
     {                                                    /* (the track count, looked at before anything changes) */
         uint32_t at = pr.at, lit = (uint32_t)pr.lit, run = (uint32_t)pr.run, nt;
@@ -420,6 +427,9 @@ static int pj_read_state(void)
             if (s < NSLOT) {
                 P->engine[s] = (uint8_t)(e < NME ? e : ME_WAVE);
                 pr_a16(P->mod[s], NPK, ME_P[P->engine[s]]);
+                if (pj_ver < 2u && P->engine[s] == ME_SEQ)
+                    for (i = 8; i < 11u; i++)            /* (SPRD AMT OFS, new in 2) */
+                        P->mod[s][i] = ME_P[ME_SEQ][i].def;
                 pr_a8(P->steps[s], 16, 0, 100);
             } else {
                 pr_a16(junk, 0, 0);
@@ -470,7 +480,10 @@ static void pj_scan(uint32_t s)
     pr.at = 0;
     pr.lit = pr.run = 0;
     pr.bad = 0;
-    if (pr_byte() != 'B' || pr_byte() != 'P' || pr_byte() != PJ_VERSION)
+    if (pr_byte() != 'B' || pr_byte() != 'P')
+        return;
+    pj_ver = pr_byte();
+    if (pj_ver < 1u || pj_ver > PJ_VERSION)
         return;
     m->bpm = (uint16_t)pr_u16();
     (void)pr_byte();

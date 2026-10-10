@@ -990,7 +990,7 @@ static const uint8_t *dev_pk(uint32_t t, uint32_t d)
 }
 static const uint8_t CH_PK[NCH] = {PK_SHELF_LO, PK_SHELF_HI, PK_FILTER, PK_PAN};
 static const uint8_t MS_PK[NMS] = {PK_KNOB, PK_ATTACK, PK_RELEASE, PK_MIX};   /* the master compressor */
-static const uint8_t ME_PK[NME][NPK] = {
+static const uint8_t ME_PK[NME][NPK] = {   /* (in stored order: param.c's PLAYOUT places them on the pages) */
     {PK_KNOB, PK_SHAPE, PK_SKEW, PK_FOLD,            /* LFO: RATE SHPE SKEW FOLD */
      PK_CURVE, PK_SMOOTH, PK_VAR, PK_STEPS,          /*      CURV SMTH VAR LEN */
      PK_FADER, PK_FADER, PK_CLOCK, PK_BOWTIE,        /*      AMT OFS PHAS SPRD */
@@ -999,7 +999,8 @@ static const uint8_t ME_PK[NME][NPK] = {
      PK_CURVE, PK_CURVE, PK_CURVE, PK_BOWTIE,        /*      ACRV DCRV RCRV SPRD */
      PK_FADER, PK_TOGGLE, PK_FADER, PK_FADER},       /*      VEL LOOP AMT OFS */
     {PK_STEPS, PK_KNOB, PK_SLEW, PK_SWING,           /* SEQ: LEN RATE SLEW SWNG */
-     PK_DIR, PK_TOGGLE, PK_DOTS, PK_STEPAT},         /*      DIR TRIG PROB STRT */
+     PK_DIR, PK_TOGGLE, PK_DOTS, PK_STEPAT,          /*      DIR TRIG PROB STRT */
+     PK_BOWTIE, PK_FADER, PK_FADER},                 /*      SPRD AMT OFS */
     {PK_SRC, PK_FADER, PK_ATTACK, PK_DECAY,          /* FOLLOW: SRC GAIN RISE FALL */
      PK_STAIRS, PK_FADER, PK_FADER, PK_BOWTIE},      /*         HOLD AMT OFS SPRD */
 };

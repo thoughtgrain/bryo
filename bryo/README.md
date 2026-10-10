@@ -44,11 +44,11 @@ What works on the panel now (every control, in every context, with what's planne
 
 | Control | What it does |
 | --- | --- |
-| HOME | the track's source (TAPE, SYNTH, POLY or DRUM); again for its next page (TAPE 2, TAPE 3: REEL, ROTATE and LVL; SYNTH's FILTER, AMP, VOICE, LEVEL; POLY's ENV, FILTER, LEVEL). LVL, on every source's last page, is what the track hears of it, and can be modulated |
+| HOME | the track's source (TAPE, SYNTH, POLY or DRUM), as it's let go; again for its next page (TAPE 2, TAPE 3: REEL, ROTATE and LVL; SYNTH's AMP, FILTER, VOICE, LEVEL; POLY's ENV, FILTER, LEVEL). Held + SELECT, from any page: the source. LVL, KNOB 4 of every source's last page, is what the track hears of it, and can be modulated |
 | HOME held + SELECT | the track's source: TAPE, SYNTH, POLY or DRUM (each keeps its own knobs) |
-| EDIT | GRAIN; again: GRAIN 2, GRAIN 3, GRAIN 4 (SCAN WARP OFST FDBK), RESONATOR, RESONATOR 2 |
+| EDIT | GRAIN; again: GRAIN 2, GRAIN 3 (SCAN WARP OFST FDBK), GRAIN 4 (PATN SCAL PRND ROUT), RESONATOR, RESONATOR 2, RESONATOR 3 |
 | FX | COLOR; again: COLOR 2, COLOR 3, SPACE, SPACE 2, SPACE 3 |
-| ROUT (GRAIN 3, RESONATOR 3, COLOR 3) | INS: WET crossfades the dry sound with the device's; SEND: the dry stays at full and the device is added at WET, a send per track (SPACE's DLY and VERB always work that way) |
+| ROUT (the last page: GRAIN 4, RESONATOR 3, COLOR 3, just left of LVL where there is one) | INS: WET crossfades the dry sound with the device's; SEND: the dry stays at full and the device is added at WET, a send per track (SPACE's DLY and VERB always work that way) |
 | LFO ENV SEQ ARP, tapped | modulator slots 1 to 4 (the page opens as you let go); again for the slot's next page |
 | LFO ENV SEQ ARP, held + a knob | that slot's depth to the knob on the page shown (-100 to 100 %); the strip shows the slot's depths while held |
 | LFO ENV SEQ ARP, held + SELECT | the slot's engine (LFO, ADSR, SEQ, FOLLOW); its depths stay |

@@ -137,11 +137,12 @@ static const pdesc_t *ui_page(uint32_t k, int16_t **vp)
         *vp = &p->dins[(ui.drm_inst - 1u) & 15u][k];
         return &DRI_P[k];
     }
-    k += 4u * ui.page;
     if (ui.kind == FOCUS_SLOT) {
+        k = pdesc_at(ME_P[p->engine[ui.slot]], k + 4u * ui.page);   /* (the page's position: the stored knob) */
         *vp = &p->mod[ui.slot][k];
         return &ME_P[p->engine[ui.slot]][k];
     }
+    k = pdesc_at(dev_p(sys.sel, ui.dev), k + 4u * ui.page);
     *vp = &dev_v(sys.sel, ui.dev)[k];                  /* (the source: the chosen source's knobs) */
     return &dev_p(sys.sel, ui.dev)[k];
 }
@@ -396,9 +397,9 @@ static void draw_strip(void)
             continue;
         }
         uint32_t pk = ui.view == VIEW_ROUTE ? PK_SRC : ui.view == VIEW_MIXER ? (ui.chan == CHAN_MASTER ? MS_PK[k] : CH_PK[k])
-                    : ui.kind == FOCUS_SLOT ? ME_PK[tp[sys.sel].engine[ui.slot]][4u * ui.page + k]
+                    : ui.kind == FOCUS_SLOT ? ME_PK[tp[sys.sel].engine[ui.slot]][(uint32_t)(d - ME_P[tp[sys.sel].engine[ui.slot]])]
                     : ui.drm_inst ? DRI_PK[k]
-                    : dev_pk(sys.sel, ui.dev)[4u * ui.page + k];
+                    : dev_pk(sys.sel, ui.dev)[(uint32_t)(d - dev_p(sys.sel, ui.dev))];   /* (the stored knob's) */
         int lvl = ui.view == VIEW_MIXER && !ui.chan, mute = lvl && track[k].mute;
         int off = (lvl || ui.view == VIEW_ROUTE) && k >= sys.ntrk;
         char val[12];

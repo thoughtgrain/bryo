@@ -59,11 +59,11 @@ runs 18 to 22 are realistic setups (each played for 6 s, a synth track's keys go
 | 20 | an ambient pad on two tracks: a synth stretched by dense grains into a long reverb, a reel through the strings | 2,077 | 2.2x |
 | 21 | the groove's busiest moment: denser grains, strings, a delay, every channel filtered | 2,439 | 2.6x |
 | 22 | the groove, bounced onto track 4 as it plays | 1,756 | 1.9x |
-| 24 | the groove, modulated: an LFO a beat on the crush, a SEQ on grain size, T1's drums ducking T2's filter (FOLLOW), an ADSR on the bass's cutoff, a stereo LFO on T4's pan | 1,793 | 1.9x |
-| 25 | the groove with every slot on every track, 32 depths each (the most there can be) | 3,123 | 3.3x |
-| 26 | DRUM busy alone: FUNK at VARY 100, FILL 100, EVOL 1, long decays; the others plain reels | 1,301 | 1.4x |
-| 27 | the groove with track 1 a DRUM track (BOSA, SEED 9, VARY 50) in place of its drum reel | 1,885 | 2.0x |
-| 28 | four DRUM tracks, busy rhythms at VARY 100 with long decays: every voice there is (20) | 2,474 | 2.6x |
+| 24 | the groove, modulated: an LFO a beat on the crush, a SEQ on grain size, T1's drums ducking T2's filter (FOLLOW), an ADSR on the bass's cutoff, a stereo LFO on T4's pan | 1,812 | 1.9x |
+| 25 | the groove with every slot on every track, 32 depths each (the most there can be) | 3,161 | 3.3x |
+| 26 | DRUM busy alone: FUNK at VARY 100, FILL 100, EVOL 1, long decays; the others plain reels | 1,308 | 1.4x |
+| 27 | the groove with track 1 a DRUM track (BOSA, SEED 9, VARY 50) in place of its drum reel | 1,898 | 2.0x |
+| 28 | four DRUM tracks, busy rhythms at VARY 100 with long decays: every voice there is (20) | 2,482 | 2.6x |
 
 Run 24 is run 19 (now 1,595: every run costs about 5 more since the modulation's clock ticks whether or not anything
 is modulated) plus the modulation I'd reach for: 84 of the 195 extra are the modulators, the rest the devices
@@ -108,7 +108,7 @@ Write down the CPU reading for each, and anything you hear.
 | 2 | Each track: EDIT for GRAIN, WET 100 (KNOB 1 on GRAIN 2), the rest default | each track records its last bar and grains it | CPU; any click when WET goes up |
 | 3 | Each track: RATE 100, SIZE 500 (GRAIN page 1) | 4 grains a track (four tracks share 16) | CPU; does it crackle, does it settle? |
 | 4 | Same, REV 100 (GRAIN 2) | every grain backwards: the dearest read | CPU |
-| 5 | Same, SCAN TAPE (GRAIN 4, KNOB 1 all the way left) | no buffer to record | CPU |
+| 5 | Same, SCAN TAPE (GRAIN 3, KNOB 1 all the way left) | no buffer to record | CPU |
 | 6 | Hold GLO, turn SELECT down to TRACKS 2 | tracks 3 and 4 fade out; 1 and 2 share 24, 12 each | CPU; a click as they go? |
 | 7 | TRACKS 4 again, back to the defaults (or power-cycle). Track 2 on a blank tape: hold the POLY key to clear it, REC, let it record 10 to 15 s, REC again | the tape grows while you record and loops what you recorded | does the loop length match? any gap or click at the loop's seam? |
 | 8 | Tap the 0 key while track 1's GRAIN plays (WET 100) | the buffer freezes into a 1-bar loop, the 0 key's LED lights; tap again to let go | does it loop in time? |

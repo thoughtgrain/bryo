@@ -125,7 +125,7 @@ Tests and tools:
 | File | What |
 | --- | --- |
 | `tests/run_tests.sh` | everything below that's quick, plus Felucca's kept hardware and installer tests; ends "ALL HOST TESTS PASSED" |
-| `tests/bryo_host.c` | Bryo's chain, input and screens on the host: 527 checks, and every screen rendered |
+| `tests/bryo_host.c` | Bryo's chain, input and screens on the host: 545 checks, and every screen rendered |
 | `tests/bryo_golden.txt`, `ui_golden.py` | each screen's pixel fingerprint |
 | `tests/checkpoint_sim.sh` | the hardware checkpoint on the host: 28 runs rendered to WAV, each one's cost under callgrind, and a stress test with the audio and USB interrupts cutting into the main loop while the memory's books are checked |
 | `tests/mod_audit.sh` | every knob a modulator can move: does it change the sound, does it step at the blocks, what it costs (`--cost`) |
@@ -149,19 +149,19 @@ firmware/src/bryo.c` (no warnings is the bar). For memory-safety, build `tests/b
 stress test's timers for the sanitizer.
 
 **The unit of cost** is host instructions per output sample of `chain_block`, under callgrind, because I can't
-measure the device here. Where it stands (`checkpoint_sim.sh`, 2026-10-09):
+measure the device here. Where it stands (`checkpoint_sim.sh`, 2026-10-10):
 
 | Run | What | Cost |
 | --- | --- | ---: |
 | 1 | four reels, nothing on | 938 |
 | 19 | a realistic four-track groove | 1,615 |
-| 24 | the groove, modulated the way I'd play it | 1,798 (84 of it the modulators) |
+| 24 | the groove, modulated the way I'd play it | 1,812 (87 of it the modulators) |
 | 21 | the groove's busiest moment | 2,454 |
 | 23 | GRAIN at its densest on one track | 2,986 |
-| 25 | every slot on every track, 128 depths | 3,127 |
-| 26 | DRUM busy alone (FUNK, VARY 100, FILL 100, long decays), the others plain reels | 1,301 |
-| 27 | the groove with a DRUM track in place of its drum reel | 1,885 |
-| 28 | four DRUM tracks at once, every voice (20) | 2,474 |
+| 25 | every slot on every track, 128 depths | 3,161 |
+| 26 | DRUM busy alone (FUNK, VARY 100, FILL 100, long decays), the others plain reels | 1,308 |
+| 27 | the groove with a DRUM track in place of its drum reel | 1,898 |
+| 28 | four DRUM tracks at once, every voice (20) | 2,482 |
 | 15 | everything on, all four tracks | 4,909 |
 
 My target for a realistic four-track scene is 2,000; the device's real ratio of host instructions to CPU load is
@@ -227,12 +227,14 @@ number.
 - **2026-10-10: one spelling and one meaning per idea across sources, devices and modulators** (the consistency
   review in the architecture doc): TYPE for a filter's LP/BP/HP, DRV, DEC, times shown as times, a track's loop
   as the modulators see it is its own (DRUM's: the pattern), and a depth turned back to 0 catches there.
+- **2026-10-10: the pages follow two rules, through a layout, not by moving storage.** LVL is KNOB 4 of a source's
+  last page (ROUT left of it); a modulator's AMT OFS are KNOB 3-4 of its last page; SYNTH turns its pages in
+  POLY's order. `PLAYOUT` maps page places to stored knobs, so the DSP, the depths and the projects didn't move
+  (SEQ's new SPRD AMT OFS made the project format version 2). DRUM's hits trigger the modulators as keys do; HOME
+  turns the page as it's let go; OCT moves DRUM's bar only on DRUM's own pages.
 
 ## Known considerations and open questions
 
-- **Six layout and gesture questions from the consistency review** (where LVL and ROUT sit, SYNTH's and POLY's
-  page order, AMT and OFS on the modulators and SEQ's lack of them, DRUM hits as triggers, HOME on press or on
-  let-go, OCT on a DRUM track): listed in the architecture doc, waiting on a decision.
 - **P-locks** (a SEQ step's own depth): waiting on a decision. SEQ's step values are in.
 - **SPRD on PAN** pulses (a tremolo) at 100 instead of moving the sound, because PAN is a balance. Left for now; the
   options are in the architecture doc ("Modulation, as built", open points). My lean: let SPRD reach every knob of

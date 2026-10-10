@@ -562,6 +562,8 @@ static void drm_block(uint32_t t, uint32_t keys, const int32_t *rec, int32_t *ou
                 h.hit &= (uint16_t)~r->skip;
                 r->skip = 0;
             }
+            if (h.hit)                                   /* the pattern's notes trigger the modulators, as keys do */
+                mod_hit |= (uint8_t)(1u << t);
             if (mode == DMODE_ERAS && keys) {            /* ERAS: the held instruments wiped as the step passes */
                 for (i = 0; i < 16u; i++)
                     if (((keys >> i) & 1u) && ((tp[t].dpat[bar][s & 15u] >> i) & 1u))
