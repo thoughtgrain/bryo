@@ -20,12 +20,12 @@ any	POT_MASTER	turn	master output level (digital gain after the mix; USB follows
 any	BTN_OCTDN	combo	held with OCT+ for 5 s: UPDATE MODE countdown from 2 s, letting go cancels	now	-	kept
 power-on	BTN_OCTDN	combo	held with OCT+ at power-on: HARDWARE CALIBRATION (press each button, turn each encoder)	now	-	kept
 page	BTN_HOME	press	focus the track's source (TAPE, SYNTH, POLY or DRUM) as HOME is let go (held for SELECT or a DRUM key: no page turn); again: its next page (TAPE 2 the slice envelope, TAPE 3, TAPE 4; SYNTH's AMP, FILTER, VOICE, LEVEL; POLY's ENV, FILTER, LEVEL), round. Every source's last page has LVL on KNOB 4 (-24..+6 dB: what the track hears of it, the S-4's LEVEL)	now	-	PRD 2.2
-page	BTN_EDIT	press	(as it's let go) focus GRAIN; again: GRAIN 2 (WET SPRY CONT REV), GRAIN 3 (SCAN WARP OFST FDBK), GRAIN 4 (PATN SCAL PRND ROUT); again: RESONATOR, RESONATOR 2 (CUT RES TYPE SCAL), RESONATOR 3 (- - - ROUT); again: GRAIN. ROUT on GRAIN, RESONATOR and COLOR: INS (WET crossfades the dry with the device) or SEND (the dry at full, the device added at WET)	now	-	PRD 2.2
+page	BTN_EDIT	press	(as it's let go) focus GRAIN; again: GRAIN 2 (WET SPRY CONT REV), GRAIN 3 (SCAN WARP OFST FDBK), GRAIN 4 (PATN SCAL PRND ROUT); again: RESONATOR, RESONATOR 2 (CUT RES TYPE SCAL), RESONATOR 3 (MODE ORDR RNGE RATE: its own arpeggio), RESONATOR 4 (- - - ROUT); again: GRAIN. ROUT on GRAIN, RESONATOR and COLOR: INS (WET crossfades the dry with the device) or SEND (the dry at full, the device added at WET)	now	-	PRD 2.2
 page	BTN_FX	press	(as it's let go) focus COLOR; again: COLOR 2 (NDEC NTON CMOD WET), COLOR 3 (- - ROUT LVL: ROUT left of LVL, as on every page with both); again: SPACE, SPACE 2 (DLY VERB TONE SPRD), SPACE 3 (PRE)	now	-	PRD 2.2
 page	BTN_LFO	tap	the LFO pad's modulator: M1, M2 or M3 (the three swappable slots, each an LFO, ADSR or FOLLOW; LFO held + OP1 OP2 OP3 picks which, M1 to start), its page as the pad is let go; again: its next page. Every engine's last page ends AMT OFS on KNOB 3-4. Held, it sets depths instead (slot-held)	now	-	change
 page	BTN_ENV	tap	the source's envelope: SYNTH's AMP, POLY's ENV, TAPE's slice envelope (ATK DEC SUS REL; each its second page), DRUM's KIT (every decay, with TUNE TONE DRV). ENV is lit on that page. (M2 is on the LFO pad: LFO held + OP2)	now	-	change
 page	BTN_SEQ	tap	M4's page, the step sequencer (always a SEQ: its engine doesn't swap), as the pad is let go; again: its page 2 (DIR TRIG PROB STRT), page 3 (- SPRD AMT OFS)	now	-	change
-page	BTN_ARP	tap	the arpeggiator's page (arp.c, not a modulator): MODE ORDR RNGE RATE; again: GATE SWNG. It plays a SYNTH or POLY track's keys one note at a time, in time	now	-	change
+page	BTN_ARP	tap	the arpeggiator's page (arp.c, not a modulator): MODE ORDR RNGE RATE; again: GATE SWNG. It plays the keys held one at a time, in time: SYNTH and POLY notes, TAPE's slices, DRUM's drums (RNGE stays 1 on those: no octaves)	now	-	change
 page	BTN_GLO	tap	open the mixer and keep it up	now	-	change
 page	BTN_GLO	hold	the mixer while held; letting go returns to the page	now	-	change
 page	BTN_SCL	press	down: the reset (scl-held); on its own, nothing	now	-	change
@@ -75,7 +75,7 @@ page:drum	ENC_K1-4	turn	PATTERN: PATN writes its rhythm over the pattern (an edi
 page:drum	BTN_OCTDN	press	(DRUM's own pages; the track's device pages: the octave, as on every track) the bar STEP shows, down	now	-	change
 page:drum	BTN_OCTUP	press	(DRUM's own pages) the bar STEP shows, up, within LEN. STEP keeps showing that bar while playing (the keys write there; the playhead shows when it's in it); the other DRUM pages follow the playhead	now	-	change
 page:drum	BLACK_POLY	hold	held 0.5 s: clear the DRUM pattern (its tape stays); SAVE held undoes	now	-	change
-page:resonator	WHITE_1-16	press	the strings' root, a semitone a key from C of OCT (until PTCH is turned): on a TAPE or DRUM track the key plucks them alone (no slice, no drum); on SYNTH or POLY the keys still play the source and the strings follow its notes	now	-	PRD 2.3
+page:resonator	WHITE_1-16	press	the strings' root, a semitone a key from C of OCT (until PTCH is turned): on a TAPE or DRUM track the key plucks them alone (no slice, no drum); on SYNTH or POLY the keys still play the source and the strings follow its notes. RESONATOR 3's MODE on (KEY LTCH ADD): the keys feed its arpeggio instead, each step plucking the strings at its note, the source quiet on this page (any source); a latched or piled-up pattern plucks on off the page	now	-	PRD 2.3
 page:slot	WHITE_1-16	hold	on a SEQ slot's page: pick steps 1-16 (held keys are framed on screen); the keys don't play the track here	now	-	PRD 2.3
 page:slot	ENC_K1	combo	on a SEQ slot's page with white keys held: the held steps' values (0-100 %), instead of LEN	now	-	PRD 2.3
 mixer	ENC_K1	turn	track 1 level (the fader's notches; its fill is the live meter)	now	-	change
@@ -119,4 +119,4 @@ routing-view	ENC_K1-4	turn	track 1..4's REC IN: AUTO (as before: the others on T
 routing-view	BTN_HOME	press	leave REC IN for the source (any page pad does the same for its page; GLO for the mixer)	now	-	change
 page:arp	ENC_K1-4	turn	MODE (OFF KEY LTCH ADD), ORDR (UP DOWN UPDN RND PLAY), RNGE (1-3 octaves), RATE (1/4 1/8 8T 1/16 16T 1/32); page 2: GATE, SWNG	now	-	change
 page:arp	BLACK_POLY	hold	held 0.5 s: forget the notes the arpeggiator holds (a latched chord, an ADD pile)	now	-	change
-page:arp	WHITE_1-16	press	on a SYNTH or POLY track: the notes it arpeggiates (KEY: while held; LTCH: the last chord goes on; ADD: each joins for good)	now	-	change
+page:arp	WHITE_1-16	press	the notes (SYNTH, POLY), slices (TAPE) or drums (DRUM) it arpeggiates (KEY: while held; LTCH: the last chord goes on; ADD: each joins for good)	now	-	change

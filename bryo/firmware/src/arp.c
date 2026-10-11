@@ -72,11 +72,10 @@ static void arp_clear(uint32_t t)
         arp_clear_req[t] = 1;
 }
 
-/* track t's arpeggiator is on and its source is one it plays (SYNTH, POLY) */
-static int arp_on(uint32_t t)
-{
-    return tp[t].arp[AR_MODE] != ARM_OFF && (tp[t].src == SRC_SYNTH || tp[t].src == SRC_POLY);
-}
+/* track t's arpeggiator is on (every source: SYNTH and POLY notes, TAPE's slices, DRUM's drums) */
+static int arp_on(uint32_t t) { return tp[t].arp[AR_MODE] != ARM_OFF; }
+
+static arp_rt_t reso_arp[NTRK];      /* RESONATOR's own arpeggio, one a track (its knobs: RP_AMODE.., reso.c) */
 
 static void arp_add(arp_rt_t *r, uint32_t note)
 {
@@ -102,21 +101,21 @@ static void arp_remove(arp_rt_t *r, uint32_t note)
 }
 
 /* a step's length at the tempo, in samples: RATE's division of a beat (1/4 = a beat), SWNG's long or short half */
-static int32_t arp_len(uint32_t t, uint32_t step)
+static int32_t arp_len(const int16_t *a, uint32_t step)
 {
     static const uint8_t DIV[6] = {1, 2, 3, 4, 6, 8};   /* 1/4 1/8 8T 1/16 16T 1/32: steps a beat */
-    int32_t bpm = clamp((int32_t)sys.bpm, 40, 240), d = DIV[clamp(tp[t].arp[AR_RATE], 0, 5)];
-    int32_t len = (int32_t)MOD_BEAT_DEN / (bpm * d), sw   /* (60 x 44100: samples a minute) */ = len * clamp(tp[t].arp[AR_SWNG], 0, 100) / 300;
+    int32_t bpm = clamp((int32_t)sys.bpm, 40, 240), d = DIV[clamp(a[AR_RATE], 0, 5)];
+    int32_t len = (int32_t)MOD_BEAT_DEN / (bpm * d), sw   /* (60 x 44100: samples a minute) */ = len * clamp(a[AR_SWNG], 0, 100) / 300;
     return step & 1u ? len - sw : len + sw;
 }
 
 /* the notes held into s, low to high (PLAY: in the order pressed); their count */
-static uint32_t arp_notes(uint32_t t, const arp_rt_t *r, uint8_t *s)
+static uint32_t arp_notes(const int16_t *a, const arp_rt_t *r, uint8_t *s)
 {
     uint32_t n = r->n, i, j;
     for (i = 0; i < n; i++)
         s[i] = r->note[i];
-    if (tp[t].arp[AR_ORDR] != ARO_PLAY)
+    if (a[AR_ORDR] != ARO_PLAY)
         for (i = 1; i < n; i++)
             for (j = i; j > 0u && s[j - 1u] > s[j]; j--) {
                 uint8_t x = s[j];
@@ -148,46 +147,31 @@ static uint32_t arp_at(const uint8_t *s, uint32_t n, uint32_t k)
 }
 
 /* the note of the next step: RNGE octaves of the notes held, walked by ORDR */
-static uint32_t arp_pick(uint32_t t, arp_rt_t *r)
+static uint32_t arp_pick(const int16_t *a, arp_rt_t *r)
 {
     uint8_t s[ARP_MAXN];
-    uint32_t n = arp_notes(t, r, s), len = n * (uint32_t)clamp(tp[t].arp[AR_RNGE], 1, 3);
+    uint32_t n = arp_notes(a, r, s), len = n * (uint32_t)clamp(a[AR_RNGE], 1, 3);
     r->rng = r->rng * 1664525u + 1013904223u;
-    return arp_at(s, n, arp_place((uint32_t)tp[t].arp[AR_ORDR], len, r->pos, r->rng >> 8));
+    return arp_at(s, n, arp_place((uint32_t)a[AR_ORDR], len, r->pos, r->rng >> 8));
 }
 
-/* audio ISR: one block of track t's arpeggiator. keys: the keys held on the track (a mask over base); returns the
- * mask the source plays, and in *nbase its key_base */
-static uint32_t arp_block(uint32_t t, uint32_t keys, uint32_t base, uint32_t n, uint32_t *nbase)
+/* audio ISR: one block of an arpeggiator (state r, knobs a: AR_*; on: it plays). keys: the keys held (a mask over
+ * base); returns the mask that plays, and in *nbase its key_base (a step's note: bit 0 at that base) */
+static uint32_t arp_run(arp_rt_t *r, const int16_t *a, int on, uint32_t keys, uint32_t base, uint32_t n,
+                        uint32_t *nbase, uint32_t salt)
 {
-    arp_rt_t *r = &arp_rt[t];
-    uint32_t mode = (uint32_t)clamp(tp[t].arp[AR_MODE], 0, 3), press = keys & ~r->held, k;
+    uint32_t mode = (uint32_t)clamp(a[AR_MODE], 0, 3), press = keys & ~r->held, k;
     if (!r->rng)
-        r->rng = 0x9E3779B9u ^ (t * 0x85EBCA6Bu);
-    if (arp_clear_req[t]) {
-        arp_clear_req[t] = 0;
-        r->n = 0;
-    }
+        r->rng = 0x9E3779B9u ^ (salt * 0x85EBCA6Bu);
     if (mode != r->mode && (mode == ARM_OFF || r->mode == ARM_OFF || mode == ARM_KEY))
         r->n = 0;                                        /* (turned on, off, or back to KEY: from the keys as they are) */
     r->mode = (uint8_t)mode;
-    if (arp_seed_req[t]) {                               /* notes put back (a project): latched, waiting for PLAY */
-        uint32_t i;
-        for (i = 0; i < arp_seed_n[t]; i++)
-            r->note[i] = arp_seed_note[t][i];
-        r->n = arp_seed_n[t];
-        r->latched = 1;
-        r->waiting = !sys.playing;
-        r->len = 0;
-        r->held = keys;
-        arp_seed_req[t] = 0;
-    }
     if (sys.playing != r->playing) {                     /* PLAY: notes held without keys start over; STOP: they wait */
         r->playing = sys.playing;
         r->waiting = !sys.playing && !keys;
         r->len = 0;
     }
-    if (mode == ARM_OFF || !arp_on(t)) {                 /* off: the keys straight through (a silent block first if a
+    if (mode == ARM_OFF || !on) {                        /* off: the keys straight through (a silent block first if a
                                                           * step's note was sounding, so it ends) */
         r->held = keys;
         r->base_in = (uint8_t)base;
@@ -236,14 +220,65 @@ static uint32_t arp_block(uint32_t t, uint32_t keys, uint32_t base, uint32_t n, 
         r->phase += (int32_t)n;
     while (r->phase >= r->len) {                         /* a step starts */
         r->phase -= r->len;
-        r->len = arp_len(t, r->pos);
-        r->cur = (uint8_t)arp_pick(t, r);
+        r->len = arp_len(a, r->pos);
+        r->cur = (uint8_t)arp_pick(a, r);
         r->pos++;
-        r->gate = clamp(r->len * clamp(tp[t].arp[AR_GATE], 10, 100) / 100, (int32_t)CTL, r->len - (int32_t)CTL);
+        r->gate = clamp(r->len * clamp(a[AR_GATE], 10, 100) / 100, (int32_t)CTL, r->len - (int32_t)CTL);
         r->on = 1;
     }
     if (r->phase >= r->gate)
         r->on = 0;
     *nbase = r->cur;
     return r->on;
+}
+
+/* audio ISR: one block of track t's arpeggiator (the ARP pad's), between its keys and its source. SYNTH and POLY:
+ * notes (keys a mask over base; a step plays bit 0 at *nbase). TAPE and DRUM: the keys are slices or drums (0..15),
+ * a step plays that one's key, and RNGE has no octaves to spread over. Returns the mask the source plays */
+static uint32_t arp_block(uint32_t t, uint32_t keys, uint32_t base, uint32_t n, uint32_t *nbase)
+{
+    arp_rt_t *r = &arp_rt[t];
+    int16_t a[NARP];
+    uint32_t i, out, nb;
+    int notes;
+    if (arp_clear_req[t]) {
+        arp_clear_req[t] = 0;
+        r->n = 0;
+    }
+    if (arp_seed_req[t]) {                               /* notes put back (a project): latched, waiting for PLAY */
+        for (i = 0; i < arp_seed_n[t]; i++)
+            r->note[i] = arp_seed_note[t][i];
+        r->n = arp_seed_n[t];
+        r->latched = 1;
+        r->waiting = !sys.playing;
+        r->len = 0;
+        r->held = keys;
+        r->mode = (uint8_t)clamp(tp[t].arp[AR_MODE], 0, 3);   /* (as the mode: arp_run's turned-on clear passes them) */
+        arp_seed_req[t] = 0;
+    }
+    notes = tp[t].src == SRC_SYNTH || tp[t].src == SRC_POLY;
+    if (tp[t].arp[AR_MODE] == ARM_OFF && r->mode == ARM_OFF && !r->on && !r->gap) {   /* off and quiet (most tracks,
+                                                         * most blocks): the keys straight through, keeping what
+                                                         * arp_run's off path keeps (the keys, the transport's edge) */
+        if (sys.playing != r->playing) {
+            r->playing = sys.playing;
+            r->waiting = !sys.playing && !keys;
+            r->len = 0;
+        }
+        r->held = notes ? keys : keys & 0xFFFFu;
+        r->base_in = (uint8_t)(notes ? base : 0u);
+        r->pos = 0;
+        *nbase = base;
+        return keys;
+    }
+    if (notes)
+        return arp_run(r, tp[t].arp, arp_on(t), keys, base, n, nbase, t);
+    *nbase = base;
+    if (tp[t].arp[AR_MODE] == ARM_OFF)                   /* (off: the keys straight through; no copy, RNGE unread) */
+        return arp_run(r, tp[t].arp, 0, keys & 0xFFFFu, 0u, n, &nb, t);
+    for (i = 0; i < NARP; i++)                           /* TAPE, DRUM: the slices or drums as they are */
+        a[i] = tp[t].arp[i];
+    a[AR_RNGE] = 1;
+    out = arp_run(r, a, 1, keys & 0xFFFFu, 0u, n, &nb, t);
+    return out ? 1u << (nb & 15u) : 0u;                  /* (a step: that slice's or drum's key) */
 }

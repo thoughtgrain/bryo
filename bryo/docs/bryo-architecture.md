@@ -1227,6 +1227,48 @@ gesture: the drum's key held, then the modulator's pad, a knob (in that order; t
 The pool grew by 640 B (the four arrays' modulated copies). The audit (`mod_audit.sh`) runs them too: each moves its
 drum when the test pattern plays it.
 
+**The arpeggiator on every source, and RESONATOR's own.** The arpeggiator only took SYNTH and POLY. It takes every
+source now, and RESONATOR got one of its own:
+
+- **The core is shared.** `arp_run` in arp.c is the arpeggiator with its state and its knobs passed in (an `arp_rt_t`
+  and an `AR_*` array); `arp_block` is the ARP pad's, per track, around it (the clear and the project's notes, which
+  only that one has). Everything that read `tp[t].arp` inside (the step's length, the notes' order, the pick) takes
+  the knob array instead, so a second arpeggiator is a second state and a knob array, nothing more.
+- **TAPE and DRUM.** Their keys aren't pitches: white key n is slice n, or drum n. So `arp_block` runs them with base
+  0 (the "notes" are the key numbers 0..15) and RNGE forced to 1 (an octave of a slice means nothing), and a step
+  hands back the one key it picked, `1 << n`, instead of bit 0 at a moved `key_base`. The source sees one key go down
+  each step (GATE keeps a block of silence between them), which is exactly a slice jump or a drum hit, so tape.c and
+  drum.c didn't change. On TAPE playing, each step jumps the head; stopped, each plays its slice, through the slice
+  envelope. The screen's walk shows the slices or drums ("3 DRUMS", "HOLD SOME SLICES"), no octaves.
+- **RESONATOR's arpeggio** is MODE ORDR RNGE RATE on its page 3 (stored at 12-15, so ROUT and everything else kept
+  their places; ROUT moved to page 4 on screen only). `reso_arp_block` (reso.c) builds an `AR_*` array from them
+  (GATE 50: a pluck has no length, the gate only spaces the steps) and runs `arp_run` on its own state. Its keys are
+  the white keys on its page, a semitone each above C of OCT, as the page's keys were already. chain.c turns a step's
+  rising edge into a pluck: `reso_block` gets the note, makes it the strings' root and plucks, whatever the source
+  plays. With MODE on, the keys on its page are only the arpeggio's (the source gets none, SYNTH and POLY too, or
+  every key would play twice); off, the page behaves as before. A LTCH or ADD pattern goes on plucking off the page.
+  Its knobs aren't modulation targets (switches and a pattern you set, like the ARP page's).
+- Projects are version 6: an older one stored 0s where the arpeggio's knobs are, which would be RNGE 0 and RATE 1/4,
+  so it gets the defaults (OFF, UP, 1, 1/16).
+- The header's page dots: RESONATOR's long title and four pages left the tempo bar no room, and the stop square
+  covered the last dot. When the bar would be too short the dots go two apart with the shown page a tick instead of a
+  block (only RESONATOR needs it).
+
+What it costs: every track now goes through `arp_block` each block, where TAPE and DRUM used to skip it, and the
+RESONATOR arpeggio's checks run on all four. Measured first, that was about 20 host instructions a sample on every
+checkpoint run, most of it the arpeggiator's off path (a copy of its knobs for TAPE and DRUM, then `arp_run`'s
+bookkeeping). `arp_block` now has a fast path for off and quiet, the state of almost every track almost every block:
+it keeps what the off path keeps (the keys held, the transport's edge) and returns the keys. That brought it to about
+7 a sample (run 19 1,622 to 1,628; run 15 4,910 to 4,921), and SYNTH and POLY tracks with the arpeggiator off take the
+fast path too. RAM: RESONATOR's arpeggio state, one `arp_rt_t` a track.
+
+Tested: TAPE's arpeggio walks the held slices (and RNGE 3 still walks them once), DRUM's walks the drums UPDN with the
+kit seeing one key a step, RESONATOR's plucks at C3 and E3 in turn with the tape kept quiet, stops when the keys are
+let go, and a latched one goes on plucking an octave apart off its page. Each was checked against a mutant (the step
+handing back every key, RNGE kept, the page's keys still reaching the source, no pluck, no new root, the project
+fix-up gone), and the factory scene's latched arpeggios, which the move of the project's notes first broke (they were
+put back before the "turned on" clear), are back.
+
 ## Sends: ROUT, as built (2026-10-09)
 
 GRAIN, RESONATOR and COLOR each have a WET, and until now it was always a crossfade: turning WET up turned the dry
@@ -1237,7 +1279,7 @@ full and the effect added. So each of the three now has ROUT, INS or SEND, on it
 | Device | Where ROUT is | INS (as before) | SEND |
 | --- | --- | --- | --- |
 | GRAIN | page 4, KNOB 4 | dry x (1 - WET) + grains x WET | dry + grains x WET |
-| RESONATOR | page 3 (its own page), KNOB 4 | dry x (1 - WET) + strings x WET | dry + strings x WET |
+| RESONATOR | page 4 (its own page), KNOB 4 | dry x (1 - WET) + strings x WET | dry + strings x WET |
 | COLOR | page 3, KNOB 3 (left of LVL) | dry x (1 - WET) + coloured x WET, then LVL | dry + coloured x WET, then LVL |
 
 SPACE has no ROUT: DLY and VERB were always levels added to a full dry, which is a send already.

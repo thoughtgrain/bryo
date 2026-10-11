@@ -58,8 +58,9 @@ The rest of the hardware checkpoint (`docs/hardware-checkpoint.md`) is under way
   pick SEQ steps on a SEQ page. Black keys: OP1 to OP4 mute, OP5 reverse, OP6 half
   speed, MONO and POLY clear (held), 0 freezes GRAIN; or, with SETUP's KEYS on NOTE (GLO held + OCT+), the 27 keys
   are a keyboard from F on SYNTH and POLY, and the black keys play.
-- **ARP.** Per track, on SYNTH and POLY: the keys held go in, one note at a time comes out in time (KEY, LTCH, ADD;
-  UP DOWN UPDN RND PLAY; 1-3 octaves; RATE, GATE, SWNG). `arp.c`.
+- **ARP.** Per track, on every source: the keys held go in, one at a time comes out in time (KEY, LTCH, ADD;
+  UP DOWN UPDN RND PLAY; 1-3 octaves; RATE, GATE, SWNG): notes on SYNTH and POLY, slices on TAPE, drums on DRUM.
+  RESONATOR has its own (its page 3: MODE ORDR RNGE RATE), plucking the strings at each step's note. `arp.c`.
 - **DRUM.** Sixteen synthesized instruments on the white keys, a pattern of 2 to 4 bars, ten written rhythms
   (PATN), and SEED: any value but 0 plays a version that varies the pattern the way a player would (the backbone
   kept, ghost notes, the hats thinning and filling, fills at the end), the same version every time. OCT- / OCT+ pick
@@ -113,7 +114,7 @@ Felucca's `felucca.c` did); `tests/bryo_host.c` includes the same files for the 
 | `mem.c` | the shared sound memory: chunks and owners |
 | `tape.c` | TAPE: ADPCM tapes, reels, the head, REC and overdub, clear and undo |
 | `synth.c`, `poly.c`, `source.c` | SYNTH, POLY, and the source table |
-| `arp.c` | the arpeggiator: the keys into one note at a time, in time, before SYNTH and POLY |
+| `arp.c` | the arpeggiator: the keys into one at a time, in time, before the source (notes, slices, drums); RESONATOR's arpeggio runs the same core (`arp_run`) |
 | `drum_voice.c`, `drum.c` | DRUM: the one synthesizer every instrument shares; the kit, the rhythms, SEED's versions, the player |
 | `grain.c` | GRAIN: the live buffer, the scheduler, the shared pool of grains |
 | `reso.c`, `color.c`, `space.c` | RESONATOR, COLOR, SPACE |
@@ -158,21 +159,22 @@ so it means the same on macOS, where clang would otherwise check for Mach-O). Fo
 stress test's timers for the sanitizer.
 
 **The unit of cost** is host instructions per output sample of `chain_block`, under callgrind, because I can't
-measure the device here. Where it stands (`checkpoint_sim.sh`, 2026-10-10; runs 1, 19, 24 and 15 measured again after the arpeggiator went
-in, about 4 a sample for the four arpeggiators and the new reels; the rest are from before it):
+measure the device here. Where it stands (`checkpoint_sim.sh`, every run measured again 2026-10-11 after the second
+round from playing it: the arpeggiator on every source and RESONATOR's own added about 7 a sample, the per-block
+checks every track now makes):
 
 | Run | What | Cost |
 | --- | --- | ---: |
-| 1 | four reels, nothing on | 921 |
-| 19 | a realistic four-track groove | 1,594 |
-| 24 | the groove, modulated the way I'd play it | 1,815 (87 of it the modulators) |
-| 21 | the groove's busiest moment | 2,454 |
-| 23 | GRAIN at its densest on one track | 2,986 |
-| 25 | every slot on every track, 128 depths | 3,161 |
+| 1 | four reels, nothing on | 967 |
+| 19 | a realistic four-track groove | 1,628 |
+| 24 | the groove, modulated the way I'd play it | 1,846 (109 of it the modulators) |
+| 21 | the groove's busiest moment | 2,469 |
+| 23 | GRAIN at its densest on one track | 3,017 |
+| 25 | every slot on every track, 128 depths | 3,260 |
 | 26 | DRUM busy alone (FUNK, VARY 100, FILL 100, long decays), the others plain reels | 1,308 |
-| 27 | the groove with a DRUM track in place of its drum reel | 1,898 |
-| 28 | four DRUM tracks at once, every voice (20) | 2,482 |
-| 15 | everything on, all four tracks | 4,908 |
+| 27 | the groove with a DRUM track in place of its drum reel | 1,848 |
+| 28 | four DRUM tracks at once, every voice (20) | 2,409 |
+| 15 | everything on, all four tracks | 4,921 |
 
 My target for a realistic four-track scene is 2,000. The first device reading (run 1, 2026-10-10: 25 %, in 5 % steps)
 puts the ratio at about 37.6 host instructions a sample per percent, if the load scales with the host's count: the

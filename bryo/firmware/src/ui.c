@@ -239,15 +239,22 @@ static void draw_head(void)
         px_frame(0, 1, bw, 11, px_ink, 1);
         px_text(2, 3, PXF_5, box, px_ink);
         x = px_text(x, 3, PXF_5B, ti, px_ink);
-        if (pages > 1u) {                                  /* the pages, side by side: the shown one a block, the other a dot */
+        if (pages > 1u) {                                  /* the pages, side by side: the shown one a block, the other a dot
+                                                            * (4 dots apart; 2 apart, the shown one a tick, when the tempo
+                                                            * bar would have no room left for the tempo, the transport and
+                                                            * REC: RESONATOR's four pages) */
             uint32_t g;
+            int32_t need = px_text_w(PXF_5, bpm) + 10 + (((sys.rec >> sys.sel) & 1u) || ui.view == VIEW_USBREC ? 7 : 0);
+            int tight = 120 - (x + 2 + 4 * (int32_t)pages) < need;
             for (g = 0; g < pages; g++) {
-                if (g == page)
+                if (tight)
+                    px_box(x + 3 + (int32_t)g * 2, g == page ? 5 : 6, 1, g == page ? 3 : 1, px_ink);
+                else if (g == page)
                     px_box(x + 2 + (int32_t)g * 4, 5, 3, 3, px_ink);
                 else
                     px_dot(x + 3 + (int32_t)g * 4, 6, px_ink);
             }
-            x += 2 + 4 * (int32_t)pages;
+            x += tight ? 3 + 2 * (int32_t)pages : 2 + 4 * (int32_t)pages;
         }
         bar = x + 1;
         px_box(bar, 1, 120 - bar, 11, px_ink);
@@ -512,8 +519,8 @@ static void draw_foot(void)
         str_cpy(a, ui.slot_btn == B_LFO ? "KNOB:DEPTH OP1-3:M1-3" : ui.slot_held == SLOT_SEQ ? "KNOB:DEPTH"
                    : "KNOB:DEPTH SEL:ENGINE", sizeof a);
     else if (ui.view == VIEW_PAGE && ui.kind == FOCUS_ARP)   /* the arpeggiator: the keys, and the latched notes' clear */
-        str_cpy(a, tp[sys.sel].src != SRC_SYNTH && tp[sys.sel].src != SRC_POLY ? "SYNTH, POLY ONLY"
-                   : tp[sys.sel].arp[AR_MODE] >= ARM_LTCH ? "POLY HELD: CLEAR" : "KEYS: ARP", sizeof a);
+        str_cpy(a, tp[sys.sel].arp[AR_MODE] >= ARM_LTCH ? "POLY HELD: CLEAR" : tp[sys.sel].src == SRC_TAPE
+                   ? "KEYS: SLICES" : tp[sys.sel].src == SRC_DRUM ? "KEYS: DRUMS" : "KEYS: ARP", sizeof a);
     else if (ui.view == VIEW_PAGE && ui.kind == FOCUS_SLOT && tp[sys.sel].engine[ui.slot] == ME_SEQ)
         str_cpy(a, "KEY+KNOB 1: STEP", sizeof a);
     else if (ui.glo_held)                             /* the white keys pick the track; SELECT sets TRACKS */

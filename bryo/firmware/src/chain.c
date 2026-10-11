@@ -96,7 +96,7 @@ static void chain_block(int32_t *out, uint32_t n)
         return;
     }
     for (t = 0; t < NTRK; t++) {                       /* what each track's source plays: its keys (the focused
-                                                        * track's), on SYNTH and POLY through the arpeggiator */
+                                                        * track's), through the arpeggiator (every source) */
         uint32_t src = tp[t].src, base = 12u * ((uint32_t)track[t].octave + 1u), in, nb;
         int notes = src == SRC_SYNTH || src == SRC_POLY;
         if (notes && sys.keys_notes) {                 /* KEYS NOTE: the 27 keys as a keyboard, from the F above */
@@ -105,8 +105,11 @@ static void chain_block(int32_t *out, uint32_t n)
         } else {
             in = t == sel ? white : 0u;
         }
+        if (t == sel && ((sys.keys_reso && (!notes || tp[t].dev[DEV_RESO][RP_AMODE] != ARM_OFF)) ||
+                         (sys.keys_grain && src == SRC_TAPE)))
+            in = 0;                                    /* (the keys are RESONATOR's or GRAIN's cursor on this page) */
         nb = base;
-        play[t] = notes ? arp_block(t, in, base, n, &nb) : in;
+        play[t] = arp_block(t, in, base, n, &nb);
         key_base[t] = (uint8_t)clamp((int32_t)nb, 0, 127);
         mod_xkeys[t] = t == sel ? 0u : play[t];
     }
@@ -139,7 +142,10 @@ static void chain_block(int32_t *out, uint32_t n)
         track_rt_t *rt = &track_rt[t];
         int32_t s[CTL], gl[CTL], gr[CTL], g = c->mute ? 0 : (int32_t)LEVEL_Q12[c->level & 127u], pk = rt->peak;
         int32_t a0 = rt->act, a1 = clamp(a0 + (t < ntrk ? 1 : -1) * 372 * (int32_t)n, 0, 32767);
-        uint32_t k = play[t], gk = 0, rk = 0;
+        uint32_t k = play[t], gk = 0, rk = 0, ra = 0, rn = 0;
+        int32_t anote = -1;
+        if (tp[t].dev[DEV_RESO][RP_AMODE] == ARM_OFF)
+            reso_arp_on[t] = 0;                         /* (its arpeggio off: the next step on is a pluck) */
         rt->act = a1;
         if (!a0 && !a1) {                               /* parked (TRACKS): silent, not rendered */
             grain_kill(t);                              /* (its grain slots go to the tracks still on) */
@@ -153,16 +159,23 @@ static void chain_block(int32_t *out, uint32_t n)
             gk = white;
             k = 0;
         }
-        if (t == sel && white && sys.keys_reso) {       /* the RESONATOR page: the white keys set its root; on a TAPE
-                                                         * or DRUM track they pluck it alone (no slice, no drum), on
-                                                         * SYNTH or POLY they still play the source too */
+        if (tp[t].dev[DEV_RESO][RP_AMODE] != ARM_OFF) {   /* RESONATOR's own arpeggio: the keys on its page into it,
+                                                         * a pluck at each step's note (whatever the source plays) */
+            ra = reso_arp_block(t, t == sel && sys.keys_reso ? white : 0u, 12u * ((uint32_t)track[t].octave + 1u), n,
+                                &rn);
+            if (ra && !reso_arp_on[t])
+                anote = (int32_t)rn;
+            reso_arp_on[t] = (uint8_t)ra;
+        } else if (t == sel && white && sys.keys_reso) {   /* the RESONATOR page: the white keys set its root; on a
+                                                         * TAPE or DRUM track they pluck it alone (no slice, no drum),
+                                                         * on SYNTH or POLY they still play the source too */
             rk = white;
             if (tp[t].src == SRC_TAPE || tp[t].src == SRC_DRUM)
                 k = 0;
         }
         chain_source(t, k, (sys.rec >> t) & 1u ? rin[t] : 0, s, n);
         grain_block(t, s, gk, (int)zero, gl, gr, n);    /* from here the track is stereo */
-        reso_block(t, gl, gr, rk, tp[t].src == SRC_TAPE || tp[t].src == SRC_DRUM, n);
+        reso_block(t, gl, gr, rk, tp[t].src == SRC_TAPE || tp[t].src == SRC_DRUM, anote, n);
         color_block(t, gl, gr, n);
         space_block(t, gl, gr, n);
         if (a0 != 32767 || a1 != 32767)                  /* switching on or off: the 2 ms ramp */

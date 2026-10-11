@@ -23,7 +23,8 @@
 
 #define RS_N 4u                      /* strings a track */
 #define RS_LEN (sizeof(mem_chunk_t) / 2u)   /* a string's delay line: a chunk as samples (1,056) */
-enum { RP_PTCH, RP_DEC, RP_TONE, RP_WET, RP_CUT, RP_RES, RP_SLOP, RP_SCAL, RP_ROUT };
+enum { RP_PTCH, RP_DEC, RP_TONE, RP_WET, RP_CUT, RP_RES, RP_SLOP, RP_SCAL, RP_ROUT, RP_AMODE = 12, RP_AORD, RP_ARNG,
+       RP_ARAT };   /* (12-15: its arpeggio) */
 
 /* the strings above the root, 1/16 semitones, by SCAL (HARM MAJ MIN PEN): the first four of ui_viz.c's PART_16 */
 static const int16_t RS_PART16[4][RS_N] = {{0, 192, 304, 384}, {0, 64, 112, 192}, {0, 48, 112, 192}, {0, 32, 64, 112}};
@@ -107,9 +108,24 @@ static void rs_pluck(reso_t *R, uint32_t nstr, int32_t root16, int32_t a, int32_
     }
 }
 
+/* audio ISR: one block of track t's RESONATOR arpeggio (its page's MODE ORDR RNGE RATE; a pluck has no gate):
+ * keys, the white keys on the RESONATOR page over base. Returns 1 while a step's note sounds, the note in *note */
+static uint32_t reso_arp_block(uint32_t t, uint32_t keys, uint32_t base, uint32_t n, uint32_t *note)
+{
+    const int16_t *p = tp[t].dev[DEV_RESO];
+    int16_t a[NARP] = {0};
+    a[AR_MODE] = p[RP_AMODE];
+    a[AR_ORDR] = p[RP_AORD];
+    a[AR_RNGE] = p[RP_ARNG];
+    a[AR_RATE] = p[RP_ARAT];
+    a[AR_GATE] = 50;
+    return arp_run(&reso_arp[t], a, p[RP_AMODE] != ARM_OFF, keys, base, n, note, t + 4u) & 1u;
+}
+
 /* audio ISR: track t's RESONATOR on its stereo block, in place. keys: the white keys on the RESONATOR page (0
  * otherwise); pluck: they pluck (a TAPE track) or only retune (a SYNTH or POLY track, the keys playing the source) */
-static void reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t keys, int pluck, uint32_t n)
+static uint8_t reso_arp_on[NTRK];   /* ISR: the arpeggio's note sounding last block (a new step: a pluck) */
+static void reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t keys, int pluck, int32_t anote, uint32_t n)
 {
     reso_t *R = &reso[t];
     const int16_t *p = TPD(t, DEV_RESO);
@@ -128,6 +144,12 @@ static void reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t keys, int pl
                 rs_pluck(R, nstr, R->root16, a, sc);
             break;
         }
+    if (anote >= 0) {                                    /* its arpeggio's step: that note the root, plucked */
+        R->root16 = clamp(anote, 29, 108) * 16;
+        R->ptch_seen = p[RP_PTCH];
+        if (nstr)
+            rs_pluck(R, nstr, R->root16, a, sc);
+    }
     if (!nstr || (!wet0 && !wet1)) {                     /* off: the track as it was */
         R->dry = 32768;
         R->rs16 = 0;

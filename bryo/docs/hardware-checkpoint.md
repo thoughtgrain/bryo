@@ -145,18 +145,22 @@ under the address and undefined-behaviour sanitizers).
 | # | Host cost | Predicted | Read | Heard |
 | --- | ---: | ---: | ---: | --- |
 | 1 | 940 | (the scale) | 25 % | clean |
-| 2 | 1,621 | 43 % | | |
-| 3 | 2,331 | 62 % | | |
+| 2 | 1,652 | 44 % | | |
+| 3 | 2,363 | 63 % | | |
 | 4 | ? | | | |
-| 5 | 1,972 | 52 % | | |
-| 6 | 2,252 | 60 % | | |
-| 11 | 1,893 | 50 % | | |
-| 12 | 3,270 | 87 % (sheds) | | |
-| 13 | 1,693 | 45 % | | |
-| 14 | 1,820 | 48 % | | |
-| 15 | 4,904 | 130 % (sheds) | | |
-| 19 | 1,609 | 43 % | | |
-| 22 | 1,781 | 47 % | | |
+| 5 | 2,006 | 53 % | | |
+| 6 | 2,273 | 60 % | | |
+| 11 | 1,914 | 51 % | | |
+| 12 | 3,291 | 88 % (sheds) | | |
+| 13 | 1,712 | 46 % | | |
+| 14 | 1,842 | 49 % | | |
+| 15 | 4,921 | 131 % (sheds) | | |
+| 19 | 1,628 | 43 % | | |
+| 22 | 1,799 | 48 % | | |
+
+The host costs were measured again on 2026-10-11, after the second round from playing it (the arpeggiator on every
+source, RESONATOR's own: about 7 a sample more on every run). Row 1 stays at 940, the build the 25 % was read on,
+since it sets the scale (run 1 is 967 now).
 
 **The factory scene, 2026-10-10:** CPU above 80 % and crackles once the drums came in, where the host predicted
 about 45 % (1,720). So the scale from run 1 doesn't hold for every kind of work: the target divides where the host

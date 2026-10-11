@@ -957,7 +957,8 @@ static const uint8_t DEV_PK[NDEV][NPK] = {
      PK_SCAN, PK_SPEED, PK_START, PK_LOOP},          /*        SCAN WARP OFST FDBK */
     {PK_KEYS, PK_DECAY, PK_TONE, PK_MIX,             /* RESONATOR: PTCH DEC TONE WET */
      PK_CUTOFF, PK_RES, PK_SLOPE, PK_SCALE,          /*            CUT RES TYPE SCAL */
-     PK_ROUTE, PK_NONE, PK_NONE, PK_NONE},           /*            ROUT */
+     PK_ROUTE, PK_NONE, PK_NONE, PK_NONE,            /*            ROUT */
+     PK_TOGGLE, PK_DIR, PK_VOICES, PK_CLOCK},        /*            its arpeggio: MODE ORDR RNGE RATE */
     {PK_DRIVE, PK_STAIRS, PK_NOISE, PK_TONE,         /* COLOR: DRV CRSH NOIS TILT */
      PK_DECAY, PK_TONE, PK_CMOD, PK_MIX,             /*        NDEC NTON CMOD WET */
      PK_FADER, PK_ROUTE, PK_NONE, PK_NONE},          /*        LVL ROUT */

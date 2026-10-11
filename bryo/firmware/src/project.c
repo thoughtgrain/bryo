@@ -29,12 +29,13 @@
 
 #define PJ_N 6u                      /* project slots */
 #define PJ_MAGIC 0x50595242u         /* "BRYP" */
-#define PJ_VERSION 5u                   /* 2: SEQ's slots have SPRD AMT OFS (a version 1 project's SEQ gets their
+#define PJ_VERSION 6u                   /* 2: SEQ's slots have SPRD AMT OFS (a version 1 project's SEQ gets their
                                          * defaults, not the 0s it stored there). 3: each track's arpeggiator after
                                          * its drum kit (older: the arpeggiator off, its defaults). 4: then the notes
                                          * it holds (a latched chord, an ADD pile), put back waiting for PLAY. 5:
                                          * TAPE's slice envelope (ATK DEC SUS REL; older: its defaults, not the 0s
-                                         * stored where it now is) */
+                                         * stored where it now is). 6: RESONATOR's arpeggio (MODE ORDR RNGE RATE;
+                                         * older: off, its defaults) */
 static uint8_t pj_arpn[NTRK][ARP_MAXN];  /* the notes a project being read holds, until pj_load hands them over */
 static uint8_t pj_arpc[NTRK];
 
@@ -460,6 +461,9 @@ static int pj_read_state(void)
         if (pj_ver < 5u)                                 /* (TAPE's envelope, new in 5) */
             for (i = TK_ATK; i <= TK_REL; i++)
                 P->dev[DEV_SRC][i] = DEV_P[DEV_SRC][i].def;
+        if (pj_ver < 6u)                                 /* (RESONATOR's arpeggio, new in 6) */
+            for (i = RP_AMODE; i <= RP_ARAT; i++)
+                P->dev[DEV_RESO][i] = DEV_P[DEV_RESO][i].def;
         ns = pr_u16();
         for (s = 0; s < ns && !pr.bad; s++) {
             int16_t junk[NPK];

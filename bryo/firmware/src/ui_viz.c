@@ -1251,19 +1251,24 @@ static void viz_arp(const int16_t *v, uint32_t f)
 {
     const arp_rt_t *r = &arp_rt[sys.sel];
     uint8_t s[ARP_MAXN];
-    uint32_t n = arp_notes(sys.sel, r, s), ord = (uint32_t)clamp(v[AR_ORDR], 0, 4), oct = (uint32_t)clamp(v[AR_RNGE], 1, 3);
+    uint32_t n = arp_notes(tp[sys.sel].arp, r, s), ord = (uint32_t)clamp(v[AR_ORDR], 0, 4), oct = (uint32_t)clamp(v[AR_RNGE], 1, 3);
     uint32_t len = n * oct, per = n ? (ord == ARO_RND ? len : arp_period(ord, len)) : 0u, show = per < 32u ? per : 32u, i;
     uint32_t now = r->pos ? (r->pos - 1u) % (per ? per : 1u) : 0u;
     int32_t lo = 127, hi = 0, top = DY0 + 1, floor = DY1, h = floor - top;
     char b[24];
-    if (tp[sys.sel].src != SRC_SYNTH && tp[sys.sel].src != SRC_POLY) {
-        px_text_c(0, 120, 12, PXF_3, "THE ARPEGGIATOR PLAYS", px_dim);
-        px_text_c(0, 120, 20, PXF_3, "A SYNTH OR POLY TRACK", px_dim);
-    } else if (v[AR_MODE] == ARM_OFF) {
+    int notes = tp[sys.sel].src == SRC_SYNTH || tp[sys.sel].src == SRC_POLY;   /* (TAPE, DRUM: slices, drums) */
+    if (!notes)
+        oct = 1u;                                                      /* (no octaves to spread them over) */
+    len = n * oct;
+    per = n ? (ord == ARO_RND ? len : arp_period(ord, len)) : 0u;
+    show = per < 32u ? per : 32u;
+    now = r->pos ? (r->pos - 1u) % (per ? per : 1u) : 0u;
+    if (v[AR_MODE] == ARM_OFF) {
         px_text_c(0, 120, 12, PXF_3, "OFF: TURN MODE TO", px_dim);
         px_text_c(0, 120, 20, PXF_3, "KEY, LTCH OR ADD", px_dim);
     } else if (!n) {
-        px_text_c(0, 120, 16, PXF_3, "HOLD SOME KEYS", px_dim);
+        px_text_c(0, 120, 16, PXF_3, notes ? "HOLD SOME KEYS" : tp[sys.sel].src == SRC_TAPE ? "HOLD SOME SLICES"
+                  : "HOLD SOME DRUMS", px_dim);
     } else {
         for (i = 0; i < len; i++) {                                    /* the walk's range */
             int32_t m = (int32_t)arp_at(s, n, i);
@@ -1288,12 +1293,13 @@ static void viz_arp(const int16_t *v, uint32_t f)
         vz_ktag(118, DLBL - 1, &ARP_P[f], v[f]);
     } else {
         str_cpy(b, N_ARO[ord], sizeof b);
-        str_cpy(b + str_len(b), oct > 1u ? (oct > 2u ? " 3 OCT" : " 2 OCT") : " 1 OCT", 8);
+        str_cpy(b + str_len(b), !notes ? "" : oct > 1u ? (oct > 2u ? " 3 OCT" : " 2 OCT") : " 1 OCT", 8);
         px_text(118 - px_text_w(PXF_3, b), DLBL, PXF_3, b, px_ink);
     }
     if (n) {
         fmt_int(b, (int32_t)n);
-        str_cpy(b + str_len(b), n == 1u ? " NOTE" : " NOTES", 8);
+        str_cpy(b + str_len(b), !notes ? (tp[sys.sel].src == SRC_TAPE ? (n == 1u ? " SLICE" : " SLICES")
+                : (n == 1u ? " DRUM" : " DRUMS")) : n == 1u ? " NOTE" : " NOTES", 8);
         px_text(DX0, DLBL, PXF_3, b, px_ink);
     }
 }

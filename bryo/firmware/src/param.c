@@ -57,6 +57,14 @@ static const char *const N_ROUT[2] = {"INS", "SEND"};
  * sound added at WET (dry + device x WET), the way an aux send works, per track. SPACE is always a send (DLY and
  * VERB are levels added to the dry). Not a modulation target: a switch flipping at an LFO's rate isn't a sound */
 #define P_ROUT {"ROUT", 0, 1, 0, F_ENUM, N_ROUT, 1}
+/* the arpeggiator's knobs and names (ARP_P below; RESONATOR's own arpeggio uses them too) */
+enum { AR_MODE, AR_ORDR, AR_RNGE, AR_RATE, AR_GATE, AR_SWNG, NARP = 8 };
+enum { ARM_OFF, ARM_KEY, ARM_LTCH, ARM_ADD };
+enum { ARO_UP, ARO_DOWN, ARO_UPDN, ARO_RND, ARO_PLAY };   /* (PK_DIR's order, then PLAY) */
+static const char *const N_ARM[4] = {"OFF", "KEY", "LTCH", "ADD"};
+static const char *const N_ARO[5] = {"UP", "DOWN", "UPDN", "RND", "PLAY"};
+static const char *const N_ARATE[6] = {"1/4", "1/8", "8T", "1/16", "16T", "1/32"};
+
 /* (each table in the order its knobs are stored; the "1:", "2:" notes are those blocks of four. Where a page shows
  * them otherwise, PLAYOUT below says so) */
 static const pdesc_t DEV_P[NDEV][NPK] = {
@@ -101,7 +109,12 @@ static const pdesc_t DEV_P[NDEV][NPK] = {
         {"CUT", 0, 127, 127, F_HZ}, {"RES", 0, 100, 0, F_PCT},
         {"TYPE", 0, 2, 0, F_ENUM, N_SLOP}, {"SCAL", 0, 3, 0, F_ENUM, N_RSCAL},
         /* 3: how WET mixes the strings in (ROUT: INS or SEND) */
-        P_ROUT, {""}, {""}, {""}},
+        P_ROUT, {""}, {""}, {""},
+        /* its own arpeggio (stored 12-15, shown on page 3; ROUT stays the last page's): the keys on the RESONATOR
+         * page into it, a pluck of the strings each step at that note's root, whatever the source plays. MODE OFF:
+         * the keys set the root as before. As the ARP pad's knobs, with no GATE (a pluck rings by DEC) */
+        {"MODE", 0, 3, ARM_OFF, F_ENUM, N_ARM, 1}, {"ORDR", 0, 4, ARO_UP, F_ENUM, N_ARO, 1},
+        {"RNGE", 1, 3, 1, F_NUM, 0, 1}, {"RATE", 0, 5, 3, F_ENUM, N_ARATE, 1}},
     {   /* COLOR (the S-4's DEFORM) */
         {"DRV", 0, 100, 0, F_PCT}, {"CRSH", 0, 100, 0, F_PCT},
         {"NOIS", 0, 100, 0, F_PCT}, {"TILT", -100, 100, 0, F_BIPCT},
@@ -232,12 +245,6 @@ static int16_t mst[NMS];
  * pattern you pile up; POLY held on the ARP page clears it). ORDR: UP, DOWN, UPDN (up and back, the ends once), RND,
  * PLAY (the order pressed). RNGE spreads them over 1-3 octaves. RATE a step (8T, 16T: triplets), GATE how much of
  * it the note sounds, SWNG the off-beats late. Not modulation targets (choices the ISR acts on per step). */
-enum { AR_MODE, AR_ORDR, AR_RNGE, AR_RATE, AR_GATE, AR_SWNG, NARP = 8 };
-enum { ARM_OFF, ARM_KEY, ARM_LTCH, ARM_ADD };
-enum { ARO_UP, ARO_DOWN, ARO_UPDN, ARO_RND, ARO_PLAY };   /* (PK_DIR's order, then PLAY) */
-static const char *const N_ARM[4] = {"OFF", "KEY", "LTCH", "ADD"};
-static const char *const N_ARO[5] = {"UP", "DOWN", "UPDN", "RND", "PLAY"};
-static const char *const N_ARATE[6] = {"1/4", "1/8", "8T", "1/16", "16T", "1/32"};
 static const pdesc_t ARP_P[NPK] = {   /* (NPK long: pdesc_pages looks past the last page) */
     {"MODE", 0, 3, ARM_OFF, F_ENUM, N_ARM, 1}, {"ORDR", 0, 4, ARO_UP, F_ENUM, N_ARO, 1}, {"RNGE", 1, 3, 1, F_NUM, 0, 1},
     {"RATE", 0, 5, 3, F_ENUM, N_ARATE, 1},
@@ -320,7 +327,8 @@ static const playout_t PLAYOUT[] = {
     {DEV_P[DEV_SRC], 4, {0, 1, 2, 3, 12, 13, 14, 15, 4, 5, 6, 7, 8, 9, 11, 10}},   /* TAPE: the envelope second (as
                                                                                      * SYNTH's, POLY's), REEL ROTA . LVL */
     {DEV_P[DEV_GRAIN], 4, {0, 1, 2, 3, 4, 5, 6, 7, 12, 13, 14, 15, 8, 9, 10, 11}},   /* GRAIN: SCAN.. then PATN..ROUT */
-    {DEV_P[DEV_RESO], 3, {0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 8}},               /* RESONATOR: . . . ROUT */
+    {DEV_P[DEV_RESO], 4, {0, 1, 2, 3, 4, 5, 6, 7, 12, 13, 14, 15, 9, 10, 11, 8}},   /* RESONATOR: its arpeggio,
+                                                                                      * then . . . ROUT */
     {DEV_P[DEV_COLOR], 3, {0, 1, 2, 3, 4, 5, 6, 7, 10, 11, 9, 8}},              /* COLOR: . . ROUT LVL */
     {SYN_P, 5, {0, 1, 2, 3, 8, 9, 10, 11, 4, 5, 6, 7, 12, 13, 14, 15, 17, 18, 19, 16}},   /* OSC AMP FILTER VOICE, LVL */
     {POL_P, 4, {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 12}},         /* POLY: . . . LVL */

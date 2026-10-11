@@ -413,7 +413,8 @@ static void test_input(void)
     press(B_EDIT);
     press(B_EDIT);
     press(B_EDIT);
-    check("EDIT again, past RESONATOR's pages 2 and 3: GRAIN", ui.dev == DEV_GRAIN && ui.page == 0u);
+    press(B_EDIT);
+    check("EDIT again, past RESONATOR's pages 2 to 4: GRAIN", ui.dev == DEV_GRAIN && ui.page == 0u);
     press(B_FX);
     check("FX: COLOR", ui.dev == DEV_COLOR);
     press(B_FX);
@@ -459,7 +460,10 @@ static void test_input(void)
     press(B_EDIT);
     check("..again: RESONATOR's page 2 (CUT RES TYPE SCAL)", ui.dev == DEV_RESO && ui.page == 1u);
     press(B_EDIT);
-    check("..again: RESONATOR's page 3 (ROUT)", ui.dev == DEV_RESO && ui.page == 2u &&
+    check("..again: RESONATOR's page 3 (its arpeggio: MODE ORDR RNGE RATE)", ui.dev == DEV_RESO && ui.page == 2u &&
+          !strcmp(dev_p(0, DEV_RESO)[pdesc_at(dev_p(0, DEV_RESO), 8u)].label, "MODE"));
+    press(B_EDIT);
+    check("..again: RESONATOR's page 4 (ROUT)", ui.dev == DEV_RESO && ui.page == 3u &&
           !strcmp(dev_p(0, DEV_RESO)[RP_ROUT].label, "ROUT"));
     press(B_EDIT);
     check("..again: back to GRAIN, page 1", ui.dev == DEV_GRAIN && ui.page == 0u);
@@ -6421,6 +6425,107 @@ static uint32_t arp_steps(uint32_t t, uint32_t blocks, uint8_t *seq, uint32_t ma
     return n;
 }
 
+/* the ARP pad's arpeggio on TAPE (its slices) and DRUM (its drums), and RESONATOR's own (its page 3) */
+static void test_arp_sources(void)
+{
+    uint8_t seq[32];
+    uint32_t n, b, w1 = note_bit_of_white(0), w3 = note_bit_of_white(2), w5 = note_bit_of_white(4), hit = 1, roots = 0;
+    int gaps, quiet = 1;
+    uint32_t ran = 0;
+    int32_t last = -1;
+    power_on();
+    sys.bpm = 120;
+    tp[0].src = SRC_TAPE;
+    tp[0].dev[DEV_SRC][TK_LEN] = 25;                     /* (slices: the keys as on the TAPE page) */
+    tp[0].arp[AR_MODE] = ARM_KEY;
+    focus_dev(DEV_SRC, 0);
+    fm1_in.notes = w1 | w5;
+    n = arp_steps(0, 172 * 4 + 20, seq, 32, &gaps);
+    check("TAPE, ARP KEY UP: slices 1 5 1 5, a sixteenth each", n >= 4u && seq[0] == 0u && seq[1] == 4u && seq[2] == 0u &&
+          seq[3] == 4u && gaps);
+    check("..the tape plays them", tape_rt[0].running);
+    tp[0].arp[AR_RNGE] = 3;
+    arp_rt[0].pos = 0;
+    n = arp_steps(0, 172 * 4, seq, 32, &gaps);
+    check("..RNGE 3 spreads nothing (no octaves of a slice): still 1 5 1 5", n >= 4u && seq[0] == 0u && seq[1] == 4u &&
+          seq[2] == 0u && seq[3] == 4u);
+    fm1_in.notes = 0;
+    render(4, 0);
+    check("..the keys let go: it stops", arp_rt[0].n == 0u && !arp_rt[0].on);
+    fm1_in.notes = w1;
+    render(4, 0);
+    fm1_in.notes = 0;
+    tp[0].arp[AR_MODE] = ARM_OFF;
+    render(4, 0);
+
+    power_on();
+    sys.bpm = 120;
+    tp[0].src = SRC_DRUM;
+    tp[0].drm[DM_PATN] = 0;
+    tp[0].arp[AR_MODE] = ARM_KEY;
+    tp[0].arp[AR_ORDR] = ARO_UPDN;
+    focus_dev(DEV_SRC, 0);
+    fm1_in.notes = w1 | w3 | w5;
+    n = arp_steps(0, 172 * 5 + 20, seq, 32, &gaps);
+    check("DRUM, ARP KEY UPDN: drums 1 3 5 3 1, up and down", n >= 5u && seq[0] == 0u && seq[1] == 2u && seq[2] == 4u &&
+          seq[3] == 2u && seq[4] == 0u && gaps);
+    for (b = 0; b < 172u * 3u; b++) {                    /* each step: the drum's key, and only it, into the kit */
+        render(1, 0);
+        if (arp_rt[0].on)
+            hit &= drm_rt[0].keys == 1u << arp_rt[0].cur;
+        else
+            hit &= drm_rt[0].keys == 0u;
+    }
+    check("..each step strikes that drum alone (the kit sees one key a step)", hit);
+    press(B_ARP);
+    shot("BRYO", "arp_drum");
+    fm1_in.notes = 0;
+    render(4, 0);
+    tp[0].arp[AR_MODE] = ARM_OFF;
+
+    power_on();                                          /* RESONATOR's arpeggio on a TAPE track */
+    sys.bpm = 120;
+    tp[0].src = SRC_TAPE;
+    tp[0].dev[DEV_SRC][TK_LEN] = 25;                     /* (slices: a key would start one, but not here) */
+    tp[0].dev[DEV_RESO][RP_WET] = 100;
+    tp[0].dev[DEV_RESO][RP_AMODE] = ARM_KEY;
+    focus_dev(DEV_RESO, 2);
+    ui_input();
+    check("RESONATOR's page 3: its arpeggio (MODE ORDR RNGE RATE), the keys its", ui.dev == DEV_RESO && ui.page == 2u &&
+          sys.keys_reso);
+    fm1_in.notes = w1 | w5;
+    for (b = 0; b < 172u * 5u; b++) {
+        render(1, 0);
+        if (reso_arp_on[0] && quiet && reso[0].root16 != last) {
+            roots |= reso[0].root16 == (48 + 0) * 16 ? 1u : reso[0].root16 == (48 + 4) * 16 ? 2u : 4u;
+            last = reso[0].root16;
+        }
+        quiet = !reso_arp_on[0];
+        ran |= tape_rt[0].running;
+    }
+    check("..KEY, two keys held: the strings plucked at C3 and E3 in turn", roots == 3u && reso_arp[0].n == 2u);
+    shot("BRYO", "resonator_arp");
+    check("..the tape stays quiet (the keys are the strings' on this page)", !ran && arp_rt[0].n == 0u);
+    fm1_in.notes = 0;
+    render(4, 0);
+    check("..let go: the arpeggio stops", reso_arp[0].n == 0u && !reso_arp_on[0]);
+    tp[0].dev[DEV_RESO][RP_AMODE] = ARM_LTCH;
+    tp[0].dev[DEV_RESO][RP_ARNG] = 2;
+    fm1_in.notes = w1;
+    render(4, 0);
+    fm1_in.notes = 0;
+    focus_dev(DEV_SRC, 0);
+    ui_input();
+    roots = 0;
+    for (b = 0; b < 172u * 3u; b++) {
+        render(1, 0);
+        roots |= reso[0].root16 == 48 * 16 ? 1u : reso[0].root16 == 60 * 16 ? 2u : 0u;
+    }
+    check("..LTCH, RNGE 2, off its page: C3 and C4 go on plucking", roots == 3u && reso_arp[0].n == 1u);
+    tp[0].dev[DEV_RESO][RP_AMODE] = ARM_OFF;
+    render(4, 0);
+}
+
 static void test_arp_keys(void)
 {
     uint8_t seq[32];
@@ -6494,7 +6599,8 @@ static void test_arp_keys(void)
     tp[0].arp[AR_MODE] = ARM_KEY;
     fm1_in.notes = c3;
     render(4, 0);
-    check("a TAPE track: no arpeggio (the keys play slices)", arp_rt[0].n == 0u);
+    check("a TAPE track: the arpeggio holds the slice (white key 1: slice 1, not a note)", arp_rt[0].n == 1u &&
+          arp_rt[0].note[0] == 0u);
     fm1_in.notes = 0;
     render(2, 0);
     tp[0].arp[AR_MODE] = ARM_OFF;
@@ -6789,6 +6895,7 @@ int main(int argc, char **argv)
     test_tpresets();
     test_tpfactory();
     test_arp_keys();
+    test_arp_sources();
     test_factory_scene();
     test_drum_shed();
     test_input();

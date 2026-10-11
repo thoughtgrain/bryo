@@ -69,7 +69,7 @@ Every pad opens a page, and **pressing the same pad again goes to its next page*
 | Pad | Pages, in order |
 | --- | --- |
 | HOME | the source's pages (TAPE has 4; SYNTH 5; POLY 4; DRUM 4) |
-| EDIT | GRAIN 1-4, then RESONATOR 1-3 |
+| EDIT | GRAIN 1-4, then RESONATOR 1-4 |
 | FX | COLOR 1-3, then SPACE 1-3 |
 | ENV | the source's envelope: SYNTH's AMP, POLY's ENV, TAPE's slice envelope (each the second page), DRUM's KIT |
 | LFO, SEQ | a modulator's pages (LFO: M1, M2 or M3; SEQ: M4) |
@@ -81,7 +81,7 @@ KNOB 1 to 4 always change the four values you see. There's nothing hidden.
 **Jump straight to a page: hold its pad and press a white key.** While you hold a pad (HOME, EDIT, FX, ENV, LFO,
 SEQ or ARP), the white keys show its pages: one glows for each page, the page on screen is lit, and every other key
 goes dark. Press white key 3 to go to the third page. EDIT's keys run through GRAIN's pages and then RESONATOR's
-(key 6 is RESONATOR 2); FX's through COLOR's and then SPACE's. Holding LFO also lights OP1-OP3, the one it's on
+(key 6 is RESONATOR 2, key 7 its arpeggio); FX's through COLOR's and then SPACE's. Holding LFO also lights OP1-OP3, the one it's on
 bright. Let go without pressing a key and the pad turns its page as usual.
 
 ---
@@ -420,9 +420,11 @@ The **KIT** page (the third) does the same for the whole kit at once: TUNE, DEC,
 
 ### 5.8 ARP: the arpeggiator
 
-The arpeggiator plays the keys you hold **one note at a time, in time**. It works on **SYNTH and POLY** tracks.
+The arpeggiator plays the keys you hold **one note at a time, in time**. It works on every track: on **SYNTH and
+POLY** it plays notes, on **TAPE** it steps through the slices you hold, and on **DRUM** it walks the drums you hold up
+and down (hold BD, SD and CH with UPDN and you get BD SD CH SD BD...).
 
-1. On a SYNTH or POLY track, press **ARP**.
+1. Press **ARP**.
 2. Turn **KNOB 1 (MODE)** to **KEY**.
 3. Hold a chord on the white keys.
 
@@ -437,7 +439,7 @@ The knobs:
 | --- | --- |
 | **MODE** | **OFF**; **KEY** plays while you hold keys; **LTCH** keeps playing the last chord after you let go (press a new chord to replace it); **ADD** keeps every key you press, so you can pile up an endless pattern |
 | **ORDR** | **UP**, **DOWN**, **UPDN** (up and back down), **RND** (random), **PLAY** (the order you pressed them) |
-| **RNGE** | 1, 2 or 3 octaves: the notes, then the same an octave up, and so on |
+| **RNGE** | 1, 2 or 3 octaves: the notes, then the same an octave up, and so on (on TAPE and DRUM there's no octave of a slice or a drum, so it stays at 1) |
 | **RATE** | how long each step is: 1/4, 1/8, 8T, 1/16, 16T, 1/32 (T is a triplet) |
 | **GATE** (page 2) | how much of each step the note sounds: short and plucky, or long |
 | **SWNG** (page 2) | pushes every other step late |
@@ -445,7 +447,7 @@ The knobs:
 **To build an endless pattern:** set MODE to **ADD**, then press keys one at a time. Each one joins the pattern and
 stays. **Hold black key POLY** (on the ARP page) to clear it and start again.
 
-<img src="img/arp_add.png" width="240" alt="ARP in ADD mode, four notes piled up">
+<img src="img/arp_add.png" width="240" alt="ARP in ADD mode, four notes piled up"> <img src="img/arp_drum.png" width="240" alt="ARP on a DRUM track: three drums, up and down">
 
 Keys you hold play straight away, transport or not. A latched or piled-up pattern keeps playing when you move to
 another track, and follows the transport: **STOP** quiets it (the notes are kept), **PLAY** starts it again from the
@@ -533,8 +535,14 @@ The track rings four tuned strings, like a sitar's sympathetic strings.
    playing a slice or a drum). **PTCH** does the same with
    a knob. **DEC** is how long they ring; **TONE** how bright.
 4. **RESONATOR 2**: a filter (CUT, RES, TYPE) and **SCAL**, the chord the four strings make (HARM, MAJ, MIN, PEN).
+5. **RESONATOR 3**: its own arpeggio, so the strings can play a pattern whatever the track plays. **MODE** (OFF,
+   KEY, LTCH, ADD), **ORDR**, **RNGE** and **RATE** work like the ARP page's. Turn MODE to KEY or LTCH and hold
+   white keys on this page: each step plucks the strings at that note. With MODE on, the keys on this page only feed
+   the arpeggio (the track's own sound stays quiet, SYNTH and POLY too), and a latched pattern keeps plucking after
+   you leave the page.
+6. **RESONATOR 4**: ROUT (see 6.8).
 
-<img src="img/resonator_wet.png" width="240" alt="RESONATOR ringing"> <img src="img/resonator2.png" width="240" alt="RESONATOR 2: CUT RES TYPE SCAL">
+<img src="img/resonator_wet.png" width="240" alt="RESONATOR ringing"> <img src="img/resonator2.png" width="240" alt="RESONATOR 2: CUT RES TYPE SCAL"> <img src="img/resonator_arp.png" width="240" alt="RESONATOR 3: MODE ORDR RNGE RATE, two strings' notes held">
 
 ### 6.6 COLOR: dirt and character
 
@@ -809,7 +817,7 @@ M-VAVE's updater puts the stock firmware back. Bryo's projects and tapes can't b
 | **LFO SEQ** held + a knob | how much that modulator moves the knob |
 | **LFO** held + OP1 / OP2 / OP3 | which modulator LFO is: M1, M2, M3 |
 | **LFO** held + SELECT | the modulator's engine (LFO, ADSR, SEQ, FOLLOW) |
-| **ARP** | the arpeggiator (SYNTH, POLY) |
+| **ARP** | the arpeggiator (notes on SYNTH and POLY, slices on TAPE, drums on DRUM) |
 | **GLO** held + OCT+ | black keys: shortcuts or notes |
 | **GLO** tapped, **EDIT** ×3 | SETUP: keys, knob speed, hold time, LEDs |
 | **REC** | record onto the track |
