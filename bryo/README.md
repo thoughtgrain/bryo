@@ -17,8 +17,8 @@ Felucca's own README is kept in [docs/FELUCCA-README.md](docs/FELUCCA-README.md)
 **Phases 1 to 9 of 10, and running on an FM-1 since 2026-10-10** (p-locks still to decide; the whole picture, with the file map and what's open,
 is in [docs/bryo-status.md](docs/bryo-status.md)). Each of the four tracks has a tape: a loop in RAM (IMA ADPCM at 22.05 kHz) that plays when
 you press PLAY. The tracks share one memory (28 s in all) and each takes what it records: a blank tape grows while
-REC records it, and TRACKS (GLO held + SELECT) switches tracks off to give the rest more. To start, track n plays factory reel n (BEAT, KEYS, AIR, PLUK, made from material in
-this repository). The loop window, speed, reverse and half speed work; the white keys play 16 slices of the loop;
+REC records it, and TRACKS (GLO held + SELECT) switches tracks off to give the rest more. To start, track n plays factory reel n (BEAT, BELL, DRON, FOLD: a drum loop and three
+synthesized modular patches). The loop window, speed, reverse and half speed work; the white keys play 16 slices of the loop;
 REC records the other tracks onto the focused track's tape (or one chosen track, or itself: REC IN, turn ALGORITHM),
 with DUB for sound on sound; holding the POLY key clears
 a tape and holding SAVE undoes it. A track can also start with SYNTH, POLY or DRUM instead (hold HOME, turn SELECT):

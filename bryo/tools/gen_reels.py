@@ -9,10 +9,11 @@ The format is the tape's, so a reel plays straight from flash and copying it int
   decoder state at its start (predictor, step index), so any block decodes on its own: slices, reverse and grains
   start anywhere. Each block also has its peak (0..255), which the screen draws.
 
-The sounds are made here from material already in the repository (no download, nothing third party beyond the
-CC0 set): Felucca's generated drums (tools/gen_waves.py), the CC0 piano and flute (assets/samples-cc0, Versilian
-Studios, see its ATTRIBUTION.txt), and a Karplus-Strong string made here. The three melodic reels are generative
-patches, one bar each, frozen with fixed seeds (below, before reel_keys).
+The sounds are made here, from code alone (no samples, no download, nothing third party): BEAT is Felucca's
+generated drums (tools/gen_waves.py); BELL, DRON and FOLD are small modular-synth patches written below (FM, detuned
+oscillators into a filter, a wavefolder into a low-pass gate), one bar each, frozen with fixed seeds (below, before
+reel_bell). The owner played the first melodic set (a CC0 piano, flute and a Karplus-Strong string) on the device
+and found them a bit annoying, so these are deliberately plainer: rooted on A, few notes, soft edges.
 
   tools/gen_reels.py OUT.h
 """
@@ -23,9 +24,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import gen_waves as gw  # noqa: E402
-from sampleio import IMA_IDX, IMA_STEP, read_any_wav, resample  # noqa: E402
+from sampleio import IMA_IDX, IMA_STEP, resample  # noqa: E402
 
-SRC = Path(__file__).resolve().parents[1]
 SR = 22050
 BLK = 256
 TAPE_SAMPLES = 288 * BLK                     # a tape's capacity (firmware/src/tape.c TAPE_NBLK)
@@ -42,11 +42,6 @@ def place(buf, at, s, gain=1.0):
         if at + i >= len(buf):
             break
         buf[at + i] += v * gain
-
-
-def pitched(x, sr, semis):
-    """x played back semis semitones up (resampled to SR, shorter when up)"""
-    return resample(x, sr * 2 ** (semis / 12), SR)
 
 
 def reel_beat():
@@ -66,25 +61,35 @@ def reel_beat():
     return buf
 
 
-# The melodic reels (KEYS, AIR, PLUK) are little generative modular patches, each frozen into one bar: a clock, a
-# Turing machine or a sample and hold picking notes from a scale, Euclidean gates, an LFO slowly moving a filter, an
-# echo. Every random choice comes from its own random.Random(seed), so the bytes are the same every run; the seeds
-# are the ones whose bar I liked. They share one scale (A minor without the F: A B C D E G), so they sit together
-# when all four play at power-on.
+# The melodic reels (BELL, DRON, FOLD) are little modular-synth patches, each frozen into one bar: an FM pair, a
+# bank of detuned oscillators into a low-pass, a sine through a wavefolder into a low-pass gate. No samples: every
+# sound is made here from sines and a saw. Every random choice comes from its own random.Random(seed), so the bytes
+# are the same every run. They're all A minor pentatonic (A C D E G) and rooted on A, because that's what the
+# factory scene (firmware/src/tpfactory.c) does with them: T2 pitches BELL's grains through a pentatonic phrase, T3
+# rings A-rooted strings and random A minor grains off DRON, T4 plays half of FOLD and jumps its loop start, and the
+# arpeggiator plays BELL and FOLD as single notes from their start. So they're raw material more than tunes: few
+# notes, soft edges, and the movement in the timbre rather than in more notes.
 #
 # A bar is BAR samples: 2 s at 120 BPM rounded up to whole tape blocks (44,288 rather than 44,100: a reel is a
-# whole number of blocks, so that's what loops), and the 16 steps divide it evenly. Each reel is built on a circle:
-# a note or an echo that runs past the end carries on at the start, and the filters run two laps so the second lap
-# starts from where the first one ended. The loop has no seam to click.
+# whole number of blocks, so that's what loops), and the 16 steps divide it evenly. The tape's encoder starts each
+# reel from silence (predictor 0, the smallest step), so the first sample has to be near zero or the decoder clicks
+# while it catches up. BELL and FOLD start with a note's attack from zero and fade to nothing by the end of the bar
+# (POLY plays them from the start as one note, so that first note has to be clean, with nothing wrapping round onto
+# it). DRON is built on a circle instead (every oscillator does a whole number of cycles a bar, its filter runs two
+# laps) and is then turned so the bar starts on a zero crossing: there's no seam at all.
 
 BAR = -(-2 * SR // BLK) * BLK                # one 4/4 bar at 120 BPM, in whole blocks (173 of them)
 STEP = BAR // 16                             # a 16th (BAR is 16 x 2768)
-SCALE = (0, 2, 3, 5, 7, 10)                  # A minor without the F, from A: A B C D E G
+PENTA = (0, 3, 5, 7, 10)                     # A minor pentatonic, from A: A C D E G
 
 
-def scale_note(i, root=57):
-    """the i-th note of SCALE up from root (MIDI; 57 is A3), i any integer"""
-    return root + 12 * (i // len(SCALE)) + SCALE[i % len(SCALE)]
+def mtof(midi):
+    return 440.0 * 2 ** ((midi - 69) / 12)
+
+
+def penta(i, root=45):
+    """the i-th note of A minor pentatonic up from root (MIDI; 45 is A2), i any integer"""
+    return root + 12 * (i // 5) + PENTA[i % 5]
 
 
 def euclid(k, n, rot=0):
@@ -92,33 +97,23 @@ def euclid(k, n, rot=0):
     return [((i + rot) * k) % n < k for i in range(n)]
 
 
-def wplace(buf, at, s, gain=1.0):
-    """place, but around the circle: what runs past the end comes in at the start"""
-    n = len(buf)
-    for i, v in enumerate(s):
-        buf[(at + i) % n] += v * gain
-
-
-def seam(buf, out_ms, in_ms):
-    """a dip at the loop point, out_ms going out and in_ms coming in (raised cosine). The tape's encoder starts
-    the reel from silence (predictor 0, the smallest step), so a reel that starts loud would click as the decoder
-    catches up: a few milliseconds of fade let it follow. AIR's is longer, a breath at the bar."""
-    a, b = int(SR * out_ms / 1000), int(SR * in_ms / 1000)
-    for j in range(b):
-        buf[j] *= 0.5 - 0.5 * math.cos(math.pi * j / b)
-    for j in range(a):
-        buf[-1 - j] *= 0.5 - 0.5 * math.cos(math.pi * j / a)
-    return buf
-
-
 def lfo(i, phase=0.0, cycles=1):
     """0..1, a raised cosine that goes round `cycles` times a bar (so it loops with it)"""
     return 0.5 - 0.5 * math.cos(2 * math.pi * (cycles * i / BAR + phase))
 
 
+def tail_fade(buf, ms):
+    """the bar's last ms fade to nothing (raised cosine), so the loop comes back round to silence"""
+    a = int(SR * ms / 1000)
+    for j in range(a):
+        buf[-1 - j] *= 0.5 - 0.5 * math.cos(math.pi * j / a)
+    return buf
+
+
 def svf_loop(x, cutoff, q=0.7, mode="low"):
     """a state-variable filter (the trapezoidal one: stable however fast cutoff moves) over a circular buffer,
-    cutoff(i) in Hz read every 32 samples like the firmware's block. Two laps; the second one is kept."""
+    cutoff(i) in Hz read every 32 samples like the firmware's block. Two laps; the second one is kept, so it starts
+    from where the first one ended."""
     n, k = len(x), 1 / q
     out = [0.0] * n
     ic1 = ic2 = 0.0
@@ -137,221 +132,156 @@ def svf_loop(x, cutoff, q=0.7, mode="low"):
     return out
 
 
-def echo_loop(x, delay, fb, wet, damp=0.3):
-    """a tape echo around the circle: each repeat fb as loud and a little darker (one-pole, damp), added at wet.
-    Three laps, so the repeats that wrap round have caught up with themselves (fb^15 or so: nothing left)."""
-    n = len(x)
-    y = [0.0] * n                            # the echo line: what comes back
-    lp = 0.0
-    for _ in range(3):
-        for i in range(n):
-            j = (i - delay) % n
-            lp += (1 - damp) * ((x[j] + y[j]) * fb - lp)
-            y[i] = lp
-    return [a + b * wet / max(fb, 1e-9) for a, b in zip(x, y)]
+def echo(x, delay, fb, wet, damp=0.4):
+    """a tape echo in a straight line (nothing wraps round): each repeat fb as loud and a little darker (a one-pole,
+    damp), added at wet"""
+    y, lp = [0.0] * len(x), 0.0
+    for i in range(delay, len(x)):
+        lp += (1 - damp) * ((x[i - delay] + y[i - delay]) * fb - lp)
+        y[i] = lp
+    return [a + b * wet / fb for a, b in zip(x, y)]
 
 
-def turing(rng, length=16, write=24, flip=0.3):
-    """a Turing machine: a 16-bit shift register that feeds its last bit back to the front, flipped now and then
-    with probability flip. It runs `write` steps with flips (the knob a little left of locked, finding a phrase),
-    then length steps locked (no flips): a 16-step loop, which is what the reel keeps. -> the register per step"""
-    reg = rng.getrandbits(16)
-    for _ in range(write):
-        bit = reg >> 15 & 1
-        if rng.random() < flip:
-            bit ^= 1
-        reg = (reg << 1 | bit) & 0xFFFF
-    out = []
-    for _ in range(length):
-        reg = (reg << 1 | reg >> 15 & 1) & 0xFFFF
-        out.append(reg)
+def fm_bell(f, n, vel, bright):
+    """one FM bell: a sine carrier at f phase-modulated by a sine at 2f (a harmonic ratio, so the pitch is clear),
+    the index falling from bright to mellow faster than the level; a second carrier 2.5 cents up for a slow shimmer;
+    a short inharmonic glint at 3.53f (the glass) that's gone in 50 ms. A 6 ms attack: soft, but it still strikes."""
+    w, out = 2 * math.pi * f / SR, []
+    for j in range(n):
+        t = j / SR
+        env = min(1.0, j / (SR * 0.006)) * math.exp(-t / 0.33)
+        idx = bright * (0.35 + 1.6 * math.exp(-t / 0.22))
+        m = idx * math.sin(2 * w * j)
+        v = math.sin(w * j + m) + 0.45 * math.sin(w * 1.00145 * j + 0.8 * m)
+        v += 0.35 * bright * math.sin(3.53 * w * j) * math.exp(-t / 0.05)
+        out.append(v * env * vel)
     return out
 
 
-_PIANO = {}
-
-
-def piano(midi):
-    """the CC0 piano at a MIDI note, from the nearest of its C3 C4 C5 (never more than 6 semitones off)"""
-    if midi not in _PIANO:
-        root = min((48, 60, 72), key=lambda r: (abs(midi - r), r))
-        sr, x = read_any_wav(SRC / f"assets/samples-cc0/PIANO/0{2 + (root - 48) // 12}_GPiano_sus_C{root // 12 - 1}"
-                             "_v2_rr1_Player.wav")
-        _PIANO[midi] = pitched(norm(x, 1.0), sr, midi - root)
-    return _PIANO[midi]
-
-
-def keys_events(seed=17):
-    """KEYS' notes: [(step, sub, midi, velocity, length in samples)]; sub is the ratchet's offset in samples"""
+def bell_events(seed=11):
+    """BELL's notes: [(step, midi, velocity, brightness)]. A3 on the one, then three more, never closer than three
+    16ths; the fourth is picked between D4 and C4, the velocities wander a little"""
     rng = random.Random(seed)
-    reg = turing(rng)
-    gate = euclid(7, 16, 2)
-    for i in range(16):                      # the register's bit 0 opens a few more (a second gate source)
-        if reg[i] & 1 and reg[i] >> 9 & 1 and not gate[i]:
-            gate[i] = True
-    on = [i for i in range(16) if gate[i]]
-    ratchet = rng.choice([i for i in on if i % 4 and (i + 1) % 16 not in on] or on)
+    plan = [(0, 57, 1.0), (5, 64, 0.55), (9, 69, 0.42), (12, rng.choice((62, 60)), 0.36)]
     ev = []
-    for n, i in enumerate(on):
-        r = reg[i]
-        deg = ((r >> 4) & 0xFF) * 10 // 256  # 8 bits of the register, quantized to 10 notes of the scale
-        midi = scale_note(deg)
-        if r >> 13 & 7 == 7:                 # one time in eight: the octave up
-            midi += 12
-        vel = 0.55 + 0.15 * (r >> 1 & 3)
-        if i % 4 == 0:
-            vel = min(1.0, vel + 0.2)        # the beat leans a little
-        gap = ((on[(n + 1) % len(on)] - i - 1) % 16 + 1) * STEP
-        ln = int(gap * (0.35 + 0.6 * (r >> 11 & 3) / 3))   # how long the gate stays open: staccato to legato
-        if i == ratchet:                     # a ratchet: three 32nd-note triplets, falling away
-            for k in range(3):
-                ev.append((i, k * STEP // 3, midi, vel * (1 - 0.25 * k), STEP // 3))
-        else:
-            ev.append((i, 0, midi, vel, ln))
+    for step, midi, vel in plan:
+        vel = vel if step == 0 else vel * rng.uniform(0.9, 1.1)
+        ev.append((step, midi, vel, 1.0 - 0.55 * lfo(step * STEP)))   # the timbre: mellow mid-bar, bright at the ends
     return ev
 
 
-def reel_keys():
-    """the CC0 piano played by a Turing machine (one bar, 2 s): a locked 16-step register, 8 of its bits read as
-    a note of A minor (no F) over 10 steps of the scale, now and then an octave up. The gates are a Euclidean 7 of
-    16 plus a few the register's own bits open, the gate lengths come from two more bits (staccato to legato), one
-    note is ratcheted. A slow resonant low-pass opens and closes once a bar, and an echo three 16ths behind."""
+def reel_bell():
+    """FM bells on A minor pentatonic (one bar, 2 s): A3 struck on the one, then E4, A4 and a D4 or C4, softer and
+    further apart than the beat (steps 0, 5, 9, 12), each ringing on under the next so they decay into each other.
+    The FM index sets the timbre: the first and last notes are struck bright, the middle ones mellow, one slow
+    change across the bar. It's a source for the pitched grains (T2) and for the arpeggiator (POLY plays it from
+    the start), so the first note is A3 (MIDI 57) alone for 627 ms, and the bar is mostly A: a steady tone more
+    than a tune. Each note falls by e in a third of a second, so the bar has room in it.
+    The tail fades out over the bar's last 300 ms, so the loop comes back round to silence and the A3 again."""
     buf = [0.0] * BAR
-    for step, sub, midi, vel, ln in keys_events():
-        x = piano(midi)
-        rel = int(SR * 0.08)
-        n = min(len(x), ln + rel * 4)
-        env = [math.exp(-j / (SR * 0.6)) * (1.0 if j < ln else math.exp(-(j - ln) / rel)) for j in range(n)]
-        wplace(buf, step * STEP + sub, [a * b for a, b in zip(x, env)], vel)
-    buf = svf_loop(buf, lambda i: 600 * 2 ** (3 * lfo(i, 0.6)), q=1.4)
-    return seam(echo_loop(buf, 3 * STEP, 0.4, 0.3, damp=0.5), 3, 3)
+    for step, midi, vel, bright in bell_events():
+        at = step * STEP
+        place(buf, at, fm_bell(mtof(midi), BAR - at, vel, bright))
+    return tail_fade(buf, 300)
 
 
-_FLUTE = {}
+def saw_table(n=2048, harm=28):
+    """one cycle of a band-limited saw (28 harmonics: up to 6 kHz at A3, under the reel's Nyquist)"""
+    return [sum(math.sin(2 * math.pi * k * i / n) / k for k in range(1, harm + 1)) for i in range(n)]
 
 
-def flute(midi, n):
-    """n samples of the CC0 flute at a MIDI note, its sustain looped (crossfaded) as long as it has to be"""
-    if midi not in _FLUTE:
-        root = 60 if midi < 66 else 72
-        sr, x = read_any_wav(SRC / f"assets/samples-cc0/FLUTE/0{(root - 60) // 12}_LDFlute_susvib_C{root // 12 - 1}"
-                             "_v1_1.wav")
-        _FLUTE[midi] = pitched(norm(x, 1.0), sr, midi - root)
-    x = _FLUTE[midi]
-    ls, le = len(x) // 4, len(x) * 19 // 20    # the loop: from a quarter in to near the end
-    xf = (le - ls) // 4
-    out = list(x[:le])
-    while len(out) < n:                      # each lap crossfades (equal power) from the tail into the loop start
-        tail = out[-xf:]
-        del out[-xf:]
-        for j in range(xf):
-            t = j / xf
-            out.append(tail[j] * math.cos(t * math.pi / 2) + x[ls + j] * math.sin(t * math.pi / 2))
-        out += x[ls + xf:le]
-    return out[:n]
+def tri_table(n=2048, harm=15):
+    return [sum((-1) ** (k // 2) * math.sin(2 * math.pi * k * i / n) / (k * k) for k in range(1, harm + 1, 2))
+            for i in range(n)]
 
 
-def air_events(seed=3):
-    """AIR's upper voice: [(start step, length in steps, midi)]; a sample and hold over chord tones"""
-    rng = random.Random(seed)
-    tones = [scale_note(i) for i in range(4, 11)]   # E4 .. E5
-    lens = rng.choice(((6, 5, 5), (5, 6, 5), (7, 4, 5), (5, 4, 7)))
-    ev, at, last = [], rng.randrange(0, 3), None
-    for ln in lens:
-        midi = rng.choice([m for m in tones if m != last and (last is None or abs(m - last) <= 7)])
-        ev.append((at, ln, midi))
-        at, last = at + ln, midi
-    return ev
-
-
-def reel_air():
-    """the CC0 flute as a slow modular pad (one bar, 2 s). Under it a drone, A3, the flute's sustain looped round
-    the bar and swelling with a slow LFO; over it a sample and hold: three notes from the chord's tones held for
-    uneven lengths (5, 6, 7 16ths: they don't land on the beat), each fading in and out slowly so they overlap, the
-    last one's tail fading into the first one. A low-pass breathes over the whole bar, slower than the notes."""
-    buf = [0.0] * BAR
-    xf = int(SR * 0.25)
-    d = flute(57, BAR + xf)
-    d = [d[i] * (1 - i / xf) + d[BAR + i] * i / xf if i < xf else d[i] for i in range(BAR)]
-    buf = [v * 0.45 * (0.6 + 0.4 * lfo(i, 0.25)) for i, v in enumerate(d)]
-    for at, ln, midi in air_events():
-        n = ln * STEP + int(SR * 0.45)
-        fi, fo = int(SR * 0.18), int(SR * 0.45)
-        s = flute(midi, n)
-        wplace(buf, at * STEP, [v * min(1.0, j / fi, (n - j) / fo) for j, v in enumerate(s)], 0.6)
-    return seam(svf_loop(buf, lambda i: 900 * 2 ** (2.2 * lfo(i, 0.1)), q=0.9), 60, 90)
-
-
-def ks(freq, secs, bright, decay, seed):
-    """a Karplus-Strong string at SR: a burst of noise (low-passed: bright 0..1) round a delay line with an
-    averaging filter and an all-pass to tune the fraction of a sample; decay is the loss per pass (0.99..0.999)"""
-    rng = random.Random(seed)
-    p = SR / freq - 0.5                      # the averaging filter delays half a sample
-    n = int(p)
-    if p - n < 0.1:
-        n -= 1
-    d = p - n
-    c = (1 - d) / (1 + d)
-    lp, line = 0.0, []
-    for _ in range(n):
-        lp += (0.15 + 0.85 * bright) * (rng.uniform(-1, 1) - lp)
-        line.append(lp)
-    m = sum(line) / n
-    line = [v - m for v in line]
-    out, prev, ax, ay = [], 0.0, 0.0, 0.0
-    for i in range(int(secs * SR)):
-        v = line[i % n]
-        out.append(v)
-        f = decay * 0.5 * (v + prev)
-        prev = v
-        ay = c * f + ax - c * ay             # the tuning all-pass
-        ax = f
-        line[i % n] = ay
+def osc(table, cycles, phase):
+    """a wavetable oscillator doing exactly `cycles` cycles in a bar (so it loops), from phase 0..1"""
+    n = len(table)
+    out = []
+    for i in range(BAR):
+        p = ((cycles * i / BAR + phase) % 1.0) * n
+        k = int(p)
+        f = p - k
+        out.append(table[k] * (1 - f) + table[(k + 1) % n] * f)
     return out
 
 
-def pluk_events(seed=5):
-    """PLUK's notes: [(step, sub, midi, velocity, brightness)]"""
+def reel_drone(seed=7):
+    """a warm drone on A (one bar, 2 s, no rhythm at all): two saws a hair either side of A2 (they beat once a
+    bar), a triangle on E3 (the fifth), a triangle and a quiet saw on A3, all into a resonant low-pass that opens
+    from 250 Hz to 1.2 kHz and closes again once a bar, the level swelling a little with it. Over that a touch of
+    air: noise through a band-pass that follows the same cycle. A bar is 2.0085 s, so a whole number of cycles a
+    bar is a multiple of 0.4979 Hz: A2 is 221 of them (110.03 Hz), the saws 220 and 222, E3 331 (164.80 Hz), A3 442
+    and 443. Everything is a loop and the filters run two laps, so the circle has no seam; then I turn it so the
+    bar starts on the gentlest zero crossing there is (the decoder starts from silence and has to catch up)."""
     rng = random.Random(seed)
-    low = [45] + [scale_note(i, 45) for i in rng.sample((-2, 2, 3, 4), 2)]     # a 3-note bass cycle from A2
-    high = [scale_note(i, 45) for i in rng.sample(range(5, 13), 5)]            # sample and hold, 5 long
-    ev, lo, hi = [], 0, 0
-    gl, gh = euclid(5, 16, 0), euclid(7, 16, 3)
-    rat = rng.choice([i for i in range(16) if gh[i] and not gl[i]])
-    for i in range(16):
-        b = lfo(i * STEP, 0.35)
-        if gl[i]:
-            ev.append((i, 0, low[lo % 3], 0.9 if i == 0 else 0.7, 0.3 + 0.4 * b))
-            lo += 1
-        if gh[i]:
-            midi = high[hi % 5]
-            if hi == 5:                      # the second time round, its first note jumps the octave
-                midi += 12
-            acc = rng.random() < 0.35
-            vel, br = (0.75, 0.6 + 0.4 * b) if acc else (0.45, 0.25 + 0.5 * b)
-            if i == rat:
-                for k in range(2):           # a ratchet: two 32nds
-                    ev.append((i, k * STEP // 2, midi, vel * (1 - 0.3 * k), br))
-            else:
-                ev.append((i, 0, midi, vel, br))
-            hi += 1
-    return ev
-
-
-def reel_pluck():
-    """plucked strings in two Euclidean rhythms against each other (one bar, 2 s): a bass 5 of 16 walking a
-    3-note cycle, and over it 7 of 16 (rotated) reading a 5-note sample and hold, so the phrase lands differently
-    each time round the bar; one note is accented now and then (louder, brighter), one ratchets, one jumps an
-    octave. The pluck's brightness follows a slow LFO, and an echo a quarter-note triplet behind (it doesn't sit
-    on the 16ths, which is what makes it sound like a patch rather than a sequencer)."""
+    saw, tri = saw_table(), tri_table()
+    voices = [(saw, 220, 0.5), (saw, 222, 0.5), (tri, 331, 0.55), (tri, 442, 0.35), (saw, 443, 0.1)]
     buf = [0.0] * BAR
-    for step, sub, midi, vel, br in pluk_events():
-        f = 440.0 * 2 ** ((midi - 69) / 12)
-        wplace(buf, step * STEP + sub, ks(f, 0.9, br, 0.996 + 0.003 * br, midi * 31 + step), vel)
-    return seam(echo_loop(buf, BAR // 6, 0.35, 0.35, damp=0.4), 3, 2)
+    for table, cycles, g in voices:
+        for i, v in enumerate(osc(table, cycles, rng.random())):
+            buf[i] += v * g
+    buf = svf_loop(buf, lambda i: 250 * 2 ** (2.3 * lfo(i)), q=0.9)
+    noise = svf_loop([rng.uniform(-1, 1) for _ in range(BAR)], lambda i: 1500 * 2 ** lfo(i), q=1.5, mode="band")
+    buf = [(v + 0.06 * nz * (0.4 + 0.6 * lfo(i))) * (0.8 + 0.2 * lfo(i)) for i, (v, nz) in enumerate(zip(buf, noise))]
+    n = len(buf)                             # the bar starts where the drone crosses zero most gently
+    z = min((i for i in range(n) if (buf[i - 1] < 0) != (buf[i] < 0)),
+            key=lambda i: max(abs(buf[(i + k) % n]) for k in range(-4, 12)))
+    return buf[z:] + buf[:z]
 
 
-REELS = [("BEAT", reel_beat), ("KEYS", reel_keys), ("AIR", reel_air), ("PLUK", reel_pluck)]
+def fold_pluck(f, vel, fold, n):
+    """one West-coast pluck: a sine through a wavefolder (sin(drive x): more drive, more folds, more harmonics)
+    into a low-pass gate, a vactrol-ish envelope that sets the level, the folder's drive and two one-pole
+    low-passes all at once, so the note gets darker as it gets quieter. fold 0..1 is how hard it's folded."""
+    w, out = 2 * math.pi * f / SR, []
+    tau = 0.04 + 0.08 * vel                   # louder notes ring longer, as a real LPG does
+    a = b = 0.0
+    for j in range(n):
+        t = j / SR
+        env = min(1.0, j / (SR * 0.002)) * math.exp(-t / tau)
+        drive = 1.0 + 4.5 * fold * env
+        v = math.sin(drive * math.sin(w * j))
+        c = 1 - math.exp(-2 * math.pi * (60 + 4500 * env * env) / SR)
+        a += c * (v - a)
+        b += c * (a - b)
+        out.append(b * env * vel)
+    return out
+
+
+def fold_events(seed=23):
+    """FOLD's notes: [(step, midi, velocity, fold)]. A Euclidean 5 of 16 from the one and two ghost notes where
+    there's room (never on step 1: the first note stays alone); A2 on the one, the rest picked from A2..C4"""
+    rng = random.Random(seed)
+    gate = euclid(5, 16)
+    hits = [i for i in range(16) if gate[i]]
+    ghosts = rng.sample([i for i in (2, 6, 9, 15) if not gate[i] and not gate[i - 1]], 2)
+    notes = [penta(i) for i in (0, 0, 1, 2, 3, 4, 5, 5, 6)]   # A2 C3 D3 E3 G3 A3 C4, A twice as likely
+    ev = [(0, 45, 1.0, 0.8)]
+    for i in hits[1:]:
+        ev.append((i, rng.choice(notes), rng.uniform(0.5, 0.8), rng.uniform(0.3, 1.0)))
+    for i in ghosts:
+        ev.append((i, rng.choice(notes[2:]), rng.uniform(0.3, 0.42), rng.uniform(0.0, 0.3)))
+    return sorted(ev)
+
+
+def reel_fold():
+    """wavefolded plucks through a low-pass gate (one bar, 2 s): a Euclidean 5 of 16 (steps 0, 4, 7, 10, 13) and
+    two quiet ghost notes (steps 2 and 9 with this seed), notes from A minor pentatonic between A2 and C4, each with
+    its own velocity and fold amount (the hard-folded ones buzz, the ghosts are nearly sines). The events are spread
+    over the whole bar, so half a bar from anywhere is still a phrase, which is how T4 plays it. An echo a dotted
+    8th behind, dark and quiet, fills the gaps a little. The first note is A2 (MIDI 45) on the one, folded fairly
+    hard, alone for 251 ms (POLY plays the reel from its start as one note), and the bar's last 80 ms fade out, so
+    nothing wraps round onto it."""
+    buf = [0.0] * BAR
+    for step, midi, vel, fold in fold_events():
+        at = step * STEP
+        place(buf, at, fold_pluck(mtof(midi), vel, fold, min(BAR - at, int(SR * 1.2))))
+    return tail_fade(echo(buf, 3 * STEP, 0.3, 0.18, damp=0.55), 80)
+
+
+REELS = [("BEAT", reel_beat), ("BELL", reel_bell), ("DRON", reel_drone), ("FOLD", reel_fold)]
 
 
 def encode(pcm):

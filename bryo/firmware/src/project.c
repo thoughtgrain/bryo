@@ -29,9 +29,23 @@
 
 #define PJ_N 6u                      /* project slots */
 #define PJ_MAGIC 0x50595242u         /* "BRYP" */
-#define PJ_VERSION 3u                   /* 2: SEQ's slots have SPRD AMT OFS (a version 1 project's SEQ gets their
+#define PJ_VERSION 4u                   /* 2: SEQ's slots have SPRD AMT OFS (a version 1 project's SEQ gets their
                                          * defaults, not the 0s it stored there). 3: each track's arpeggiator after
-                                         * its drum kit (older: the arpeggiator off, its defaults) */
+                                         * its drum kit (older: the arpeggiator off, its defaults). 4: then the notes
+                                         * it holds (a latched chord, an ADD pile), put back waiting for PLAY */
+static uint8_t pj_arpn[NTRK][ARP_MAXN];  /* the notes a project being read holds, until pj_load hands them over */
+static uint8_t pj_arpc[NTRK];
+
+/* the notes track t's arpeggiator holds now (the ISR's, or what's on its way to it), into n; their count */
+static uint32_t pj_arp_notes(uint32_t t, uint8_t *n)
+{
+    uint32_t c = arp_seed_req[t] ? arp_seed_n[t] : arp_rt[t].n, i;
+    const uint8_t *src = arp_seed_req[t] ? arp_seed_note[t] : arp_rt[t].note;
+    c = c < ARP_MAXN ? c : ARP_MAXN;
+    for (i = 0; i < c; i++)
+        n[i] = src[i];
+    return c;
+}
 static uint8_t pj_ver;                  /* the version of the project being read */
 static uint8_t pj_wver = PJ_VERSION;    /* the version written (always PJ_VERSION; the host tests write a 1 to
                                          * check an older project still loads) */
@@ -69,7 +83,9 @@ typedef struct {
 } pj_sum_t;
 
 static pj_sum_t pj_sum[PJ_N];
-static uint8_t pj_cur;               /* the project loaded or saved last (SAVE tapped saves into it) */
+static uint8_t pj_cur;               /* the project loaded or saved last (SAVE tapped saves into it); PJ_N: the
+                                      * FACTORY scene, loaded from the project view and not saved anywhere yet */
+static void tpf_scene(void);         /* tpfactory.c: the factory scene, on the defaults */
 static uint32_t pj_hash_at;          /* the state's fingerprint when it was loaded or saved: changed since? */
 static uint32_t pj_seq;              /* the newest seq of all (a save takes the next) */
 
@@ -346,6 +362,13 @@ static void pj_write_state(void)
         for (s = 0; s < DRM_NINST; s++)
             pw_a16(P->dins[s], NDIN);
         pw_a16(P->arp, NARP);
+        {
+            uint8_t an[ARP_MAXN];
+            uint32_t c = pj_arp_notes(t, an), i;
+            pw_byte((uint8_t)c);
+            for (i = 0; i < c; i++)
+                pw_byte(an[i]);
+        }
     }
     for (t = 0; t < NTRK; t++)                           /* the depths, sparse: track, slot, array, knob, depth */
         n += mdl[t].n;
@@ -401,8 +424,10 @@ static int pj_read_state(void)
             return -1;
     }
     param_defaults();                                    /* (what an older project doesn't have: as at power-on) */
-    for (t = 0; t < NTRK; t++)
+    for (t = 0; t < NTRK; t++) {
         mdl[t].n = 0;
+        pj_arpc[t] = 0;
+    }
     sys.bpm = (uint16_t)clamp((int32_t)pr_u16(), 40, 240);
     sys.ntrk = (uint8_t)clamp(pr_byte(), 1, (int32_t)NTRK);
     pr_a16(mst, NMS, MS_P);
@@ -460,6 +485,16 @@ static int pj_read_state(void)
         }
         if (pj_ver >= 3u)
             pr_a16(P->arp, NARP, ARP_P);
+        pj_arpc[t] = 0;
+        if (pj_ver >= 4u) {                              /* the arpeggiator's notes (past ARP_MAXN: dropped) */
+            uint32_t c = pr_byte(), i;
+            for (i = 0; i < c && !pr.bad; i++) {
+                uint8_t v = pr_byte();
+                if (i < ARP_MAXN)
+                    pj_arpn[t][i] = v < 128u ? v : 127u;
+            }
+            pj_arpc[t] = (uint8_t)(c < ARP_MAXN ? c : ARP_MAXN);
+        }
     }
     n = pr_u16();
     for (i = 0; i < n && !pr.bad; i++) {
@@ -527,6 +562,9 @@ static void pj_scan(uint32_t s)
             pr_a16(junk, NPK, 0);
         if (pj_ver >= 3u)                                /* (the arpeggiator) */
             pr_a16(junk, NPK, 0);
+        if (pj_ver >= 4u)                                /* (.. its notes) */
+            for (k = pr_byte(), s2 = 0; s2 < k; s2++)
+                (void)pr_byte();
     }
     m->used = !pr.bad;
 }
@@ -545,10 +583,12 @@ static void pj_boot(void)
         }
     }
     pj_cur = 0;
-    if (best < PJ_N)
+    if (best < PJ_N) {
         pj_load(best);
-    else
+    } else {                                             /* nothing saved: the factory scene (SAVE: into P1) */
+        tpf_scene();
         pj_hash_at = pj_hash();
+    }
 }
 
 /* the user reel slot that holds project s's track t ("P2T3"), or -1 */
@@ -675,6 +715,10 @@ static int pj_load(uint32_t s)
         tape_ver[t]++;
         drm_dirty[t] = 0;
         mod_rebuild(t);
+        if (pj_arpc[t])                                  /* the arpeggiator's notes, waiting for PLAY */
+            arp_seed(t, pj_arpn[t], pj_arpc[t]);
+        else
+            arp_clear(t);
     }
     chain_tracks(sys.ntrk);
     tape_undo.valid = 0;                                 /* (the undo buffers belonged to the session before) */
@@ -719,6 +763,18 @@ static void pj_new(uint32_t s)
     mod_undo_buf.valid = 0;
     drm_undo_buf.valid = 0;
     pj_cur = (uint8_t)(s < PJ_N ? s : 0u);
+    pj_hash_at = pj_hash();
+}
+
+/* main loop: the FACTORY scene loaded (the project view, past P6): the instrument as it starts with nothing saved,
+ * the scene tpfactory.c sets up, whatever's saved. Projects in the slots are left as they are; it's the current
+ * project of none until it's saved into one (SAVE tapped on a page asks for a slot) */
+static void pj_factory(void)
+{
+    pj_new(0);                                           /* (the defaults, the runtime cleared) */
+    param_defaults();                                    /* (the reels back on the tracks, the rhythm) */
+    tpf_scene();
+    pj_cur = PJ_N;
     pj_hash_at = pj_hash();
 }
 

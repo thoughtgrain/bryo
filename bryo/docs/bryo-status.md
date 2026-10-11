@@ -260,9 +260,16 @@ number.
 - **2026-10-10: the panel's preferences are the instrument's.** SETUP (the mixer's fourth page): KEYS (shortcuts or
   a keyboard), KNOB (1X, 2X, 4X, ACC: Felucca's acceleration), HOLD, LEDS. KEYS and KNOB live in a byte of the
   settings record no Felucca engine uses (settings.c), so going back to Felucca reads nothing from it.
+- **2026-10-10: the factory scene evolves, and it's always there.** With nothing saved, Bryo starts on a scene that
+  changes by itself (`tpfactory.c` tpf_scene): T1 a DRUM on FUNK whose SEED M3 picks and EVOL moves on, M4 retuning
+  the kit; T2 POLY on BELL, its arpeggiator on a latched Am7 at random, M4 moving the chord a bar at a time (Am7 Dm7
+  Em7); T3 DRON ringing strings M4 walks (A C D E G) and grains pitched at random in A minor; T4 POLY on FOLD, its
+  arpeggiator up and down the pentatonic in swung sixteenths with T2's chords. An arpeggiator's notes held without a
+  key (latched, piled up) follow the transport and are saved in projects (format 4). FACTORY, past P6 in the
+  project view, loads it again whatever's saved (`pj_factory`), and saves nowhere until you pick a slot.
 - **2026-10-10: a blank project.** OCT+ on an EMPTY project slot starts one there: defaults, empty tapes, no reels,
-  no pattern, no depths. The factory reels are rewritten as generative patches (Turing-machine and Euclidean
-  melodies, one bar each); power-on with nothing saved still plays them.
+  no pattern, no depths. The factory reels BELL, DRON and FOLD are synthesized modular patches (FM bells, a
+  drone, wavefolded plucks; one bar each, no samples); BEAT is the drum loop.
 
 ## Known considerations and open questions
 

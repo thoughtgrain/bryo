@@ -5097,8 +5097,14 @@ static void test_projects(void)
     pj_boot();
     for (same = 1, s = 0; s < PJ_N; s++)
         same &= !pj_sum[s].used;
-    check("projects: none saved yet: every slot empty, the defaults kept, P1 the current one",
-          same && pj_cur == 0 && tp[0].src == SRC_TAPE && !pj_changed());
+    check("projects: none saved yet: every slot empty, the factory scene (T1 DRUM, depths on every track), P1 the "
+          "current one", same && pj_cur == 0 && tp[0].src == SRC_DRUM && mod_count(0) == 2u && mod_count(1) == 2u &&
+          mod_count(2) == 2u && mod_count(3) == 3u && !pj_changed());
+    param_defaults();                                    /* (the scene below on the plain defaults) */
+    for (k = 0; k < NTRK; k++) {
+        mdl[k].n = 0;
+        mod_rebuild(k);
+    }
     pj_scene();
     check("..a change makes the project changed", pj_changed());
     rc = pj_save(1);
@@ -6285,6 +6291,105 @@ static void test_arp_keys(void)
     pj_wipe();
 }
 
+/* the factory scene: what plays with nothing saved, and FACTORY in the project view */
+static uint32_t distinct_add(int32_t *seen, uint32_t n, int32_t v)
+{
+    uint32_t i;
+    for (i = 0; i < n; i++)
+        if (seen[i] == v)
+            return n;
+    if (n < 64u)
+        seen[n++] = v;
+    return n;
+}
+
+static void test_factory_scene(void)
+{
+    int32_t seed[64], an2[64], an4[64], tu[64], rp[64], pk = 0;
+    uint32_t nseed = 0, n2 = 0, n4 = 0, ntu = 0, nrp = 0, b, i, inkey = 1, steps2 = 0, was2 = 0;
+    char m[200];
+    power_on();
+    pj_wipe();
+    pj_boot();
+    check("nothing saved: the factory scene (T1 DRUM on FUNK, T2 POLY on BELL and T4 on FOLD, both arpeggiated, T3 "
+          "TAPE on DRON), nothing changed yet",
+          tp[0].src == SRC_DRUM && tp[0].drm[DM_PATN] == 2 && tp[1].src == SRC_POLY && tp[1].pol[PL_REEL] == 2 &&
+          tp[3].src == SRC_POLY && tp[3].pol[PL_REEL] == 4 && tp[2].src == SRC_TAPE && tp[2].dev[DEV_SRC][TK_REEL] == 3 &&
+          tp[1].arp[AR_MODE] == ARM_LTCH && tp[3].arp[AR_MODE] == ARM_LTCH && !pj_changed() && pj_cur == 0u);
+    render(200, 0);
+    check("..stopped: the arpeggiators hold their notes and wait for PLAY", arp_rt[1].n == 4u && arp_rt[3].n == 5u &&
+          !arp_rt[1].on && !arp_rt[3].on && arp_rt[1].waiting);
+    sys.playing = 1;
+    for (b = 0; b < 2756u * 8u; b++) {                   /* eight bars at 120 */
+        chain_block(out, CTL);
+        for (i = 0; i < 2u * CTL; i++)
+            pk = out[i] > pk ? out[i] : -out[i] > pk ? -out[i] : pk;
+        if (arp_rt[1].on && !was2) {                     /* each of T2's notes as it sounds: in A minor? */
+            int32_t tr = TPD(1, MA_POL)[PL_TUNE] - (48 - TPS_BELL_NOTE), pc = ((int32_t)arp_rt[1].cur + tr) % 12;
+            inkey &= pc == 9 || pc == 11 || pc == 0 || pc == 2 || pc == 4 || pc == 5 || pc == 7;
+            n2 = distinct_add(an2, n2, (int32_t)arp_rt[1].cur + tr);
+            steps2++;
+        }
+        was2 = arp_rt[1].on;
+        if (b % 64u == 0u) {
+            nseed = distinct_add(seed, nseed, TPD(0, MA_DRM)[DM_SEED]);
+            ntu = distinct_add(tu, ntu, TPD(1, MA_POL)[PL_TUNE]);
+            nrp = distinct_add(rp, nrp, TPD(2, DEV_RESO)[RP_PTCH]);
+            n4 = distinct_add(an4, n4, (int32_t)arp_rt[3].cur + TPD(3, MA_POL)[PL_TUNE]);
+        }
+    }
+    snprintf(m, sizeof m, "..eight bars: the drums' SEED takes %u versions, T2's arpeggio %u steps over %u notes and %u "
+             "chords, T3's strings %u roots, T4's arpeggio %u notes; peak %d", nseed, steps2, n2, ntu, nrp, n4, pk);
+    check(m, nseed >= 3u && steps2 >= 60u && n2 >= 8u && ntu == 3u && nrp >= 4u && n4 >= 6u && pk < 32767);
+    check("..every note T2's arpeggio plays is in A minor (Am7 Dm7 Em7)", inkey);
+    sys.playing = 0;
+    render(4, 0);
+    check("..STOP: the arpeggios stop, their notes kept", !arp_rt[1].on && !arp_rt[3].on && arp_rt[1].n == 4u);
+    check("a project saved with the scene keeps the arpeggiators' notes", pj_save(1) == 0);
+    power_on();
+    pj_boot();
+    render(2, 0);
+    check("..loaded: T2 holds Am7 again, T4 the pentatonic, waiting for PLAY", arp_rt[1].n == 4u && arp_rt[1].note[0] == 57u &&
+          arp_rt[1].note[3] == 67u && arp_rt[3].n == 5u && arp_rt[1].waiting && pj_cur == 1u);
+    pj_wipe();
+    power_on();
+    pj_boot();
+
+    /* FACTORY in the project view, over a saved project */
+    tp[2].dev[DEV_COLOR][CP_DRIV] = 60;
+    check("a project saved into P1 (the scene, changed)", pj_save(0) == 0);
+    power_on();
+    pj_boot();
+    check("..power-on: P1 back (not the scene)", tp[2].dev[DEV_COLOR][CP_DRIV] == 60 && pj_cur == 0u);
+    host_enc[panel.enc[EN_PRESET]] = 1;
+    ui_input();
+    for (i = 0; i < PJ_N; i++) {
+        host_enc[panel.enc[EN_PRESET]] = 1;
+        ui_input();
+    }
+    check("PRESETS turned past P6: FACTORY", ui.view == VIEW_PROJECT && ui.pj_sel == PJ_N);
+    shot("BRYO", "projects_factory");
+    press(B_OCTUP);
+    check("..OCT+: the factory scene loaded, P1 left as saved, no slot current", tp[0].src == SRC_DRUM &&
+          tp[2].dev[DEV_COLOR][CP_DRIV] == 0 && pj_cur == PJ_N && pj_sum[0].used && !strcmp(ui.msg, "FACTORY SCENE LOADED"));
+    tap(B_SAVE);
+    check("..SAVE on FACTORY: it says to save into a slot", !strcmp(ui.msg, "FACTORY: SAVE INTO P1..P6") && pj_cur == PJ_N);
+    fm1_in.notes = 1u << black_note(BK_POLY);
+    key_edge(black_note(BK_POLY));
+    fm1_ms += 600;
+    ui_input();
+    fm1_in.notes = 0;
+    check("..POLY held on FACTORY: it stays", !strcmp(ui.msg, "THE FACTORY SCENE STAYS"));
+    press(B_OCTDN);
+    tap(B_SAVE);
+    check("..SAVE tapped on a page: where to save it", !strcmp(ui.msg, "TURN PRESETS TO A SLOT, THEN SAVE") &&
+          pj_sum[0].used);
+    power_on();
+    pj_boot();
+    check("..and P1 still comes back at power-on", tp[2].dev[DEV_COLOR][CP_DRIV] == 60);
+    pj_wipe();
+}
+
 int main(int argc, char **argv)
 {
     out_dir = argc > 1 ? argv[1] : "build/bryo_ui";
@@ -6318,6 +6423,7 @@ int main(int argc, char **argv)
     test_tpresets();
     test_tpfactory();
     test_arp_keys();
+    test_factory_scene();
     test_input();
     test_settings();
     palette_set(UI_GREY_INDEX);                          /* (the screens are one ink now, whatever the palette) */

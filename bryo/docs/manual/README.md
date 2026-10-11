@@ -23,7 +23,7 @@ should hear. Do them in order the first time; after that, jump to what you need.
 6. [The effects](#6-the-effects): GRAIN, RESONATOR, COLOR, SPACE
 7. [Modulation](#7-modulation): make knobs move by themselves
 8. [Getting back](#8-getting-back): reset a knob or a page, undo
-9. [Saving](#9-saving): projects, a blank project, track presets
+9. [Saving](#9-saving): projects, a blank project, the factory scene, track presets
 10. [With a computer](#10-with-a-computer): files over USB, recording the computer
 11. [When something goes wrong](#11-when-something-goes-wrong)
 12. [Quick reference](#12-quick-reference)
@@ -97,8 +97,18 @@ KNOB 1 to 4 always change the four values you see. There's nothing hidden.
 1. Press **PLAY**.
 2. The ■ in the header turns into ▶, and the play head moves along the tape.
 
-**You'll hear:** four loops at once. Each track starts on a factory reel: track 1 **BEAT**, track 2 **KEYS**,
-track 3 **AIR**, track 4 **PLUK**.
+**You'll hear:** the factory scene, four tracks that keep changing by themselves:
+- **Track 1:** a drum machine that varies its pattern as it goes.
+- **Track 2:** FM bells (**BELL**) played by the arpeggiator: a chord at random over two octaves, the chord moving
+  every bar (Am7, Dm7, Em7).
+- **Track 3:** a warm drone (**DRON**) ringing strings that walk from note to note, with a shimmer of grains.
+- **Track 4:** wavefolded plucks (**FOLD**) arpeggiated up and down in swung sixteenths, following track 2's chords,
+  into an echo.
+
+It's all in A minor; the modulators and the two arpeggiators do the changing.
+
+> If you've saved a project, it comes back at power-on instead. To hear the factory scene again, see
+> [9.4](#94-back-to-the-factory-scene).
 
 <img src="img/tape_playing.png" width="240" alt="TAPE while playing">
 
@@ -178,7 +188,7 @@ They're the same switches as REV and HALF on the TAPE page 2.
 ### 2.5 Play a different reel
 
 1. Press **HOME** until the dots show the third page, **TAPE 3**.
-2. Turn **KNOB 1 (REEL)**: BEAT, KEYS, AIR, PLUK, then any reels you've added. **TAPE** means the track's own tape
+2. Turn **KNOB 1 (REEL)**: BEAT, BELL, DRON, FOLD, then any reels you've added. **TAPE** means the track's own tape
    (what you record onto it).
 3. **KNOB 2 (ROTA)** moves where the loop starts; **KNOB 4 (LVL)** is how loud the track hears its source.
 
@@ -415,8 +425,9 @@ stays. **Hold black key POLY** (on the ARP page) to clear it and start again.
 
 <img src="img/arp_add.png" width="240" alt="ARP in ADD mode, four notes piled up">
 
-The arpeggiator runs with the transport stopped too, and a latched pattern keeps playing when you move to another
-track. Each track has its own.
+Keys you hold play straight away, transport or not. A latched or piled-up pattern keeps playing when you move to
+another track, and follows the transport: **STOP** quiets it (the notes are kept), **PLAY** starts it again from the
+top. Each track has its own, and a project you save keeps the notes it holds.
 
 ### 5.9 Play the black keys as notes
 
@@ -661,7 +672,18 @@ There are six project slots, P1 to P6.
 
 <img src="img/project_new.png" width="240" alt="A new, blank project in P3">
 
-### 9.4 Track presets: keep one track's sound
+### 9.4 Back to the factory scene
+
+The scene Bryo starts with is always there, even after you've saved over it:
+
+1. Turn **PRESETS**, and keep turning past **P6**: **F, FACTORY**.
+2. Press **OCT+**. (Changes not saved: press it again within 3 seconds.)
+3. The factory scene plays. Your projects in P1 to P6 are left exactly as they were.
+4. To keep your changes to it, turn **PRESETS** to a slot and press **SAVE**.
+
+<img src="img/projects_factory.png" width="240" alt="FACTORY in the project view">
+
+### 9.5 Track presets: keep one track's sound
 
 A track preset is **a track's sound**: its source and knobs, the effects, the channel strip and the modulation. Not
 its pattern, level, REC IN or arpeggiator.
@@ -673,7 +695,7 @@ its pattern, level, REC IN or arpeggiator.
 
 <img src="img/presets.png" width="240" alt="Track PRESETS A to H">
 
-### 9.5 Factory presets
+### 9.6 Factory presets
 
 Past H come eight factory presets, two for each source: **DRIFT** and **RINGS** (TAPE), **BASS** and **PAD**
 (SYNTH), **KEYS** and **SWELL** (POLY), **TIGHT** and **DUB** (DRUM). Load one into a track of that source with
@@ -776,4 +798,5 @@ M-VAVE's updater puts the stock firmware back. Bryo's projects and tapes can't b
 | **SAVE** held | undo the last clear, reset or load |
 | **PRESETS** | projects; then EDIT for track presets |
 | **PRESETS**, an empty slot, **OCT+** | a new, blank project |
+| **PRESETS** past P6 (FACTORY), **OCT+** | the factory scene back |
 | **OCT− / OCT+** | octave (DRUM's pages: the bar) |

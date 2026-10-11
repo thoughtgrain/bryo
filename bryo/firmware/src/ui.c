@@ -202,8 +202,8 @@ static void draw_head(void)
         str_cpy(ti, "PRESETS", sizeof ti);
     } else if (ui.view == VIEW_PROJECT) {
         str_cpy(ti, "PROJECTS", sizeof ti);
-        box[0] = 'P';
-        box[1] = (char)('1' + ui.pj_sel);
+        box[0] = ui.pj_sel >= PJ_N ? 'F' : 'P';
+        box[1] = ui.pj_sel >= PJ_N ? 0 : (char)('1' + ui.pj_sel);
     } else if (ui.view == VIEW_MIXER)
         str_cpy(ti, ui.chan == CHAN_SETUP ? "SETUP" : ui.chan == CHAN_MASTER ? "MASTER" : ui.chan ? "CHANNEL" : "MIXER", sizeof ti);
     else if (ui.view == VIEW_ROUTE)

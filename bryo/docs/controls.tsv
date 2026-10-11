@@ -30,7 +30,7 @@ page	BTN_GLO	tap	open the mixer and keep it up	now	-	change
 page	BTN_GLO	hold	the mixer while held; letting go returns to the page	now	-	change
 page	BTN_SCL	press	down: the reset (scl-held); on its own, nothing	now	-	change
 page	BTN_SCL	hold	held: a knob turned goes to its default, the page's own pad resets the page (scl-held). SAVE held puts back what the hold reset. (The system menu proposed here before needs another place)	now	-	change
-page	BTN_PLAY	press	start / stop the transport: every track's tape plays its loop from the start (STOP fades them out in 2 ms)	now	-	PRD 2.2
+page	BTN_PLAY	press	start / stop the transport: every track's tape plays its loop from the start (STOP fades them out in 2 ms); an arpeggiator's notes held with no key down (latched, piled up, a project's) start and stop with it	now	-	PRD 2.2
 page	BTN_REC	press	arm / disarm the focused track's tape: while playing it records the other tracks' mix (old x DUB + new x GAIN); armed on a reel, the reel is copied onto the tape first (refused if the tape holds a take). Playing: as REC goes down (a punch-in lands where it's pressed); stopped: as it's let go	now	-	PRD 2.2
 page	BTN_REC	hold	held a second while stopped: the USB record mode (the tracks stop, the output plays the computer); playing: a hint to stop first	now	-	change
 usb-record	BTN_REC	press	READY: start the take; RECORDING: stop it; CHOOSE: put it on the picked track (its tape replaced) and leave	now	-	change
@@ -105,12 +105,12 @@ scl-held	BTN_EDIT	combo	on GRAIN or RESONATOR (or the mixer's channel and master
 scl-held	BTN_FX	combo	on COLOR or SPACE: the page shown to its defaults	now	-	change
 scl-held	BTN_GLO	combo	on the mixer's levels: every track's level to 100	now	-	change
 scl-held	BTN_LFO	combo	on an LFO-pad slot's page (and ENV, SEQ, ARP on theirs): the page shown to its defaults; the slot's depths stay (MONO clears those)	now	-	change
-project-view	ENC_PRESETS	turn	point at the next or previous of the six project slots (on the PRESETS page: of the eight track presets, A..H, then the eight factory ones, 1..8: DRIFT RINGS (TAPE), BASS PAD (SYNTH), KEYS SWELL (POLY), TIGHT DUB (DRUM))	now	-	change
+project-view	ENC_PRESETS	turn	point at the next or previous of the six project slots (on the PRESETS page: of the eight track presets, A..H, then the eight factory ones, 1..8: DRIFT RINGS (TAPE), BASS PAD (SYNTH), KEYS SWELL (POLY), TIGHT DUB (DRUM)); past P6: FACTORY, the start-up scene	now	-	change
 project-view	BTN_EDIT	press	the view's pages, round: PROJECTS, PRESETS (a track's sound: source and its knobs, the devices, the channel strip, the slots and depths; not the pattern, level or REC IN), as EDIT steps the mixer's	now	-	change
-project-view	BTN_OCTUP	press	load the slot pointed at (it stops the transport); with changes not saved, asked first: OCT+ again within 3 s. On the PRESETS page: the preset (or factory one) into the focused track, no question (SAVE held puts the track back), playing on. On an EMPTY slot: a new project there, blank (every knob at its default, every track an empty tape of its own, no pattern, no depths, 120 BPM; saved by SAVE)	now	-	change
+project-view	BTN_OCTUP	press	load the slot pointed at (it stops the transport); with changes not saved, asked first: OCT+ again within 3 s. On the PRESETS page: the preset (or factory one) into the focused track, no question (SAVE held puts the track back), playing on. On an EMPTY slot: a new project there, blank (every knob at its default, every track an empty tape of its own, no pattern, no depths, 120 BPM; saved by SAVE). On FACTORY: the start-up scene (the evolving one Bryo plays with nothing saved), your projects left as they are	now	-	change
 project-view	BTN_OCTDN	press	leave the project view (any page pad does too)	now	-	change
-project-view	BTN_SAVE	tap	save into the slot pointed at; over another project, asked first: SAVE again within 3 s. On the PRESETS page: the focused track saved as the preset pointed at (over another, asked the same way); a factory one can't be saved over (FACTORY: SAVE INTO A..H)	now	-	PRD 2.1
-project-view	BLACK_POLY	hold	held 0.5 s: delete the project pointed at (the user reels it saved stay); on the PRESETS page, the preset (a factory one stays)	now	-	change
+project-view	BTN_SAVE	tap	save into the slot pointed at; over another project, asked first: SAVE again within 3 s. On the PRESETS page: the focused track saved as the preset pointed at (over another, asked the same way); a factory one can't be saved over (FACTORY: SAVE INTO A..H). On FACTORY: it says to save into P1..P6	now	-	PRD 2.1
+project-view	BLACK_POLY	hold	held 0.5 s: delete the project pointed at (the user reels it saved stay); on the PRESETS page, the preset (a factory one stays); FACTORY stays	now	-	change
 project-view	ENC_K1-4	turn	nothing (the view has no knobs)	now	-	change
 routing-view	ENC_ALGORITHM	turn	the focused track's REC IN (AUTO OTHR T1-T4; its own number: SELF)	now	-	change
 routing-view	ENC_K1-4	turn	track 1..4's REC IN: AUTO (as before: the others on TAPE, its own source on SYNTH or POLY), OTHR (the others' mix), T1-T4 (one track; its own: SELF)	now	-	change

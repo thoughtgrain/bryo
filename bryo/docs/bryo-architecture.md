@@ -498,7 +498,8 @@ the refusal that protects a take. What it does and why:
 
 - **Each track has a RAM tape and can play a reel instead.** Four factory reels live in flash
   (`tools/gen_reels.py` makes them, in the tape's own format: BEAT from the generated drums, KEYS and AIR from
-  the CC0 piano and flute, PLUK from the generated plucks; about 95 KB of flash). TAPE 3's REEL picks TAPE or a
+  the CC0 piano and flute, PLUK from the generated plucks; about 95 KB of flash; 2026-10-10: BEAT, then BELL DRON
+  FOLD, synthesized modular patches, no samples). TAPE 3's REEL picks TAPE or a
   reel. A reel plays straight from flash, so browsing reels never touches your tape; the first REC copies the reel
   onto the tape (and REEL turns to TAPE), and is refused if the tape already holds a take, so nothing is lost by
   accident.
@@ -1686,7 +1687,35 @@ its default, every track on its own empty tape (TAPE's and POLY's REEL on TAPE),
 in the arpeggiators, the mixer and tempo as at power-on. It's the current project from then (SAVE saves it there),
 and the slot shows EMPTY until it's saved. Power-on with nothing saved still plays the factory reels, which are now
 generative patches (`tools/gen_reels.py`: KEYS a Turing machine on the piano, AIR a sample-and-hold flute pad, PLUK
-two Euclidean string rhythms against each other; one bar each, so they loop together with BEAT).
+two Euclidean string rhythms against each other; one bar each, so they loop together with BEAT). They didn't last
+the day: on the FM-1 they were annoying, and the piano and flute went for synthesized ones, BELL (FM bells), DRON
+(a drone) and FOLD (wavefolded plucks), same length, same keys, the scene unchanged.
+
+**The factory scene** (later the same day). Power-on with nothing saved used to be the four reels and nothing
+moving; now it's a scene the modulators keep changing (`tpf_scene` in tpfactory.c, the factory presets' loader on
+four track recipes): T1 DRUM on FUNK, VARY 70, FILL 50, EVOL every two loops, M3 (random, two bars a step) moving
+SEED 45 % so it picks a new version of the pattern, M4 stepping the kit's TUNE; T2 BELL through grains (WET 55)
+whose PTCH M4 steps a beat at a time through 16 steps of A minor pentatonic (0 3 5 7 10 12 semitones: steps of
+0 26 43 59 84 100 at 25 % of PTCH's 48), no slew, M3 scattering SPRY, an echo; T3 DRON through strings (WET 45 on A2)
+whose root M4 walks A C D E G a bar a step, and grains with PRND 12 held to SCAL MIN, so the random pitches stay in
+key; T4 FOLD on half its loop, M3 moving STRT 40 % each bar (a new phrase) into a delay whose feedback M1 breathes over
+four bars. FACTORY in the project view (turn past P6) loads it again: `pj_factory` sets the defaults and the scene,
+and leaves no slot current, so SAVE tapped on a page says to pick one rather than overwrite the last project. Tested
+(test_factory_scene): over eight bars SEED takes 15 versions, T2's grains 6 pitches all on the pentatonic, T3's
+strings 5 roots, T4's loop 19 starts, the peak about -10 dBFS; FACTORY loads over a saved P1 and leaves it.
+
+**The scene, arpeggiated** (later still). Two of the scene's tracks became POLY tracks played by their
+arpeggiators, which the owner suggested on hearing it: T2 strikes BELL on a latched Am7, RND over two octaves in
+eighths, and M4 steps POLY's TUNE +0 +5 +7 +0 a bar at a time, so the chord goes Am7 Dm7 Em7 Am7 and every note stays
+in A minor; T4 plucks FOLD up and down A minor pentatonic in swung sixteenths with the same four steps. POLY plays a
+reel at its own pitch for C3, so TUNE is set to 48 minus the reel's first note (BELL and FOLD each start with one
+clean note for it, `TPS_BELL_NOTE`, `TPS_FOLD_NOTE`). For a scene, or a project, to hold an arpeggio the
+arpeggiator's notes had to outlive a power cycle: projects (format 4) save them after its knobs, and loading hands
+them to the ISR (`arp_seed`: the notes in a buffer, `RING_PUBLISH`, then the request), latched. And notes held with
+no key down now follow the transport: STOP quiets them, PLAY starts them from the first step, a key brings them back
+at once; keys held still play whether the transport runs or not. Tested: stopped, the scene's arpeggios wait; eight
+bars give T2 64 steps over 16 notes and 3 chords, every one in A minor, T4 10 notes; STOP stops them with their notes
+kept; a project saved with them brings them back.
 
 How it's tested (`tests/bryo_host.c` test_arp_keys): KEY UP at 1/16 plays C3 E3 C3 E3 with a silent block between
 steps; RNGE 2 UPDN and DOWN walk as they should; KEY stops when the keys go, LTCH keeps a chord and replaces it on a

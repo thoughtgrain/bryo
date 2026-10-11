@@ -277,7 +277,7 @@ static void pj_turn(int32_t d)
     } else if (ui.pj_page) {                            /* (the track presets' page: A..H) */
         ui.tpr_sel = (uint8_t)clamp((int32_t)ui.tpr_sel + d, 0, (int32_t)(TPR_N + TPF_N) - 1);   /* A..H, 1..8 */
     } else {
-        ui.pj_sel = (uint8_t)clamp((int32_t)ui.pj_sel + d, 0, (int32_t)PJ_N - 1);
+        ui.pj_sel = (uint8_t)clamp((int32_t)ui.pj_sel + d, 0, (int32_t)PJ_N);   /* (past P6: FACTORY) */
     }
     ui.pj_ask = PJ_ASK_NONE;
     ui.last = 0xFF;
@@ -335,6 +335,10 @@ static void pj_save_tap(void)
         tpr_save_tap();
         return;
     }
+    if (s >= PJ_N) {                                    /* FACTORY: it's saved into a slot, not over itself */
+        ui_message(ui.view == VIEW_PROJECT ? "FACTORY: SAVE INTO P1..P6" : "TURN PRESETS TO A SLOT, THEN SAVE");
+        return;
+    }
     if (ui.view == VIEW_PROJECT && pj_sum[s].used && s != pj_cur) {
         char m[40] = "P";
         m[1] = (char)('1' + s);
@@ -355,6 +359,12 @@ static void pj_load_press(void)
     m[2] = 0;
     if (pj_changed() && !pj_confirmed(PJ_ASK_LOAD, "CHANGES NOT SAVED: OCT+ AGAIN"))
         return;
+    if (s >= PJ_N) {                                    /* FACTORY: the scene Bryo starts with */
+        trk_undo.valid = 0;
+        pj_factory();
+        ui_message("FACTORY SCENE LOADED");
+        return;
+    }
     if (!pj_sum[s].used) {                              /* an empty slot: a new project there, blank */
         trk_undo.valid = 0;
         pj_new(s);
@@ -692,6 +702,9 @@ static void hold_keys(void)
                 str_cpy(m + 8, !tpr_sum[ui.tpr_sel].used ? " IS EMPTY" : tpr_delete(ui.tpr_sel) == 0 ? " DELETED"
                                                                                                     : " NOT DELETED: FLASH", 22);
             ui_message(m);
+        } else if ((uint32_t)(fm1_ms - ui.poly_t0) >= 500u && ui.view == VIEW_PROJECT && ui.pj_sel >= PJ_N) {
+            ui.poly_held = 0;
+            ui_message("THE FACTORY SCENE STAYS");
         } else if ((uint32_t)(fm1_ms - ui.poly_t0) >= 500u && ui.view == VIEW_PROJECT) {   /* a project, deleted */
             char m[40] = "P";
             ui.poly_held = 0;

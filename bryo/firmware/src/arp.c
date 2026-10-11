@@ -18,8 +18,10 @@
  * UPDN (up and back down, the top and bottom once), PLAY (the order pressed, then again an octave up) or RND.
  *
  * The clock is its own: the first note sounds the moment a key goes down (no waiting for the next beat), and each
- * step is RATE long at the tempo, SWNG lengthening the first of each pair of steps and shortening the second. It
- * runs whether the transport plays or not, like the keys.
+ * step is RATE long at the tempo, SWNG lengthening the first of each pair of steps and shortening the second. Keys
+ * held play whether the transport runs or not, like the keys. Notes it holds with no key down (latched, piled up,
+ * or put back by a project, arp_seed) follow the transport: STOP quiets them, PLAY starts them from the first step,
+ * a key pressed brings them back at once.
  *
  * Audio ISR, except arp_clear (main loop: a request the ISR takes) and what the screen reads (arp_rt, torn reads
  * are only a frame's drawing). */
@@ -35,6 +37,8 @@ typedef struct {
     uint8_t gap;                     /* a silent block owed (the arpeggiator just turned off with a note sounding) */
     uint8_t base_in;                 /* the keys' key_base last block */
     uint8_t mode;                    /* MODE as of last block */
+    uint8_t waiting;                 /* notes held with no key down, waiting for PLAY (or a key) */
+    uint8_t playing;                 /* the transport as of last block */
     uint32_t held;                   /* the keys held last block */
     int32_t phase, len, gate;        /* samples into this step, its length, how long its note sounds */
     uint32_t pos;                    /* steps played since the notes started */
@@ -43,6 +47,23 @@ typedef struct {
 
 static arp_rt_t arp_rt[NTRK];
 static volatile uint8_t arp_clear_req[NTRK];   /* main loop -> ISR: forget the notes (POLY held on the ARP page) */
+static volatile uint8_t arp_seed_req[NTRK];    /* main loop -> ISR: hold these notes (a project, the factory scene) */
+static uint8_t arp_seed_note[NTRK][ARP_MAXN];
+static uint8_t arp_seed_n[NTRK];
+
+/* main loop: track t's arpeggiator holds notes[0..n) (absolute, as pressed), as if latched, waiting for PLAY */
+static void arp_seed(uint32_t t, const uint8_t *notes, uint32_t n)
+{
+    uint32_t i;
+    if (t >= NTRK)
+        return;
+    n = n < ARP_MAXN ? n : ARP_MAXN;
+    for (i = 0; i < n; i++)
+        arp_seed_note[t][i] = notes[i] < 128u ? notes[i] : 127u;
+    arp_seed_n[t] = (uint8_t)n;
+    RING_PUBLISH();                                      /* (the notes before the request) */
+    arp_seed_req[t] = 1;
+}
 
 /* main loop: forget track t's notes (they stop at the next block) */
 static void arp_clear(uint32_t t)
@@ -150,6 +171,22 @@ static uint32_t arp_block(uint32_t t, uint32_t keys, uint32_t base, uint32_t n, 
     if (mode != r->mode && (mode == ARM_OFF || r->mode == ARM_OFF || mode == ARM_KEY))
         r->n = 0;                                        /* (turned on, off, or back to KEY: from the keys as they are) */
     r->mode = (uint8_t)mode;
+    if (arp_seed_req[t]) {                               /* notes put back (a project): latched, waiting for PLAY */
+        uint32_t i;
+        for (i = 0; i < arp_seed_n[t]; i++)
+            r->note[i] = arp_seed_note[t][i];
+        r->n = arp_seed_n[t];
+        r->latched = 1;
+        r->waiting = !sys.playing;
+        r->len = 0;
+        r->held = keys;
+        arp_seed_req[t] = 0;
+    }
+    if (sys.playing != r->playing) {                     /* PLAY: notes held without keys start over; STOP: they wait */
+        r->playing = sys.playing;
+        r->waiting = !sys.playing && !keys;
+        r->len = 0;
+    }
     if (mode == ARM_OFF || !arp_on(t)) {                 /* off: the keys straight through (a silent block first if a
                                                           * step's note was sounding, so it ends) */
         r->held = keys;
@@ -183,9 +220,12 @@ static uint32_t arp_block(uint32_t t, uint32_t keys, uint32_t base, uint32_t n, 
             arp_add(r, base + k);
     if (mode == ARM_LTCH && !keys && r->held)
         r->latched = 1;
+    if (press)                                           /* (a key: the notes play now, transport or not) */
+        r->waiting = 0;
     r->held = keys;
     r->base_in = (uint8_t)base;
-    if (!r->n) {                                         /* nothing to play: quiet, and the next note starts at once */
+    if (!r->n || (r->waiting && !keys)) {             /* nothing to play (or waiting for PLAY): quiet, and the next
+                                                         * note starts at once */
         r->on = 0;
         r->pos = 0;
         r->phase = r->len = 0;

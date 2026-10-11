@@ -1774,6 +1774,21 @@ static void viz_project_strip(void)
     }
     char n[4] = {'P', (char)('1' + ui.pj_sel % PJ_N), 0, 0}, b[16];
     uint32_t t;
+    if (ui.pj_sel >= PJ_N) {                                           /* FACTORY: the scene Bryo starts with */
+        px_text_big(2, 3, 3, "F", px_ink);
+        px_text(30, 3, PXF_5B, "FACTORY", px_ink);
+        px_text(30, 13, PXF_5, "EVOLVING SCENE", px_ink);
+        px_tag(30, 22, PXF_3, ui.pj_ask == PJ_ASK_LOAD ? "OCT+ AGAIN: LOAD" : pj_cur >= PJ_N ? "LOADED" : "OCT+ LOADS IT",
+               px_ink, px_bg);
+        for (t = 0; t < NTRK; t++) {
+            int32_t x = 30 * (int32_t)t;
+            char tn[3] = {'T', (char)('1' + t), 0};
+            px_line(x + 2, 31, x + 27, 31, px_dim, 2);
+            px_text_c(x, 30, 34, PXF_3, tn, px_dim);
+            px_text_c(x, 30, 41, PXF_5, SRC_NAME[TPS[t].src % NSRC], px_ink);
+        }
+        return;
+    }
     px_text_big(2, 3, 3, n, px_ink);
     px_text(44, 3, PXF_5B, m->used ? "SAVED" : "EMPTY", m->used ? px_ink : px_dim);
     if (m->used) {
@@ -1802,6 +1817,13 @@ static void viz_project(void)
     uint32_t s, t;
     if (ui.pj_page) {
         viz_tpr();
+        return;
+    }
+    if (ui.pj_sel >= PJ_N) {                                           /* FACTORY, past P6: what it is */
+        px_text_c(0, 120, 3, PXF_3, "THE START-UP SCENE:", px_ink);
+        px_text_c(0, 120, 11, PXF_3, "DRUMS, GRAINS, STRINGS", px_ink);
+        px_text_c(0, 120, 19, PXF_3, "THE MODULATORS CHANGE", px_ink);
+        px_text_c(0, 120, 31, PXF_3, "YOUR PROJECTS STAY", px_dim);
         return;
     }
     for (s = 0; s < PJ_N; s++) {
