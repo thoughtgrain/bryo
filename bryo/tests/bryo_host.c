@@ -2281,6 +2281,98 @@ static void test_grain_clicks(void)
     render_poll(1378);
 }
 
+/* silent grains cost nothing: a grain whose whole read is silence (every block's stored peak 0) isn't started, and a
+ * grain's blocks of silence are skipped (no decoding, no mixing) while it keeps its place */
+static void test_grain_silence(void)
+{
+    tape_view_t v;
+    uint32_t b, blk, nb;
+    int32_t pos0, inc, heard = 0, inside = 0, i;
+    static int32_t dry[CTL], gl[CTL], gr[CTL];
+    power_on();
+    fill_tape(0, 4);                                     /* track 1: 4 chunks (64 blocks), factory reel 1's sound */
+    {
+        tape_view_t rv;
+        tape_view_of(0, 1, &rv);
+        for (blk = 0; blk < 64u; blk++) {
+            mem_chunk_t *c = tape_chunk(0, blk);
+            memcpy(c->data[blk % MEM_CB], tv_data(&rv, blk), 128);
+            c->pred[blk % MEM_CB] = (int16_t)tv_pred(&rv, blk);
+            c->idx[blk % MEM_CB] = (uint8_t)tv_idx(&rv, blk);
+        }
+    }
+    tape_view(0, &v);
+    nb = v.len / TAPE_BLK;
+    for (blk = 16; blk < 32u; blk++)                     /* blocks 16-31 marked silent (their sound left in: a grain
+                                                          * that's quiet there was skipped) */
+        tape_chunk(0, blk)->peak[blk % MEM_CB] = 0;
+    check("gr_quiet: a stretch inside the silent blocks is silent; one touching sound isn't",
+          gr_quiet(&v, 16 * 256, 32 * 256 - 1, (int32_t)v.len, -1) && !gr_quiet(&v, 15 * 256, 20 * 256, (int32_t)v.len, -1) &&
+          !gr_quiet(&v, 30 * 256, 33 * 256, (int32_t)v.len, -1));
+    check("..the block being written counts as sound (its peak is the old one's)",
+          !gr_quiet(&v, 16 * 256, 20 * 256, (int32_t)v.len, 18));
+    for (blk = 0; blk < 4u; blk++)                       /* round the loop: the end's last blocks and the start's */
+        tape_chunk(0, blk)->peak[blk % MEM_CB] = 0, tape_chunk(0, nb - 1u - blk)->peak[(nb - 1u - blk) % MEM_CB] = 0;
+    check("..past the end, round the loop: the start's blocks are the ones looked at",
+          gr_quiet(&v, (int32_t)(nb - 2u) * 256, (int32_t)(nb + 2u) * 256, (int32_t)v.len, -1) &&
+          !gr_quiet(&v, (int32_t)(nb - 2u) * 256, (int32_t)(nb + 6u) * 256, (int32_t)v.len, -1));
+    for (blk = 0; blk < 4u; blk++)
+        tape_chunk(0, blk)->peak[blk % MEM_CB] = 100, tape_chunk(0, nb - 1u - blk)->peak[(nb - 1u - blk) % MEM_CB] = 100;
+    {                                                    /* a 50 ms grain inside the silence: not started */
+        int16_t *p = tp[0].dev[DEV_GRAIN];
+        p[GP_WET] = 100;
+        p[GP_SCAN] = SCAN_TAPE;
+        p[GP_SIZE] = 50;
+        p[GP_SPRY] = 0;
+        sys.playing = 1;
+        grain_kill(0);
+        grain[0].cur = (18 * 256) << 12;
+        grain[0].wait = 0;
+        gr_plan();
+        grain_block(0, dry, 0, 0, gl, gr, CTL);
+        check("a grain whose whole read is silence isn't started (no work, its slot free)", grain_count(0) == 0u);
+        grain[0].cur = (8 * 256) << 12;                  /* (in sound: it is) */
+        grain[0].wait = 0;
+        grain_block(0, dry, 0, 0, gl, gr, CTL);
+        check("..one reading sound is", grain_count(0) == 1u);
+    }
+    {                                                    /* a grain from block 12 across the silence: its place kept */
+        int16_t *p = tp[0].dev[DEV_GRAIN];
+        p[GP_WET] = 100;
+        p[GP_SCAN] = SCAN_TAPE;
+        p[GP_SIZE] = 500;
+        p[GP_RATE] = 0;
+        p[GP_SPRY] = 0;
+        sys.playing = 1;
+        grain_kill(0);
+        grain[0].cur = (12 * 256) << 12;
+        grain[0].wait = 0;
+        gr_plan();
+        grain_block(0, dry, 0, 0, gl, gr, CTL);          /* (the grain starts in sound: block 12) */
+        pos0 = gslot[0].pos;
+        inc = gslot[0].inc;
+        for (b = 0; b < 600u && gr_on(0); b++) {
+            grain[0].wait = 1 << 30;                     /* (no other grain) */
+            gr_plan();
+            grain_block(0, dry, 0, 0, gl, gr, CTL);
+            if ((gslot[0].pos >> 12) >= 33 * 256 && (gslot[0].pos >> 12) < 40 * 256)
+                for (i = 0; i < (int32_t)CTL; i++)
+                    heard |= gl[i] != 0;
+            if ((gslot[0].pos >> 12) >= 17 * 256 && (gslot[0].pos >> 12) < 31 * 256)
+                for (i = 0; i < (int32_t)CTL; i++)
+                    inside |= gl[i] != 0;
+            if (b == 400u) {
+                char m[160];
+                snprintf(m, sizeof m, "..a grain across 16 silent blocks: nothing worked out inside them, its place kept (%d, "
+                         "expected %d), sound again past them", gslot[0].pos >> 12, (pos0 + 2 * inc * 16 * 401) >> 12);
+                check(m, gslot[0].pos == pos0 + 2 * inc * 16 * 401 && heard && !inside);
+            }
+        }
+    }
+    sys.playing = 0;
+    power_on();
+}
+
 /* the pool goes to the tracks whose grains would be heard: GRAIN on but nothing in its buffer (a POLY track nobody
  * has played), or the track muted, takes no share; the moment there's sound to granulate, it takes its share */
 static void test_grain_shares(void)
@@ -7266,6 +7358,7 @@ int main(int argc, char **argv)
     test_grain();
     test_grain_buffer();
     test_grain_shares();
+    test_grain_silence();
     test_grain_clicks();
     test_reso();
     test_color();

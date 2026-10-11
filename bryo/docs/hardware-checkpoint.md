@@ -145,18 +145,18 @@ under the address and undefined-behaviour sanitizers).
 | # | Host cost | Predicted | Read | Heard |
 | --- | ---: | ---: | ---: | --- |
 | 1 | 940 | (the scale) | 25 % | clean |
-| 2 | 1,743 | 46 % | | |
-| 3 | 2,483 | 66 % | | |
+| 2 | 1,714 | 46 % | | |
+| 3 | 2,482 | 66 % | | |
 | 4 | ? | | | |
-| 5 | 2,102 | 56 % | | |
-| 6 | 2,425 | 64 % | | |
-| 11 | 1,929 | 51 % | | |
-| 12 | 3,414 | 91 % (sheds) | | |
-| 13 | 1,732 | 46 % | | |
+| 5 | 2,119 | 56 % | | |
+| 6 | 2,328 | 62 % | | |
+| 11 | 1,930 | 51 % | | |
+| 12 | 3,410 | 91 % (sheds) | | |
+| 13 | 1,733 | 46 % | | |
 | 14 | 1,862 | 50 % | | |
-| 15 | 5,041 | 134 % (sheds) | | |
-| 19 | 1,674 | 45 % | | |
-| 22 | 1,844 | 49 % | | |
+| 15 | 5,038 | 134 % (sheds) | | |
+| 19 | 1,665 | 44 % | | |
+| 22 | 1,836 | 49 % | | |
 
 The host costs were measured again on 2026-10-11, after the second round from playing it (the arpeggiator on every
 source, RESONATOR's own: about 7 a sample more on every run) and after the grains went to half rate with a bigger

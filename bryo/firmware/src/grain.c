@@ -88,6 +88,8 @@ typedef struct {
     int32_t dpos, pred, idx;         /* the decoder: the next sample it decodes, its state */
     int16_t w[GR_WIN];
     uint16_t wver;                   /* the buffer's commit count its window was decoded at (gr_buf_t.cver) */
+    int32_t qb;                      /* the block it last found silent or not (gr_quiet's answer, qq), or -1 */
+    uint8_t qq;
     int16_t st16;                    /* its pitch, 1/16 semitone (for the tests and the screen) */
     uint8_t rev;
     uint8_t trk;                     /* whose it is */
@@ -481,13 +483,47 @@ static int32_t gr_gap(grain_trk_t *G, const int16_t *p)
 }
 
 /* a new grain of track t around the cursor, in the window [ls, ls + ll) of what it reads */
-static void gr_start(uint32_t t, grain_trk_t *G, const int16_t *p, int32_t ls, int32_t ll)
+/* what grains read from lo to hi (samples, either end past the view's: round its loop of ll) is silent: every block's
+ * stored peak 0 (under 128: about -48 dB). Not the block being written (busy: its peak is the old sound's), nor more
+ * than GR_QUIET_MAX blocks (then it's not worth the looking): those count as sound. A grain there would cost its work
+ * to make nothing */
+#define GR_QUIET_MAX 256
+static int gr_quiet(const tape_view_t *v, int32_t lo, int32_t hi, int32_t ll, int32_t busy)
+{
+    int32_t len = (int32_t)v->len, b, nb;
+    if (!len || ll <= 0 || hi < lo)
+        return 0;
+    nb = hi / (int32_t)TAPE_BLK - lo / (int32_t)TAPE_BLK + 1;
+    if (nb > GR_QUIET_MAX)
+        return 0;
+    for (b = 0; b < nb; b++) {
+        int32_t at = (lo / (int32_t)TAPE_BLK + b) * (int32_t)TAPE_BLK;
+        while (at >= len)
+            at -= ll;
+        while (at < 0)
+            at += ll;
+        if (at / (int32_t)TAPE_BLK == busy || tv_peak(v, (uint32_t)at / TAPE_BLK))
+            return 0;
+    }
+    return 1;
+}
+
+static void gr_start(uint32_t t, grain_trk_t *G, const int16_t *p, int32_t ls, int32_t ll, const tape_view_t *v,
+                     int32_t busy)
 {
     grain_t *g = 0;
     uint32_t k;
     int32_t at, sp, rate, gps100, ov, pan;
     if (grain_count(t) >= gr_allow(t))
         return;                                         /* all it may sound are sounding: this one is skipped */
+    sp = ll * p[GP_SPRY] / 200;                         /* where it starts, and what it would read: all silence, it
+                                                         * isn't started (no work, and its slot left to one heard) */
+    at = (G->cur >> 12) + (sp ? (int32_t)(gr_rnd(G) % (uint32_t)(2 * sp + 1)) - sp : 0);
+    at = ls + ((at - ls) % ll + ll) % ll;
+    pan = gr_pitch(G, p);
+    rate = gr_rate(pan);
+    if (gr_quiet(v, at, at + (int32_t)((uint32_t)rate * ((uint32_t)p[GP_SIZE] * 441u / 10u) >> 12) + 1, ll, busy))
+        return;
     for (k = 0; k < GR_SLOTS && !g; k++)                /* any free slot (the shares keep the total in the pool) */
         if (!gr_on(k))
             g = &gslot[k];
@@ -495,11 +531,7 @@ static void gr_start(uint32_t t, grain_trk_t *G, const int16_t *p, int32_t ls, i
         return;
     gr_set((uint32_t)(g - gslot));
     g->trk = (uint8_t)t;
-    sp = ll * p[GP_SPRY] / 200;                         /* SPRY: up to half the window either way */
-    at = (G->cur >> 12) + (sp ? (int32_t)(gr_rnd(G) % (uint32_t)(2 * sp + 1)) - sp : 0);
-    at = ls + ((at - ls) % ll + ll) % ll;
-    g->st16 = (int16_t)gr_pitch(G, p);
-    rate = gr_rate(g->st16);
+    g->st16 = (int16_t)pan;                             /* (SPRY, PTCH, PRND: drawn above) */
     g->rev = (uint8_t)((int32_t)(gr_rnd(G) % 100u) < p[GP_REV]);
     g->len = (uint32_t)p[GP_SIZE] * 441u / 10u;        /* SIZE ms -> output samples */
     g->fade = (uint32_t)p[GP_CONT] * g->len / 200u;    /* CONT: the ramps, up to half the grain each */
@@ -510,6 +542,7 @@ static void gr_start(uint32_t t, grain_trk_t *G, const int16_t *p, int32_t ls, i
     g->pos = (g->rev ? at + (int32_t)((uint32_t)rate * g->len >> 12) : at) << 12;   /* (backwards: from its end) */
     g->wlo = -1;
     g->wver = gbuf[t].cver;
+    g->qb = -1;
     gps100 = gr_gps100(p[GP_RATE]);                     /* grains overlapping: a second's grains x SIZE, but no */
     ov = clamp(gps100 * p[GP_SIZE] / 100000, 1, clamp((int32_t)gr_allow(t), 1, 32));   /* more than it may sound */
     pan = p[GP_SPRD] ? (int32_t)(gr_rnd(G) % (uint32_t)(2 * p[GP_SPRD] + 1)) - p[GP_SPRD] : 0;
@@ -696,7 +729,7 @@ static void grain_block(uint32_t t, const int32_t *dry, uint32_t keys, int froze
     }
     G->wait -= (int32_t)n;
     if (G->wait <= 0 && wet && (playing || keys || (scan != SCAN_TAPE && (live || frozen)))) {
-        gr_start(t, G, p, ls, ll);
+        gr_start(t, G, p, ls, ll, &v, scan != SCAN_TAPE && B->staged ? (int32_t)B->sblk : -1);
         G->n++;
         G->wait += gr_gap(G, p);
         if (G->wait < (int32_t)n)
@@ -705,7 +738,7 @@ static void grain_block(uint32_t t, const int32_t *dry, uint32_t keys, int froze
     {                                                   /* the grains, at half rate (the buffer's and the tape's
                                                          * 22.05 kHz: nothing in them above 11 kHz), into xl xr
                                                          * after the last block's three; then 2x up into l and r */
-        int32_t xl[3u + CTL / 2u], xr[3u + CTL / 2u], seam, zh;   /* (rec: the buffer recorded this block) */
+        int32_t xl[3u + CTL / 2u], xr[3u + CTL / 2u], seam, zh, busy;   /* (rec: the buffer recorded this block) */
         uint32_t h2 = n / 2u, any = 0;
         for (k = 0; k < 3u; k++) {
             xl[k] = G->hl[k];
@@ -720,6 +753,8 @@ static void grain_block(uint32_t t, const int32_t *dry, uint32_t keys, int froze
         rec = rec && scan != SCAN_TAPE;
         zh = rec ? (int32_t)(TAPE_BLK / 2u) : 0;
         seam = scan == SCAN_TAPE ? 0 : rec ? B->w - (int32_t)h2 - zh : B->w;
+        busy = scan != SCAN_TAPE && B->staged ? (int32_t)B->sblk : -1;   /* (the block being written: its peak
+                                                                          * isn't the sound's yet) */
         if (len)
             seam = (seam % len + len) % len;
         for (k = 0; k < GR_SLOTS; k++) {
@@ -728,6 +763,8 @@ static void grain_block(uint32_t t, const int32_t *dry, uint32_t keys, int froze
             if (!gr_on(k) || g->trk != t)
                 continue;
             any = 1;
+            if (scan != SCAN_TAPE && g->wver != B->cver)  /* (a block stored: its silence looked at again) */
+                g->qb = -1;
             if (scan != SCAN_TAPE && g->wver != B->cver) {   /* a block was stored since its window was decoded: if
                                                          * the window holds it, decode again (else a bar ago's sound
                                                          * meets the new inside the window) */
@@ -746,7 +783,25 @@ static void grain_block(uint32_t t, const int32_t *dry, uint32_t keys, int froze
                 int32_t inc = 2 * g->inc, p0 = g->pos >> 12, p1 = (g->pos + inc * h) >> 12, span = p1 - p0;
                 int32_t de = ((e1 - e0) * 32) >> (CTL_LOG2 - 1);
                 span = span < 0 ? -span : span;
-                if (gr_cdist(p0, seam, len) <= span + zh + (int32_t)(GR_DUCK + h2) ||
+                int32_t b0 = (p0 < p1 ? p0 : p1) / (int32_t)TAPE_BLK, b1 = ((p0 < p1 ? p1 : p0) + 1) / (int32_t)TAPE_BLK;
+                int q;
+                if (b0 == b1 && b0 == g->qb && b0 != busy && p0 >= 0 && p1 < len)
+                    q = g->qq;                          /* (still inside the block it last looked at: the same) */
+                else {
+                    q = gr_quiet(&v, p0 < p1 ? p0 : p1, (p0 < p1 ? p1 : p0) + 1, ll, busy);
+                    g->qb = b0 == b1 && b0 != busy && p0 >= 0 && p1 < len ? b0 : -1;
+                    g->qq = (uint8_t)q;
+                }
+                if (q) {                                /* (silence this block:
+                                                                                     * no decoding, no mixing; it
+                                                                                     * moves on, its window to be read
+                                                                                     * again where there's sound) */
+                    int32_t pos = g->pos + inc * h;
+                    if (pos < 0 || (pos >> 12) >= len)
+                        pos += pos < 0 ? ll << 12 : -(ll << 12);
+                    g->pos = pos;
+                    g->wlo = -1;
+                } else if (gr_cdist(p0, seam, len) <= span + zh + (int32_t)(GR_DUCK + h2) ||
                     gr_cdist(p1, seam, len) <= span + zh + (int32_t)(GR_DUCK + h2))   /* (near the seam this block:
                                                                                      * ducked) */
                     gr_mix(g, &v, len, ll, h, e0 << 5, de, gl, gr, xl + 3, xr + 3, 1, seam, zh, rec);

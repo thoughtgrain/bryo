@@ -1295,6 +1295,31 @@ so I don't run it every frame: `ui_input` refreshes `ui.unsaved` four times a se
 flips. The manual has a "Saving, in short" section up front: tap and hold SAVE, what POLY held clears and how it
 warns first, and how to go back to the last save when undo can't help.
 
+**Silent grains cost nothing (2026-10-11).** I measured every grain's loudest output sample across the checkpoint
+runs: grains are either silent or plainly heard, almost nothing between. 12 to 18 % of the grain work was grains
+reading nothing (a buffer not yet recorded into, the gaps between hits), 31 to 40 % when it's a SYNTH being played
+(the gaps between notes); 0 % reading a reel straight off the tape. Each block of a tape or a buffer stores its peak
+as it's written (`c->peak`, the screen's), so knowing a stretch is silent costs a few reads, no decoding:
+
+- **At its start** (`gr_start`): a grain whose whole read is silent (`gr_quiet`: every block's peak 0, under 128,
+  about -48 dB) isn't started. No work, and its slot stays free for a grain that's heard.
+- **Each block** (`grain_block`): a grain whose read this block is silent skips its decoding and mixing and moves on,
+  its window to be read again where there's sound. The answer is kept per grain (`qb`, `qq`) while it stays in the
+  same block (about 16 control blocks at its own pitch), and looked at again when a block is stored.
+- The block being written counts as sound (its stored peak is the old sound's until it's stored), and so does a
+  stretch over 256 blocks (not worth the looking).
+
+What it saves: one dense track 3,130 to 2,849, a played SYNTH (run 20) 2,012 to 1,841, every grain backwards 2,964
+to 2,792, two dense tracks 2,425 to 2,328; reading a reel with no silence in it (run 5), 17 more for the looking. I
+didn't raise the pool with it: the saving is only there when there's silence to skip, and the pool is sized for the
+worst case, sound throughout. Where the pool is full, the slots silent grains took now go to grains that are heard,
+so the cloud is denser at the same cost. The cost: a stretch quieter than about -48 dB, granulated alone, falls
+silent.
+
+Tested (`test_grain_silence`): the check inside silence, at its edge, round the loop's end, the block being written; a
+grain inside silence isn't started, one in sound is; a grain across 16 silent blocks (their sound left in, marked
+silent) works out nothing inside them, keeps its place exactly, and sounds again past them. Each fails its mutant.
+
 **No clicks in the grains (2026-10-11).** Asked whether grains are smoothed: each has a window (a raised-cosine ramp
 at each end, CONT long, 2 ms at the least), so a grain on its own starts and ends without a click. Measuring rather
 than assuming (a sine through GRAIN, counting output samples whose second difference passes 600: a corner, where a
