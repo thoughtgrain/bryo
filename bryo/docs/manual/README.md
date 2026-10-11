@@ -515,10 +515,12 @@ GRAIN keeps the last bars of the track's sound and plays tiny pieces of it (grai
 
 **How many grains:** under the picture, "5 OF 40 GRAINS" is how many are sounding and how many this track may have
 right now. There's a pool of 40 for one track, 30 between two and 18 between three or four, and only tracks whose
-grains you'd hear share it. A track alone always has all 40; how many actually sound is up to **RATE** and **SIZE**
-(more grains a second, or longer ones, overlap more), so turn those up for a thicker cloud. A muted track doesn't, and neither does one with nothing in its buffer yet (a SYNTH or
-POLY track nobody has played), or one reading the tape while the transport is stopped. When a track has no grains,
-the page says why: **MUTED**, **STOPPED** or **SILENT**.
+grains you'd hear share it. A muted track doesn't, and neither does one with nothing in its buffer yet (a SYNTH or
+POLY track nobody has played), or one reading the tape while the transport is stopped. A track alone has all 40; how
+many actually sound is up to **RATE** and **SIZE** (more grains a second, or longer ones, overlap more), so turn those
+up for a thicker cloud. To give a track a set number, whatever the others do, use **GRNS** on GRAIN 6 (6.4.2). When a
+track has no grains, the page says why: **MUTED**, **STOPPED**, **SILENT**, or **TAKEN** (other tracks hold the
+whole pool).
 
 ### 6.2 GRAIN: shape the grains
 
@@ -576,6 +578,23 @@ floor back under them:
 - **TONE**: how much top end the floor keeps, from a deep rumble to a full low-mid.
 
 <img src="img/grain_body.png" width="240" alt="GRAIN 4: BODY 40%, MODE TRI, ROOT A2, TONE 392 Hz">
+
+### 6.4.2 GRAIN: how many grains a track holds
+
+**GRAIN 6** has **GRNS** (KNOB 1) and **ROUT** (KNOB 4).
+
+- **GRNS AUTO** (the default): the track shares the pool with the others, by what each one's RATE and SIZE ask for.
+  Whatever nobody needs is shared out too, so a track alone has all 40.
+- **GRNS 1 to 40**: the track holds that many. It takes them from the AUTO tracks first, and keeps them however the
+  other tracks come and go, so its cloud doesn't thin when another track's GRAIN comes on. It never gets more than
+  that number either. The page then reads "5 OF 12 HELD".
+- The pool still shrinks as more tracks use grains (40, 30, 18): that's what the FM-1's processor can run. If the
+  tracks holding numbers ask for more than the pool, they share it: the ones asking less keep theirs, the rest
+  split what's left. An AUTO track left with nothing says **TAKEN: NO GRAINS**.
+- GRNS sets how many may sound; **RATE** and **SIZE** still decide how many start. For a full 12, turn those up
+  until the page reads "12 OF 12 HELD".
+
+<img src="img/grain6.png" width="240" alt="GRAIN 6: GRNS 12, ROUT INS; 4 OF 12 HELD">
 
 ### 6.5 RESONATOR: four strings
 

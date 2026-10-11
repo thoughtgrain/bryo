@@ -54,7 +54,8 @@
                                       * block's start: the wider the window, the rarer) */
 #define GR_BUF_MAX (12u * TAPE_SR)   /* a buffer's most, tape samples (12 s) */
 enum { GP_SIZE, GP_RATE, GP_PTCH, GP_SPRD, GP_WET, GP_SPRY, GP_CONT, GP_REV, GP_PATN, GP_SCAL, GP_PRND, GP_ROUT, GP_SCAN,
-       GP_WARP, GP_OFST, GP_FDBK, GP_BODY, GP_BMOD, GP_ROOT, GP_BTON };   /* (param.c DEV_P[DEV_GRAIN]) */
+       GP_WARP, GP_OFST, GP_FDBK, GP_BODY, GP_BMOD, GP_ROOT, GP_BTON,
+       GP_GRNS };   /* (param.c DEV_P[DEV_GRAIN]) */
 enum { BODY_SRC, BODY_TRI, BODY_SIN };
 enum { SCAN_TAPE, SCAN_STR, SCAN_POS, SCAN_DLY };
 
@@ -207,35 +208,21 @@ static const char *gr_why(uint32_t t)
     return tp[t].src == SRC_TAPE && !sys.playing ? "STOPPED: NO GRAINS" : "SILENT: NO GRAINS";
 }
 
-/* the pool shared out by need, into share[]. The pool's size follows the tracks whose grains would be heard
- * (gr_wants); those asking less than an even share of what's left get what they ask, round by round; the rest is
- * split evenly among those that want more. When everyone has what they ask and some is left, it's split evenly among
- * them all: the need only decides who gives way when the pool runs short, it's no cap (a lone track has all 40, and
- * PATN's and chance's bunching, or RATE and SIZE turned up, get the grains). (The ISR's every block, gr_plan; the
- * screen the same, for itself.) */
-static void gr_plan_into(uint8_t *share)
+/* left shared among the tracks in act by what each asks (ask[]), into share[]: those asking less than an even share
+ * of what's left get what they ask, round by round; the rest is split evenly among those that want more. Returns
+ * what's left over (0 when it ran short) */
+static uint32_t gr_split(uint8_t *share, uint32_t act, const uint32_t *ask, uint32_t left)
 {
-    uint32_t t, on = 0, act = 0, want, left, need[NTRK], k;
-    uint8_t *gr_share = share;
-    for (t = 0; t < NTRK; t++) {
-        gr_share[t] = 0;
-        if (gr_wants(t, gbuf[t].nloud != 0 && gbuf[t].loud_len == gbuf[t].len)) {
-            act |= 1u << t;
-            on++;
-            need[t] = gr_need(TPD(t, DEV_GRAIN));
-        }
-    }
-    want = act;
-    left = GR_POOL[on] * grain_cap / GR_CAP;
+    uint32_t t, k;
     for (k = 0; k < NTRK && act; k++) {
-        uint32_t n = 0, share, gave = 0;
+        uint32_t n = 0, even, gave = 0;
         for (t = 0; t < NTRK; t++)
             n += (act >> t) & 1u;
-        share = left / n;
+        even = left / n;
         for (t = 0; t < NTRK; t++)
-            if (((act >> t) & 1u) && need[t] <= share) {
-                gr_share[t] = (uint8_t)need[t];
-                left -= need[t];
+            if (((act >> t) & 1u) && ask[t] <= even) {
+                share[t] = (uint8_t)ask[t];
+                left -= ask[t];
                 act &= ~(1u << t);
                 gave = 1;
             }
@@ -243,15 +230,47 @@ static void gr_plan_into(uint8_t *share)
             uint32_t i = 0;
             for (t = 0; t < NTRK; t++)
                 if ((act >> t) & 1u)
-                    gr_share[t] = (uint8_t)(left / n + (i++ < left % n));
-            return;
+                    share[t] = (uint8_t)(left / n + (i++ < left % n));
+            return 0;
         }
     }
-    if (on && left) {                                   /* all asked for given, some left: theirs too, evenly */
+    return left;
+}
+
+/* the pool shared out, into share[]. The pool's size follows the tracks whose grains would be heard (gr_wants).
+ * A track whose GRNS is a number holds that many: those first, so the AUTO tracks give way to them (more held than
+ * the pool: the held ones share it as gr_split does, by what each holds). The AUTO tracks share what's left by need
+ * (RATE x SIZE, with room: gr_need); when they all have what they ask and some is left, it's split evenly among
+ * them: the need only decides who gives way when the pool runs short, it's no cap (a lone AUTO track has all 40).
+ * A held track never gets more than it holds: what it holds is what it keeps, whatever comes and goes. (The ISR's
+ * every block, gr_plan; the screen the same, for itself.) */
+static void gr_plan_into(uint8_t *share)
+{
+    uint32_t t, on = 0, held = 0, aut = 0, nauto = 0, left, ask[NTRK];
+    for (t = 0; t < NTRK; t++) {
+        share[t] = 0;
+        ask[t] = 0;
+        if (gr_wants(t, gbuf[t].nloud != 0 && gbuf[t].loud_len == gbuf[t].len)) {
+            const int16_t *p = TPD(t, DEV_GRAIN);
+            on++;
+            if (p[GP_GRNS] > 0) {
+                held |= 1u << t;
+                ask[t] = (uint32_t)clamp(p[GP_GRNS], 1, GR_GRNS_MAX);
+            } else {
+                aut |= 1u << t;
+                nauto++;
+                ask[t] = gr_need(p);
+            }
+        }
+    }
+    left = GR_POOL[on] * grain_cap / GR_CAP;
+    left = gr_split(share, held, ask, left);
+    left = gr_split(share, aut, ask, left);
+    if (nauto && left) {                                /* the AUTO tracks have what they ask, some left: theirs */
         uint32_t i = 0;
         for (t = 0; t < NTRK; t++)
-            if ((want >> t) & 1u)
-                gr_share[t] = (uint8_t)(gr_share[t] + left / on + (i++ < left % on));
+            if ((aut >> t) & 1u)
+                share[t] = (uint8_t)(share[t] + left / nauto + (i++ < left % nauto));
     }
 }
 

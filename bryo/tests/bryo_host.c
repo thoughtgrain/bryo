@@ -415,10 +415,15 @@ static void test_input(void)
     check("EDIT again: GRAIN 4 (BODY MODE ROOT TONE)", ui.dev == DEV_GRAIN && ui.page == 3u &&
           !strcmp(dev_p(0, DEV_GRAIN)[pdesc_at(dev_p(0, DEV_GRAIN), 12u)].label, "BODY"));
     press(B_EDIT);
-    check("..again: GRAIN 5 (PATN SCAL PRND ROUT: ROUT KNOB 4 of the last page)", ui.dev == DEV_GRAIN && ui.page == 4u &&
-          !strcmp(dev_p(0, DEV_GRAIN)[pdesc_at(dev_p(0, DEV_GRAIN), 19u)].label, "ROUT"));
+    check("..again: GRAIN 5 (PATN SCAL PRND, KNOB 4 empty)", ui.dev == DEV_GRAIN && ui.page == 4u &&
+          !strcmp(dev_p(0, DEV_GRAIN)[pdesc_at(dev_p(0, DEV_GRAIN), 16u)].label, "PATN") &&
+          pdesc_empty(&dev_p(0, DEV_GRAIN)[pdesc_at(dev_p(0, DEV_GRAIN), 19u)]));
     press(B_EDIT);
-    check("EDIT again, past GRAIN's pages 2 to 5: RESONATOR", ui.dev == DEV_RESO);
+    check("..again: GRAIN 6 (GRNS . . ROUT: ROUT KNOB 4 of the last page)", ui.dev == DEV_GRAIN && ui.page == 5u &&
+          !strcmp(dev_p(0, DEV_GRAIN)[pdesc_at(dev_p(0, DEV_GRAIN), 20u)].label, "GRNS") &&
+          !strcmp(dev_p(0, DEV_GRAIN)[pdesc_at(dev_p(0, DEV_GRAIN), 23u)].label, "ROUT"));
+    press(B_EDIT);
+    check("EDIT again, past GRAIN's pages 2 to 6: RESONATOR", ui.dev == DEV_RESO);
     press(B_EDIT);
     press(B_EDIT);
     press(B_EDIT);
@@ -464,8 +469,10 @@ static void test_input(void)
     press(B_EDIT);
     check("..again: GRAIN's page 4 (BODY: a floor under the grains)", ui.dev == DEV_GRAIN && ui.page == 3u);
     press(B_EDIT);
-    check("..again: GRAIN's page 5 (PATN SCAL PRND ROUT)", ui.dev == DEV_GRAIN && ui.page == 4u &&
+    check("..again: GRAIN's page 5 (PATN SCAL PRND)", ui.dev == DEV_GRAIN && ui.page == 4u &&
           !strcmp(dev_p(0, DEV_GRAIN)[pdesc_at(dev_p(0, DEV_GRAIN), 16u)].label, "PATN"));
+    press(B_EDIT);
+    check("..again: GRAIN's page 6 (GRNS, ROUT)", ui.dev == DEV_GRAIN && ui.page == 5u);
     press(B_EDIT);
     check("..again: RESONATOR", ui.dev == DEV_RESO && ui.page == 0u);
     press(B_EDIT);
@@ -860,6 +867,11 @@ static void screens_in(const char *pal)
         render(40, 0);
         shot(pal, "grain_frozen");
         fm1_in.notes = 0;
+        focus_dev(DEV_GRAIN, 5);                         /* GRAIN 6: GRNS 12, held whatever else */
+        turn(0, 12);
+        render(100, 0);
+        shot(pal, "grain6");
+        turn(0, -12);
         focus_dev(DEV_GRAIN, 2);                         /* GRAIN 3: SCAN DLY, WARP 52 %, OFST 50, FDBK 30 */
         turn(0, 2);
         turn(1, -12);
@@ -2589,7 +2601,36 @@ static void test_grain_shares(void)
     snprintf(m, sizeof m, "..both asking less than the pool: each has what it asks and half of what's over, the odd one "
              "to track 1 (8 + 10, 3 + 9: %u, %u)", gr_allow(0), gr_allow(1));
     check(m, gr_need(tp[0].dev[DEV_GRAIN]) == 8u && gr_allow(0) == 18u && gr_allow(1) == 12u);
+    tp[0].dev[DEV_GRAIN][GP_GRNS] = 12;                  /* GRNS: track 1 holds 12, track 2 (AUTO) the rest */
+    render_poll(2);
+    snprintf(m, sizeof m, "GRNS 12 on track 1: it holds 12, track 2 (AUTO) has the rest of 30 (%u, %u)", gr_allow(0),
+             gr_allow(1));
+    check(m, gr_allow(0) == 12u && gr_allow(1) == 18u && !mod_tdesc(MOD_TG(DEV_GRAIN, GP_GRNS)));
+    tp[1].dev[DEV_GRAIN][GP_GRNS] = 20;
+    render_poll(2);
+    snprintf(m, sizeof m, "..track 2 holding 20 too (32 held, a pool of 30): the one asking less keeps its 12, the "
+             "other the 18 left (%u, %u)", gr_allow(0), gr_allow(1));
+    check(m, gr_allow(0) == 12u && gr_allow(1) == 18u);
+    tp[0].dev[DEV_GRAIN][GP_GRNS] = 40;
+    render_poll(2);
+    snprintf(m, sizeof m, "..both holding more than half: an even split (%u, %u)", gr_allow(0), gr_allow(1));
+    check(m, gr_allow(0) == 15u && gr_allow(1) == 15u);
+    tp[0].dev[DEV_GRAIN][GP_GRNS] = 30;
+    tp[1].dev[DEV_GRAIN][GP_GRNS] = 0;
+    render_poll(2);
+    check("..track 1 holding all 30: track 2 (AUTO) has none, and its page says why",
+          gr_allow(0) == 30u && gr_allow(1) == 0u && !gr_why(1));
+    sys.sel = 1;
+    focus_dev(DEV_GRAIN, 0);
+    shot("BRYO", "grain_held");
+    sys.sel = 0;
+    focus_dev(DEV_GRAIN, 0);
     track[1].mute = 1;
+    tp[0].dev[DEV_GRAIN][GP_GRNS] = 12;
+    render_poll(2);
+    check("..track 2 muted, track 1 alone holding 12: 12, not the 40 (what it holds is what it keeps)",
+          gr_allow(0) == 12u);
+    tp[0].dev[DEV_GRAIN][GP_GRNS] = 0;
     render_poll(2);
     check("..track 2 muted: its grains wouldn't be heard, the whole pool is track 1's again, asking 8 or not (no cap "
           "at what RATE and SIZE ask)", gr_allow(1) == 0u && gr_allow(0) == 40u && gr_why(1) && !strcmp(gr_why(1), "MUTED: NO GRAINS"));
@@ -5069,7 +5110,8 @@ static void test_mod(void)
     press(B_EDIT);
     press(B_EDIT);
     press(B_EDIT);
-    press(B_EDIT);                                       /* RESONATOR (past GRAIN's five) */
+    press(B_EDIT);
+    press(B_EDIT);                                       /* RESONATOR (past GRAIN's six) */
     press(B_OCTUP);
     check("..on the track's RESONATOR page: the octave", ui.dev == DEV_RESO && track[0].octave == 4u &&
                                                          tp[0].drm[DM_BAR] == 2);
@@ -5704,6 +5746,77 @@ static void pj_scene(void)                               /* a session far from t
 /* saving while playing: the copy a save writes is erased ahead, so the save only programs (no gap in the sound);
  * the next one's erased at once when the save stopped the sound anyway (a take into a reel), else when it's quiet;
  * and the output fades out and in around flash work instead of being cut */
+/* the biggest project there can be: every knob of every array on every track random in its range (none at its
+ * default, so little packs away), every pattern step and accent, every SEQ step, 32 depths a track. It has to fit
+ * its sector and come back as it was (NPK went from 20 to 24 knobs an array for GRAIN's GRNS: 384 bytes more of it
+ * unpacked) */
+static uint32_t wr_rnd = 7;
+static int16_t wr_val(const pdesc_t *d)
+{
+    wr_rnd = wr_rnd * 1103515245u + 12345u;
+    return pdesc_empty(d) ? 0 : (int16_t)(d->min + (int32_t)((wr_rnd >> 8) % (uint32_t)(d->max - d->min + 1)));
+}
+static void test_project_worst(void)
+{
+    static track_params_t want[NTRK];
+    static mod_deps_t wdep[NTRK];
+    uint32_t t, s, k, g, n;
+    pj_hdr_t h;
+    int rc;
+    char m[160];
+    pj_wipe();
+    power_on();
+    for (t = 0; t < NTRK; t++) {
+        track_params_t *P = &tp[t];
+        for (s = 0; s < NDEV; s++)
+            for (k = 0; k < NPK; k++)
+                P->dev[s][k] = wr_val(&DEV_P[s][k]);
+        P->dev[DEV_SRC][TK_REEL] = 1;                    /* (a factory reel: the main loop's choice, kept simple) */
+        P->pol[0] = 0;
+        for (k = 0; k < NPK; k++) {
+            P->syn[k] = wr_val(&SYN_P[k]);
+            P->pol[k] = wr_val(&POL_P[k]);
+            P->drm[k] = wr_val(&DRM_P[k]);
+        }
+        P->pol[PL_REEL] = 1;
+        for (s = 0; s < NSLOT; s++) {
+            param_engine(t, s, s);
+            for (k = 0; k < NPK; k++)
+                P->mod[s][k] = wr_val(&ME_P[P->engine[s]][k]);
+            for (k = 0; k < 16u; k++)
+                P->steps[s][k] = (int8_t)(((wr_rnd = wr_rnd * 1103515245u + 12345u) >> 16) % 101u);
+        }
+        for (k = 0; k < NCH; k++)
+            P->ch[k] = wr_val(&CH_P[k]);
+        for (s = 0; s < DRM_NBAR; s++) {
+            for (k = 0; k < 16u; k++)
+                P->dpat[s][k] = (uint16_t)((wr_rnd = wr_rnd * 1103515245u + 12345u) >> 12);
+            P->dacc[s] = (uint16_t)((wr_rnd = wr_rnd * 1103515245u + 12345u) >> 12);
+        }
+        for (s = 0; s < DRM_NINST; s++)
+            for (k = 0; k < NDIN; k++)
+                P->dins[s][k] = wr_val(&DRI_P[k]);
+        for (k = 0; k < NARP; k++)
+            P->arp[k] = wr_val(&ARP_P[k]);
+        P->src = (uint8_t)(t % NSRC);
+        for (g = 0, n = 0; g < MOD_NTGT && n < MOD_MAX; g += 5u)
+            if (mod_tdesc(g) && mod_nudge(t, g % NSLOT, g, (int32_t)((wr_rnd = wr_rnd * 1103515245u + 12345u) >> 16) % 199 - 99) != -128)
+                n++;
+    }
+    memcpy(want, tp, sizeof tp);
+    memcpy(wdep, mdl, sizeof mdl);
+    rc = pj_save(2);
+    memset(&h, 0, sizeof h);
+    pj_current(2, &h);
+    power_on();
+    rc |= pj_load(2);
+    snprintf(m, sizeof m, "the biggest project there can be (every knob random): it fits (%u bytes "
+             "packed, %u unpacked, a sector holds %u) and comes back as it was", h.len, h.raw, PJ_PAYLOAD_MAX);
+    check(m, rc == 0 && mod_count(0) == MOD_MAX && !memcmp(tp, want, sizeof tp) && !memcmp(mdl, wdep, sizeof mdl));
+    pj_wipe();
+    power_on();
+}
+
 static void test_save_seamless(void)
 {
     uint32_t n0, b, i, t_;
@@ -6117,9 +6230,9 @@ static void test_page_keys(void)
     let_go(B_HOME);
     check("..+ key 7 (past its four): says so, the page stays", ui.page == 2u && !strcmp(ui.msg, "NO PAGE THERE"));
     hold(B_EDIT);
-    key_edge(note_of_white(6));
+    key_edge(note_of_white(7));
     let_go(B_EDIT);
-    check("EDIT held + key 7: RESONATOR page 2 (GRAIN's five, then RESONATOR's)", ui.dev == DEV_RESO && ui.page == 1u);
+    check("EDIT held + key 8: RESONATOR page 2 (GRAIN's six, then RESONATOR's)", ui.dev == DEV_RESO && ui.page == 1u);
     press(B_EDIT);
     check("..EDIT tapped still turns pages (on the let-go): RESONATOR page 3", ui.dev == DEV_RESO && ui.page == 2u);
     hold(B_FX);
@@ -7595,6 +7708,7 @@ int main(int argc, char **argv)
     test_drum_play_fixes();
     test_sends();
     test_projects();
+    test_project_worst();
     test_save_seamless();
     test_env_pad();
     test_page_keys();

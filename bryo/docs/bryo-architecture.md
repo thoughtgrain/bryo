@@ -800,6 +800,23 @@ share only decides how many may sound. Where it pays is the bunching (CLST's thr
 a SEQ on SIZE), which the need's headroom guessed at and the leftover now covers; and the screen's "OF" is the real
 ceiling.
 
+**GRNS: a track holds a number (2026-10-11, from playing it: "can I just control the amount of grains on the track
+and it takes away from others? And lock it so it stays the same").** One knob does both, GRAIN 6's GRNS: AUTO (0, the
+default) shares as above; 1 to 40 holds that many. `gr_plan_into` now runs the sharing twice through one helper
+(`gr_split`, the round-by-round rule above, returning what's left): first the held tracks, each asking its number,
+then the AUTO tracks, by need, out of what the held ones left; whatever is still over goes to the AUTO tracks only.
+So a held track gets exactly its number while the pool has it, whatever comes and goes (its cloud doesn't thin when
+another track's GRAIN comes on), and never more, which is the lock. The pool itself still shrinks with the tracks in
+use (40, 30, 18): that's the CPU, and a number can't buy past it. More held than the pool: the held tracks share
+it by the same rule (12 and 20 of 30: 12 and 18; 40 and 40: 15 and 15), and the AUTO ones get none ("TAKEN: NO
+GRAINS"). A track that wouldn't be heard (muted, stopped, silent) holds nothing, as before. GRNS is a choice the
+plan acts on, not a modulation target (`nomod`). The page reads "5 OF 12 HELD" for a held track, "GRAINS" for AUTO.
+No per-sample cost: the plan is per block, a few compares more.
+
+Why one knob and not an amount plus a LOCK switch: a number that's kept whatever happens already is the lock, and
+AUTO is the unlocked state, so a second control would only make combinations that mean the same. Why a 6th page:
+GRAIN's 20 knobs were full (see "Six pages (NPK 24)").
+
 When a share drops (another track's GRAIN comes on), nothing is cut: the grains sounding finish, and new ones are
 skipped until the track is inside its share, so a cloud thins over one grain's length. A grain's level counts only
 the grains its track may sound (1 / sqrt of the smaller of what overlaps and its share), so a thinned cloud doesn't
@@ -1304,7 +1321,7 @@ flips. The manual has a "Saving, in short" section up front: tap and hold SAVE, 
 warns first, and how to go back to the last save when undo can't help.
 
 **BODY: a floor under the grains (2026-10-11).** At WET 100 the source is gone, and with it what held a cloud down.
-GRAIN's page 4 (stored 16-19, so nothing else moved; ROUT stays KNOB 4 of the last page, now page 5) adds BODY,
+GRAIN's page 4 (stored 16-19, so nothing else moved; ROUT stays KNOB 4 of the last page, then page 5, now 6) adds BODY,
 MODE, ROOT (NOTE until the wave followed the grains, below), TONE: a layer under the grains, part of the wet side (it goes into the grains' half-rate mix before WET,
 so WET sets it with them, and the 2x up costs it nothing more).
 
@@ -1426,7 +1443,11 @@ The GRAIN page says why a track has none: MUTED, STOPPED, NO TAPE, or SILENT.
 Tested: three silent POLY tracks with GRAIN on leave the fourth all 40; a chord on one gives it its share of 30;
 muting it gives the 40 back; SCAN TAPE stopped takes none; two tracks asking less than 30 between them each get
 what they ask and half of what's over. Mutants: no leftover (a lone track held at its need), the leftover's odd one
-dropped; the wave not following, not folded, not gliding, not starting on the note. Mutants caught: the old WET-only rule, mute ignored,
+dropped; the wave not following, not folded, not gliding, not starting on the note. GRNS: 12 held beside an AUTO
+track (12 and 18 of 30), two held past the pool (12 and 18; 15 and 15), one holding all 30 (the AUTO one TAKEN,
+its screen a golden), a held track alone keeping 12 not 40, and GRNS not a modulation target. Mutants: the held
+ones ignored, GRNS read as AUTO, held tracks shared with the AUTO ones, the leftover given to held tracks, GRNS made
+a target. Mutants caught: the old WET-only rule, mute ignored,
 silence ignored, the loud count not kept, a stopped TAPE scan counted.
 
 **Saving while playing (2026-10-11, from playing it).** SAVE clicked while playing. Bryo's code runs from the flash,
@@ -1683,6 +1704,22 @@ mixed into the track (`chain_source`), ramped across the block, and skipped at 0
 turned. A SYNTH or POLY track prints onto its tape after it (what you hear is what goes on); a TAPE track's REC
 still records at GAIN. SYNTH's four pages were full, so a device or engine can now have five pages (NPK 20, from 16),
 and the targets are numbered by NPK: GRAIN..SPACE 0..79, the sources 80..139, the channel 140..143.
+
+**Six pages (NPK 24, 2026-10-11).** GRAIN's GRNS needed a 21st knob. Raising NPK moved every modulation target's
+number (GRAIN..SPACE 0..95, the sources 96..191, the channel 192..195), which costs nothing stored: projects and
+presets keep each array with its count and each depth as (array, knob), and the numbers live only in RAM. An older
+file's arrays are 20 long and the rest come from the defaults (a project load starts from `param_defaults`). What
+did matter: the biggest project there can be (`test_project_worst`: every knob random, every step and pattern set,
+32 depths a track) packed to 3,805 of the sector's 3,840 bytes at 20 wide and didn't fit at 24. So a project and a
+preset now write each array only up to its last knob with a label (`pdesc_len`): past it every knob is empty and
+reads as 0 anyway. That packs the biggest to 3,741, under what it was. Reading one, an empty knob past what was
+stored is set to 0 (it was left as it was, which after a slot changed engine could be the old engine's default).
+An older Bryo reads the newer files too: it takes the counts it knows and skips the rest. GRAIN's pages: 5 is PATN
+SCAL PRND and an empty KNOB 4; 6 is GRNS, two empty, ROUT (ROUT stays KNOB 4 of the last page). Cost: 384 B of main
+RAM (`tp`), 416 B of the pool (`mda`), and the modulators copy 24 a modulated array where they copied 20: 29 a
+sample on run 25 (every slot of every track), 6 on the modulated groove. Run 25 picks its depths by target number,
+so it now translates the old numbers to keep modulating the same knobs (without that it read 3,197: a different
+set of knobs, COLOR's among them, not a cost).
 
 **TUNE plays live now.** SYNTH and POLY used to add TUNE to a note when its key went down, so a modulated TUNE
 only reached the next note. The listening examples caught it: a SEQ on TUNE over a held note played one pitch. Now

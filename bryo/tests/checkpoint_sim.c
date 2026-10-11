@@ -340,9 +340,15 @@ static double run(int n, char *say, size_t sz)
             for (t = 0; t < NTRK; t++)
                 for (s = 0; s < NSLOT; s++) {
                     param_engine(t, s, s);               /* LFO ADSR SEQ FOLLOW */
-                    for (g = s * 13u, k = 0; k < 8u && g < MOD_NTGT; g += 3u)
-                        if (mod_tdesc(g) && mod_nudge(t, s, g, (int32_t)(t + s) % 2 ? -20 : 20) != -128)
+                    for (g = s * 13u, k = 0; k < 8u && g < 164u + 16u * NDIN; g += 3u) {
+                        /* (g counts targets as they were numbered at 20 knobs an array, so the run modulates the
+                         * same knobs it always has: the numbers moved when NPK went to 24) */
+                        uint32_t tg = g < 80u ? MOD_TG(1u + g / 20u, g % 20u)
+                                    : g < 160u ? MOD_TSRC + (g - 80u) / 20u * NPK + (g - 80u) % 20u
+                                    : g < 164u ? MOD_TCH + (g - 160u) : MOD_TDIN + (g - 164u);
+                        if (mod_tdesc(tg) && mod_nudge(t, s, tg, (int32_t)(t + s) % 2 ? -20 : 20) != -128)
                             k++;
+                    }
                 }
         }
         play_phrase(2, 6);

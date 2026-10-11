@@ -42,17 +42,17 @@ static void tpr_write_rec(uint32_t t)
     pw_u16(NDEV);                                        /* (the sources the track isn't on: counted 0, so the
                                                           * track it's loaded into keeps its own there) */
     for (s = 0; s < NDEV; s++)
-        pw_a16(P->dev[s], s != DEV_SRC || P->src == SRC_TAPE ? NPK : 0u);
+        pw_a16(P->dev[s], s != DEV_SRC || P->src == SRC_TAPE ? pdesc_len(DEV_P[s]) : 0u);
     pw_u16(NSLOT);
     for (s = 0; s < NSLOT; s++) {
         pw_byte(P->engine[s]);
-        pw_a16(P->mod[s], NPK);
+        pw_a16(P->mod[s], pdesc_len(ME_P[P->engine[s] % NME]));
         pw_a8(P->steps[s], P->engine[s] == ME_SEQ ? 16u : 0u);
     }
     pw_a16(P->ch, NCH);
-    pw_a16(P->syn, P->src == SRC_SYNTH ? NPK : 0u);
-    pw_a16(P->pol, P->src == SRC_POLY ? NPK : 0u);
-    pw_a16(P->drm, P->src == SRC_DRUM ? NPK : 0u);
+    pw_a16(P->syn, P->src == SRC_SYNTH ? pdesc_len(SYN_P) : 0u);
+    pw_a16(P->pol, P->src == SRC_POLY ? pdesc_len(POL_P) : 0u);
+    pw_a16(P->drm, P->src == SRC_DRUM ? pdesc_len(DRM_P) : 0u);
     pw_u16(P->src == SRC_DRUM ? DRM_NINST : 0u);
     for (s = 0; P->src == SRC_DRUM && s < DRM_NINST; s++)
         pw_a16(P->dins[s], NDIN);

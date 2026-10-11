@@ -292,6 +292,11 @@ static void pr_a16(int16_t *a, uint32_t nmax, const pdesc_t *d)
             v = pdesc_empty(&d[i]) ? 0 : (int16_t)clamp(v, d[i].min, d[i].max);
         a[i] = v;
     }
+    for (; d && i < nmax; i++)                           /* (past what was stored: an empty knob 0, as a whole array
+                                                          * stored it; one there is keeps its value, the default for an
+                                                          * older file's knob that wasn't there yet) */
+        if (pdesc_empty(&d[i]))
+            a[i] = 0;
 }
 static void pr_a8(int8_t *a, uint32_t nmax, int32_t lo, int32_t hi)
 {
@@ -346,18 +351,18 @@ static void pj_write_state(void)
         pw_byte(P->src);
         pw_byte(P->recin);
         pw_u16(NDEV);
-        for (s = 0; s < NDEV; s++)
-            pw_a16(P->dev[s], NPK);
+        for (s = 0; s < NDEV; s++)                       /* (each array up to its last knob: pdesc_len) */
+            pw_a16(P->dev[s], pdesc_len(DEV_P[s]));
         pw_u16(NSLOT);
         for (s = 0; s < NSLOT; s++) {
             pw_byte(P->engine[s]);
-            pw_a16(P->mod[s], NPK);
+            pw_a16(P->mod[s], pdesc_len(ME_P[P->engine[s] % NME]));
             pw_a8(P->steps[s], 16);
         }
         pw_a16(P->ch, NCH);
-        pw_a16(P->syn, NPK);
-        pw_a16(P->pol, NPK);
-        pw_a16(P->drm, NPK);
+        pw_a16(P->syn, pdesc_len(SYN_P));
+        pw_a16(P->pol, pdesc_len(POL_P));
+        pw_a16(P->drm, pdesc_len(DRM_P));
         pw_u16(DRM_NBAR);
         for (b = 0; b < DRM_NBAR; b++)
             pw_a16((const int16_t *)P->dpat[b], 16);

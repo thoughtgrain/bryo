@@ -276,7 +276,7 @@ enum {
     PK_SHAPE, PK_FOLD, PK_SKEW, PK_SMOOTH, PK_STEPS, PK_SLEW, PK_SWING, PK_KEYS, PK_SHELF_LO, PK_SHELF_HI, PK_FILTER,
     PK_PAN, PK_TOGGLE, PK_FADE, PK_WINDOW, PK_GATE, PK_PRE, PK_MODE, PK_DIR, PK_STEPAT, PK_NONE,
     PK_CURVE, PK_VAR, PK_SRC, PK_OSC, PK_DETUNE, PK_CUTOFF, PK_RES, PK_ENVAMT, PK_KTRK, PK_VOICES, PK_PATTERN,
-    PK_SCALE, PK_SLOPE, PK_CMOD, PK_SCAN, PK_ROUTE, PK_BODY
+    PK_SCALE, PK_SLOPE, PK_CMOD, PK_SCAN, PK_ROUTE, PK_BODY, PK_GRNS
 };
 
 /* the waveform shapes WAVE's SHAPE picks, at phase p (0..63 a cycle), x1000 */
@@ -924,6 +924,16 @@ static void px_picto(uint32_t kind, int32_t x, int32_t y, const pdesc_t *d, int3
                 px_frame(x + 2, y + 2 + i * gap, 18, h, m, 2);
         break;
     }
+    case PK_GRNS: {                                      /* GRAIN's GRNS: the pool, 8 x 5 grains, as many solid as
+                                                          * the track holds (AUTO: all dim, nothing held) */
+        int32_t k;
+        for (k = 0; k < 40; k++)
+            if (k < v)
+                px_box(x + (k % 8) * 3, y + 2 + (k / 8) * 4, 2, 3, c);
+            else
+                px_dot(x + (k % 8) * 3, y + 3 + (k / 8) * 4, m);
+        break;
+    }
     case PK_KEYS: {                                      /* an octave: one outline, the dividers, the root marked */
         /* 7 white keys of 3 dots in one frame, black keys as solid blocks over the dividers; the root is a solid
          * foot on its white key, or a black key drawn hollow. Fewer strokes than a key-by-key drawing, so it reads
@@ -958,7 +968,8 @@ static const uint8_t DEV_PK[NDEV][NPK] = {
      PK_MIX, PK_NOISE, PK_WINDOW, PK_DOTS,           /*        WET SPRY CONT REV */
      PK_PATTERN, PK_SCALE, PK_VAR, PK_ROUTE,         /*        PATN SCAL PRND ROUT */
      PK_SCAN, PK_SPEED, PK_START, PK_LOOP,           /*        SCAN WARP OFST FDBK */
-     PK_FADER, PK_BODY, PK_KEYS, PK_CUTOFF},         /*        BODY MODE NOTE TONE */
+     PK_FADER, PK_BODY, PK_KEYS, PK_CUTOFF,          /*        BODY MODE ROOT TONE */
+     PK_GRNS},                                       /*        GRNS */
     {PK_KEYS, PK_DECAY, PK_TONE, PK_MIX,             /* RESONATOR: PTCH DEC TONE WET */
      PK_CUTOFF, PK_RES, PK_SLOPE, PK_SCALE,          /*            CUT RES TYPE SCAL */
      PK_ROUTE, PK_NONE, PK_NONE, PK_NONE,            /*            ROUT */

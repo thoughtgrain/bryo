@@ -38,7 +38,9 @@ static char uslot_name[USLOT_N][6];  /* their names (reel.c uslot_names) */
 static const char *const N_REEL[1u + NREEL + USLOT_N] = {"TAPE", REEL_NAMES_INIT, uslot_name[0], uslot_name[1],
                                                          uslot_name[2], uslot_name[3], uslot_name[4], uslot_name[5]};
 
-#define NPK 20u                  /* knobs a device or engine can have: up to five pages of four */
+#define NPK 24u                  /* knobs a device or engine can have: up to six pages of four (20 until GRAIN's
+                                  * GRNS: projects and presets store each array with its count, depths by array
+                                  * and knob, so older ones read as they are) */
 
 static const char *const DEV_NAME[NDEV] = {"TAPE", "GRAIN", "RESONATOR", "COLOR", "SPACE"};
 
@@ -49,6 +51,8 @@ static const char *const DEV_NAME[NDEV] = {"TAPE", "GRAIN", "RESONATOR", "COLOR"
 static const char *const N_PATN[4] = {"EVEN", "SWNG", "CLST", "RND"};
 static const char *const N_SCAN[4] = {"TAPE", "STR", "POS", "DLY"};
 static const char *const N_GSCAL[5] = {"OFF", "CHR", "MAJ", "MIN", "PEN"};
+#define GR_GRNS_MAX 40                /* GRAIN's GRNS: the most it can hold (the pool for one track, grain.c GR_POOL) */
+static const char *const N_GRNS[1 + GR_GRNS_MAX] = {"AUTO", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40"};
 static const char *const N_RSCAL[4] = {"HARM", "MAJ", "MIN", "PEN"};
 static const char *const N_SLOP[3] = {"LP", "BP", "HP"};
 static const char *const N_CMOD[3] = {"BIT", "RATE", "BOTH"};
@@ -108,7 +112,11 @@ static const pdesc_t DEV_P[NDEV][NPK] = {
          * headphones), through TONE's low-pass, at BODY's level. It's part of the wet side: WET sets it with the
          * grains (grain.c) */
         {"BODY", 0, 100, 0, F_PCT}, {"MODE", 0, 2, 0, F_ENUM, N_BODY, 1},
-        {"ROOT", 24, 72, 45, F_NOTE}, {"TONE", 0, 100, 38, F_HZ}},
+        {"ROOT", 24, 72, 45, F_NOTE}, {"TONE", 0, 100, 38, F_HZ},
+        /* 6: GRNS, the grains this track holds of the pool: AUTO, shared by what each track's RATE and SIZE ask
+         * (the leftover everyone's); a number, that many kept for it whatever the other tracks do, taken from
+         * the AUTO tracks first (grain.c gr_plan_into). Not a modulation target: it's the pool's split */
+        {"GRNS", 0, GR_GRNS_MAX, 0, F_ENUM, N_GRNS, 1}},
     {   /* RESONATOR (the S-4's RING) */
         {"PTCH", 33, 81, 45, F_NOTE}, {"DEC", 0, 100, 60, F_PCT},
         {"TONE", 0, 100, 60, F_PCT}, {"WET", 0, 100, 0, F_PCT},
@@ -339,8 +347,8 @@ typedef struct {
 static const playout_t PLAYOUT[] = {
     {DEV_P[DEV_SRC], 4, {0, 1, 2, 3, 12, 13, 14, 15, 4, 5, 6, 7, 8, 9, 11, 10}},   /* TAPE: the envelope second (as
                                                                                      * SYNTH's, POLY's), REEL ROTA . LVL */
-    {DEV_P[DEV_GRAIN], 5, {0, 1, 2, 3, 4, 5, 6, 7, 12, 13, 14, 15, 16, 17, 18, 19, 8, 9, 10, 11}},   /* GRAIN: SCAN..,
-                                                                                      * BODY.., then PATN..ROUT */
+    {DEV_P[DEV_GRAIN], 6, {0, 1, 2, 3, 4, 5, 6, 7, 12, 13, 14, 15, 16, 17, 18, 19, 8, 9, 10, 21, 20, 22, 23, 11}},
+                                                    /* GRAIN: SCAN.., BODY.., PATN SCAL PRND, then GRNS . . ROUT */
     {DEV_P[DEV_RESO], 3, {0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 8, 12, 13, 14, 15}},   /* RESONATOR: . . . ROUT (12-15,
                                                                                       * RES ARP: the ARP pad's) */
     {DEV_P[DEV_COLOR], 3, {0, 1, 2, 3, 4, 5, 6, 7, 10, 11, 9, 8}},              /* COLOR: . . ROUT LVL */
@@ -365,6 +373,17 @@ static uint32_t pdesc_at(const pdesc_t *p, uint32_t pos)
 {
     const playout_t *l = pdesc_layout(p);
     return l && pos < NPK ? l->at[pos] : pos;
+}
+
+/* table p's knobs up to its last that has a label (what a project or a preset needs to store: past it, every one
+ * is empty and reads back as 0 however many are written; NPK 24 written whole would no longer fit the biggest project
+ * in its sector) */
+static uint32_t pdesc_len(const pdesc_t *p)
+{
+    uint32_t n = NPK;
+    while (n && pdesc_empty(&p[n - 1u]))
+        n--;
+    return n;
 }
 
 /* a device's or an engine's pages: its layout's, else up to the first page whose first knob has no label */

@@ -18,10 +18,12 @@
  * multiply, a shift and a clamp. The ISR's state lives in the pool; the depths themselves (what a project will save)
  * in main RAM.
  *
- * The targets are numbered so a depth table is one flat array per slot (NPK = 20 knobs an array):
- *   0..79    GRAIN, RESONATOR, COLOR, SPACE: (device - 1) x NPK + knob
- *   80..159  the sources: TAPE, SYNTH, POLY, DRUM: 80 + source x NPK + knob (each source keeps its own depths)
- *   160..163 the channel strip: LOW HIGH FILT PAN
+ * The targets are numbered so a depth table is one flat array per slot (NPK = 24 knobs an array):
+ *   0..95    GRAIN, RESONATOR, COLOR, SPACE: (device - 1) x NPK + knob
+ *   96..191  the sources: TAPE, SYNTH, POLY, DRUM: 96 + source x NPK + knob (each source keeps its own depths)
+ *   192..195 the channel strip: LOW HIGH FILT PAN
+ * (The numbers live only in RAM: projects and presets store a depth by array and knob, so they moved freely when NPK
+ * went from 20 to 24.)
  * The reel choices (TAPE's REEL, POLY's REEL) aren't targets: the main loop prepares memory for the reel a track
  * plays, so the ISR mustn't switch it. Nor is a knob marked nomod (DRUM's PATN, which writes the pattern when
  * turned, and its page's own state: LEN, INST, BAR, MODE).

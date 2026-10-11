@@ -359,14 +359,17 @@ labels:
                                                                         * in the buffer yet), not "0 OF 0" */
         str_cpy(b, gr_why(sys.sel), sizeof b);
     else {
-        fmt_int(b, n);                                                 /* "5 OF 12 GRAINS": its share now */
-        str_cpy(b + str_len(b), " OF ", 5);
-        {
-            uint8_t sh[NTRK];                                          /* (worked out here as the ISR does: right */
-            gr_plan_into(sh);                                          /*  before the first block has run too) */
+        uint8_t sh[NTRK];                                              /* (worked out here as the ISR does: right */
+        gr_plan_into(sh);                                              /*  before the first block has run too) */
+        if (!sh[sys.sel])                                              /* AUTO, the held tracks have taken it all (its last
+                                                                        * grains finishing: not "1 OF 0") */
+            str_cpy(b, "TAKEN: NO GRAINS", sizeof b);
+        else {
+            fmt_int(b, n);                                             /* "5 OF 12 GRAINS": its share now; "5 OF */
+            str_cpy(b + str_len(b), " OF ", 5);                        /* 12 HELD": GRNS 12, kept whatever else */
             fmt_int(b + str_len(b), sh[sys.sel]);
+            str_cpy(b + str_len(b), v[GP_GRNS] > 0 ? " HELD" : " GRAINS", 8);
         }
-        str_cpy(b + str_len(b), " GRAINS", 8);
     }
     if (f == 1u || f == 4u)
         px_tag(1, DLBL - 1, PXF_3, b, px_ink, px_bg);

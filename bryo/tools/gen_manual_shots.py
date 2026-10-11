@@ -16,7 +16,7 @@ from PIL import Image, ImageDraw
 
 SHOTS = [
     "arp", "arp_add", "arp_drum", "arp_res", "boot", "calibration", "color", "color2", "color3", "crash", "drum", "drum_inst", "drum_kit", "drum_step",
-    "drum_vary", "grain", "grain2", "grain3", "grain_body", "grain_frozen", "grain_playing", "mixer", "mixer_channel",
+    "drum_vary", "grain", "grain2", "grain3", "grain_body", "grain6", "grain_frozen", "grain_playing", "mixer", "mixer_channel",
     "mixer_held", "mixer_master", "mixer_tracks3", "mod1", "mod1_p4", "mod2", "mod3_steps", "mod4_follow",
     "mod_depth", "mod_marks", "poly", "presets", "presets_factory", "projects", "resonator2", "resonator_wet",
     "project_new", "projects_factory", "route", "route_chain", "scl_held", "setup", "space", "space2", "synth", "synth_filter", "tape", "tape2", "tape3", "tape_env",

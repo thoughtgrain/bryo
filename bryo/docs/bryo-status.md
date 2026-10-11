@@ -88,11 +88,11 @@ One core, no RTOS. Three contexts, and the rules between them are most of the ar
 **Memory.** Sound lives in one pool of 152 chunks (28 s of tape-format sound: `mem.c`) handed out by use: tapes as
 long as what's on them, GRAIN's live buffers, RESONATOR's strings and SPACE's lines while they're on. Nothing is
 set aside per track. When it runs short: a cleared tape's chunks first, then a parked track's tape, then the end of
-the longest tape. Main RAM holds 83.1 of 96 KiB (.bss; 50.7 of it sound on purpose, the rest of the 96 the stack's), the pool 329.2 of 336 KiB (2026-10-11, 40 grain slots, 32-bit
+the longest tape. Main RAM holds 83.5 of 96 KiB (.bss; 50.7 of it sound on purpose, the rest of the 96 the stack's), the pool 329.6 of 336 KiB (2026-10-11, 40 grain slots and NPK 24, the last by arithmetic: 384 and 416 B more; 32-bit
 build: the firmware preprocessed, its inline assembly taken out, compiled `-m32 -Os`, `size -A`).
 
 **Parameters.** `param.c` holds every knob as an integer in its own range (`tp[t]`), with a descriptor (name,
-range, format) per knob. Up to 20 knobs a device or engine, in pages of four. The main loop writes them; the ISR
+range, format) per knob. Up to 24 knobs a device or engine, in pages of four (20 until GRAIN's GRNS, 2026-10-11). The main loop writes them; the ISR
 reads them once per block. With modulation, the device code reads through `TPD(t, array)` instead: a pointer to
 `tp`'s own array, or, when that array has depths, to a copy with the depths added (`mod.c`). Pitches and filter
 cutoffs also get a finer value than the knob holds (`mod_pitch16`, `mod_fine8`).
@@ -166,20 +166,21 @@ grain use about 12 a sample more a track for the upsampler; then the channel's L
 modulation, a few a sample more, 32 on the strip-heavy run 17; then the grains made click-free, which put back the
 sound of grains that ran off the buffer's end: the dense grain runs 7 to 11 % more; then silent grains skipped, up to
 9 % back where there's silence; then the pool's leftover given out and BODY's wave following the grains, 1 to
-7 a sample. Run 25's 3,299 here was out of date: the build before these two read 3,079):
+7 a sample. Run 25's 3,299 here was out of date: the build before these two read 3,079; then six pages a
+device (NPK 24, GRAIN's GRNS): the modulators copy wider arrays, 29 a sample on run 25, 6 on run 24, 1 to 2 elsewhere):
 
 | Run | What | Cost |
 | --- | --- | ---: |
-| 1 | four reels, nothing on | 989 |
-| 19 | a realistic four-track groove | 1,672 |
-| 24 | the groove, modulated the way I'd play it | 1,896 (109 of it the modulators) |
-| 21 | the groove's busiest moment | 2,475 |
-| 23 | GRAIN at its densest on one track | 2,856 |
-| 25 | every slot on every track, 128 depths | 3,086 |
-| 26 | DRUM busy alone (FUNK, VARY 100, FILL 100, long decays), the others plain reels | 1,329 |
-| 27 | the groove with a DRUM track in place of its drum reel | 1,896 |
-| 28 | four DRUM tracks at once, every voice (20) | 2,430 |
-| 15 | everything on, all four tracks | 5,059 |
+| 1 | four reels, nothing on | 990 |
+| 19 | a realistic four-track groove | 1,674 |
+| 24 | the groove, modulated the way I'd play it | 1,902 (113 of it the modulators) |
+| 21 | the groove's busiest moment | 2,477 |
+| 23 | GRAIN at its densest on one track | 2,857 |
+| 25 | every slot on every track, 128 depths | 3,115 |
+| 26 | DRUM busy alone (FUNK, VARY 100, FILL 100, long decays), the others plain reels | 1,331 |
+| 27 | the groove with a DRUM track in place of its drum reel | 1,898 |
+| 28 | four DRUM tracks at once, every voice (20) | 2,432 |
+| 15 | everything on, all four tracks | 5,061 |
 
 My target for a realistic four-track scene is 2,000. The first device reading (run 1, 2026-10-10: 25 %, in 5 % steps)
 puts the ratio at about 37.6 host instructions a sample per percent, if the load scales with the host's count: the
@@ -220,7 +221,14 @@ number.
 - **2026-10-08: GRAIN's grains are one pool shared by demand** (since 2026-10-11, with the grains rendered at half
   rate: 40 for one track, 30 for two, 18 for three or four; it was 32 for one track, 24 for two, 16 for three or
   four), split by what each track's settings ask for when it runs short; what's left over is everyone's (since
-  2026-10-11: a track alone has all 40, not just what RATE and SIZE ask).
+  2026-10-11: a track alone has all 40, not just what RATE and SIZE ask). GRAIN 6's GRNS can hold a number for a
+  track instead (1-40, taken from the AUTO tracks first, kept whatever the others do).
+- **2026-10-11: six pages a device (NPK 24), for GRAIN's GRNS.** GRAIN's 20 were full. Projects and presets store
+  each array with its count and depths by array and knob, so the format didn't change and older files read as they
+  are; but the biggest project, written 24 wide, no longer fit its sector (it was within 35 bytes at 20). So each
+  array is now written up to its last knob (`pdesc_len`): the biggest packs to 3,741 of 3,840 bytes, less than at 20.
+  The cost: 384 B more main RAM (`tp`), 416 B more of the pool (the modulated copies, 13 arrays a track), and the modulators copying
+  wider arrays (29 a sample on run 25, every slot on every track; 6 on the modulated groove).
 - **2026-10-08: the USB record mode is its own mode.** Everything else stops while the computer is recorded;
   REC held a second opens it. Audio out to the computer in that mode is future work.
 - **2026-10-09: modulation reads a modulated copy only of what's modulated.** A track without depths reads exactly
