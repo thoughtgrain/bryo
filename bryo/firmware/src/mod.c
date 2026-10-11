@@ -403,6 +403,18 @@ typedef struct {                     /* ISR only: a slot's running state */
 enum { ENV_IDLE, ENV_ATK, ENV_DEC, ENV_SUS, ENV_REL };
 
 static mod_rt_t mrt[NTRK][NSLOT] __attribute__((section(".pool")));
+
+/* main loop -> ISR: the SEQ slot on screen, 1 + track x NSLOT + slot (0: none). It runs even when it modulates
+ * nothing yet, so its white keys can show the step playing while you write its steps (its output goes nowhere) */
+static volatile uint8_t mod_show;
+
+/* the step slot s of track t is playing (a SEQ: 0..15; -1 none yet, or not a SEQ), for the white keys' lights. The
+ * one field the main loop reads of the ISR's state: a 16-bit read, whole on the target */
+static int32_t mod_seq_now(uint32_t t, uint32_t s)
+{
+    const volatile mod_rt_t *m = &mrt[t % NTRK][s % NSLOT];
+    return m->engine == ME_SEQ + 1u ? m->step : -1;
+}
 static int16_t mda[NTRK][MOD_NARR][NPK] __attribute__((section(".pool")));   /* ISR: the modulated arrays */
 static const int16_t *mdv[NTRK][MOD_NARR];     /* what the devices read: mda's array, or tp's own (mod_init) */
 #define TPD(t, a) (mdv[t][a])                  /* track t's knob array a (DEV_*, MA_SYN, MA_POL, MA_DRM, MA_CH),
@@ -709,6 +721,22 @@ static void mod_init(void)
 /* audio ISR, once per control block before the tracks: the clock, each modulated track's slots, and its knob arrays
  * with the depths added (TPD). keys: the white keys held on track sel; last: each track's last block (FOLLOW's
  * input) */
+/* ISR: slot s of track t's state from rest when its engine e is new there (1: it was) */
+static int mod_rt_fresh(mod_rt_t *m, uint32_t t, uint32_t s, uint32_t e)
+{
+    uint32_t sd = m->seed;
+    mod_rt_t z = {0};
+    if (m->engine == e + 1u)
+        return 0;
+    *m = z;
+    m->seed = sd;
+    m->engine = (uint8_t)(e + 1u);
+    m->step = -1;
+    if (e == ME_WAVE)
+        lfo_seed(m, t, s);
+    return 1;
+}
+
 static void mod_tick(uint32_t keys, uint32_t sel, const int32_t *const *last)
 {
     uint32_t t, s, e, seam = mod_seam, hits = mod_hit, playing = sys.playing, ph;
@@ -747,6 +775,17 @@ static void mod_tick(uint32_t keys, uint32_t sel, const int32_t *const *last)
         int loop;
         mod_keys_prev[t] = k;
         mod_fmask[t] = 0;
+        if (mod_show && (mod_show - 1u) / NSLOT == t) { /* the SEQ on screen, if it modulates nothing (below it runs
+                                                         * only with depths): stepped here, for its keys' lights */
+            uint32_t ss = (mod_show - 1u) % NSLOT;
+            const mod_list_t *L2 = &mod_l[t][mod_cur[t] & 1u];
+            if (tp[t].engine[ss] == ME_SEQ && !(((mod_on >> t) & 1u) && L2->n && ((L2->used >> ss) & 1u))) {
+                mod_rt_t *m = &mrt[t][ss];
+                const int16_t *v = tp[t].mod[ss];
+                int fresh = mod_rt_fresh(m, t, ss, ME_SEQ);
+                mod_seq(m, v, tp[t].steps[ss], fresh || mclk.started || (v[5] && (press || hit)));
+            }
+        }
         if (!((mod_on >> t) & 1u) && !mod_arrs[t])    /* nothing modulates the track, nor did last block */
             continue;
         L = &mod_l[t][mod_cur[t] & 1u];
@@ -767,17 +806,7 @@ static void mod_tick(uint32_t keys, uint32_t sel, const int32_t *const *last)
                 continue;
             e = tp[t].engine[s] % NME;
             trig = v[e == ME_SEQ ? 5 : 13] != 0;        /* TRIG KEY (LFO knob 13, SEQ knob 5) */
-            if (m->engine != e + 1u) {                   /* a new engine in the slot: its state from rest */
-                uint32_t sd = m->seed;
-                mod_rt_t z = {0};
-                *m = z;
-                m->seed = sd;
-                m->engine = (uint8_t)(e + 1u);
-                m->step = -1;
-                if (e == ME_WAVE)
-                    lfo_seed(m, t, s);
-                fresh = 1;
-            }
+            fresh = mod_rt_fresh(m, t, s, e);
             switch (e) {
             case ME_WAVE: mod_lfo(m, v, fresh || mclk.started || (trig && (press || hit))); break;
             case ME_ADSR: mod_adsr(m, v, k != 0u, press != 0u, loop || hit); break;   /* (a hit: one-shot) */

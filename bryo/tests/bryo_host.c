@@ -6200,6 +6200,100 @@ static void test_drum_mod(void)
     pj_wipe();
 }
 
+/* the white keys as steps: DRUM's STEP page lights the bar's set steps, and the playhead flips the one it's on; a
+ * SEQ page glows its LEN from STRT and lights the step playing and the keys held */
+static void white_lights(uint32_t *lit, uint32_t *glow)
+{
+    uint32_t k;
+    *lit = *glow = 0;
+    ui_input();
+    ui_leds();
+    for (k = 0; k < 27u; k++) {
+        uint32_t w = KEY_WHITE[k];
+        if (w == KEY_NONE || w >= 16u)
+            continue;
+        led_on(fm1_led, 14u + k);
+        *lit |= led_lit << w;
+        led_on(fm1_led_dim, 14u + k);
+        *glow |= led_lit << w;
+    }
+}
+static void test_step_leds(void)
+{
+    uint32_t lit, glow, b, now = 0xFFu, ok = 1, seen = 0;
+    char m[160];
+    power_on();
+    tp[0].src = SRC_DRUM;
+    memset(tp[0].dpat, 0, sizeof tp[0].dpat);
+    memset(tp[0].dacc, 0, sizeof tp[0].dacc);
+    tp[0].drm[DM_MODE] = DMODE_HITS;
+    tp[0].drm[DM_BAR] = 1;
+    tp[0].drm[DM_INST] = 0;
+    focus_dev(DEV_SRC, 3);                               /* STEP */
+    key_edge(note_of_white(0));
+    key_edge(note_of_white(4));
+    key_edge(note_of_white(10));
+    white_lights(&lit, &glow);
+    snprintf(m, sizeof m, "DRUM STEP, three steps added (1, 5, 11): their white keys lit, all 16 glowing (lit %04x)", lit);
+    check(m, tp[0].dpat[0][4] == 1u && lit == 0x0411u && glow == 0xFFFFu);
+    sys.playing = 1;
+    for (b = 0; b < 1378u; b++) {                        /* a second playing: wherever the playhead is in bar 1, its
+                                                          * key flipped (a set step dim, an empty one lit) */
+        render(1, 0);
+        now = drm_now[0];
+        white_lights(&lit, &glow);
+        if (now != 0xFFu && now < 16u) {
+            ok &= lit == (0x0411u ^ (1u << now));
+            seen |= 1u << now;
+        } else {
+            ok &= lit == 0x0411u;
+        }
+    }
+    snprintf(m, sizeof m, "..playing: the step playing flips its key as the playhead passes (%u of bar 1's steps seen)",
+             (uint32_t)__builtin_popcount(seen));
+    check(m, ok && (seen & 0x0411u) && (seen & ~0x0411u & 0xFFFFu));
+    sys.playing = 0;
+    tp[0].drm[DM_MODE] = DMODE_ACC;
+    tp[0].dacc[0] = 0x8001u;
+    white_lights(&lit, &glow);
+    check("..ACC: the accents' keys lit instead", lit == 0x8001u);
+    tp[0].drm[DM_MODE] = DMODE_LIVE;
+    white_lights(&lit, &glow);
+    check("..LIVE: the keys play the kit, no steps shown", lit == 0u);
+    tp[0].drm[DM_MODE] = DMODE_HITS;
+    hold(B_GLO);
+    white_lights(&lit, &glow);
+    let_go(B_GLO);
+    check("..GLO held: not the steps (the white keys pick tracks then)", lit != 0x0411u);
+
+    power_on();                                          /* a SEQ: LEN 8 from STRT 3 */
+    focus_slot(SLOT_SEQ);
+    tp[0].mod[SLOT_SEQ][0] = 8;
+    tp[0].mod[SLOT_SEQ][7] = 3;
+    tp[0].mod[SLOT_SEQ][1] = 4;                          /* (RATE 1/16: LEN round twice in the two seconds below) */
+    white_lights(&lit, &glow);
+    check("SEQ page, LEN 8 from STRT 3: steps 3-10 glow, none lit while stopped", glow == 0x03FCu && lit == 0u);
+    sys.playing = 1;
+    for (b = 0, ok = 1, seen = 0; b < 1378u * 2u; b++) {
+        int32_t n;
+        render(1, 0);
+        n = mod_seq_now(0, SLOT_SEQ);
+        white_lights(&lit, &glow);
+        if (n >= 0) {
+            ok &= lit == 1u << (uint32_t)n;
+            seen |= 1u << (uint32_t)n;
+        }
+    }
+    snprintf(m, sizeof m, "..playing: the step playing lit, one at a time, only within LEN (%04x seen)", seen);
+    check(m, ok && seen == 0x03FCu);
+    sys.playing = 0;
+    fm1_in.notes = note_bit_of_white(12);
+    white_lights(&lit, &glow);
+    fm1_in.notes = 0;
+    check("..a white key held (KNOB 1 sets its step): lit", (lit >> 12) & 1u);
+    power_on();
+}
+
 /* page keys: a page's pad held, the white keys show its pages (dim: there, lit: shown) and pick one */
 static void test_page_keys(void)
 {
@@ -7712,6 +7806,7 @@ int main(int argc, char **argv)
     test_save_seamless();
     test_env_pad();
     test_page_keys();
+    test_step_leds();
     test_drum_mod();
     test_tpresets();
     test_tpfactory();

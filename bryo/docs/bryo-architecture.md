@@ -1243,6 +1243,22 @@ HOME and the slot pads already did; a pad that was used for a key doesn't turn i
 gesture had to move: HOME + a white key picked DRUM's instrument on its pages, and it's a page jump now like everywhere
 else; STEP's INST knob picks the instrument (it always could).
 
+**Step keys (2026-10-11, from playing it: "the sequencer on drums isn't brightening the active step on the white
+keys ... update that for seq as well").** Where the white keys set steps they now show them (`ui_leds`, before the
+page keys, which still win while a pad is held). DRUM's STEP page in HITS and ACC: the bar's set steps for INST (or
+its accents) lit, all 16 glowing; while it plays, the key under the playhead (`drm_now`) flips, a set step going dim
+for it and an empty one lit, so the playhead reads over both, the usual step-sequencer convention. LIVE and ERAS
+leave the keys alone (they play the kit there). A SEQ slot's page: the steps inside LEN glow, counted from STRT and
+round past 16 the way the SEQ plays them; the step playing and the keys held are lit. The step playing comes from
+the ISR's slot state through `mod_seq_now` (a 16-bit read, the one field the main loop reads of it). A slot only
+runs while it modulates something, so a SEQ with no depths yet would never move; the main loop now names the SEQ
+on screen (`mod_show`) and `mod_tick` steps it even then, so you can watch it while you write the steps (its output
+goes nowhere). Cost: a compare a track a block, 1 to 4 a sample on the checkpoint runs; the shown SEQ's own stepping
+only while its page is up. Tested (`test_step_leds`): three steps lit and all glowing; a second playing, the
+playhead's key flipped every block it's in the bar; ACC lights accents; LIVE and GLO show no steps; a SEQ of LEN 8
+from STRT 3 glows steps 3 to 10, plays them one lit at a time with no depths assigned, and a held key lights.
+Mutants: no DRUM playhead, no SEQ playhead, held keys dark, STRT ignored, the shown SEQ not run.
+
 **Each drum's own knobs modulate.** An instrument's TUNE DEC LVL TONE lived on a held-key page and weren't targets, so
 an LFO couldn't swell the hats or a SEQ tune the snare. They're 64 targets now (16 instruments x 4), numbered after
 the channel strip (`MOD_TDIN`), so every target before them, and every project's depths, keep their numbers; a

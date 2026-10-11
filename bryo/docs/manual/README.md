@@ -411,6 +411,9 @@ claves, cowbell, maracas, tambourine, guiro, hi-hat, open hat, metal beat, cymba
 3. Make sure **MODE** (KNOB 3) says **HITS**.
 4. Now **white key n switches step n** of the bar on or off. **OCT− / OCT+** pick the bar, and the page stays on
    that bar while the pattern plays, so you can write into it as it goes round.
+5. The white keys show the bar: a step that's on is **lit**, the others glow dim. While it plays, the playhead
+   flips the key it's on (a lit step blinks dim, an empty one lights), so you can see it go round. In **ACC** mode
+   the lit keys are the accents.
 
 <img src="img/drum_step.png" width="240" alt="DRUM: STEP">
 
@@ -709,6 +712,9 @@ Its depths stay where they were. M4 always stays the step sequencer.
 2. **Hold a white key** (key 1 is step 1) and **turn KNOB 1**: that step's value.
 3. Hold several keys to set them together.
 4. **LEN** is how many steps; **RATE** how long each one is.
+5. The white keys show it: the steps inside LEN glow, and while it plays the step playing is **lit** (held keys are
+   lit too). It runs while its page is on screen even before it modulates anything, so you can watch it as you
+   write the steps.
 
 <img src="img/mod3_steps.png" width="240" alt="SEQ with steps being set">
 

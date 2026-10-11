@@ -102,6 +102,8 @@ static uint32_t focus_btn(void)
  * dim (the LEDS setting: OFF, DIM LO, DIM HI, INV). Each picture is built off-line and copied one
  * byte per column, the glow first, so an LED going from lit to dim never has a dark frame. */
 static int pad_down(void);
+static int drm_step_page(void);
+static int seq_page(void);
 static uint32_t pad_pages(uint32_t b);
 static int pad_shown(uint32_t b, uint32_t i);
 static void ui_leds(void)
@@ -128,6 +130,42 @@ static void ui_leds(void)
         led_put(nl, 14u + k, (!sys.keys_notes || ui.glo_held) &&   /* (KEYS NOTE: GLO held shows the shortcuts) */
                              ((b <= BK_OP4 && track[b].mute) || (b == BK_ZERO && sys.freeze)));   /* (0 lit: latched) */
         led_put(nd, 14u + k, 1);
+    }
+    if ((drm_step_page() && sys.drum_mode == DMODE_HITS) || seq_page()) {   /* (GLO held: the mixer, not these) */
+        /* the white keys as steps, where they set steps: DRUM's STEP page (HITS, ACC) lights the bar's steps that are
+         * set (the instrument's hits, or the accents) and flips the one playing as it passes (a set step goes dim
+         * for it, an empty one lit), so the playhead reads over both; a SEQ page glows the steps in LEN (from STRT),
+         * lights the one playing and the ones held (KNOB 1 sets them) */
+        uint32_t on = 0, glow = 0xFFFFu, s;
+        if (seq_page()) {
+            const int16_t *v = tp[sys.sel].mod[ui.slot];
+            uint32_t len = (uint32_t)clamp(v[0], 1, 16), st = (uint32_t)clamp(v[7], 1, 16) - 1u;
+            int32_t now = mod_seq_now(sys.sel, ui.slot);
+            glow = 0;
+            for (s = 0; s < len; s++)
+                glow |= 1u << ((s + st) % 16u);
+            on = ui.steps_held;
+            if (sys.playing && now >= 0)
+                on |= 1u << (uint32_t)now;
+        } else {
+            const int16_t *p = tp[sys.sel].drm;
+            uint32_t bar = (uint32_t)clamp(p[DM_BAR], 1, (int32_t)DRM_NBAR) - 1u, i = (uint32_t)clamp(p[DM_INST], 0, 15);
+            uint32_t now = drm_now[sys.sel];
+            for (s = 0; s < 16u; s++)
+                on |= (p[DM_MODE] == DMODE_ACC ? (tp[sys.sel].dacc[bar] >> s) & 1u
+                                               : (tp[sys.sel].dpat[bar][s] >> i) & 1u) << s;
+            if (sys.playing && now != 0xFFu && now / 16u == bar)
+                on ^= 1u << (now % 16u);
+        }
+        for (k = 0; k < 27u; k++) {
+            uint32_t w = KEY_WHITE[k];
+            if (w == KEY_NONE || w >= 16u)
+                continue;
+            led_clear(nl, 14u + k);
+            led_clear(nd, 14u + k);
+            led_put(nd, 14u + k, (glow >> w) & 1u);
+            led_put(nl, 14u + k, (on >> w) & 1u);
+        }
     }
     if (pad_down()) {                                   /* a page's pad held: the keys are its pages (dim: there,
                                                          * lit: the one shown, the rest dark); the LFO pad also shows
@@ -1206,6 +1244,7 @@ static void ui_input(void)
     sys.keys_grain = (uint8_t)(ui.view == VIEW_PAGE && ui.kind == FOCUS_DEV && ui.dev == DEV_GRAIN);
     sys.keys_reso = (uint8_t)(ui.view == VIEW_PAGE && ui.kind == FOCUS_DEV && ui.dev == DEV_RESO);
     sys.keys_rarp = (uint8_t)(ui.view == VIEW_PAGE && ui.kind == FOCUS_ARP && ui.page == 2u);
+    mod_show = (uint8_t)(seq_page() ? 1u + sys.sel * NSLOT + ui.slot % NSLOT : 0u);   /* (its keys show its step) */
     if ((uint32_t)(fm1_ms - ui.unsaved_t) >= 250u) {    /* the header's unsaved mark: the state against the last save
                                                         * or load (a hash of 3.3 KB: four times a second, not a frame) */
         ui.unsaved_t = fm1_ms;

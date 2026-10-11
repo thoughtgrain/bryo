@@ -146,25 +146,25 @@ under the address and undefined-behaviour sanitizers).
 | # | Host cost | Predicted | Read | Heard |
 | --- | ---: | ---: | ---: | --- |
 | 1 | 940 | (the scale) | 25 % | clean |
-| 2 | 1,738 | 46 % | | |
-| 3 | 2,505 | 67 % | | |
+| 2 | 1,739 | 46 % | | |
+| 3 | 2,506 | 67 % | | |
 | 4 | ? | | | |
-| 5 | 2,139 | 57 % | | |
-| 6 | 2,340 | 62 % | | |
-| 11 | 1,933 | 51 % | | |
-| 12 | 3,433 | 91 % (sheds) | | |
-| 13 | 1,735 | 46 % | | |
-| 14 | 1,865 | 50 % | | |
-| 15 | 5,061 | 135 % (sheds) | | |
-| 19 | 1,674 | 45 % | | |
-| 22 | 1,844 | 49 % | | |
+| 5 | 2,140 | 57 % | | |
+| 6 | 2,341 | 62 % | | |
+| 11 | 1,934 | 51 % | | |
+| 12 | 3,434 | 91 % (sheds) | | |
+| 13 | 1,737 | 46 % | | |
+| 14 | 1,866 | 50 % | | |
+| 15 | 5,062 | 135 % (sheds) | | |
+| 19 | 1,675 | 45 % | | |
+| 22 | 1,846 | 49 % | | |
 
 The host costs were measured again on 2026-10-11, after the second round from playing it (the arpeggiator on every
 source, RESONATOR's own: about 7 a sample more on every run) and after the grains went to half rate with a bigger
 pool (runs 3, 5, 6, 12, 15 now sound 18 or 30 grains where they sounded 16 or 24, for a little less). Row 1 stays at 940, the build the 25 % was read on,
 since it sets the scale. Read again after the grain pool stopped capping a track at
 what RATE and SIZE ask and BODY's wave followed the grains' notes: those moved them by 1 to 7 a sample. And again after
-six pages a device (NPK 24, for GRAIN's GRNS): 1 to 2 a sample more (run 1 is 990).
+six pages a device (NPK 24, for GRAIN's GRNS): 1 to 2 a sample more; then the step keys' lights, 1 to 4 more (run 1 is 991).
 
 **The factory scene, 2026-10-10:** CPU above 80 % and crackles once the drums came in, where the host predicted
 about 45 % (1,720). So the scale from run 1 doesn't hold for every kind of work: the target divides where the host

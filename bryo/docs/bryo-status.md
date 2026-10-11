@@ -167,20 +167,20 @@ modulation, a few a sample more, 32 on the strip-heavy run 17; then the grains m
 sound of grains that ran off the buffer's end: the dense grain runs 7 to 11 % more; then silent grains skipped, up to
 9 % back where there's silence; then the pool's leftover given out and BODY's wave following the grains, 1 to
 7 a sample. Run 25's 3,299 here was out of date: the build before these two read 3,079; then six pages a
-device (NPK 24, GRAIN's GRNS): the modulators copy wider arrays, 29 a sample on run 25, 6 on run 24, 1 to 2 elsewhere):
+device (NPK 24, GRAIN's GRNS): the modulators copy wider arrays, 29 a sample on run 25, 6 on run 24, 1 to 2 elsewhere; then the step keys' lights, 1 to 4):
 
 | Run | What | Cost |
 | --- | --- | ---: |
-| 1 | four reels, nothing on | 990 |
-| 19 | a realistic four-track groove | 1,674 |
-| 24 | the groove, modulated the way I'd play it | 1,902 (113 of it the modulators) |
-| 21 | the groove's busiest moment | 2,477 |
-| 23 | GRAIN at its densest on one track | 2,857 |
-| 25 | every slot on every track, 128 depths | 3,115 |
-| 26 | DRUM busy alone (FUNK, VARY 100, FILL 100, long decays), the others plain reels | 1,331 |
-| 27 | the groove with a DRUM track in place of its drum reel | 1,898 |
-| 28 | four DRUM tracks at once, every voice (20) | 2,432 |
-| 15 | everything on, all four tracks | 5,061 |
+| 1 | four reels, nothing on | 991 |
+| 19 | a realistic four-track groove | 1,675 |
+| 24 | the groove, modulated the way I'd play it | 1,904 (115 of it the modulators) |
+| 21 | the groove's busiest moment | 2,478 |
+| 23 | GRAIN at its densest on one track | 2,859 |
+| 25 | every slot on every track, 128 depths | 3,119 |
+| 26 | DRUM busy alone (FUNK, VARY 100, FILL 100, long decays), the others plain reels | 1,332 |
+| 27 | the groove with a DRUM track in place of its drum reel | 1,899 |
+| 28 | four DRUM tracks at once, every voice (20) | 2,433 |
+| 15 | everything on, all four tracks | 5,062 |
 
 My target for a realistic four-track scene is 2,000. The first device reading (run 1, 2026-10-10: 25 %, in 5 % steps)
 puts the ratio at about 37.6 host instructions a sample per percent, if the load scales with the host's count: the
