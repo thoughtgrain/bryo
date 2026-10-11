@@ -798,7 +798,7 @@ static void on_black(uint32_t k)
         ui.poly_held = 1;
         ui.poly_t0 = fm1_ms;
         ui_message(ui.view == VIEW_PROJECT ? "KEEP HOLDING POLY TO DELETE IT" : ui.view == VIEW_PAGE && ui.kind == FOCUS_ARP
-                   ? "KEEP HOLDING POLY TO CLEAR THE NOTES" : tp[sys.sel].src == SRC_DRUM ?
+                   ? (ui.page == 2u ? "KEEP HOLDING POLY TO CLEAR RES ARP" : "KEEP HOLDING POLY TO CLEAR THE NOTES") : tp[sys.sel].src == SRC_DRUM ?
                    "KEEP HOLDING POLY TO CLEAR THE PATTERN" : "KEEP HOLDING POLY TO CLEAR THE TAPE");
     }
 }
@@ -835,9 +835,16 @@ static void hold_keys(void)
                                                                                            : " NOT DELETED: FLASH", 28);
             ui_message(m);
         } else if ((uint32_t)(fm1_ms - ui.poly_t0) >= 500u && ui.view == VIEW_PAGE && ui.kind == FOCUS_ARP) {
-            ui.poly_held = 0;                           /* the arpeggiator's notes (a latched or piled-up pattern) */
-            arp_clear(sys.sel);
-            ui_message("ARP NOTES CLEARED");
+            ui.poly_held = 0;                           /* the arpeggiator's notes (a latched or piled-up pattern;
+                                                         * RES ARP's on its page) */
+            if (ui.page == 2u) {
+                RING_PUBLISH();
+                reso_arp_clear_req[sys.sel] = 1;
+                ui_message("RES ARP NOTES CLEARED");
+            } else {
+                arp_clear(sys.sel);
+                ui_message("ARP NOTES CLEARED");
+            }
         } else if ((uint32_t)(fm1_ms - ui.poly_t0) >= 500u && tp[sys.sel].src == SRC_DRUM) {
             ui.poly_held = 0;
             if (drm_clear(sys.sel)) {
@@ -1198,6 +1205,12 @@ static void ui_input(void)
                                                                 * (HITS, ACC) the bar's steps: they don't play */
     sys.keys_grain = (uint8_t)(ui.view == VIEW_PAGE && ui.kind == FOCUS_DEV && ui.dev == DEV_GRAIN);
     sys.keys_reso = (uint8_t)(ui.view == VIEW_PAGE && ui.kind == FOCUS_DEV && ui.dev == DEV_RESO);
+    sys.keys_rarp = (uint8_t)(ui.view == VIEW_PAGE && ui.kind == FOCUS_ARP && ui.page == 2u);
+    if ((uint32_t)(fm1_ms - ui.unsaved_t) >= 250u) {    /* the header's unsaved mark: the state against the last save
+                                                        * or load (a hash of 3.3 KB: four times a second, not a frame) */
+        ui.unsaved_t = fm1_ms;
+        ui.unsaved = (uint8_t)pj_changed();
+    }
     for (k = 0; k < 27u; k++)
         if ((notes >> k) & 1u) {
             if (KEY_BLACK[k] != KEY_NONE) {

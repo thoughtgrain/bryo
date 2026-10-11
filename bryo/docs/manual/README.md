@@ -54,8 +54,9 @@ should hear. Do them in order the first time; after that, jump to what you need.
 <img src="img/screen.png" width="380" alt="The TAPE page with numbered marks">
 
 1. **The track** you're on: T1 to T4. (On a modulator's page it says M1 to M4, the slot.)
-2. **The page's name**, and dots for which of its pages you're on (TAPE has three: `▪··` is the first).
-3. **The transport and the tempo.** ■ stopped, ▶ playing, ● armed to record; then the tempo (120 BPM).
+2. **The page's name**, and dots for which of its pages you're on (TAPE has four: `▪···` is the first).
+3. **The transport and the tempo.** ■ stopped, ▶ playing, ● armed to record; then the tempo (120 BPM). A **✱**
+   before them means you've changed something since you last saved (see 0.3); most pictures in this manual show it.
 4. **The four knobs.** A little picture, a name, a value. KNOB 1 is the left one, KNOB 4 the right one. The last
    one you turned has its name inverted.
 5. **The picture** of what the page does: here the tape, with the loop bracketed (IN and OUT) and the play head.
@@ -69,11 +70,11 @@ Every pad opens a page, and **pressing the same pad again goes to its next page*
 | Pad | Pages, in order |
 | --- | --- |
 | HOME | the source's pages (TAPE has 4; SYNTH 5; POLY 4; DRUM 4) |
-| EDIT | GRAIN 1-4, then RESONATOR 1-4 |
+| EDIT | GRAIN 1-4, then RESONATOR 1-3 |
 | FX | COLOR 1-3, then SPACE 1-3 |
 | ENV | the source's envelope: SYNTH's AMP, POLY's ENV, TAPE's slice envelope (each the second page), DRUM's KIT |
 | LFO, SEQ | a modulator's pages (LFO: M1, M2 or M3; SEQ: M4) |
-| ARP | the arpeggiator: 2 pages |
+| ARP | the arpeggiator: 2 pages, then RES ARP (RESONATOR's own arpeggio) |
 | GLO | the mixer (EDIT then steps CHANNEL, MASTER, SETUP) |
 
 KNOB 1 to 4 always change the four values you see. There's nothing hidden.
@@ -81,8 +82,24 @@ KNOB 1 to 4 always change the four values you see. There's nothing hidden.
 **Jump straight to a page: hold its pad and press a white key.** While you hold a pad (HOME, EDIT, FX, ENV, LFO,
 SEQ or ARP), the white keys show its pages: one glows for each page, the page on screen is lit, and every other key
 goes dark. Press white key 3 to go to the third page. EDIT's keys run through GRAIN's pages and then RESONATOR's
-(key 6 is RESONATOR 2, key 7 its arpeggio); FX's through COLOR's and then SPACE's. Holding LFO also lights OP1-OP3, the one it's on
+(key 6 is RESONATOR 2); FX's through COLOR's and then SPACE's. Holding LFO also lights OP1-OP3, the one it's on
 bright. Let go without pressing a key and the pad turns its page as usual.
+
+### 0.3 Saving, in short
+
+- **Nothing is kept until you tap SAVE.** The **✱** in the header says there are changes you haven't saved; it goes
+  away when you save.
+- **Tap SAVE:** everything goes into the current project (**P1** to start with). Turn the FM-1 off and on and it's
+  all back.
+- **Hold SAVE:** undo. It brings back the last thing you cleared, reset or loaded (a tape, a drum pattern, a
+  track's modulation, a page you reset, a preset you loaded).
+- **Holding the black POLY key for half a second clears things:** the track's tape (on DRUM, its pattern; on an ARP
+  page, the notes it holds). The screen says "KEEP HOLDING POLY TO CLEAR..." first; let go then and nothing happens.
+- **Lost something that SAVE held can't bring back?** If you haven't saved since, go back to your last save: turn
+  **PRESETS**, point at your project, press **OCT+**, and **OCT+** again to confirm. Everything since that save
+  is gone, the lost track comes back.
+- **Projects and presets:** a project (P1 to P6) is everything at once; a track preset (A to H) is one track's
+  sound. Both are in [9](#9-saving).
 
 ---
 
@@ -449,6 +466,15 @@ stays. **Hold black key POLY** (on the ARP page) to clear it and start again.
 
 <img src="img/arp_add.png" width="240" alt="ARP in ADD mode, four notes piled up"> <img src="img/arp_drum.png" width="240" alt="ARP on a DRUM track: three drums, up and down">
 
+**RES ARP (the ARP pad's third page): an arpeggio for the strings.** Press ARP three times (or hold ARP and press
+white key 3). It's RESONATOR's own arpeggio, separate from the track's: each step plucks RESONATOR's four strings at
+that note, whatever the track plays. **MODE** turns it on (OFF, KEY, LTCH, ADD); **ORDR**, **RNGE** and **RATE** work
+as above. With MODE on, the white keys on this page play the strings' pattern and the track itself stays quiet; with
+MODE off they play the track as on the other ARP pages. A latched or piled-up pattern keeps plucking when you leave
+the page, and **hold POLY** here to clear it. You'll want RESONATOR's **WET** up (EDIT five times) to hear it.
+
+<img src="img/arp_res.png" width="240" alt="RES ARP: two notes held, the strings plucked in turn">
+
 Keys you hold play straight away, transport or not. A latched or piled-up pattern keeps playing when you move to
 another track, and follows the transport: **STOP** quiets it (the notes are kept), **PLAY** starts it again from the
 top. Each track has its own, and a project you save keeps the notes it holds.
@@ -535,14 +561,10 @@ The track rings four tuned strings, like a sitar's sympathetic strings.
    playing a slice or a drum). **PTCH** does the same with
    a knob. **DEC** is how long they ring; **TONE** how bright.
 4. **RESONATOR 2**: a filter (CUT, RES, TYPE) and **SCAL**, the chord the four strings make (HARM, MAJ, MIN, PEN).
-5. **RESONATOR 3**: its own arpeggio, so the strings can play a pattern whatever the track plays. **MODE** (OFF,
-   KEY, LTCH, ADD), **ORDR**, **RNGE** and **RATE** work like the ARP page's. Turn MODE to KEY or LTCH and hold
-   white keys on this page: each step plucks the strings at that note. With MODE on, the keys on this page only feed
-   the arpeggio (the track's own sound stays quiet, SYNTH and POLY too), and a latched pattern keeps plucking after
-   you leave the page.
-6. **RESONATOR 4**: ROUT (see 6.8).
+5. **RESONATOR 3**: ROUT (see 6.8).
+6. To make the strings play a pattern of their own, use **RES ARP**, the ARP pad's third page ([5.8](#58-arp-the-arpeggiator)).
 
-<img src="img/resonator_wet.png" width="240" alt="RESONATOR ringing"> <img src="img/resonator2.png" width="240" alt="RESONATOR 2: CUT RES TYPE SCAL"> <img src="img/resonator_arp.png" width="240" alt="RESONATOR 3: MODE ORDR RNGE RATE, two strings' notes held">
+<img src="img/resonator_wet.png" width="240" alt="RESONATOR ringing"> <img src="img/resonator2.png" width="240" alt="RESONATOR 2: CUT RES TYPE SCAL">
 
 ### 6.6 COLOR: dirt and character
 
@@ -817,7 +839,7 @@ M-VAVE's updater puts the stock firmware back. Bryo's projects and tapes can't b
 | **LFO SEQ** held + a knob | how much that modulator moves the knob |
 | **LFO** held + OP1 / OP2 / OP3 | which modulator LFO is: M1, M2, M3 |
 | **LFO** held + SELECT | the modulator's engine (LFO, ADSR, SEQ, FOLLOW) |
-| **ARP** | the arpeggiator (notes on SYNTH and POLY, slices on TAPE, drums on DRUM) |
+| **ARP** | the arpeggiator (notes on SYNTH and POLY, slices on TAPE, drums on DRUM); its page 3, RES ARP, plays RESONATOR's strings |
 | **GLO** held + OCT+ | black keys: shortcuts or notes |
 | **GLO** tapped, **EDIT** ×3 | SETUP: keys, knob speed, hold time, LEDs |
 | **REC** | record onto the track |

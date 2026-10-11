@@ -413,8 +413,7 @@ static void test_input(void)
     press(B_EDIT);
     press(B_EDIT);
     press(B_EDIT);
-    press(B_EDIT);
-    check("EDIT again, past RESONATOR's pages 2 to 4: GRAIN", ui.dev == DEV_GRAIN && ui.page == 0u);
+    check("EDIT again, past RESONATOR's pages 2 and 3: GRAIN", ui.dev == DEV_GRAIN && ui.page == 0u);
     press(B_FX);
     check("FX: COLOR", ui.dev == DEV_COLOR);
     press(B_FX);
@@ -460,11 +459,8 @@ static void test_input(void)
     press(B_EDIT);
     check("..again: RESONATOR's page 2 (CUT RES TYPE SCAL)", ui.dev == DEV_RESO && ui.page == 1u);
     press(B_EDIT);
-    check("..again: RESONATOR's page 3 (its arpeggio: MODE ORDR RNGE RATE)", ui.dev == DEV_RESO && ui.page == 2u &&
-          !strcmp(dev_p(0, DEV_RESO)[pdesc_at(dev_p(0, DEV_RESO), 8u)].label, "MODE"));
-    press(B_EDIT);
-    check("..again: RESONATOR's page 4 (ROUT)", ui.dev == DEV_RESO && ui.page == 3u &&
-          !strcmp(dev_p(0, DEV_RESO)[RP_ROUT].label, "ROUT"));
+    check("..again: RESONATOR's page 3 (ROUT; its arpeggio is the ARP pad's)", ui.dev == DEV_RESO && ui.page == 2u &&
+          !strcmp(dev_p(0, DEV_RESO)[RP_ROUT].label, "ROUT") && pdesc_pages(DEV_P[DEV_RESO]) == 3u);
     press(B_EDIT);
     check("..again: back to GRAIN, page 1", ui.dev == DEV_GRAIN && ui.page == 0u);
     press(B_FX);
@@ -480,6 +476,10 @@ static void test_input(void)
     check("ARP: the arpeggiator's page (not a modulator)", ui.kind == FOCUS_ARP && ui.page == 0u && focus_btn() == B_ARP);
     press(B_ARP);
     check("..again: its page 2", ui.kind == FOCUS_ARP && ui.page == 1u);
+    press(B_ARP);
+    check("..again: page 3, RES ARP (RESONATOR's arpeggio: its MODE is RESONATOR's knob 12)", ui.kind == FOCUS_ARP &&
+          ui.page == 2u && ({ int16_t *vp; const pdesc_t *d = ui_page(0, &vp); vp == &tp[0].dev[DEV_RESO][RP_AMODE] &&
+          !strcmp(d->label, "MODE"); }));
     press(B_ARP);
     check("..and round to the first", ui.kind == FOCUS_ARP && ui.page == 0u);
     hold(B_LFO);                                         /* LFO held + OP3: the LFO pad shows M3 */
@@ -4462,9 +4462,11 @@ static void test_mod(void)
     /* the pages' layout: every knob once; a source's LVL on KNOB 4 of its last page, ROUT left of it (or KNOB 4);
      * every modulator's AMT and OFS on KNOB 3 and 4 of its last page */
     {
-        static const struct { const pdesc_t *p; const char *a, *b; } R[] = {
+        static const struct { const pdesc_t *p; const char *a, *b; uint32_t away; } R[] = {   /* (away: knobs another
+                                                                                       * pad's page shows) */
             {DEV_P[DEV_SRC], 0, "LVL"}, {SYN_P, 0, "LVL"}, {POL_P, 0, "LVL"}, {DRM_P, 0, "LVL"},
-            {DEV_P[DEV_COLOR], "ROUT", "LVL"}, {DEV_P[DEV_GRAIN], 0, "ROUT"}, {DEV_P[DEV_RESO], 0, "ROUT"},
+            {DEV_P[DEV_COLOR], "ROUT", "LVL"}, {DEV_P[DEV_GRAIN], 0, "ROUT"},
+            {DEV_P[DEV_RESO], 0, "ROUT", 0xF000u},            /* (12-15: RES ARP, the ARP pad's page 3) */
             {ME_P[ME_WAVE], "AMT", "OFS"}, {ME_P[ME_ADSR], "AMT", "OFS"}, {ME_P[ME_SEQ], "AMT", "OFS"},
             {ME_P[ME_FOLLOW], "AMT", "OFS"}, {DEV_P[DEV_SPACE], 0, 0}};
         uint32_t i, k, ok = 1, rule = 1;
@@ -4479,7 +4481,8 @@ static void test_mod(void)
             for (k = 0; k < NPK; k++)
                 if (!pdesc_empty(&R[i].p[k]))
                     labelled |= 1u << k;
-            ok &= (labelled & ~seen) == 0u;              /* (every knob that has a label is on a page) */
+            ok &= (labelled & ~seen & ~R[i].away) == 0u;   /* (every knob that has a label is on a page) */
+            ok &= (seen & R[i].away) == 0u;              /* (..and only on one) */
             if (R[i].b)
                 rule &= !strcmp(R[i].p[pdesc_at(R[i].p, n - 1u)].label, R[i].b);
             if (R[i].a)
@@ -5197,7 +5200,17 @@ static void test_projects(void)
     }
     pj_scene();
     check("..a change makes the project changed", pj_changed());
+    fm1_ms += 300;
+    ui_input();
+    draw_head();
+    check("..the header's asterisk shows it (within a quarter second)", ui.unsaved == 1u);
+    shot("BRYO", "unsaved");
     rc = pj_save(1);
+    fm1_ms += 300;
+    ui_input();
+    check("..saved: the asterisk goes", ui.unsaved == 0u);
+    fm1_ms += 300;
+    ui_input();
     memcpy(want, tp, sizeof tp);
     memcpy(wdep, mdl, sizeof mdl);
     memcpy(wtr, track, sizeof track);
@@ -5473,7 +5486,7 @@ static void test_page_keys(void)
     let_go(B_ARP);
     check("ARP held + key 2: the arpeggiator's page 2", ui.kind == FOCUS_ARP && ui.page == 1u);
     press(B_ARP);
-    check("..ARP tapped: its next page, round (on the let-go)", ui.kind == FOCUS_ARP && ui.page == 0u);
+    check("..ARP tapped: its next page (on the let-go)", ui.kind == FOCUS_ARP && ui.page == 2u);
     hold(B_ENV);
     ui_leds();
     led_on(fm1_led, 14u + note_of_white(0));
@@ -6483,16 +6496,26 @@ static void test_arp_sources(void)
     render(4, 0);
     tp[0].arp[AR_MODE] = ARM_OFF;
 
+    {                                                    /* RES ARP's page shows RESONATOR's knobs 12-15 */
+        uint32_t k, same = pdesc_pages(ARP_P) == 3u;
+        for (k = 0; k < 4u; k++) {
+            const pdesc_t *a = &ARP_P[ARP_RES + k], *d = &DEV_P[DEV_RESO][RP_AMODE + k];
+            same &= !strcmp(a->label, d->label) && a->min == d->min && a->max == d->max && a->def == d->def &&
+                    a->fmt == d->fmt;
+        }
+        check("RES ARP (the ARP pad's page 3) describes RESONATOR's knobs 12-15 as they're stored", same);
+    }
     power_on();                                          /* RESONATOR's arpeggio on a TAPE track */
     sys.bpm = 120;
     tp[0].src = SRC_TAPE;
     tp[0].dev[DEV_SRC][TK_LEN] = 25;                     /* (slices: a key would start one, but not here) */
     tp[0].dev[DEV_RESO][RP_WET] = 100;
     tp[0].dev[DEV_RESO][RP_AMODE] = ARM_KEY;
-    focus_dev(DEV_RESO, 2);
-    ui_input();
-    check("RESONATOR's page 3: its arpeggio (MODE ORDR RNGE RATE), the keys its", ui.dev == DEV_RESO && ui.page == 2u &&
-          sys.keys_reso);
+    hold(B_ARP);                                         /* ARP held + key 3: RES ARP */
+    key_edge(note_of_white(2));
+    let_go(B_ARP);
+    check("ARP held + key 3: RES ARP, RESONATOR's arpeggio; the keys its", ui.kind == FOCUS_ARP && ui.page == 2u &&
+          sys.keys_rarp && !sys.keys_reso);
     fm1_in.notes = w1 | w5;
     for (b = 0; b < 172u * 5u; b++) {
         render(1, 0);
@@ -6504,7 +6527,13 @@ static void test_arp_sources(void)
         ran |= tape_rt[0].running;
     }
     check("..KEY, two keys held: the strings plucked at C3 and E3 in turn", roots == 3u && reso_arp[0].n == 2u);
-    shot("BRYO", "resonator_arp");
+    shot("BRYO", "arp_res");
+    hold(B_SCL);                                         /* (SCL + the ARP pad: RES ARP to its defaults: off) */
+    press(B_ARP);
+    let_go(B_SCL);
+    check("..SCL held + ARP on RES ARP: its knobs to their defaults (MODE OFF), the track's ARP left alone",
+          tp[0].dev[DEV_RESO][RP_AMODE] == ARM_OFF && tp[0].dev[DEV_RESO][RP_ARAT] == 3 && ui.page == 2u);
+    tp[0].dev[DEV_RESO][RP_AMODE] = ARM_KEY;
     check("..the tape stays quiet (the keys are the strings' on this page)", !ran && arp_rt[0].n == 0u);
     fm1_in.notes = 0;
     render(4, 0);
@@ -6522,6 +6551,17 @@ static void test_arp_sources(void)
         roots |= reso[0].root16 == 48 * 16 ? 1u : reso[0].root16 == 60 * 16 ? 2u : 0u;
     }
     check("..LTCH, RNGE 2, off its page: C3 and C4 go on plucking", roots == 3u && reso_arp[0].n == 1u);
+    hold(B_ARP);
+    key_edge(note_of_white(2));
+    let_go(B_ARP);
+    fm1_in.notes = 1u << black_note(BK_POLY);
+    key_edge(black_note(BK_POLY));
+    fm1_ms += 600;
+    ui_input();
+    fm1_in.notes = 0;
+    render(2, 0);
+    check("..POLY held on RES ARP: its notes cleared, the track's arpeggio left alone", reso_arp[0].n == 0u &&
+          !strcmp(ui.msg, "RES ARP NOTES CLEARED"));
     tp[0].dev[DEV_RESO][RP_AMODE] = ARM_OFF;
     render(4, 0);
 }

@@ -108,12 +108,17 @@ static void rs_pluck(reso_t *R, uint32_t nstr, int32_t root16, int32_t a, int32_
     }
 }
 
-/* audio ISR: one block of track t's RESONATOR arpeggio (its page's MODE ORDR RNGE RATE; a pluck has no gate):
- * keys, the white keys on the RESONATOR page over base. Returns 1 while a step's note sounds, the note in *note */
+/* audio ISR: one block of track t's RESONATOR arpeggio (RES ARP, the ARP pad's page 3: MODE ORDR RNGE RATE; a pluck
+ * has no gate): keys, the white keys on that page over base. Returns 1 while a step's note sounds, the note in *note */
+static volatile uint8_t reso_arp_clear_req[NTRK];   /* main loop -> ISR: forget RES ARP's notes (POLY held on it) */
 static uint32_t reso_arp_block(uint32_t t, uint32_t keys, uint32_t base, uint32_t n, uint32_t *note)
 {
     const int16_t *p = tp[t].dev[DEV_RESO];
     int16_t a[NARP] = {0};
+    if (reso_arp_clear_req[t]) {
+        reso_arp_clear_req[t] = 0;
+        reso_arp[t].n = 0;
+    }
     a[AR_MODE] = p[RP_AMODE];
     a[AR_ORDR] = p[RP_AORD];
     a[AR_RNGE] = p[RP_ARNG];

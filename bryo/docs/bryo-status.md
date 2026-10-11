@@ -60,7 +60,8 @@ The rest of the hardware checkpoint (`docs/hardware-checkpoint.md`) is under way
   are a keyboard from F on SYNTH and POLY, and the black keys play.
 - **ARP.** Per track, on every source: the keys held go in, one at a time comes out in time (KEY, LTCH, ADD;
   UP DOWN UPDN RND PLAY; 1-3 octaves; RATE, GATE, SWNG): notes on SYNTH and POLY, slices on TAPE, drums on DRUM.
-  RESONATOR has its own (its page 3: MODE ORDR RNGE RATE), plucking the strings at each step's note. `arp.c`.
+  RESONATOR has its own, RES ARP (the ARP pad's page 3: MODE ORDR RNGE RATE), plucking the strings at each step's
+  note. `arp.c`.
 - **DRUM.** Sixteen synthesized instruments on the white keys, a pattern of 2 to 4 bars, ten written rhythms
   (PATN), and SEED: any value but 0 plays a version that varies the pattern the way a player would (the backbone
   kept, ghost notes, the hats thinning and filling, fills at the end), the same version every time. OCT- / OCT+ pick

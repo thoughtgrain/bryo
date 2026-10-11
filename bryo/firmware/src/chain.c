@@ -105,9 +105,10 @@ static void chain_block(int32_t *out, uint32_t n)
         } else {
             in = t == sel ? white : 0u;
         }
-        if (t == sel && ((sys.keys_reso && (!notes || tp[t].dev[DEV_RESO][RP_AMODE] != ARM_OFF)) ||
+        if (t == sel && ((sys.keys_reso && !notes) || (sys.keys_rarp && tp[t].dev[DEV_RESO][RP_AMODE] != ARM_OFF) ||
                          (sys.keys_grain && src == SRC_TAPE)))
-            in = 0;                                    /* (the keys are RESONATOR's or GRAIN's cursor on this page) */
+            in = 0;                                    /* (the keys are RESONATOR's, RES ARP's or GRAIN's cursor on
+                                                        * this page) */
         nb = base;
         play[t] = arp_block(t, in, base, n, &nb);
         key_base[t] = (uint8_t)clamp((int32_t)nb, 0, 127);
@@ -161,12 +162,13 @@ static void chain_block(int32_t *out, uint32_t n)
         }
         if (tp[t].dev[DEV_RESO][RP_AMODE] != ARM_OFF) {   /* RESONATOR's own arpeggio: the keys on its page into it,
                                                          * a pluck at each step's note (whatever the source plays) */
-            ra = reso_arp_block(t, t == sel && sys.keys_reso ? white : 0u, 12u * ((uint32_t)track[t].octave + 1u), n,
+            ra = reso_arp_block(t, t == sel && sys.keys_rarp ? white : 0u, 12u * ((uint32_t)track[t].octave + 1u), n,
                                 &rn);
             if (ra && !reso_arp_on[t])
                 anote = (int32_t)rn;
             reso_arp_on[t] = (uint8_t)ra;
-        } else if (t == sel && white && sys.keys_reso) {   /* the RESONATOR page: the white keys set its root; on a
+        }
+        if (t == sel && white && sys.keys_reso) {   /* the RESONATOR page: the white keys set its root; on a
                                                          * TAPE or DRUM track they pluck it alone (no slice, no drum),
                                                          * on SYNTH or POLY they still play the source too */
             rk = white;

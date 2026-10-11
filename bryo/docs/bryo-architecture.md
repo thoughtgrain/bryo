@@ -1240,8 +1240,8 @@ source now, and RESONATOR got one of its own:
   each step (GATE keeps a block of silence between them), which is exactly a slice jump or a drum hit, so tape.c and
   drum.c didn't change. On TAPE playing, each step jumps the head; stopped, each plays its slice, through the slice
   envelope. The screen's walk shows the slices or drums ("3 DRUMS", "HOLD SOME SLICES"), no octaves.
-- **RESONATOR's arpeggio** is MODE ORDR RNGE RATE on its page 3 (stored at 12-15, so ROUT and everything else kept
-  their places; ROUT moved to page 4 on screen only). `reso_arp_block` (reso.c) builds an `AR_*` array from them
+- **RESONATOR's arpeggio** is MODE ORDR RNGE RATE, stored as RESONATOR's knobs 12-15 (so ROUT and everything else
+  kept their places). It first went on RESONATOR's page 3; it's now RES ARP, the ARP pad's page 3 (below). `reso_arp_block` (reso.c) builds an `AR_*` array from them
   (GATE 50: a pluck has no length, the gate only spaces the steps) and runs `arp_run` on its own state. Its keys are
   the white keys on its page, a semitone each above C of OCT, as the page's keys were already. chain.c turns a step's
   rising edge into a pluck: `reso_block` gets the note, makes it the strings' root and plucks, whatever the source
@@ -1252,7 +1252,8 @@ source now, and RESONATOR got one of its own:
   so it gets the defaults (OFF, UP, 1, 1/16).
 - The header's page dots: RESONATOR's long title and four pages left the tempo bar no room, and the stop square
   covered the last dot. When the bar would be too short the dots go two apart with the shown page a tick instead of a
-  block (only RESONATOR needs it).
+  block. (With RES ARP moved off RESONATOR nothing needs it today, but the unsaved mark and REC can make the bar short
+  too, so it stays.)
 
 What it costs: every track now goes through `arp_block` each block, where TAPE and DRUM used to skip it, and the
 RESONATOR arpeggio's checks run on all four. Measured first, that was about 20 host instructions a sample on every
@@ -1269,6 +1270,30 @@ handing back every key, RNGE kept, the page's keys still reaching the source, no
 fix-up gone), and the factory scene's latched arpeggios, which the move of the project's notes first broke (they were
 put back before the "turned on" clear), are back.
 
+**RES ARP moves to the ARP pad.** Having the strings' arpeggio on RESONATOR's page 3 split arpeggios across two
+pads. It's the ARP pad's page 3 now, titled RES ARP, with MODE as its on/off. Nothing about storage changed: the
+knobs are still RESONATOR's 12-15 (projects, presets and the version 6 fix-up as they were). What changed is where
+the screen points:
+
+- `ARP_P` has a third page (`ARP_RES`, 8-11) with the same descriptors as RESONATOR's 12-15 (a test checks they
+  match), and `ui_page` points those four at `tp[t].dev[DEV_RESO][12..15]` instead of `tp[t].arp`. Everything that
+  goes through `ui_page` (a turn, the cells, SCL's defaults, the page keys' count) followed with no change of its own.
+  RESONATOR's layout is back to three pages; the layout test knows 12-15 are shown on another pad's page.
+- The keys: a new flag, `sys.keys_rarp`, is the RES ARP page being up. With RES ARP's MODE on, its keys go to
+  `reso_arp_block` and the source gets none (the track's own arpeggio neither); MODE OFF, the page plays the track
+  as the other ARP pages do. RESONATOR's own page is as it was before the arpeggio: its keys set the root (and pluck
+  on TAPE and DRUM), a running RES ARP or not.
+- POLY held on RES ARP clears its notes (`reso_arp_clear_req`, read at the next block), as on the ARP page.
+- The screen is the ARP page's walk, fed RESONATOR's state and knobs (`viz_arp` builds the same `AR_*` array
+  `reso_arp_block` does).
+
+**Knowing when you haven't saved.** Losing a cleared track and not knowing whether a save had happened came from
+playing it. The header now shows a small asterisk in the tempo bar whenever the state differs from the last save or
+load. It's `pj_changed()`, the project's fingerprint (a hash over the track state, 3.3 KB, about 5 us on the host),
+so I don't run it every frame: `ui_input` refreshes `ui.unsaved` four times a second and the header redraws when it
+flips. The manual has a "Saving, in short" section up front: tap and hold SAVE, what POLY held clears and how it
+warns first, and how to go back to the last save when undo can't help.
+
 ## Sends: ROUT, as built (2026-10-09)
 
 GRAIN, RESONATOR and COLOR each have a WET, and until now it was always a crossfade: turning WET up turned the dry
@@ -1279,7 +1304,7 @@ full and the effect added. So each of the three now has ROUT, INS or SEND, on it
 | Device | Where ROUT is | INS (as before) | SEND |
 | --- | --- | --- | --- |
 | GRAIN | page 4, KNOB 4 | dry x (1 - WET) + grains x WET | dry + grains x WET |
-| RESONATOR | page 4 (its own page), KNOB 4 | dry x (1 - WET) + strings x WET | dry + strings x WET |
+| RESONATOR | page 3 (its own page), KNOB 4 | dry x (1 - WET) + strings x WET | dry + strings x WET |
 | COLOR | page 3, KNOB 3 (left of LVL) | dry x (1 - WET) + coloured x WET, then LVL | dry + coloured x WET, then LVL |
 
 SPACE has no ROUT: DLY and VERB were always levels added to a full dry, which is a send already.

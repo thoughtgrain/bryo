@@ -63,6 +63,8 @@ static struct {
     uint8_t pg_pad, pg_used;         /* a page's pad down (HOME EDIT FX ENV LFO SEQ ARP; NB: none): the white keys
                                       * show and pick its pages (ui_input.c pad_page); used: a key was, so the let-go
                                       * doesn't turn the page */
+    uint8_t unsaved;                 /* the header's mark: changes since the last save or load (ui_input, 4 times a s) */
+    uint32_t unsaved_t;
     uint8_t scl_held, scl_used;      /* SCL down (a knob turned: its default; the page's pad: the page's defaults), and
                                       * a reset done meanwhile (the snapshot for SAVE held is taken once a hold) */
     uint8_t pj_ask;                  /* .. an action waiting for its second press (PJ_ASK_*), until pj_ask_t */
@@ -164,8 +166,13 @@ static const pdesc_t *ui_page(uint32_t k, int16_t **vp)
         *vp = &p->dins[(ui.drm_inst - 1u) & 15u][k];
         return &DRI_P[k];
     }
-    if (ui.kind == FOCUS_ARP) {                        /* the arpeggiator */
+    if (ui.kind == FOCUS_ARP) {                        /* the arpeggiator; page 3, RES ARP: RESONATOR's arpeggio */
         k += 4u * ui.page;
+        if (k >= ARP_RES) {
+            k = k < ARP_RES + 4u ? k : ARP_RES;
+            *vp = &p->dev[DEV_RESO][RP_AMODE + (k - ARP_RES)];
+            return &ARP_P[k];
+        }
         *vp = &p->arp[k % NARP];
         return &ARP_P[k % NARP];
     }
@@ -190,6 +197,7 @@ static uint32_t hash_str(uint32_t h, const char *s)
 /* [T1] RESONATOR  [rec play metronome 120]: the box names the track (a modulator page: the slot, M1..M4, with its
  * colour under the box), the title the page in bold, and the tempo bar (inverted, like a groovebox's) fills the rest. */
 static const char *const PX_METRO[7] = {"..#..", ".#..#", ".#.#.", "#.#.#", "##..#", "#...#", "#####"};
+static const char *const PX_UNSAVED[5] = {"..#..", "#.#.#", ".###.", "#.#.#", "..#.."};   /* an asterisk: not saved */
 
 static void draw_head(void)
 {
@@ -213,7 +221,8 @@ static void draw_head(void)
     else if (ui.view == VIEW_ROUTE)
         str_cpy(ti, "REC IN", sizeof ti);
     else
-        str_cpy(ti, slot ? ME_NAME[tp[sys.sel].engine[ui.slot]] : arp ? "ARP" : dev_name(sys.sel, ui.dev), sizeof ti);
+        str_cpy(ti, slot ? ME_NAME[tp[sys.sel].engine[ui.slot]] : arp ? (ui.page == 2u ? "RES ARP" : "ARP")
+                : dev_name(sys.sel, ui.dev), sizeof ti);
     if (slot) {                                         /* (a slot shows as its number: M1 M2 M3, the SEQ M4) */
         box[0] = 'M';
         box[1] = (char)('0' + SLOT_NUM[ui.slot % NSLOT]);
@@ -228,7 +237,7 @@ static void draw_head(void)
     }
     fmt_int(bpm, sys.bpm);
     sig = hash_str(hash_str(hash_str(2166136261u, ti), bpm), box) + pages * 977u + page * 61u + sys.playing * 7u + ((sys.rec >> sys.sel) & 1u) * 131u +
-          ux.theme * 3u + (ur.state == UR_RECORDING) * 524287u;
+          ux.theme * 3u + (ur.state == UR_RECORDING) * 524287u + ui.unsaved * 8191u;
     if (!ui.force && sig == ui.sig_head)
         return;
     ui.sig_head = sig;
@@ -244,7 +253,8 @@ static void draw_head(void)
                                                             * bar would have no room left for the tempo, the transport and
                                                             * REC: RESONATOR's four pages) */
             uint32_t g;
-            int32_t need = px_text_w(PXF_5, bpm) + 10 + (((sys.rec >> sys.sel) & 1u) || ui.view == VIEW_USBREC ? 7 : 0);
+            int32_t need = px_text_w(PXF_5, bpm) + 10 + (((sys.rec >> sys.sel) & 1u) || ui.view == VIEW_USBREC ? 7 : 0) +
+                           (ui.unsaved ? 7 : 0);
             int tight = 120 - (x + 2 + 4 * (int32_t)pages) < need;
             for (g = 0; g < pages; g++) {
                 if (tight)
@@ -260,7 +270,7 @@ static void draw_head(void)
         px_box(bar, 1, 120 - bar, 11, px_ink);
         x = 118 - px_text_w(PXF_5, bpm);
         px_text(x, 3, PXF_5, bpm, px_bg);
-        if (x - 7 - bar >= 13)                             /* the metronome, when the title leaves room */
+        if (x - 7 - bar >= 13 + (ui.unsaved ? 7 : 0))     /* the metronome, when the title leaves room */
             px_art(x -= 7, 3, PX_METRO, 7, px_bg);
         x -= 6;
         if (sys.playing) {                                 /* a triangle playing, a square stopped */
@@ -276,6 +286,8 @@ static void draw_head(void)
             px_box(x + 1, 4, 3, 5, px_bg);
             px_box(x, 5, 5, 3, px_bg);
         }
+        if (ui.unsaved && x - 7 >= bar + 1)                /* changes not saved yet: an asterisk (SAVE clears it) */
+            px_art(x - 7, 4, PX_UNSAVED, 5, px_bg);
     }
     px_blit(0);
 }
@@ -518,6 +530,9 @@ static void draw_foot(void)
                                                        * its slot; the SEQ's engine stays) */
         str_cpy(a, ui.slot_btn == B_LFO ? "KNOB:DEPTH OP1-3:M1-3" : ui.slot_held == SLOT_SEQ ? "KNOB:DEPTH"
                    : "KNOB:DEPTH SEL:ENGINE", sizeof a);
+    else if (ui.view == VIEW_PAGE && ui.kind == FOCUS_ARP && ui.page == 2u)   /* RES ARP: the keys the strings' */
+        str_cpy(a, tp[sys.sel].dev[DEV_RESO][RP_AMODE] >= ARM_LTCH ? "POLY HELD: CLEAR"
+                   : tp[sys.sel].dev[DEV_RESO][RP_AMODE] != ARM_OFF ? "KEYS: STRINGS" : "MODE: OFF", sizeof a);
     else if (ui.view == VIEW_PAGE && ui.kind == FOCUS_ARP)   /* the arpeggiator: the keys, and the latched notes' clear */
         str_cpy(a, tp[sys.sel].arp[AR_MODE] >= ARM_LTCH ? "POLY HELD: CLEAR" : tp[sys.sel].src == SRC_TAPE
                    ? "KEYS: SLICES" : tp[sys.sel].src == SRC_DRUM ? "KEYS: DRUMS" : "KEYS: ARP", sizeof a);

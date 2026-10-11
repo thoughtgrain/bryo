@@ -1249,14 +1249,23 @@ static void viz_seq(const int16_t *v, uint32_t f)
  * solid). Under it the order and the octaves, or the last-turned knob. No notes: what to do. */
 static void viz_arp(const int16_t *v, uint32_t f)
 {
-    const arp_rt_t *r = &arp_rt[sys.sel];
+    int16_t ra[NARP] = {0};
+    int res = ui.page == 2u;                                           /* RES ARP: RESONATOR's, its knobs (12-15) as
+                                                                        * an AR_* array, as reso_arp_block builds */
+    const arp_rt_t *r = res ? &reso_arp[sys.sel] : &arp_rt[sys.sel];
     uint8_t s[ARP_MAXN];
-    uint32_t n = arp_notes(tp[sys.sel].arp, r, s), ord = (uint32_t)clamp(v[AR_ORDR], 0, 4), oct = (uint32_t)clamp(v[AR_RNGE], 1, 3);
-    uint32_t len = n * oct, per = n ? (ord == ARO_RND ? len : arp_period(ord, len)) : 0u, show = per < 32u ? per : 32u, i;
-    uint32_t now = r->pos ? (r->pos - 1u) % (per ? per : 1u) : 0u;
+    uint32_t n, ord, oct, len, per, show, i, now;
     int32_t lo = 127, hi = 0, top = DY0 + 1, floor = DY1, h = floor - top;
     char b[24];
-    int notes = tp[sys.sel].src == SRC_SYNTH || tp[sys.sel].src == SRC_POLY;   /* (TAPE, DRUM: slices, drums) */
+    int notes = res || tp[sys.sel].src == SRC_SYNTH || tp[sys.sel].src == SRC_POLY;   /* (TAPE, DRUM: slices, drums) */
+    if (res) {
+        for (i = 0; i < 4u; i++)
+            ra[i] = tp[sys.sel].dev[DEV_RESO][RP_AMODE + i];
+        v = ra;
+    }
+    n = arp_notes(v, r, s);
+    ord = (uint32_t)clamp(v[AR_ORDR], 0, 4);
+    oct = (uint32_t)clamp(v[AR_RNGE], 1, 3);
     if (!notes)
         oct = 1u;                                                      /* (no octaves to spread them over) */
     len = n * oct;
@@ -1289,7 +1298,9 @@ static void viz_arp(const int16_t *v, uint32_t f)
                 px_frame(x, y, bw, floor - y + 1, px_ink, bw > 2 ? 1 : 2);
         }
     }
-    if (f < NARP && !pdesc_empty(&ARP_P[f])) {
+    if (res && f >= ARP_RES && f < ARP_RES + 4u) {
+        vz_ktag(118, DLBL - 1, &ARP_P[f], v[f - ARP_RES]);
+    } else if (!res && f < NARP && !pdesc_empty(&ARP_P[f])) {
         vz_ktag(118, DLBL - 1, &ARP_P[f], v[f]);
     } else {
         str_cpy(b, N_ARO[ord], sizeof b);
@@ -2028,10 +2039,12 @@ static uint32_t viz_sig(void)
         return h + sys.rec * 977u + sys.ntrk * 5381u + 0x55u;
     }
     if (ui.kind == FOCUS_ARP) {                                        /* the arpeggiator: its knobs, its notes, the
-                                                                        * step sounding */
-        const arp_rt_t *r = &arp_rt[sys.sel];
+                                                                        * step sounding (RES ARP: RESONATOR's) */
+        const arp_rt_t *r = ui.page == 2u ? &reso_arp[sys.sel] : &arp_rt[sys.sel];
         for (k = 0; k < NARP; k++)
             h = (h ^ (uint32_t)(tp[sys.sel].arp[k] + 32768)) * 16777619u;
+        for (k = 0; k < 4u; k++)
+            h = (h ^ (uint32_t)(tp[sys.sel].dev[DEV_RESO][RP_AMODE + k] + 32768)) * 16777619u;
         for (k = 0; k < r->n; k++)
             h = (h ^ r->note[k]) * 16777619u;
         return h + ui.page * 389u + tp[sys.sel].src * 3571u + r->n * 131u + r->cur * 7u + r->on * 65537u + (r->pos & 63u) * 524287u;
