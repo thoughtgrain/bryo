@@ -115,6 +115,12 @@ static void tpr_read_rec(uint32_t t)
         if (ss < NSLOT && g < MOD_NTGT && mod_tdesc(g))
             mod_dep_set(t, ss, g, clamp(dp, -100, 100));
     }
+    if (!P->dev[DEV_SRC][TK_ATK] && !P->dev[DEV_SRC][TK_DEC] && !P->dev[DEV_SRC][TK_SUS] && !P->dev[DEV_SRC][TK_REL])
+        for (s = TK_ATK; s <= TK_REL; s++)               /* (a preset from before TAPE had an envelope: all 0s there,
+                                                          * which would silence every slice; its defaults instead.
+                                                          * Records are copied forward unparsed, so there's no
+                                                          * version to ask) */
+            P->dev[DEV_SRC][s] = DEV_P[DEV_SRC][s].def;
     if (P->dev[DEV_SRC][TK_REEL] == 0)                   /* (its own tape: nothing named, the reel it's on stays) */
         P->dev[DEV_SRC][TK_REEL] = reel;
     if (P->pol[PL_REEL] == 0)

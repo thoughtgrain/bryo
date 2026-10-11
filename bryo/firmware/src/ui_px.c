@@ -949,7 +949,8 @@ static void px_picto(uint32_t kind, int32_t x, int32_t y, const pdesc_t *d, int3
 static const uint8_t DEV_PK[NDEV][NPK] = {
     {PK_START, PK_LENGTH, PK_SPEED, PK_LAYERS,       /* TAPE: STRT LEN SPD DUB */
      PK_FADE, PK_TOGGLE, PK_TOGGLE, PK_FADER,        /*       XFAD REV HALF GAIN */
-     PK_SRC, PK_CLOCK, PK_FADER, PK_NONE},           /*       REEL ROTA LVL */
+     PK_SRC, PK_CLOCK, PK_FADER, PK_NONE,            /*       REEL ROTA LVL */
+     PK_ATTACK, PK_DECAY, PK_SUSTAIN, PK_RELEASE},   /*       ATK DEC SUS REL (its page 2: PLAYOUT) */
     {PK_SQUARE, PK_DOTS, PK_KNOB, PK_BOWTIE,         /* GRAIN: SIZE RATE PTCH SPRD */
      PK_MIX, PK_NOISE, PK_WINDOW, PK_DOTS,           /*        WET SPRY CONT REV */
      PK_PATTERN, PK_SCALE, PK_VAR, PK_ROUTE,         /*        PATN SCAL PRND ROUT */

@@ -421,9 +421,11 @@ static void test_input(void)
     press(B_FX);
     check("FX again, past COLOR's pages 2 and 3: SPACE", ui.dev == DEV_SPACE && ui.page == 0u);
     press(B_ENV);
-    check("ENV: modulator slot 2", ui.kind == FOCUS_SLOT && ui.slot == 1u);
+    check("ENV: the source's envelope (TAPE's page 2: ATK DEC SUS REL), ENV lit as its pad",
+          ui.kind == FOCUS_DEV && ui.dev == DEV_SRC && ui.page == 1u && focus_btn() == B_ENV);
+    press(B_FX);
     press(B_HOME);
-    check("HOME: the source again", ui.kind == FOCUS_DEV && ui.dev == DEV_SRC);
+    check("HOME: the source again", ui.kind == FOCUS_DEV && ui.dev == DEV_SRC && ui.page == 0u);
 
     host_enc[panel.enc[EN_K2]] = 3;                      /* KNOB 2 on TAPE: LENGTH 100 -> clamps at 100 */
     host_enc[panel.enc[EN_K3]] = -10;                    /* KNOB 3: SPEED 100 % -> 100 - 10 * 4 = 60 % */
@@ -493,13 +495,13 @@ static void test_input(void)
         host_enc[panel.enc[EN_SELECT]] = 2;
         ui_input();
         let_go(B_LFO);
-        check("a slot's pad held + SELECT: LFO -> FOLLOW (LFO ADSR FOLLOW), from its defaults, the tempo untouched",
-              tp[0].engine[3] == ME_FOLLOW && tp[0].mod[3][2] == ME_P[ME_FOLLOW][2].def && sys.bpm == bpm && ui.page == 0u);
+        check("a slot's pad held + SELECT: LFO -> SEQ (LFO ADSR SEQ FOLLOW), from its defaults, the tempo untouched",
+              tp[0].engine[3] == ME_SEQ && tp[0].mod[3][2] == ME_P[ME_SEQ][2].def && sys.bpm == bpm && ui.page == 0u);
         hold(B_LFO);
         host_enc[panel.enc[EN_SELECT]] = -2;
         ui_input();
         let_go(B_LFO);
-        check("..and back (round the three)", tp[0].engine[3] == ME_WAVE);
+        check("..and back (round the four)", tp[0].engine[3] == ME_WAVE);
         tp[0].mod[3][1] = LFO_RND;                       /* (as it was: the random LFO) */
         hold(B_SEQ);                                     /* the SEQ pad + SELECT: it stays the sequencer */
         host_enc[panel.enc[EN_SELECT]] = 1;
@@ -700,7 +702,9 @@ static void screens_in(const char *pal)
     turn(1, -40);
     turn(3, 30);
     shot(pal, "tape_loop");
-    press(B_HOME);                                       /* TAPE 2: FADE 60 ms, REV on, GAIN +6 dB */
+    press(B_HOME);                                       /* TAPE 2: the slice envelope (as it is) */
+    shot(pal, "tape_env");
+    press(B_HOME);                                       /* TAPE 3: FADE 60 ms, REV on, GAIN +6 dB */
     turn(0, 50);
     turn(1, 1);
     turn(3, 6);
@@ -900,11 +904,12 @@ static void screens_in(const char *pal)
     turn(0, 100);
     shot(pal, "space3");
     for (s = 0; s < NSLOT; s++) {                        /* (by slot: mod3 is the SEQ, M4; mod4 slot 3, M3) */
-        static const uint8_t B[NSLOT] = {B_LFO, B_ENV, B_SEQ, B_LFO};
+        static const uint8_t B[NSLOT] = {B_LFO, B_LFO, B_SEQ, B_LFO};
         char nm[8] = {'m', 'o', 'd', (char)('1' + s), 0};
-        if (s == 3u) {                                   /* M3: LFO held + OP3, let go: its page */
+        if (s == 1u || s == 3u) {                        /* M2, M3: LFO held + OP2 / OP3, let go: its page (ENV is
+                                                          * the source's envelope) */
             hold(B_LFO);
-            key_edge(black_note(BK_OP3));
+            key_edge(black_note(s == 1u ? BK_OP2 : BK_OP3));
             let_go(B_LFO);
             ui.msg_t = 0;
         } else {
@@ -936,17 +941,24 @@ static void screens_in(const char *pal)
     turn(2, -30);
     turn(3, 20);
     shot(pal, "mod1_p4");
-    press(B_ENV);                                        /* ADSR 2: ACRV -60, DCRV +60, RCRV +40, SPRD 40 */
-    press(B_ENV);
+    hold(B_LFO);                                         /* ADSR 2 (M2, the LFO pad on OP2): ACRV -60, DCRV +60, */
+    key_edge(black_note(BK_OP2));                        /* RCRV +40, SPRD 40 */
+    let_go(B_LFO);
+    tap(B_LFO);
+    ui.msg_t = 0;
     turn(0, -60);
     turn(1, 60);
     turn(2, 40);
     turn(3, 40);
     shot(pal, "mod2_p2");
-    press(B_ENV);                                        /* ADSR 3: VEL 40, LOOP on */
+    tap(B_LFO);                                          /* ADSR 3: VEL 40, LOOP on */
     turn(0, 40);
     turn(1, 1);
     shot(pal, "mod2_p3");
+    hold(B_LFO);                                         /* (the LFO pad back to M1) */
+    key_edge(black_note(BK_OP1));
+    let_go(B_LFO);
+    ui.msg_t = 0;
     press(B_SEQ);
     turn(0, -4);                                         /* SEQ: LEN 12, SLEW 60, SWING 50 */
     turn(2, 60);
@@ -4279,17 +4291,21 @@ static void test_mod(void)
     tap(B_LFO);
     check("..again: its next page", ui.kind == FOCUS_SLOT && ui.page == 1u);
     press(B_HOME);
-    hold(B_ENV);
+    hold(B_LFO);
+    key_edge(black_note(BK_OP2));                        /* (the LFO pad on M2: ENV is the envelope's page now) */
     {
         int32_t d = host_enc[panel.enc[EN_SELECT]] = 1;
         (void)d;
         ui_input();
     }
-    check("slot pad held + SELECT: that slot's engine (ADSR -> FOLLOW: a swappable one skips SEQ), the page stays",
-          tp[0].engine[1] == ME_FOLLOW &&
-                                                                        ui.kind == FOCUS_DEV && ui.dev == DEV_SRC);
+    check("slot pad held + SELECT: that slot's engine (M2: ADSR -> SEQ, any of four), the page stays",
+          tp[0].engine[1] == ME_SEQ && ui.kind == FOCUS_DEV && ui.dev == DEV_SRC);
     turn(2, -10);                                        /* TAPE SPD */
-    let_go(B_ENV);
+    let_go(B_LFO);
+    hold(B_LFO);
+    key_edge(black_note(BK_OP1));                        /* (back to M1) */
+    let_go(B_LFO);
+    press(B_HOME);
     check("..and KNOB 3 on TAPE: slot 2's depth to SPD", mod_dep(0, 1, MOD_TSRC + TK_SPD) == -10);
     check("..depths stay when the engine changes", mod_dep(0, 0, MOD_TG(DEV_COLOR, 1)) == 5);
     hold(B_LFO);
@@ -4473,9 +4489,10 @@ static void test_mod(void)
     }
     power_on();
     press(B_HOME);
-    press(B_HOME);                                       /* TAPE page 3 (the source shows from power-on) */
+    press(B_HOME);
+    press(B_HOME);                                       /* TAPE page 4 (the source shows from power-on) */
     turn(3, -2);
-    check("TAPE page 3, KNOB 4: LVL", ui.page == 2u && tp[0].dev[DEV_SRC][TK_LVL] == -2);
+    check("TAPE page 4 (its last), KNOB 4: LVL", ui.page == 3u && tp[0].dev[DEV_SRC][TK_LVL] == -2);
     press(B_FX);
     press(B_FX);
     press(B_FX);                                         /* COLOR page 3 */
@@ -5317,8 +5334,109 @@ static void test_projects(void)
     power_on();
     rc |= pj_load(0);
     check("..a version 2 one keeps SEQ's AMT as saved", rc == 0 && tp[0].mod[2][9] == 37);
+    tp[0].dev[DEV_SRC][TK_ATK] = 0;                      /* a version 4 project: TAPE's envelope wasn't there (0s) */
+    tp[0].dev[DEV_SRC][TK_DEC] = 0;
+    tp[0].dev[DEV_SRC][TK_SUS] = 0;
+    tp[0].dev[DEV_SRC][TK_REL] = 0;
+    pj_wver = 4;
+    rc = pj_save(0);
+    pj_wver = PJ_VERSION;
+    power_on();
+    rc |= pj_load(0);
+    check("a version 4 project: TAPE's envelope gets its defaults (SUS 100, REL long), not the 0s",
+          rc == 0 && tp[0].dev[DEV_SRC][TK_SUS] == 100 && tp[0].dev[DEV_SRC][TK_REL] == DEV_P[DEV_SRC][TK_REL].def);
     pj_wipe();
     power_on();
+}
+
+/* ENV: the source's envelope page on every source; TAPE's slice envelope, stopped and playing */
+static int32_t env_peak(uint32_t blocks)
+{
+    uint32_t b;
+    int32_t pk = 0;
+    for (b = 0; b < blocks; b++) {
+        render(1, 0);
+        pk = peak_of(track_rt[0].last, CTL) > pk ? peak_of(track_rt[0].last, CTL) : pk;
+    }
+    return pk;
+}
+static void test_env_pad(void)
+{
+    static const uint8_t SRCS[4] = {SRC_TAPE, SRC_SYNTH, SRC_POLY, SRC_DRUM};
+    static const char *const FIRST[4] = {"ATK", "ATK", "ATK", "TUNE"};
+    uint32_t i, k1 = note_of_white(0);
+    int32_t held, after, tail;
+    for (i = 0; i < 4u; i++) {
+        int16_t *vp;
+        power_on();
+        tp[0].src = SRCS[i];
+        press(B_ENV);
+        {
+            char m[96];
+            const pdesc_t *d = ui_page(0, &vp);
+            snprintf(m, sizeof m, "ENV on %s: its envelope's page (KNOB 1 %s), ENV lit", SRC_NAME[SRCS[i]], d->label);
+            check(m, ui.view == VIEW_PAGE && ui.dev == DEV_SRC && !strcmp(d->label, FIRST[i]) && focus_btn() == B_ENV);
+        }
+    }
+
+    /* TAPE stopped: a held key's slice through ATK DEC SUS, REL as it's let go */
+    power_on();
+    track[1].mute = track[2].mute = track[3].mute = 1;
+    tp[0].dev[DEV_SRC][TK_REEL] = 2;
+    render(50, 0);
+    fm1_in.notes = 1u << k1;
+    held = env_peak(60);
+    fm1_in.notes = 0;
+    after = env_peak(3000);
+    check("TAPE, the defaults: a tapped slice plays as before (to its end, then silence)", held > 1000 &&
+                                                                                        peak_of(track_rt[0].last, CTL) == 0);
+    tp[0].dev[DEV_SRC][TK_DEC] = 30;                     /* DEC short, SUS 0: a held slice dies away */
+    tp[0].dev[DEV_SRC][TK_SUS] = 0;
+    fm1_in.notes = 1u << k1;
+    held = env_peak(20);
+    tail = env_peak(200);
+    check("..SUS 0, DEC short: a held slice sounds, then dies away while the key's still held", held > 1000 && tail < held / 50);
+    fm1_in.notes = 0;
+    render(50, 0);
+    tp[0].dev[DEV_SRC][TK_SUS] = 100;                    /* SUS 100, REL short: let go, it stops */
+    tp[0].dev[DEV_SRC][TK_REL] = 20;
+    fm1_in.notes = 1u << k1;
+    held = env_peak(40);
+    fm1_in.notes = 0;
+    render(20, 0);
+    after = env_peak(20);
+    check("..REL short: let go, it's silent within a few ms", held > 1000 && after == 0);
+    tp[0].dev[DEV_SRC][TK_ATK] = 90;                     /* ATK long (~0.7 s): it rises */
+    fm1_in.notes = 1u << k1;
+    held = env_peak(3);
+    tail = env_peak(400);
+    fm1_in.notes = 0;
+    render(100, 0);
+    check("..ATK long: the slice rises (quiet at first)", held < tail / 8 && tail > 1000);
+
+    /* playing: the loop as it is; a key's jump fades in over ATK */
+    tp[0].dev[DEV_SRC][TK_ATK] = 0;
+    sys.playing = 1;
+    held = env_peak(200);
+    check("TAPE playing, no key: the loop as it is (SUS and REL don't gate it)", held > 1000);
+    tp[0].dev[DEV_SRC][TK_ATK] = 90;
+    fm1_in.notes = 1u << k1;
+    render(1, 0);
+    after = env_peak(2);
+    tail = env_peak(400);
+    fm1_in.notes = 0;
+    held = env_peak(400);
+    check("..a key's jump fades in over ATK, and let go the loop stays", after < tail / 4 && held > 1000);
+    tp[0].dev[DEV_SRC][TK_ATK] = 0;                      /* SUS 0 and a key held long: the loop doesn't die away */
+    tp[0].dev[DEV_SRC][TK_DEC] = 20;
+    tp[0].dev[DEV_SRC][TK_SUS] = 0;
+    fm1_in.notes = 1u << k1;
+    render(300, 0);
+    tail = env_peak(300);
+    fm1_in.notes = 0;
+    check("..playing, SUS 0 and a key held: the loop still sounds (DEC SUS REL are the stopped slice's)", tail > 1000);
+    sys.playing = 0;
+    render(4, 0);
 }
 
 /* track presets (tpreset.c): one track's sound saved, loaded into another, what stays with the track, the undo, a
@@ -6537,6 +6655,7 @@ int main(int argc, char **argv)
     test_drum_play_fixes();
     test_sends();
     test_projects();
+    test_env_pad();
     test_tpresets();
     test_tpfactory();
     test_arp_keys();

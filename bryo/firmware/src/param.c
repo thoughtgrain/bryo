@@ -69,7 +69,12 @@ static const pdesc_t DEV_P[NDEV][NPK] = {
         /* 3: what the track plays: its own tape, a factory reel or one of your reels (in flash; REC copies it onto
          * the tape); ROTATE: where in the loop playing (and slice 1) starts against the transport; LVL: what the
          * track hears of its tape (the S-4's LEVEL, on every source's last page; REC's GAIN is what goes on) */
-        {"REEL", 0, NREEL + USLOT_N, 0, F_ENUM, N_REEL}, {"ROTA", 0, 99, 0, F_PCT}, {"LVL", -24, 6, 0, F_DB}, {""}},
+        {"REEL", 0, NREEL + USLOT_N, 0, F_ENUM, N_REEL}, {"ROTA", 0, 99, 0, F_PCT}, {"LVL", -24, 6, 0, F_DB}, {""},
+        /* the envelope of a slice the keys play (ENV opens it, page 2): stopped, the slice through ATK DEC SUS while
+         * the key's held and REL after; playing, a key's jump fades in over ATK (the loop itself isn't gated). The
+         * defaults change nothing: REL long enough that a tapped slice plays to its end */
+        {"ATK", 0, 127, 0, F_TIME}, {"DEC", 0, 127, 60, F_TIME}, {"SUS", 0, 100, 100, F_PCT},
+        {"REL", 0, 127, 127, F_TIME}},
     {   /* GRAIN (the S-4's MOSAIC) */
         {"SIZE", 5, 500, 80, F_MS}, {"RATE", 0, 100, 40, F_PCT},
         {"PTCH", -24, 24, 0, F_ST}, {"SPRD", 0, 100, 30, F_PCT},
@@ -312,7 +317,8 @@ typedef struct {
     uint8_t at[NPK];
 } playout_t;
 static const playout_t PLAYOUT[] = {
-    {DEV_P[DEV_SRC], 3, {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 10}},                 /* TAPE: REEL ROTA . LVL */
+    {DEV_P[DEV_SRC], 4, {0, 1, 2, 3, 12, 13, 14, 15, 4, 5, 6, 7, 8, 9, 11, 10}},   /* TAPE: the envelope second (as
+                                                                                     * SYNTH's, POLY's), REEL ROTA . LVL */
     {DEV_P[DEV_GRAIN], 4, {0, 1, 2, 3, 4, 5, 6, 7, 12, 13, 14, 15, 8, 9, 10, 11}},   /* GRAIN: SCAN.. then PATN..ROUT */
     {DEV_P[DEV_RESO], 3, {0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 8}},               /* RESONATOR: . . . ROUT */
     {DEV_P[DEV_COLOR], 3, {0, 1, 2, 3, 4, 5, 6, 7, 10, 11, 9, 8}},              /* COLOR: . . ROUT LVL */
@@ -361,7 +367,7 @@ static const uint8_t SLOT_DEF_ENGINE[NSLOT] = {ME_WAVE, ME_ADSR, ME_SEQ, ME_WAVE
 static const uint8_t SLOT_NUM[NSLOT] = {1, 2, 4, 3};  /* the number a slot shows as: M1 M2 M4 M3 */
 static const uint8_t SLOT_OF_NUM[NSLOT] = {0, 1, 3, 2};   /* .. and back: M1..M4's slot */
 /* the engines a swappable slot can run (not SEQ: the SEQ pad has it) */
-static const uint8_t SWAP_ENGINE[3] = {ME_WAVE, ME_ADSR, ME_FOLLOW};
+static const uint8_t SWAP_ENGINE[4] = {ME_WAVE, ME_ADSR, ME_SEQ, ME_FOLLOW};   /* (the LFO pad's M1-M3: any of four) */
 
 typedef struct {
     int16_t dev[NDEV][NPK];

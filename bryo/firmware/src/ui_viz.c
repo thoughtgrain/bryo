@@ -99,8 +99,19 @@ static void vz_poly(const int32_t *xs, const int32_t *ys, int32_t n, uint16_t c,
 }
 
 /* -------------------------------------------------------------- TAPE --- */
+static void viz_adsr(const int16_t *v, uint32_t f);
 static void viz_tape(const int16_t *v, uint32_t f)
 {
+    if (pdesc_at(DEV_P[DEV_SRC], 4u * ui.page) / 4u == 3u) {   /* the envelope's page: the envelope, as SYNTH's */
+        int16_t a[NPK] = {0};
+        a[0] = v[TK_ATK];
+        a[1] = v[TK_DEC];
+        a[2] = v[TK_SUS];
+        a[3] = v[TK_REL];
+        a[10] = 100;
+        viz_adsr(a, f >= TK_ATK && f <= TK_REL ? f - TK_ATK : 0xFFu);
+        return;
+    }
     /* The whole of what the track plays (its tape or a reel, named at the top left), its sound drawn large from the
      * blocks' peaks (each dot column the loudest block under it, so no hit falls between columns): lit inside the
      * loop window (STRT, LEN, bracketed), dim outside, with the 16 slices the white keys play ticked under it. The
@@ -725,8 +736,20 @@ static void viz_adsr(const int16_t *v, uint32_t f)
         px_line(xs[k], ny + 2, xs[k], base, px_dim, 2);
         vz_node(xs[k], ny, 0);
     }
-    for (k = 0; k < 4; k++)                                            /* the stages, named under their stretch */
-        vz_label((xs[k] + xs[k + 1]) / 2 + 1, L[k], f == (uint32_t)k || f == (uint32_t)CRV[k]);
+    {                                                                  /* the stages, named under their stretch,
+                                                                        * kept apart when stages are short */
+        int32_t lx[4];
+        for (k = 0; k < 4; k++)
+            lx[k] = (xs[k] + xs[k + 1]) / 2 + 1;
+        for (k = 1; k < 4; k++)
+            if (lx[k] < lx[k - 1] + 22)
+                lx[k] = lx[k - 1] + 22;
+        for (k = 3; k >= 0; k--)
+            if (lx[k] > DX1 - 10 - (3 - k) * 22)
+                lx[k] = DX1 - 10 - (3 - k) * 22;
+        for (k = 0; k < 4; k++)
+            vz_label(lx[k], L[k], f == (uint32_t)k || f == (uint32_t)CRV[k]);
+    }
     if (f >= 4u && f < NPK)
         vz_ktag(118, DY0 - 1, &ME_P[ME_ADSR][f], v[f]);
 }
@@ -834,7 +857,7 @@ static void viz_synth(const int16_t *v, uint32_t f)
         a[2] = v[SY_SUS];
         a[3] = v[SY_REL];
         a[10] = 100;                                  /* (AMT 100, OFS 0: the envelope as it is) */
-        viz_adsr(a, f < 4u ? f : 0xFFu);
+        viz_adsr(a, f >= SY_ATK && f <= SY_REL ? f - SY_ATK : 0xFFu);
     } else if (bp >= 4u) {
         vz_level(v[SY_LVL], &SYN_P[SY_LVL], f == SY_LVL);
     } else {

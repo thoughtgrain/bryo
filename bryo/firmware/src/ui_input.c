@@ -46,7 +46,8 @@
  * functions. */
 
 /* the pad a slot's page belongs to (slot 1, M2, shows on ENV; the LFO pad can show it too) */
-static const uint8_t SLOT_BTN[NSLOT] = {B_LFO, B_ENV, B_SEQ, B_LFO};
+static const uint8_t SLOT_BTN[NSLOT] = {B_LFO, B_LFO, B_SEQ, B_LFO};   /* (M1-M3 through the LFO pad; ENV is the
+                                                                     * source's envelope page) */
 
 /* ------------------------------------------------------------ LEDs --- */
 static uint8_t led_pos[41];          /* button 0..13 / key 14..40 -> (column << 3) | row; 0xFF none */
@@ -76,6 +77,10 @@ static void led_clear(uint8_t *nl, uint32_t id)
         nl[q >> 3] &= (uint8_t)~(1u << (q & 7u));
 }
 
+/* the page of the focused track's source that ENV opens: SYNTH's AMP, POLY's ENV, TAPE's envelope (each the second
+ * page), DRUM's KIT (every instrument's decay, with TUNE TONE DRV) */
+static uint32_t env_page(void) { return tp[sys.sel].src == SRC_DRUM ? 2u : 1u; }
+
 /* the pad that focuses what the screen shows */
 static uint32_t focus_btn(void)
 {
@@ -88,7 +93,9 @@ static uint32_t focus_btn(void)
         return B_ARP;
     if (ui.kind == FOCUS_SLOT)
         return SLOT_BTN[ui.slot % NSLOT];
-    return ui.dev == DEV_SRC ? B_HOME : ui.dev <= DEV_RESO ? B_EDIT : B_FX;
+    if (ui.dev == DEV_SRC)
+        return ui.page == env_page() ? B_ENV : B_HOME;   /* (the envelope's page: ENV is its pad) */
+    return ui.dev <= DEV_RESO ? B_EDIT : B_FX;
 }
 
 /* Lit: the focus pad, REC armed, the octave keys away from the default, the muted tracks' OP keys. The rest glow
@@ -571,7 +578,7 @@ static void on_button(uint32_t b)
         pad_devices(DEV_COLOR, DEV_SPACE);
         break;
     case B_LFO: slot_down(ui.lfo_slot, B_LFO); break;   /* (M1 M2 M3: the one it shows) */
-    case B_ENV: slot_down(1, B_ENV); break;              /* M2 */
+    case B_ENV: focus_dev(DEV_SRC, env_page()); break;  /* the source's envelope (M2 is on the LFO pad: OP2) */
     case B_SEQ: slot_down(SLOT_SEQ, B_SEQ); break;       /* M4, the sequencer */
     case B_ARP: focus_arp(); break;
     case B_GLO:
@@ -1085,14 +1092,14 @@ static void ui_input(void)
         slot_up();                                      /* (after the knobs: a turn in the same pass counts) */
     if ((d = panel_enc(EN_SELECT)) != 0) {
         if (ui.slot_held != SLOT_NONE) {
-            /* a slot's pad held + SELECT: its engine (LFO ADSR FOLLOW), from its defaults; its depths stay. The SEQ
-             * pad's stays the sequencer */
+            /* a slot's pad held + SELECT: its engine (LFO ADSR SEQ FOLLOW), from its defaults; its depths stay. The
+             * SEQ pad's stays the sequencer */
             uint32_t s = ui.slot_held, i, e;
             char m[24] = "M";
             ui.slot_used = 1;
-            for (i = 0; i < 3u && SWAP_ENGINE[i] != tp[sys.sel].engine[s]; i++)
+            for (i = 0; i < 4u && SWAP_ENGINE[i] != tp[sys.sel].engine[s]; i++)
                 ;
-            e = SWAP_ENGINE[(uint32_t)(((int32_t)(i % 3u) + d % 3 + 3) % 3)];
+            e = SWAP_ENGINE[(uint32_t)(((int32_t)(i % 4u) + d % 4 + 4) % 4)];
             if (s == SLOT_SEQ) {
                 ui_message("M4 IS THE SEQUENCER");
             } else {

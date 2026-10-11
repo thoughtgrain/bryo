@@ -41,8 +41,8 @@ should hear. Do them in order the first time; after that, jump to what you need.
 - **Top right**, **KNOB 1 to 4**: they always change the four values on the screen.
 - **The pads**, two rows:
   - **Blue: the pages.** HOME (the track's source), EDIT (GRAIN, RESONATOR), FX (COLOR, SPACE), GLO (the mixer).
-  - **Purple: the modulators.** LFO holds three you can swap around (M1, M2, M3), ENV goes straight to M2, SEQ is
-    M4, the step sequencer.
+  - **Purple: the modulators and the envelope.** LFO holds three you can swap around (M1, M2, M3), SEQ is M4, the
+    step sequencer. **ENV** is the track's own envelope: SYNTH's and POLY's, TAPE's slices', DRUM's KIT.
   - **ARP** is the arpeggiator.
   - **Green: the transport.** PLAY and REC.
   - **SAVE** saves (held: undo). **SCL** held resets things.
@@ -68,10 +68,11 @@ Every pad opens a page, and **pressing the same pad again goes to its next page*
 
 | Pad | Pages, in order |
 | --- | --- |
-| HOME | the source's pages (TAPE has 3; SYNTH 5; POLY 4; DRUM 4) |
+| HOME | the source's pages (TAPE has 4; SYNTH 5; POLY 4; DRUM 4) |
 | EDIT | GRAIN 1-4, then RESONATOR 1-3 |
 | FX | COLOR 1-3, then SPACE 1-3 |
-| LFO, ENV, SEQ | a modulator's pages (LFO: M1, M2 or M3; ENV: M2; SEQ: M4) |
+| ENV | the source's envelope: SYNTH's AMP, POLY's ENV, TAPE's slice envelope (each the second page), DRUM's KIT |
+| LFO, SEQ | a modulator's pages (LFO: M1, M2 or M3; SEQ: M4) |
 | ARP | the arpeggiator: 2 pages |
 | GLO | the mixer (EDIT then steps CHANNEL, MASTER, SETUP) |
 
@@ -181,18 +182,28 @@ Stopped, a key plays its slice once.
 - Black key **OP5**: the track's tape backwards, on or off.
 - Black key **OP6**: half speed, on or off.
 
-They're the same switches as REV and HALF on the TAPE page 2.
+They're the same switches as REV and HALF on TAPE's page 3.
 
-<img src="img/tape2.png" width="240" alt="TAPE 2: XFAD REV HALF GAIN">
+<img src="img/tape2.png" width="240" alt="TAPE 3: XFAD REV HALF GAIN">
+
+### 2.4b Shape the slices: TAPE's envelope
+
+Press **ENV** (or HOME to the second page): **ATK DEC SUS REL**, an envelope for the slices you play from the keys.
+
+- **Stopped**, a key's slice rises over ATK, falls over DEC to SUS while you hold the key, and fades over REL when you
+  let go. Out of the box it changes nothing: a tapped slice plays to its end, as before.
+- **Playing**, the loop keeps going as it is; a key's jump fades in over ATK (a long ATK makes the jumps swell in).
+
+<img src="img/tape_env.png" width="240" alt="TAPE 2: the slice envelope">
 
 ### 2.5 Play a different reel
 
-1. Press **HOME** until the dots show the third page, **TAPE 3**.
+1. Press **HOME** until the dots show the last page, **TAPE 4**.
 2. Turn **KNOB 1 (REEL)**: BEAT, BELL, DRON, FOLD, then any reels you've added. **TAPE** means the track's own tape
    (what you record onto it).
 3. **KNOB 2 (ROTA)** moves where the loop starts; **KNOB 4 (LVL)** is how loud the track hears its source.
 
-<img src="img/tape3.png" width="240" alt="TAPE 3: REEL, ROTA, LVL">
+<img src="img/tape3.png" width="240" alt="TAPE 4: REEL, ROTA, LVL">
 
 ---
 
@@ -551,9 +562,10 @@ SPACE always works as a send.
 
 Each track has **four modulators**. A modulator makes knobs move by themselves.
 
-- **M1, M2, M3** live on the **LFO** pad. Each can be an **LFO** (a wave), an **ADSR** (an envelope) or a
-  **FOLLOW** (follows how loud a track is). Out of the box: M1 is a slow LFO, M2 an envelope, M3 a random LFO.
-- **ENV** goes straight to M2.
+- **M1, M2, M3** live on the **LFO** pad (hold LFO and tap OP1, OP2 or OP3 to choose). Each can be an **LFO** (a
+  wave), an **ADSR** (an envelope), a **SEQ** (steps) or a **FOLLOW** (follows how loud a track is). Out of the box:
+  M1 is a slow LFO, M2 an envelope, M3 a random LFO.
+- (**ENV** isn't a modulator: it opens the track's own envelope page.)
 - **M4** is the step sequencer, on the **SEQ** pad.
 
 ### 7.1 Make a knob move
@@ -596,10 +608,10 @@ From then on, LFO is that modulator, until you pick another.
 
 ### 7.5 Change a modulator's engine
 
-M1, M2 and M3 can each be **LFO**, **ADSR** (an envelope the keys, the arpeggiator or the loop set off) or
+M1, M2 and M3 can each be **LFO**, **ADSR** (an envelope the keys, the arpeggiator or the loop set off), **SEQ** or
 **FOLLOW**.
 
-1. **Hold its pad** (LFO, or ENV for M2).
+1. **Hold LFO** (with the modulator you want chosen: hold LFO and tap OP1-OP3).
 2. **Turn SELECT** to pick the engine.
 
 Its depths stay where they were. M4 always stays the step sequencer.
@@ -782,10 +794,11 @@ M-VAVE's updater puts the stock firmware back. Bryo's projects and tapes can't b
 | **HOME** held + SELECT | change the source |
 | **EDIT** | GRAIN, then RESONATOR |
 | **FX** | COLOR, then SPACE |
-| **LFO ENV SEQ** tapped | that modulator's pages (LFO: M1-M3, ENV: M2, SEQ: M4) |
-| **LFO ENV SEQ** held + a knob | how much that modulator moves the knob |
+| **ENV** | the source's envelope page |
+| **LFO SEQ** tapped | that modulator's pages (LFO: M1-M3, SEQ: M4) |
+| **LFO SEQ** held + a knob | how much that modulator moves the knob |
 | **LFO** held + OP1 / OP2 / OP3 | which modulator LFO is: M1, M2, M3 |
-| **LFO ENV** held + SELECT | the modulator's engine (LFO, ADSR, FOLLOW) |
+| **LFO** held + SELECT | the modulator's engine (LFO, ADSR, SEQ, FOLLOW) |
 | **ARP** | the arpeggiator (SYNTH, POLY) |
 | **GLO** held + OCT+ | black keys: shortcuts or notes |
 | **GLO** tapped, **EDIT** ×3 | SETUP: keys, knob speed, hold time, LEDs |

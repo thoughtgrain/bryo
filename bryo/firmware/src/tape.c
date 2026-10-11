@@ -48,7 +48,8 @@
 #define TAPE_DECLICK 88              /* the shortest fade (a jump, start and stop): 2 ms at 44.1 kHz */
 
 /* the knobs (param.c DEV_P[DEV_SRC]) */
-enum { TK_STRT, TK_LEN, TK_SPD, TK_DUB, TK_FADE, TK_REV, TK_HALF, TK_GAIN, TK_REEL, TK_ROTA, TK_LVL };
+enum { TK_STRT, TK_LEN, TK_SPD, TK_DUB, TK_FADE, TK_REV, TK_HALF, TK_GAIN, TK_REEL, TK_ROTA, TK_LVL, TK_ATK = 12, TK_DEC,
+       TK_SUS, TK_REL };
 
 typedef struct {                     /* a reel in flash (bryo_reels.h REELS_INIT) */
     const char *name;
@@ -116,8 +117,11 @@ typedef struct {                     /* ISR only */
     uint8_t was_playing;
     uint8_t grew;                    /* the head has started on a growing tape */
     uint8_t wgen;                    /* the list's gen when the staged block was read */
+    uint8_t est, ekey;               /* the slice envelope's stage (TE_*), and the key that started it */
+    int32_t env;                     /* .. its level at the last block's end, Q15 (32767: as it is) */
     uint32_t keys_prev;
 } tape_rt_t;
+enum { TE_IDLE, TE_JUMP, TE_ATK, TE_DEC, TE_SUS, TE_REL };
 static tape_rt_t tape_rt[NTRK] __attribute__((section(".pool")));
 
 /* the clear's undo: one, for the last clear, until REC writes over it */
@@ -411,6 +415,58 @@ static void tape_slice(uint32_t t, uint32_t k, int32_t ls, int32_t ll, int32_t i
     }
 }
 
+/* a stage's step a block (Q15 of the whole swing), from its time knob (TIME_MS_X10: 0.1 ms units); a block is
+ * 32 samples, 0.726 ms. (A divide a block, not a sample) */
+static int32_t tape_env_step(int32_t v)
+{
+    uint32_t st = 237756u / (uint32_t)(TIME_MS_X10[v & 127] | 1u);
+    return st > 32767u ? 32767 : st ? (int32_t)st : 1;
+}
+
+/* the slice envelope, a block on: its level at this block's end. Stopped, a key's slice goes ATK DEC SUS while that
+ * key is held, then REL, and the head stops when it's silent; playing, a key's jump fades in over ATK and the loop
+ * runs as it is (TE_IDLE: unity) */
+static int32_t tape_env(tape_rt_t *rt, const int16_t *p, uint32_t keys, uint32_t playing)
+{
+    int32_t sus = clamp(p[TK_SUS], 0, 100) * 32767 / 100;
+    int gate = (int)((keys >> rt->ekey) & 1u);
+    switch (rt->est) {
+    case TE_JUMP:
+    case TE_ATK:
+        rt->env += tape_env_step(p[TK_ATK]);
+        if (rt->env >= 32767) {
+            rt->env = 32767;
+            rt->est = rt->est == TE_JUMP ? TE_IDLE : TE_DEC;
+        }
+        break;
+    case TE_DEC:
+        rt->env -= tape_env_step(p[TK_DEC]);
+        if (rt->env <= sus) {
+            rt->env = sus;
+            rt->est = TE_SUS;
+        }
+        break;
+    case TE_SUS:
+        rt->env = sus;
+        break;
+    case TE_REL:
+        rt->env -= tape_env_step(p[TK_REL]);
+        if (rt->env <= 0) {
+            rt->env = 0;
+            rt->est = TE_IDLE;
+            if (!playing)
+                rt->running = 0;                       /* (released and silent: the slice is over) */
+        }
+        break;
+    default:
+        rt->env = playing || rt->running ? 32767 : rt->env;
+        break;
+    }
+    if (!gate && (rt->est == TE_ATK || rt->est == TE_DEC || rt->est == TE_SUS))
+        rt->est = TE_REL;                              /* (let go: the release, from where it is) */
+    return rt->env;
+}
+
 /* audio ISR: n output samples of track t (mono Q15, before level) into out; keys: the white keys held on this
  * track; rec_in: what REC records (n samples), 0 when not recording */
 static void tape_block(uint32_t t, uint32_t keys, const int32_t *rec_in, int32_t *out, uint32_t n)
@@ -418,7 +474,7 @@ static void tape_block(uint32_t t, uint32_t keys, const int32_t *rec_in, int32_t
     tape_rt_t *rt = &tape_rt[t];
     tape_ctl_t *c = &tape_ctl[t];
     tape_view_t v;
-    int32_t ls, ll, inc = tape_inc(t), i, keep, inl, gain = db_q10(TPD(t, DEV_SRC)[TK_GAIN]), wlen, xk;
+    int32_t ls, ll, inc = tape_inc(t), i, keep, inl, gain = db_q10(TPD(t, DEV_SRC)[TK_GAIN]), wlen, xk, e0, e1;
     uint32_t k, press = keys & ~rt->keys_prev, playing = sys.playing;
     int rec = rec_in && c->rec_ok && tape_src(t) == 0u, grow;
     if (c->grow && !rec) {                             /* REC let go of a growing tape: its length is what it has */
@@ -457,6 +513,8 @@ static void tape_block(uint32_t t, uint32_t keys, const int32_t *rec_in, int32_t
         rec = 0;                                       /* DUB +100: nothing comes in, so nothing is re-encoded */
     if (playing != rt->was_playing) {                  /* the transport: all heads from the loop's start (ROTATE's) */
         rt->was_playing = (uint8_t)playing;
+        rt->est = TE_IDLE;                             /* (the transport: the loop as it is) */
+        rt->env = 32767;
         if (playing) {
             mod_seam |= (uint8_t)(1u << t);            /* (the loop starts: an ADSR's one-shot, mod.c) */
             rt->pos = (grow ? 0 : tape_rot(t, ls, ll, inc < 0 ? -1 : 0)) << 12;
@@ -470,8 +528,17 @@ static void tape_block(uint32_t t, uint32_t keys, const int32_t *rec_in, int32_t
     for (k = 0; press && !grow && k < NWHITE; k++)       /* a new key: its slice (the lowest, one per block) */
         if ((press >> k) & 1u) {
             tape_slice(t, k, ls, ll, inc);
+            rt->est = playing ? TE_JUMP : TE_ATK;      /* (its envelope, from silence) */
+            rt->ekey = (uint8_t)k;
+            rt->env = 0;
             break;
         }
+    if (grow) {                                        /* (a growing tape: as it is) */
+        rt->est = TE_IDLE;
+        rt->env = 32767;
+    }
+    e0 = rt->env;                                      /* (the last block's end; a new slice's: 0) */
+    e1 = tape_env(rt, TPD(t, DEV_SRC), keys, playing);
     if (!rec && rt->wstaged)
         tape_commit(t);                                /* REC let go: the last block */
     xk = 0;
@@ -491,6 +558,8 @@ static void tape_block(uint32_t t, uint32_t keys, const int32_t *rec_in, int32_t
                 rt->xf--;
             }
             s = (s * rt->amp) >> 15;
+            if (e0 != 32767 || e1 != 32767)            /* the slice envelope, ramped across the block */
+                s = (s * (e0 + ((e1 - e0) * i >> CTL_LOG2))) >> 15;
         }
         out[i] = s;
         if (!rt->running)
@@ -541,6 +610,8 @@ static void tape_init(void)
     for (t = 0; t < NTRK; t++) {
         tape_rt[t].wlast = -1;
         tape_rt[t].stop_left = 0;
+        tape_rt[t].est = TE_IDLE;
+        tape_rt[t].env = 32767;
         tape_ctl[t].nblk = 0;
         tape_ctl[t].nch = 0;
         tape_ctl[t].grow = 0;

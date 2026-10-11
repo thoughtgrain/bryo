@@ -1170,6 +1170,43 @@ rules both ways, DRUM's pattern knobs kept, the project counted as changed); the
 empty preset refused; a delete; a save cut by a power cut (the bank as it was); a full bank; the view's SAVE (asked
 over another), OCT+, SAVE held, POLY held and EDIT; SCL on a knob, on a page, PATN, the mixer's levels, and its undo.
 
+## From playing it on the FM-1, round 2 (2026-10-11)
+
+A list from an evening with the device. What each was, and what I did:
+
+**The black-key shortcuts under GLO.** KEYS NOTE (the black keys as notes) switched the shortcuts off with no way to
+them short of leaving the mode. Held GLO makes the black keys shortcuts again, in either mode: the OP keys mute, OP5
+OP6 flip REV HALF, MONO and POLY clear, 0 freezes. Their LEDs show the mutes while GLO is held, and nothing in KEYS NOTE
+otherwise. The 0 key also froze GRAIN when played as a note, because `chain.c` read the key itself: a flag the UI
+keeps each frame (`sys.black_short`) says when the black keys are shortcuts, and the freeze reads it.
+
+**DRUM's STEP while playing.** The keys wrote into the bar OCT picked, but the page drew the bar under the playhead,
+so writing as it played looked broken. STEP now always draws the picked bar (with the playhead when it's in it); the
+other DRUM pages still follow the playhead.
+
+**A DRUM track's RESONATOR page.** The keys set the strings' root and struck the kit. They pluck the strings alone
+now, as on TAPE (on SYNTH and POLY the keys still play the source and the strings follow its notes).
+
+**ENV is the track's envelope, not a modulator.** ENV opened M2, which made it a second door to a modulator the LFO
+pad already reaches (LFO held + OP2). It opens the source's own envelope page now: SYNTH's AMP and POLY's ENV (each
+their second page), DRUM's KIT (every instrument's decay, with TUNE TONE DRV), and TAPE's, which is new:
+
+- **TAPE's slice envelope** (ATK DEC SUS REL, TAPE's page 2; the page order is the envelope second, as SYNTH's and
+  POLY's). Stopped, a key's slice rises over ATK, falls over DEC to SUS while that key is held, and fades over REL
+  when it's let go; the head stops once it's silent. Playing, the loop isn't gated: a key's jump fades in over ATK
+  and that's all, so the envelope never silences a running loop. The defaults (ATK 0, SUS 100, REL 10 s) change
+  nothing: a tapped slice plays to its end as before.
+- It runs at block rate (`tape_env`, one divide a block for the stage's step, none a sample): the level at each
+  block's end, the samples ramped between. Tested stopped (a held slice dies away at SUS 0, REL cuts it short, a long
+  ATK rises) and playing (a jump fades in, a held key at SUS 0 doesn't fade the loop).
+- Its knobs are stored at 12-15 (the layout puts them on page 2), so nothing else moved. A project from before them
+  stored 0s there, which would silence every slice: projects are version 5 now, and an older one gets the defaults. A
+  track preset is copied forward unparsed, so it has no version to ask; a TAPE record with all four at 0 gets the
+  defaults instead (no one would save that envelope: it's silence).
+
+The LFO pad's M1-M3 can each be any of the four engines now, LFO ADSR SEQ FOLLOW (a SEQ there has its own steps,
+like M4). M4 on the SEQ pad stays the sequencer.
+
 ## Sends: ROUT, as built (2026-10-09)
 
 GRAIN, RESONATOR and COLOR each have a WET, and until now it was always a crossfade: turning WET up turned the dry
