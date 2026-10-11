@@ -78,6 +78,12 @@ Every pad opens a page, and **pressing the same pad again goes to its next page*
 
 KNOB 1 to 4 always change the four values you see. There's nothing hidden.
 
+**Jump straight to a page: hold its pad and press a white key.** While you hold a pad (HOME, EDIT, FX, ENV, LFO,
+SEQ or ARP), the white keys show its pages: one glows for each page, the page on screen is lit, and every other key
+goes dark. Press white key 3 to go to the third page. EDIT's keys run through GRAIN's pages and then RESONATOR's
+(key 6 is RESONATOR 2); FX's through COLOR's and then SPACE's. Holding LFO also lights OP1-OP3, the one it's on
+bright. Let go without pressing a key and the pad turns its page as usual.
+
 ---
 
 ## 1. First sounds
@@ -384,7 +390,7 @@ claves, cowbell, maracas, tambourine, guiro, hi-hat, open hat, metal beat, cymba
 ### 5.6 DRUM: write your own steps
 
 1. Press **HOME** until the **STEP** page (the fourth).
-2. **Hold HOME and press a white key** to choose the instrument (or turn **KNOB 1, INST**).
+2. Turn **KNOB 1 (INST)** to choose the instrument.
 3. Make sure **MODE** (KNOB 3) says **HITS**.
 4. Now **white key n switches step n** of the bar on or off. **OCT− / OCT+** pick the bar, and the page stays on
    that bar while the pattern plays, so you can write into it as it goes round.

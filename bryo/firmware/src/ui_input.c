@@ -101,6 +101,9 @@ static uint32_t focus_btn(void)
 /* Lit: the focus pad, REC armed, the octave keys away from the default, the muted tracks' OP keys. The rest glow
  * dim (the LEDS setting: OFF, DIM LO, DIM HI, INV). Each picture is built off-line and copied one
  * byte per column, the glow first, so an LED going from lit to dim never has a dark frame. */
+static int pad_down(void);
+static uint32_t pad_pages(uint32_t b);
+static int pad_shown(uint32_t b, uint32_t i);
 static void ui_leds(void)
 {
     uint8_t nl[FM1_NCOL] = {0}, nd[FM1_NCOL] = {0};
@@ -125,6 +128,24 @@ static void ui_leds(void)
         led_put(nl, 14u + k, (!sys.keys_notes || ui.glo_held) &&   /* (KEYS NOTE: GLO held shows the shortcuts) */
                              ((b <= BK_OP4 && track[b].mute) || (b == BK_ZERO && sys.freeze)));   /* (0 lit: latched) */
         led_put(nd, 14u + k, 1);
+    }
+    if (pad_down()) {                                   /* a page's pad held: the keys are its pages (dim: there,
+                                                         * lit: the one shown, the rest dark); the LFO pad also shows
+                                                         * OP1-OP3, which of M1 M2 M3 it's on */
+        static const uint8_t PICK[3] = {0, 1, 3};
+        uint32_t n = pad_pages(ui.pg_pad);
+        for (k = 0; k < 27u; k++) {
+            uint32_t w = KEY_WHITE[k], b = KEY_BLACK[k];
+            led_clear(nl, 14u + k);
+            led_clear(nd, 14u + k);
+            if (w != KEY_NONE && w < n) {
+                led_put(nd, 14u + k, 1);
+                led_put(nl, 14u + k, pad_shown(ui.pg_pad, w));
+            } else if (ui.pg_pad == B_LFO && b <= BK_OP3) {
+                led_put(nd, 14u + k, 1);
+                led_put(nl, 14u + k, ui.lfo_slot == PICK[b]);
+            }
+        }
     }
     for (k = 0; k < NB; k++)
         led_put(nd, panel.btn[k], 1);
@@ -196,6 +217,86 @@ static void focus_arp(void)
     ui.glo_latched = 0;
     ui.kind = FOCUS_ARP;
     ui.page = again ? (uint8_t)((ui.page + 1u) % pdesc_pages(ARP_P)) : 0u;
+    ui.last = 0xFF;
+}
+
+/* ------------------------------------------------------------- page keys: a pad held, the white keys its pages --- */
+/* a page's pad is down (recorded as it went down, and still held) */
+static int pad_down(void) { return ui.pg_pad < NB && ((fm1_in.buttons >> panel.btn[ui.pg_pad]) & 1u); }
+
+/* What pad b's pages are, in key order: n of them; page i (0..n-1) shown by pad_go. HOME: the source's; ENV: its
+ * envelope's; EDIT: GRAIN's then RESONATOR's; FX: COLOR's then SPACE's; LFO: the modulator it's on; SEQ: M4's;
+ * ARP: the arpeggiator's */
+static uint32_t pad_pages(uint32_t b)
+{
+    switch (b) {
+    case B_HOME: return pdesc_pages(dev_p(sys.sel, DEV_SRC));
+    case B_ENV: return 1u;
+    case B_EDIT: return pdesc_pages(DEV_P[DEV_GRAIN]) + pdesc_pages(DEV_P[DEV_RESO]);
+    case B_FX: return pdesc_pages(DEV_P[DEV_COLOR]) + pdesc_pages(DEV_P[DEV_SPACE]);
+    case B_LFO: return pdesc_pages(ME_P[tp[sys.sel].engine[ui.lfo_slot % NSLOT] % NME]);
+    case B_SEQ: return pdesc_pages(ME_P[tp[sys.sel].engine[SLOT_SEQ] % NME]);
+    case B_ARP: return pdesc_pages(ARP_P);
+    default: return 0u;
+    }
+}
+/* (the device, slot or arpeggiator page i of pad b is) */
+static void pad_where(uint32_t b, uint32_t i, uint32_t *kind, uint32_t *what, uint32_t *page)
+{
+    uint32_t g;
+    *kind = FOCUS_DEV;
+    *what = DEV_SRC;
+    *page = i;
+    switch (b) {
+    case B_ENV: *page = env_page(); break;
+    case B_EDIT:
+        g = pdesc_pages(DEV_P[DEV_GRAIN]);
+        *what = i < g ? DEV_GRAIN : DEV_RESO;
+        *page = i < g ? i : i - g;
+        break;
+    case B_FX:
+        g = pdesc_pages(DEV_P[DEV_COLOR]);
+        *what = i < g ? DEV_COLOR : DEV_SPACE;
+        *page = i < g ? i : i - g;
+        break;
+    case B_LFO: *kind = FOCUS_SLOT, *what = ui.lfo_slot % NSLOT; break;
+    case B_SEQ: *kind = FOCUS_SLOT, *what = SLOT_SEQ; break;
+    case B_ARP: *kind = FOCUS_ARP, *what = 0; break;
+    default: break;
+    }
+}
+/* the page pad b's key i would show is the one up */
+static int pad_shown(uint32_t b, uint32_t i)
+{
+    uint32_t kind, what, page;
+    pad_where(b, i, &kind, &what, &page);
+    return ui.view == VIEW_PAGE && ui.kind == kind && ui.page == page &&
+           (kind == FOCUS_ARP || (kind == FOCUS_SLOT ? ui.slot == what : ui.dev == what));
+}
+static void focus_slot(uint32_t s);
+static void focus_arp(void);
+/* pad b held + white key i: its page i (past its last: said) */
+static void pad_go(uint32_t b, uint32_t i)
+{
+    uint32_t kind, what, page;
+    ui.pg_used = 1;
+    if (b == B_HOME)
+        ui.home_used = 1;
+    if (ui.slot_held != SLOT_NONE)
+        ui.slot_used = 1;
+    if (i >= pad_pages(b)) {
+        ui_message("NO PAGE THERE");
+        return;
+    }
+    pad_where(b, i, &kind, &what, &page);
+    if (kind == FOCUS_SLOT) {
+        focus_slot(what);
+    } else if (kind == FOCUS_ARP) {
+        focus_arp();
+    } else {
+        focus_dev(what, 0);
+    }
+    ui.page = (uint8_t)page;
     ui.last = 0xFF;
 }
 
@@ -544,9 +645,11 @@ static void on_button(uint32_t b)
         ui.scl_used = 0;
         break;
     case B_HOME:                                        /* the source, its next page: as HOME is let go (the slot
-                                                         * pads' way), so it can be held for SELECT or a DRUM key */
+                                                         * pads' way), so it can be held for SELECT or a page key */
         ui.home_held = 1;
         ui.home_used = 0;
+        ui.pg_pad = B_HOME;
+        ui.pg_used = 0;
         break;
     case B_EDIT:                                        /* GRAIN's pages, RESONATOR's; on the mixer: the channel */
         if (ui.view == VIEW_PROJECT) {                  /* the project view's pages: PROJECTS, PRESETS (as EDIT
@@ -572,15 +675,22 @@ static void on_button(uint32_t b)
                 ui.glo_used = 1;
             break;
         }
-        pad_devices(DEV_GRAIN, DEV_RESO);
+        ui.pg_pad = B_EDIT;                             /* (GRAIN's next page, then RESONATOR's: as it's let go) */
+        ui.pg_used = 0;
         break;
-    case B_FX:                                          /* COLOR, COLOR 2, SPACE, SPACE 2 */
-        pad_devices(DEV_COLOR, DEV_SPACE);
+    case B_FX:                                          /* COLOR's pages, then SPACE's: as it's let go */
+        ui.pg_pad = B_FX;
+        ui.pg_used = 0;
         break;
-    case B_LFO: slot_down(ui.lfo_slot, B_LFO); break;   /* (M1 M2 M3: the one it shows) */
-    case B_ENV: focus_dev(DEV_SRC, env_page()); break;  /* the source's envelope (M2 is on the LFO pad: OP2) */
-    case B_SEQ: slot_down(SLOT_SEQ, B_SEQ); break;       /* M4, the sequencer */
-    case B_ARP: focus_arp(); break;
+    case B_LFO: slot_down(ui.lfo_slot, B_LFO); ui.pg_pad = B_LFO; ui.pg_used = 0; break;   /* (M1 M2 M3: the one
+                                                                                          * it shows) */
+    case B_ENV:                                         /* the source's envelope (M2 is on the LFO pad: OP2) */
+        focus_dev(DEV_SRC, env_page());
+        ui.pg_pad = B_ENV;
+        ui.pg_used = 0;
+        break;
+    case B_SEQ: slot_down(SLOT_SEQ, B_SEQ); ui.pg_pad = B_SEQ; ui.pg_used = 0; break;   /* M4, the sequencer */
+    case B_ARP: ui.pg_pad = B_ARP; ui.pg_used = 0; break;   /* (its pages: as it's let go) */
     case B_GLO:
         glo_down();
         break;
@@ -1040,6 +1150,21 @@ static void ui_input(void)
         ui.scl_held = 0;                                /* (SCL let go) */
     if (ui.glo_held && (((released >> panel.btn[B_GLO]) & 1u) || !((fm1_in.buttons >> panel.btn[B_GLO]) & 1u)))
         glo_up();
+    if (ui.pg_pad < NB && !((fm1_in.buttons >> panel.btn[ui.pg_pad]) & 1u)) {   /* a page's pad let go: EDIT FX and
+                                                                               * ARP turn their page now, unless a
+                                                                               * page key was used (HOME, the slots:
+                                                                               * below, by their own flags) */
+        uint32_t b = ui.pg_pad;
+        ui.pg_pad = NB;
+        if (!ui.pg_used) {
+            if (b == B_EDIT)
+                pad_devices(DEV_GRAIN, DEV_RESO);
+            else if (b == B_FX)
+                pad_devices(DEV_COLOR, DEV_SPACE);
+            else if (b == B_ARP)
+                focus_arp();
+        }
+    }
     if (ui.home_held && !((fm1_in.buttons >> panel.btn[B_HOME]) & 1u)) {   /* HOME let go: the source's next page,
                                                                            * unless it was held for something */
         ui.home_held = 0;
@@ -1050,7 +1175,7 @@ static void ui_input(void)
     {                                                   /* DRUM: STEP's mode; an instrument held on the other pages */
         uint32_t w = white_keys(fm1_in.notes), m = drm_step_page() ? (uint32_t)tp[sys.sel].drm[DM_MODE] : DMODE_HITS;
         sys.drum_mode = (uint8_t)(m == DMODE_LIVE || m == DMODE_ERAS ? m : DMODE_HITS);
-        if (drm_page() && !drm_step_page() && !ui.home_held && !ui.glo_held && w) {
+        if (drm_page() && !drm_step_page() && !pad_down() && !ui.glo_held && w) {
             for (k = 0; !((w >> k) & 1u); k++)
                 ;
             if (ui.drm_inst != k + 1u)
@@ -1063,7 +1188,8 @@ static void ui_input(void)
         }
     }
     sys.black_short = (uint8_t)(!sys.keys_notes || ui.glo_held);   /* (the 0 key's freeze: chain.c) */
-    sys.keys_live = (uint8_t)(!ui.glo_held && !seq_page() && !(ui.home_held && drm_page()) &&
+    sys.keys_live = (uint8_t)(!ui.glo_held && !seq_page() && !pad_down() &&   /* (a page pad held: the keys pick
+                                                                            * pages, they don't play) */
                               !(drm_step_page() && sys.drum_mode == DMODE_HITS));   /* under GLO the white keys pick
                                                                 * the track, on a SEQ page the steps, on DRUM's STEP
                                                                 * (HITS, ACC) the bar's steps: they don't play */
@@ -1076,11 +1202,8 @@ static void ui_input(void)
             } else if (ui.glo_held && KEY_WHITE[k] < sys.ntrk) {
                 sys.sel = KEY_WHITE[k];                  /* GLO + white key 1..TRACKS: the track */
                 ui.glo_used = 1;
-            } else if (ui.home_held && drm_page()) {     /* DRUM, HOME + a white key: STEP's instrument, heard */
-                tp[sys.sel].drm[DM_INST] = KEY_WHITE[k];
-                drm_aud[sys.sel] = (uint8_t)(KEY_WHITE[k] + 1u);
-                ui.home_used = 1;
-                ui.last = 0xFF;
+            } else if (pad_down()) {                     /* a page's pad held + white key n: its page n */
+                pad_go(ui.pg_pad, KEY_WHITE[k]);
             } else if (drm_step_page() && sys.drum_mode == DMODE_HITS && !ui.glo_held) {
                 drm_toggle(sys.sel, KEY_WHITE[k]);      /* STEP (HITS, ACC): the step toggled */
             }

@@ -793,10 +793,8 @@ static void screens_in(const char *pal)
     shot(pal, "drum_inst");
     fm1_in.notes = 0;
     ui_input();
-    press(B_HOME);                                       /* STEP: the snare's row of bar 1 */
-    hold(B_HOME);
-    key_edge(note_of_white(1));
-    let_go(B_HOME);
+    press(B_HOME);                                       /* STEP: the snare's row of bar 1 (INST, KNOB 1) */
+    turn(0, 1);
     shot(pal, "drum_step");
     turn(2, 2);                                          /* MODE LIVE: the grid, named */
     shot(pal, "drum_live");
@@ -4944,8 +4942,13 @@ static void test_drum(void)
     hold(B_HOME);
     key_edge(note_of_white(1));
     let_go(B_HOME);
-    check("HOME held + white key 2: INST is SD, heard; the page stays", p[DM_INST] == DI_SD && ui.page == 3u &&
-          drm_aud[0] == DI_SD + 1u);
+    check("HOME held + white key 2: page 2 (VARY), the page keys' way; the let-go doesn't turn it",
+          ui.page == 1u && p[DM_INST] == DI_BD);
+    hold(B_HOME);
+    key_edge(note_of_white(3));
+    let_go(B_HOME);
+    turn(0, 1);
+    check("..HOME held + key 4: STEP; KNOB 1 (INST) to SD", ui.page == 3u && p[DM_INST] == DI_SD);
     press(B_OCTUP);
     key_edge(note_of_white(2));
     check("OCT+: bar 2; key 3 writes the snare there; OCT+ again stays at LEN", p[DM_BAR] == 2 &&
@@ -5347,6 +5350,73 @@ static void test_projects(void)
           rc == 0 && tp[0].dev[DEV_SRC][TK_SUS] == 100 && tp[0].dev[DEV_SRC][TK_REL] == DEV_P[DEV_SRC][TK_REL].def);
     pj_wipe();
     power_on();
+}
+
+/* page keys: a page's pad held, the white keys show its pages (dim: there, lit: shown) and pick one */
+static void test_page_keys(void)
+{
+    uint32_t k, dim_ok = 1, lit_ok = 1, dark_ok = 1;
+    power_on();
+    hold(B_HOME);                                        /* TAPE, page 1: four pages */
+    ui_leds();
+    for (k = 0; k < 27u; k++) {
+        uint32_t w = KEY_WHITE[k];
+        led_on(fm1_led_dim, 14u + k);
+        if (w != KEY_NONE && w < 4u)
+            dim_ok &= led_lit;
+        else
+            dark_ok &= !led_lit;
+        led_on(fm1_led, 14u + k);
+        if (w != KEY_NONE && w < 4u)
+            lit_ok &= led_lit == (w == 0u);
+        else
+            dark_ok &= !led_lit;
+    }
+    check("HOME held on TAPE: white keys 1-4 glow (its four pages), key 1 lit (the one shown), every other key dark",
+          dim_ok && lit_ok && dark_ok && !sys.keys_live);
+    key_edge(note_of_white(2));
+    let_go(B_HOME);
+    check("..+ key 3: TAPE page 3, and the let-go doesn't turn it on", ui.dev == DEV_SRC && ui.page == 2u);
+    hold(B_HOME);
+    key_edge(note_of_white(6));
+    let_go(B_HOME);
+    check("..+ key 7 (past its four): says so, the page stays", ui.page == 2u && !strcmp(ui.msg, "NO PAGE THERE"));
+    hold(B_EDIT);
+    key_edge(note_of_white(5));
+    let_go(B_EDIT);
+    check("EDIT held + key 6: RESONATOR page 2 (GRAIN's four, then RESONATOR's)", ui.dev == DEV_RESO && ui.page == 1u);
+    press(B_EDIT);
+    check("..EDIT tapped still turns pages (on the let-go): RESONATOR page 3", ui.dev == DEV_RESO && ui.page == 2u);
+    hold(B_FX);
+    key_edge(note_of_white(4));
+    let_go(B_FX);
+    check("FX held + key 5: SPACE page 2 (COLOR's three, then SPACE's)", ui.dev == DEV_SPACE && ui.page == 1u);
+    hold(B_LFO);
+    key_edge(note_of_white(2));
+    let_go(B_LFO);
+    check("LFO held + key 3: M1's page 3", ui.kind == FOCUS_SLOT && ui.slot == 0u && ui.page == 2u);
+    hold(B_LFO);
+    ui_leds();
+    led_on(fm1_led, 14u + black_note(BK_OP1));
+    k = led_lit;
+    led_on(fm1_led_dim, 14u + black_note(BK_OP2));
+    check("..LFO held: OP1 lit (it's on M1), OP2 glowing (M2 to pick)", k == 1u && led_lit == 1u);
+    let_go(B_LFO);
+    hold(B_SEQ);
+    key_edge(note_of_white(1));
+    let_go(B_SEQ);
+    check("SEQ held + key 2: M4's page 2", ui.kind == FOCUS_SLOT && ui.slot == SLOT_SEQ && ui.page == 1u);
+    hold(B_ARP);
+    key_edge(note_of_white(1));
+    let_go(B_ARP);
+    check("ARP held + key 2: the arpeggiator's page 2", ui.kind == FOCUS_ARP && ui.page == 1u);
+    press(B_ARP);
+    check("..ARP tapped: its next page, round (on the let-go)", ui.kind == FOCUS_ARP && ui.page == 0u);
+    hold(B_ENV);
+    ui_leds();
+    led_on(fm1_led, 14u + note_of_white(0));
+    let_go(B_ENV);
+    check("ENV held: key 1 lit (its one page, shown)", led_lit == 1u && ui.dev == DEV_SRC && ui.page == 1u);
 }
 
 /* ENV: the source's envelope page on every source; TAPE's slice envelope, stopped and playing */
@@ -6656,6 +6726,7 @@ int main(int argc, char **argv)
     test_sends();
     test_projects();
     test_env_pad();
+    test_page_keys();
     test_tpresets();
     test_tpfactory();
     test_arp_keys();

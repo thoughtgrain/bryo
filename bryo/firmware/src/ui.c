@@ -60,6 +60,9 @@ static struct {
     uint8_t pj_sel;                  /* the project view: the slot PRESETS points at */
     uint8_t pj_page;                 /* .. its page: PROJECTS (0) or the track PRESETS (1), EDIT tapped steps them */
     uint8_t tpr_sel;                 /* .. the track preset PRESETS points at (A..H) */
+    uint8_t pg_pad, pg_used;         /* a page's pad down (HOME EDIT FX ENV LFO SEQ ARP; NB: none): the white keys
+                                      * show and pick its pages (ui_input.c pad_page); used: a key was, so the let-go
+                                      * doesn't turn the page */
     uint8_t scl_held, scl_used;      /* SCL down (a knob turned: its default; the page's pad: the page's defaults), and
                                       * a reset done meanwhile (the snapshot for SAVE held is taken once a hold) */
     uint8_t pj_ask;                  /* .. an action waiting for its second press (PJ_ASK_*), until pj_ask_t */
@@ -115,6 +118,7 @@ static void ui_init(void)
     ui.dev = DEV_SRC;
     ui.last = 0xFF;
     ui.slot_held = SLOT_NONE;
+    ui.pg_pad = NB;
     ui.mono_slot = SLOT_NONE;
     ui.force = 1;
 }
@@ -501,6 +505,8 @@ static void draw_foot(void)
         str_cpy(a, "OCT+:LOAD SAVE OCT-:BACK", sizeof a);
     else if (ui.scl_held)                             /* SCL held: what a knob and the page's pad do */
         str_cpy(a, "KNOB:DEFAULT PAD:PAGE", sizeof a);
+    else if (ui.pg_pad < NB && ((fm1_in.buttons >> panel.btn[ui.pg_pad]) & 1u) && ui.slot_held >= NSLOT)
+        str_cpy(a, "KEYS: ITS PAGES", sizeof a);      /* a page's pad held: the white keys pick its pages */
     else if (ui.slot_held < NSLOT)                    /* a slot's pad held: what it does (the LFO pad: OP1-3 pick
                                                        * its slot; the SEQ's engine stays) */
         str_cpy(a, ui.slot_btn == B_LFO ? "KNOB:DEPTH OP1-3:M1-3" : ui.slot_held == SLOT_SEQ ? "KNOB:DEPTH"
@@ -522,9 +528,7 @@ static void draw_foot(void)
     else if (tp[sys.sel].src == SRC_DRUM && ui.kind == FOCUS_DEV && ui.dev == DEV_SRC) {   /* DRUM: what a key does */
         static const char *const STEP[4] = {"KEYS: STEPS", "KEYS: ACCENTS", "KEYS: PLAY+WRITE", "HOLD KEY: ERASE"};
         uint32_t m = (uint32_t)clamp(tp[sys.sel].drm[DM_MODE], 0, 3);
-        if (ui.home_held)
-            str_cpy(a, "KEYS: INSTRUMENT", sizeof a);
-        else if (ui.page == 3u && m == DMODE_HITS) {
+        if (ui.page == 3u && m == DMODE_HITS) {
             str_cpy(a, "KEYS: ", sizeof a);
             str_cpy(a + 6, DRM_KIT[clamp(tp[sys.sel].drm[DM_INST], 0, 15)].code, 3);
             str_cpy(a + str_len(a), " STEPS", 8);

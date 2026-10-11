@@ -1207,6 +1207,16 @@ their second page), DRUM's KIT (every instrument's decay, with TUNE TONE DRV), a
 The LFO pad's M1-M3 can each be any of the four engines now, LFO ADSR SEQ FOLLOW (a SEQ there has its own steps,
 like M4). M4 on the SEQ pad stays the sequencer.
 
+**Page keys.** Holding a page's pad (HOME, EDIT, FX, ENV, LFO, SEQ, ARP) turns the white keys into a map of its pages:
+key n glows for page n, the page on screen is lit, every other key goes dark (the LEDs have three levels: off, the dim
+glow, lit), and pressing key n goes there. EDIT's keys run through GRAIN's pages and then RESONATOR's, FX's through
+COLOR's and SPACE's, since those pads already step through both devices. While a pad is held the keys don't play.
+
+For that to work the pad can't act as it goes down, so EDIT, FX and ARP now turn their page as they're let go, the way
+HOME and the slot pads already did; a pad that was used for a key doesn't turn it (`ui.pg_pad`, `ui.pg_used`). One
+gesture had to move: HOME + a white key picked DRUM's instrument on its pages, and it's a page jump now like everywhere
+else; STEP's INST knob picks the instrument (it always could).
+
 ## Sends: ROUT, as built (2026-10-09)
 
 GRAIN, RESONATOR and COLOR each have a WET, and until now it was always a crossfade: turning WET up turned the dry
