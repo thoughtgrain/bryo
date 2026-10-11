@@ -61,7 +61,16 @@ typedef struct {
     int16_t size_seen, dec_seen;     /* what clen and cg were set for (-1: nothing yet) */
     int32_t gd, gv;                  /* DLY's and VERB's gains last block, Q15 (ramped across the next) */
     int32_t pl, pr;                  /* the wet's last half-rate sample, each side (the step back up to 44.1 kHz) */
+    uint32_t quiet;                  /* half-rate samples in a row of silence in and next to none out (sp_quiet) */
 } space_t;
+
+/* SPACE resting (2026-10-11, from playing it: half the CPU with nothing playing). With silence going in and next to
+ * nothing coming out (|wet| <= 16 both sides, -66 dB: the room's combs, in integers, cycle at about that for good
+ * once the tail is gone, a faint sound of their own) for longer than its lines are long (the delay's, and the
+ * pre-delay plus the longest comb and the allpasses), everything in them has gone round and come out as next to
+ * nothing: it stops working until sound comes in again, where it carries on from its lines as they are. The
+ * filters in its loops are let go to 0 as it rests (a residue under the threshold can't hold it awake). */
+#define SP_QUIET_OUT 16
 
 static space_t space[NTRK];
 
@@ -354,6 +363,7 @@ static void space_block(uint32_t t, int32_t *l, int32_t *r, uint32_t n)
             S->dq = tgt;
             S->dlp = 0;
             S->dlive = 1;
+            S->quiet = 0;
         }
         sp_bases(&S->dly, db);
         dl = sp_len(&S->dly);
@@ -371,6 +381,7 @@ static void space_block(uint32_t t, int32_t *l, int32_t *r, uint32_t n)
             }
             S->size_seen = -1;
             S->rlive = 1;
+            S->quiet = 0;
         }
         sp_bases(&S->pre, pb);
         sp_bases(&S->rev, rb);
@@ -400,10 +411,16 @@ static void space_block(uint32_t t, int32_t *l, int32_t *r, uint32_t n)
     if (pl && pre > (int32_t)pl - 2)
         pre = (int32_t)pl - 2;
     {
-        int32_t m[CTL / 2], wl[CTL / 2], wr[CTL / 2], ol = S->pl, or_ = S->pr;
+        int32_t m[CTL / 2], wl[CTL / 2], wr[CTL / 2], ol = S->pl, or_ = S->pr, in = 0, loud = 0;
+        uint32_t settle = (S->dlive ? dl : 0u) + (S->rlive ? pl + 1017u + 1020u : 0u);   /* (sp_quiet) */
         for (i = 0; i < h; i++) {                       /* mono, at half the rate */
             m[i] = sp_sat((l[2 * i] + r[2 * i] + l[2 * i + 1] + r[2 * i + 1]) >> 2);
+            in |= m[i];
             wl[i] = wr[i] = 0;
+        }
+        if (!in && S->quiet > settle) {                 /* resting: silence in, nothing left in its lines */
+            S->pl = S->pr = 0;
+            return;
         }
         if (S->dlive)
             sp_delay(S, db, dlb, dl, tgt, off, kl, kh, fbg, gd0, gd1, m, wl, wr);
@@ -411,6 +428,7 @@ static void space_block(uint32_t t, int32_t *l, int32_t *r, uint32_t n)
             sp_room_run(S, pb, plb, pl, pre, rb, kh, damp, sprd * 4096 / 100, gv0, gv1, m, wl, wr);   /* (SPRD Q12: a
                                                                                 * multiply a sample, not a divide) */
         for (i = 0; i < h; i++) {                       /* back up to 44.1 kHz: halfway, then the sample */
+            loud |= wl[i] > SP_QUIET_OUT || wl[i] < -SP_QUIET_OUT || wr[i] > SP_QUIET_OUT || wr[i] < -SP_QUIET_OUT;
             l[2 * i] += (ol + wl[i]) >> 1;
             r[2 * i] += (or_ + wr[i]) >> 1;
             l[2 * i + 1] += wl[i];
@@ -420,5 +438,12 @@ static void space_block(uint32_t t, int32_t *l, int32_t *r, uint32_t n)
         }
         S->pl = ol;
         S->pr = or_;
+        if (in || loud)
+            S->quiet = 0;
+        else if ((S->quiet += h) > settle) {            /* settled: its loops' filters let go as it rests */
+            S->dlp = S->rhp = 0;
+            for (k = 0; k < 4u; k++)
+                S->clp[k] = 0;
+        }
     }
 }

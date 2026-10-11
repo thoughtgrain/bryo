@@ -492,8 +492,9 @@ static void drm_shed(void)
 }
 static void drm_recover(void)
 {
-    if (++drm_calm >= 1378u && drm_cap < DRM_NV) {
-        drm_cap++;
+    if (++drm_calm >= 1378u && drm_cap < DRM_NV) {     /* (a voice back, if there's room: chain_room) */
+        if (chain_room())
+            drm_cap++;
         drm_calm = 0;
     }
 }

@@ -295,10 +295,12 @@ static double run(int n, char *say, size_t sz)
                  "the compressor (%u grains)", sounding());
         return 6;
     }
-    case 19: case 21: case 22: case 24: case 25: {       /* realistic: a four-track groove (21: its busiest moment,
-                                                          * 22: bounced onto track 4 while it plays; 24: modulated
-                                                          * as I'd play it; 25: every slot on every track, 32 depths
-                                                          * each, the most there can be) */
+    case 19: case 21: case 22: case 24: case 25: case 29: case 30: {   /* realistic: a four-track groove (21: its
+                                                          * busiest moment, 22: bounced onto track 4 while it plays;
+                                                          * 24: modulated as I'd play it; 25: every slot on every
+                                                          * track, 32 depths each, the most there can be; 29: all of
+                                                          * 21 on, the transport stopped; 30: T1 alone heard, dense
+                                                          * grains, strings with RES ARP, a room, the others muted) */
         uint32_t t;
         tp[0].dev[DEV_COLOR][CP_CRSH] = 30;              /* T1 drums: crushed a little */
         tp[1].dev[DEV_GRAIN][GP_WET] = 50;               /* T2: grains */
@@ -308,7 +310,7 @@ static double run(int n, char *say, size_t sz)
         tp[3].dev[DEV_SPACE][SP_VERB] = 40;              /* T4: in a room */
         tp[3].ch[CH_PAN] = 40;
         mst[MS_AMT] = 30;
-        if (n == 21) {                                   /* a build-up: grains denser, strings, every filter */
+        if (n == 21 || n == 29) {                        /* a build-up: grains denser, strings, every filter */
             tp[1].dev[DEV_GRAIN][GP_RATE] = 80;
             tp[3].dev[DEV_RESO][RP_WET] = 50;
             tp[0].dev[DEV_SPACE][SP_DLY] = 40;
@@ -351,8 +353,27 @@ static double run(int n, char *say, size_t sz)
                     }
                 }
         }
-        play_phrase(2, 6);
-        snprintf(say, sz, "%s (%u grains, %u strings%s)", n == 19 ? "a four-track groove: crushed drums, grains, a filtered "
+        if (n == 30) {                                   /* (2026-10-11, from playing it: muting the others put the
+                                                          * CPU up, to crackling) */
+            tp[0].dev[DEV_GRAIN][GP_WET] = 70;
+            tp[0].dev[DEV_GRAIN][GP_RATE] = 70;
+            tp[0].dev[DEV_GRAIN][GP_SIZE] = 300;
+            tp[0].dev[DEV_RESO][RP_WET] = 50;
+            tp[0].dev[DEV_RESO][RP_AMODE] = ARM_LTCH;
+            tp[0].dev[DEV_SPACE][SP_VERB] = 50;
+            tp[1].dev[DEV_RESO][RP_WET] = 40;
+            tp[3].dev[DEV_RESO][RP_WET] = 50;
+            for (t = 1; t < NTRK; t++)
+                track[t].mute = 1;
+        }
+        if (n == 29) {
+            sys.playing = 0;
+            play(6);
+        } else
+            play_phrase(2, 6);
+        snprintf(say, sz, "%s (%u grains, %u strings%s)", n == 29 ? "the busiest groove's devices all on, the transport "
+                 "stopped, nothing played" : n == 30 ? "T1 alone heard (dense grains, strings with RES ARP, a room), "
+                 "the other three muted, their devices on" : n == 19 ? "a four-track groove: crushed drums, grains, a filtered "
                  "synth bass, a reverb, the compressor" : n == 21 ? "the groove's busiest moment: denser grains, strings, "
                  "a delay, every channel filtered" : n == 22 ? "the groove, bounced onto track 4 as it plays" : n == 24 ?
                  "the groove, modulated: an LFO on the crush, a SEQ on grain size, T1 ducking T2's filter, an ADSR on "
@@ -782,7 +803,7 @@ int main(int argc, char **argv)
         int n;
         wav_cap = 25u * 44100u * 2u;
         wav_buf = malloc(wav_cap * sizeof *wav_buf);
-        for (n = 1; n <= 28; n++) {
+        for (n = 1; n <= 30; n++) {
             char path[512];
             wav_n = wav_clip = 0;
             run(n, say, sizeof say);

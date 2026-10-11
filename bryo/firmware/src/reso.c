@@ -40,6 +40,7 @@ typedef struct {
     /* the ISR's */
     uint32_t w;                      /* the write index, shared by the strings */
     int32_t lp[RS_N];                /* each loop's low-pass */
+    uint32_t quiet;                  /* samples in a row of silence in and next to none out (the strings resting) */
     int32_t ic1, ic2;                /* the filter in front */
     int32_t root16;                  /* a key's root, 1/16 semitone (0: none, PTCH's; a key's is F1 at least) */
     int32_t rs16;                    /* the root the strings sound, gliding to the root (0: not yet) */
@@ -92,6 +93,7 @@ static uint32_t rs_t60(int32_t dec)
 static void rs_pluck(reso_t *R, uint32_t nstr, int32_t root16, int32_t a, int32_t sc)
 {
     uint32_t k, i;
+    R->quiet = 0;                                       /* (awake: something to ring) */
     if (!R->rng)
         R->rng = 0x51ED27;
     for (k = 0; k < nstr; k++) {
@@ -199,6 +201,12 @@ static void reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t keys, int pl
         for (i = 0; i < n; i++)
             e[i] = (e[i] * in) >> 15;
     }
+    if (!heard && R->quiet > RS_LEN + CTL)              /* resting: silence in, and the strings have rung down to
+                                                         * next to nothing (|out| <= 2) for longer than a line is
+                                                         * long: nothing left to ring, so none of their work (2026-10-11:
+                                                         * half the CPU with nothing playing). A pluck or sound in
+                                                         * wakes them, carrying on from their lines as they are */
+        nstr = 0;
     for (k = 0; k < nstr; k++) {                         /* each string: read a period back, damp, ring, write */
         int16_t *d = rs_line(R, k);
         uint32_t pq8 = rs_period_q8(root16 + RS_PART16[sc][k]), comp = ((uint32_t)(32768 - a) << 8) / (uint32_t)a;
@@ -262,7 +270,17 @@ static void reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t keys, int pl
         }
         R->lp[k] = lp;
     }
-    R->w = (R->w + n) % RS_LEN;
+    if (nstr) {
+        R->w = (R->w + n) % RS_LEN;
+        for (i = 0; i < n && !heard; i++)
+            if (acc_e[i] > 2 || acc_e[i] < -2 || acc_o[i] > 2 || acc_o[i] < -2)
+                heard = 1;
+        if (heard)
+            R->quiet = 0;
+        else if ((R->quiet += n) > RS_LEN + CTL)
+            for (k = 0; k < RS_N; k++)
+                R->lp[k] = 0;
+    }
     {   /* WET: the strings against the track, ramped across the block (Q15: no division a sample). INS crossfades;
          * SEND keeps the track at full and adds the strings (ROUT: the track's share ramped when it's switched) */
         int32_t w0 = wet0 * 32767 / 100, dw = ((wet1 - wet0) * 32767 / 100) >> CTL_LOG2;
@@ -297,8 +315,9 @@ static void reso_shed(void)
 }
 static void reso_recover(void)
 {
-    if (++reso_calm >= 1378u && reso_cap < RS_N) {
-        reso_cap++;
+    if (++reso_calm >= 1378u && reso_cap < RS_N) {     /* (a string back, if there's room: chain_room) */
+        if (chain_room())
+            reso_cap++;
         reso_calm = 0;
     }
 }

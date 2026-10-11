@@ -133,6 +133,7 @@ Write down the CPU reading for each, and anything you hear.
 | 26 | PRESETS, EDIT (the PRESETS page), turn past H to the factory ones; for each, focus a track of its source (TAPE on a reel, a SYNTH, POLY, DRUM track), OCT+, play it; SAVE held after one | each loads with no question and sounds like its name; none much louder or quieter than the last; SAVE held puts the track back | by ear: which to retune (they were level-matched on the host, not listened to) |
 | 27 | On a track: SCL held, turn a knob; SCL held, press the lit pad; SAVE held. Then save the track as preset A, power-cycle, load A into another track | the knob, then the page, to defaults; SAVE held brings them back; A survives the power cycle and loads | that SCL is held (not a tap) |
 | 28 | Track 1: GRAIN WET 80, RATE 60, SIZE 300, PLAY; GRAIN 6, GRNS 12. Then track 2 a SYNTH with GRAIN WET 80, play chords; then track 2 GRNS 30 | track 1 reads "n OF 12 HELD" and its cloud stays as thick when track 2 comes in; track 2 holding 30 of the pool of 30: track 1 keeps its 12, track 2 gets the other 18 | does a held cloud sound steady while the others change? CPU with both dense |
+| 29 | Load a busy project, PLAY a while, then stop and wait 5 s; then PLAY, and mute three tracks, leaving one with grains, RESONATOR (RES ARP on) and a room | stopped: CPU well under the 50 % it read, no hiss even with COLOR's NOIS up; muted: CPU lower than with them heard, no crackle; unmuting brings them straight back | the CPU numbers for both; any click as a device wakes |
 
 ## What the FM-1 read
 
@@ -146,25 +147,28 @@ under the address and undefined-behaviour sanitizers).
 | # | Host cost | Predicted | Read | Heard |
 | --- | ---: | ---: | ---: | --- |
 | 1 | 940 | (the scale) | 25 % | clean |
-| 2 | 1,739 | 46 % | | |
-| 3 | 2,506 | 67 % | | |
+| 2 | 1,742 | 46 % | | |
+| 3 | 2,509 | 67 % | | |
 | 4 | ? | | | |
-| 5 | 2,140 | 57 % | | |
-| 6 | 2,341 | 62 % | | |
-| 11 | 1,934 | 51 % | | |
-| 12 | 3,434 | 91 % (sheds) | | |
-| 13 | 1,737 | 46 % | | |
-| 14 | 1,866 | 50 % | | |
-| 15 | 5,062 | 135 % (sheds) | | |
-| 19 | 1,675 | 45 % | | |
-| 22 | 1,846 | 49 % | | |
+| 5 | 2,143 | 57 % | | |
+| 6 | 2,343 | 62 % | | |
+| 11 | 1,948 | 52 % | | |
+| 12 | 3,447 | 92 % (sheds) | | |
+| 13 | 1,715 | 46 % | | |
+| 14 | 1,878 | 50 % | | |
+| 15 | 5,061 | 135 % (sheds) | | |
+| 19 | 1,680 | 45 % | | |
+| 22 | 1,719 | 46 % | | |
+| 29 | 798 | 21 % (was 46 %) | | |
+| 30 | 2,618 | 70 % (was 85 %) | | |
 
 The host costs were measured again on 2026-10-11, after the second round from playing it (the arpeggiator on every
 source, RESONATOR's own: about 7 a sample more on every run) and after the grains went to half rate with a bigger
 pool (runs 3, 5, 6, 12, 15 now sound 18 or 30 grains where they sounded 16 or 24, for a little less). Row 1 stays at 940, the build the 25 % was read on,
 since it sets the scale. Read again after the grain pool stopped capping a track at
 what RATE and SIZE ask and BODY's wave followed the grains' notes: those moved them by 1 to 7 a sample. And again after
-six pages a device (NPK 24, for GRAIN's GRNS): 1 to 2 a sample more; then the step keys' lights, 1 to 4 more (run 1 is 991).
+six pages a device (NPK 24, for GRAIN's GRNS): 1 to 2 a sample more; then the step keys' lights, 1 to 4 more; then resting on silence (runs 29 and 30 new: what
+stopped costs, and three tracks muted) (run 1 is 991).
 
 **The factory scene, 2026-10-10:** CPU above 80 % and crackles once the drums came in, where the host predicted
 about 45 % (1,720). So the scale from run 1 doesn't hold for every kind of work: the target divides where the host

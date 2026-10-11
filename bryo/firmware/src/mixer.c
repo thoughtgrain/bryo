@@ -179,6 +179,27 @@ static void mix_channel(uint32_t t, int32_t *l, int32_t *r, uint32_t n)
         C->filt_seen = CH_NONE;                         /* (the filter starts from rest when it's turned again) */
         return;
     }
+    if (glo == glo0 && ghi == ghi0) {                   /* resting: silence in, no gain moving, and every filter's
+                                                         * state under 512 (in integers FILT cycles at a few hundred
+                                                         * for good once the sound has gone, -55 dB out, a faint sound
+                                                         * of its own, and a low shelf's round-down holds a few dozen):
+                                                         * silence out, none of the work (2026-10-11: half the CPU
+                                                         * with nothing playing) */
+        int32_t in = 0, st = 0;
+        for (c = 0; c < 2u; c++)
+            st |= (C->lo[c] + 512) | (C->hi[c] + 512) | (C->f1[c] + 512) | (C->f2[c] + 512);
+        st &= ~1023;
+        if (!st) {
+            uint32_t i;
+            for (i = 0; i < n; i++)
+                in |= l[i] | r[i];
+            if (!in) {
+                for (c = 0; c < 2u; c++)
+                    C->lo[c] = C->hi[c] = C->f1[c] = C->f2[c] = 0;
+                return;
+            }
+        }
+    }
     dlo = (glo - glo0) >> CTL_LOG2;                     /* (n is a control block: CTL) */
     dhi = (ghi - ghi0) >> CTL_LOG2;
     C->glo = glo;

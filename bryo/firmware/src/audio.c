@@ -49,19 +49,35 @@ static void audio_block(int32_t *out, uint32_t n)       /* the chain (chain.c), 
     }
 }
 
-/* Overload: two halves in a row above 85 % (the render plus TIMER5 nested in it): take load away at the start of
- * the next half (chain.c chain_shed), and once more each half while it lasts. */
+/* Overload: two halves in a row above 85 % (the render plus TIMER5 nested in it), or one above 95 % (the deadline
+ * nearly missed): take load away at the start of the next half (chain.c chain_shed), and once more each half while
+ * it lasts. What's taken comes back only while the heaviest half of the last second stays under 70 % (sys.load_pk,
+ * chain.c chain_room): before 2026-10-11 it came back a second after the last shed whatever the load, so a track
+ * near the edge went over, shed, came back and went over again, a crackle a second. */
 static volatile uint8_t shed_req;
 static uint8_t shed_over;                              /* bit k: the half k halves ago was over 85 % */
 #define SHED_TICKS ((HALF_FRAMES * 1000000u / FS) * 85u / 100u * FM1_TICKS_PER_US)   /* 85 % of a half */
+#define SHED_NOW ((HALF_FRAMES * 1000000u / FS) * 95u / 100u * FM1_TICKS_PER_US)     /* 95 %: at once */
+#define LOAD_WIN 172u                                  /* halves in the load peak's window: about a second */
+static uint32_t load_win_max, load_win_n;
 
 /* end of a half: all = its ticks, TIMER5 nested in it included -> the render alone in us. The deadline sees
  * both; shed after 2 overloaded halves in a row (out of line: keeps the ISR's render loops as they were) */
 static __attribute__((noinline)) uint32_t shed_check(uint32_t all)
 {
+    uint32_t pct = all / ((HALF_FRAMES * 1000000u / FS) * FM1_TICKS_PER_US / 100u);
     shed_over = (uint8_t)(shed_over << 1 | (all > SHED_TICKS));
-    if ((shed_over & 3u) == 3u)
+    if ((shed_over & 3u) == 3u || all > SHED_NOW)
         shed_req = 1;
+    if (pct > load_win_max)                             /* the heaviest half this second, and at once if it's more */
+        load_win_max = pct;
+    if (pct > sys.load_pk)
+        sys.load_pk = pct;
+    if (++load_win_n >= LOAD_WIN) {
+        sys.load_pk = load_win_max;
+        load_win_max = 0;
+        load_win_n = 0;
+    }
     return (all - t5_nested_ticks) / FM1_TICKS_PER_US;
 }
 

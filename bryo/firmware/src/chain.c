@@ -177,6 +177,13 @@ static void chain_block(int32_t *out, uint32_t n)
         }
         chain_source(t, k, (sys.rec >> t) & 1u ? rin[t] : 0, s, n);
         grain_block(t, s, gk, (int)zero, gl, gr, n);    /* from here the track is stereo */
+        if (c->mute)                                    /* muted: nothing after GRAIN is heard, so it hears silence
+                                                         * too: RESONATOR, COLOR, SPACE and the channel ring down
+                                                         * and rest (their work given back: a muted track cost as
+                                                         * much as a playing one, 2026-10-11). Unmuted, they start
+                                                         * from rest on the track's sound, as a mute is a cut */
+            for (i = 0; i < n; i++)
+                gl[i] = gr[i] = 0;
         reso_block(t, gl, gr, rk, tp[t].src == SRC_TAPE || tp[t].src == SRC_DRUM, anote, n);
         color_block(t, gl, gr, n);
         space_block(t, gl, gr, n);

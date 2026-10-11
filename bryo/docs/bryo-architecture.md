@@ -944,6 +944,38 @@ exactly 0 and COLOR's noise closed; BODY TRI's gate and level at 0. Each fix fai
 filter kept, the low-pass floor, no gate, the settling loop never chosen). SPACE at FDBK 100 still repeats forever,
 as a delay at full feedback should; at 90 it dies away to 0.
 
+**Resting, and what shedding gives back (2026-10-11, from playing it: "CPU is sitting at 50 % with nothing playing";
+"when I mute other tracks ... the cpu actually seems to go up to 85 % and audio crackles").** I rebuilt both on the
+host (runs 29 and 30) and measured where the time went. Three causes:
+- **Everything worked on silence.** Stopped, every device still ran on digital zeros: SPACE 553 a sample, the
+  channel filters 453, the strings, COLOR. Now each one rests when its input block is digital silence and its own
+  state shows its tail has gone, and wakes the block sound comes back, carrying on from its state as it is:
+  - SPACE: |wet| <= 16 (-66 dB) out for longer than its lines are long (the delay's, and the pre-delay plus the
+    longest comb and the allpasses), then its lines stand still; its loops' filters are let go to 0 as it rests.
+  - RESONATOR: the strings' sum |out| <= 2 for longer than a line (1,056 samples), then the strings stand still; a
+    pluck or a RES ARP step wakes them.
+  - COLOR: the noise shut and nothing held in CRSH or TILT (|s| <= 16).
+  - The channel: no gain moving and every filter state under 512.
+  The thresholds aren't arbitrary: in integers SPACE's combs cycle at about ±16 and the channel's FILT at a few
+  hundred (-55 dB out) for good once a tail is gone, and a low shelf holds a few dozen. Those cycles were a faint
+  sound of their own with nothing playing, and they'd keep a device awake forever; resting puts them to 0.
+- **A muted track cost as much as a heard one.** Mute is a cut after the devices, so they ran on. Now a muted
+  track's devices after GRAIN hear silence (`chain_block`): they ring down and rest, and unmuted they start from
+  rest on the track's sound. GRAIN itself keeps recording its buffer (unmuted, its grains have the recent bars).
+- **Shedding gave back blindly.** It took grains (then strings, then drum voices) after two halves over 85 %, and
+  gave an eighth back a second after the last shed whatever the load: a track near the edge went over, shed, came
+  back and went over again, a crackle a second. Now it also sheds on one half over 95 %, and gives back only while
+  the heaviest half of the last second stays under 70 % (`sys.load_pk`, audio.c; `chain_room`). Muting the others
+  gives a lone track the bigger grain pool (40), and that's what lets it have them only while there's room.
+Measured: run 29 (the busy groove stopped) 1,717 to 798, about 46 % to 21 % on the device's scale; run 30 (one track
+heard with dense grains, strings, RES ARP and a room, the others muted) 3,200 to 2,618, about 85 % to 70 %; the
+playing runs -125 to +17 (the silence checks a block cost a little where nothing rests). What still runs stopped:
+GRAIN recording silence into a SYNTH or POLY track's buffer (about 240 in run 29's kind of scene), the master, the
+sources' clocks. Tested (`test_resting`): stopped 8 s, every device rests with the track's out exactly 0 and SPACE's
+and the strings' lines standing still; PLAY wakes them at once; muted, they rest while the transport plays, and
+unmuted wake; with the heaviest half at 80 % nothing comes back, at 50 % an eighth does. Each part fails its
+mutant (never resting, the tail ignored, a pluck not waking, the mute feeding sound, the blind give-back).
+
 ## COLOR, as built (2026-10-08)
 
 COLOR is the S-4's DEFORM after RESONATOR (`firmware/src/color.c`). It takes no memory, only a few numbers a track,

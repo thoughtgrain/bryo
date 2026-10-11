@@ -103,6 +103,19 @@ static void color_block(uint32_t t, int32_t *l, int32_t *r, uint32_t n)
         }
         return;
     }
+    if (!C->env && C->held[0] >= -16 && C->held[0] <= 16 && C->held[1] >= -16 && C->held[1] <= 16 &&
+        C->tlo[0] >= -16 && C->tlo[0] <= 16 && C->tlo[1] >= -16 && C->tlo[1] <= 16) {   /* (16: -66 dB, a filter's
+                                                         * round-down residue, which would also keep SPACE awake) */
+        int32_t in = 0;                                 /* resting: silence in, the noise shut and nothing held or
+                                                         * left in TILT's filter: silence out, none of the work
+                                                         * (2026-10-11: half the CPU with nothing playing) */
+        for (i = 0; i < n; i++)
+            in |= l[i] | r[i];
+        if (!in) {
+            C->held[0] = C->held[1] = C->tlo[0] = C->tlo[1] = 0;
+            return;
+        }
+    }
     if (tilt > 0) {                                     /* + : the highs up, the lows down, 6 dB each at 100 */
         gh = 4096 * (100 + tilt) / 100;
         gl = 4096 * 100 / (100 + tilt);

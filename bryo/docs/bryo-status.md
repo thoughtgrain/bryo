@@ -167,20 +167,24 @@ modulation, a few a sample more, 32 on the strip-heavy run 17; then the grains m
 sound of grains that ran off the buffer's end: the dense grain runs 7 to 11 % more; then silent grains skipped, up to
 9 % back where there's silence; then the pool's leftover given out and BODY's wave following the grains, 1 to
 7 a sample. Run 25's 3,299 here was out of date: the build before these two read 3,079; then six pages a
-device (NPK 24, GRAIN's GRNS): the modulators copy wider arrays, 29 a sample on run 25, 6 on run 24, 1 to 2 elsewhere; then the step keys' lights, 1 to 4):
+device (NPK 24, GRAIN's GRNS): the modulators copy wider arrays, 29 a sample on run 25, 6 on run 24, 1 to 2 elsewhere; then the step keys' lights, 1 to 4; then the devices resting on silence and muted tracks' devices hearing
+silence: run 29, stopped, 1,717 to 798, run 30, three tracks muted, 3,200 to 2,618, the playing runs within -125 to
++17):
 
 | Run | What | Cost |
 | --- | --- | ---: |
-| 1 | four reels, nothing on | 991 |
-| 19 | a realistic four-track groove | 1,675 |
-| 24 | the groove, modulated the way I'd play it | 1,904 (115 of it the modulators) |
-| 21 | the groove's busiest moment | 2,478 |
-| 23 | GRAIN at its densest on one track | 2,859 |
-| 25 | every slot on every track, 128 depths | 3,119 |
+| 1 | four reels, nothing on | 992 |
+| 19 | a realistic four-track groove | 1,680 |
+| 24 | the groove, modulated the way I'd play it | 1,911 (115 of it the modulators) |
+| 21 | the groove's busiest moment | 2,494 |
+| 23 | GRAIN at its densest on one track | 2,860 |
+| 25 | every slot on every track, 128 depths | 3,094 |
 | 26 | DRUM busy alone (FUNK, VARY 100, FILL 100, long decays), the others plain reels | 1,332 |
-| 27 | the groove with a DRUM track in place of its drum reel | 1,899 |
+| 27 | the groove with a DRUM track in place of its drum reel | 1,905 |
 | 28 | four DRUM tracks at once, every voice (20) | 2,433 |
-| 15 | everything on, all four tracks | 5,062 |
+| 15 | everything on, all four tracks | 5,061 |
+| 29 | the busiest groove's devices all on, the transport stopped (what "nothing playing" costs) | 798 |
+| 30 | one track heard (dense grains, strings with RES ARP, a room), the other three muted | 2,618 |
 
 My target for a realistic four-track scene is 2,000. The first device reading (run 1, 2026-10-10: 25 %, in 5 % steps)
 puts the ratio at about 37.6 host instructions a sample per percent, if the load scales with the host's count: the
@@ -223,6 +227,10 @@ number.
   four), split by what each track's settings ask for when it runs short; what's left over is everyone's (since
   2026-10-11: a track alone has all 40, not just what RATE and SIZE ask). GRAIN 6's GRNS can hold a number for a
   track instead (1-40, taken from the AUTO tracks first, kept whatever the others do).
+- **2026-10-11: devices rest on silence; a muted track's devices hear silence; shedding gives back only with
+  room.** Stopped, everything ran on digital zeros (about half the CPU with nothing playing); muting saved nothing
+  and handed the remaining track a bigger grain pool; shedding gave back blindly, a crackle a second near the edge.
+  See "Resting" in the architecture doc.
 - **2026-10-11: every effect opens with its mix.** ROUT and WET are KNOB 3-4 of page 1 on GRAIN, RESONATOR and
   COLOR (SPACE: DLY and VERB, its sends); the rest close up behind. Layout only: nothing stored moved.
 - **2026-10-11: six pages a device (NPK 24), for GRAIN's GRNS.** GRAIN's 20 were full. Projects and presets store

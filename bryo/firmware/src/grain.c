@@ -960,10 +960,13 @@ static void grain_shed(void)
         grain_cap -= 2u;
     grain_calm = 0;
 }
+/* audio ISR, each block: a second after the last shed, an eighth of the pool back, if there's room for it (the
+ * heaviest half of the last second under 70 %: chain_room); no room, another second */
 static void grain_recover(void)
 {
     if (++grain_calm >= 1378u && grain_cap < GR_CAP) {   /* (1378 blocks: a second) */
-        grain_cap++;
+        if (chain_room())
+            grain_cap++;
         grain_calm = 0;
     }
 }

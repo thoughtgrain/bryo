@@ -2110,8 +2110,14 @@ static void test_grain(void)
     }
     check("shedding shrinks the pool a quarter (40 -> 30): the grains follow it down", grain_cap == 6u &&
           gr_allow(0) == 30u && grain_count(0) <= 30u);
-    render(200, 0);
-    check("..and a second without shedding gives an eighth back (35)", grain_cap == 7u && gr_allow(0) == 35u);
+    sys.load_pk = 80;                                    /* (the heaviest half of the last second: 80 %) */
+    render(1400, 0);
+    check("..a second later with no room (the heaviest half 80 %): nothing back yet, or it would go over again",
+          grain_cap == 6u && gr_allow(0) == 30u);
+    sys.load_pk = 50;
+    render(1400, 0);
+    check("..and a second with room (50 %) gives an eighth back (35)", grain_cap == 7u && gr_allow(0) == 35u);
+    sys.load_pk = 0;
     grain_cap = GR_CAP;
     p[1] = 40;
     p[0] = 80;
@@ -2408,6 +2414,57 @@ static void st_reso(void) { tp[0].dev[DEV_RESO][RP_WET] = 60; tp[0].dev[DEV_RESO
 static void st_reso_res(void) { st_reso(); tp[0].dev[DEV_RESO][RP_CUT] = 40; tp[0].dev[DEV_RESO][RP_RES] = 90; }
 static void st_body_src(void) { tp[0].src = SRC_SYNTH; st_reso(); tp[0].dev[DEV_GRAIN][GP_WET] = 80; tp[0].dev[DEV_GRAIN][GP_BODY] = 100; }
 static void st_body_tri(void) { tp[0].dev[DEV_GRAIN][GP_WET] = 80; tp[0].dev[DEV_GRAIN][GP_BODY] = 100; tp[0].dev[DEV_GRAIN][GP_BMOD] = BODY_TRI; }
+/* resting: a device whose input is digital silence and whose tail has gone does none of its work, and wakes on the
+ * next sound as it was. From playing it (2026-10-11): half the CPU with nothing playing, and muting tracks saved
+ * nothing. Also, in integers SPACE's room and the channel's FILT cycled at -66 and -55 dB for good: that's gone */
+static void test_resting(void)
+{
+    uint32_t b;
+    int32_t pk;
+    static int32_t buf[200 * CTL];
+    power_on();
+    tp[0].dev[DEV_RESO][RP_WET] = 50;                    /* T1: strings, colour, a room and a delay, the channel FILT */
+    tp[0].dev[DEV_COLOR][CP_TILT] = -30;
+    tp[0].dev[DEV_SPACE][SP_VERB] = 50;
+    tp[0].dev[DEV_SPACE][SP_DLY] = 40;
+    tp[0].ch[CH_FILT] = 20;
+    tp[0].ch[CH_LOW] = 3;
+    chain_poll();
+    sys.playing = 1;
+    render(1378 * 2, 0);
+    check("playing: nothing rests (sound in everywhere)", !space[0].quiet && !reso[0].quiet);
+    sys.playing = 0;
+    render(1378 * 8, 0);
+    render(200, buf);
+    pk = peak_of(buf, 200 * CTL);
+    check("stopped 8 s: SPACE, the strings, COLOR and the channel all rest, and the track's out is exactly 0 (the "
+          "room's and FILT's integer residue gone with them)",
+          space[0].quiet > sp_len(&space[0].dly) + sp_len(&space[0].pre) + 2037u && reso[0].quiet > RS_LEN + CTL &&
+          !chan[0].f1[0] && !chan[0].f2[1] && !chan[0].lo[0] && !color[0].tlo[0] && pk == 0 && !track_rt[0].last[7]);
+    {
+        uint32_t dw = space[0].dw, pw = space[0].pw, rw = reso[0].w;
+        render(20, 0);
+        check("..resting is none of the work: SPACE's lines and the strings' stand still (their write points as they "
+              "were)", space[0].dw == dw && space[0].pw == pw && reso[0].w == rw);
+    }
+    sys.playing = 1;
+    for (b = 0, pk = 0; b < 40u; b++) {
+        render(1, buf);
+        pk = peak_of(buf, CTL) > pk ? peak_of(buf, CTL) : pk;
+    }
+    check("..PLAY again: they wake on the sound at once (no block of silence first)", pk > 1000 && !space[0].quiet &&
+          !reso[0].quiet);
+    render(1378, 0);
+    track[0].mute = 1;                                   /* muted: its devices hear silence and rest too */
+    render(1378 * 6, 0);
+    check("muted (the transport playing): RESONATOR, SPACE and the channel ring down and rest (they cost nothing)",
+          reso[0].quiet > RS_LEN + CTL && space[0].quiet > sp_len(&space[0].dly) && !chan[0].f1[0]);
+    track[0].mute = 0;
+    render(4, 0);
+    check("..unmuted: awake again on the track's sound", !space[0].quiet && !reso[0].quiet);
+    power_on();
+}
+
 static void test_settle(void)
 {
     int32_t e, lp, ic;
@@ -7843,6 +7900,7 @@ int main(int argc, char **argv)
     test_grain_silence();
     test_grain_body();
     test_settle();
+    test_resting();
     test_grain_clicks();
     test_reso();
     test_color();

@@ -17,10 +17,12 @@ static volatile uint32_t fm1_ms;  /* milliseconds since boot (TIMER5 ISR in main
 #define BOOTGUARD_MAGIC 0x42475244u
 struct { uint32_t magic, failed, pending; } bootguard __attribute__((section(".noinit")));
 
-/* What the main loop and the audio ISR share. The ISR writes cpu_q8; the main loop writes the rest, and the
+/* What the main loop and the audio ISR share. The ISR writes cpu_q8 and load_pk; the main loop writes the rest, and the
  * ISR reads them once per control block (a torn read of a 32-bit word cannot happen on this core). */
 typedef struct {
     uint32_t cpu_q8;             /* audio ISR load, 1/256 (audio.c) */
+    uint32_t load_pk;            /* .. the heaviest half in about the last second, % (audio.c; 0 on the host): what
+                                  * shedding gives back against (chain.c chain_room) */
     uint32_t master_q12;         /* the MASTER pot, squared: 0 .. ~4096 (main.c) */
     int32_t batt_raw;            /* smoothed ADC ch3 (battery divider), 0 = not read yet */
     uint16_t bpm;                /* global tempo, 40..240 */
@@ -44,6 +46,10 @@ typedef struct {
                                   * freeze reads it (ui_input.c sets it each frame) */
 } sys_t;
 static sys_t sys;
+
+/* audio ISR: room to give back what shedding took (grains, strings, drum voices: chain.c chain_shed). The heaviest
+ * half of about the last second under 70 % (audio.c); on the host, always */
+static inline int chain_room(void) { return sys.load_pk < 70u; }
 
 #define MASTER_FULL 4096         /* the MASTER pot's top, Q12 */
 
