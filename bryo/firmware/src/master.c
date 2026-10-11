@@ -101,6 +101,40 @@ static inline void master_out(int32_t *l, int32_t *r)
 }
 
 
+/* The output's fade for flash work (storage_hw.c): erasing the flash stops everything (the code runs from it), and
+ * the audio with it, so the sound has to stop then. Cut, it clicks at both ends (and a run of erases, a reel's,
+ * stutters). The main loop asks for silence (out_mute_req 1) and waits until out_quiet says the DMA's buffers hold
+ * nothing else (OUT_QUIET_BLOCKS: both halves); the gain slides down over OUT_FADE_FRAMES, and back up the same way
+ * when it's let go. Held at full, it costs one compare a block. */
+#define OUT_FADE_FRAMES 256              /* 5.8 ms either way */
+#define OUT_QUIET_BLOCKS (2u * HALF_FRAMES / CTL + 2u)   /* both of the DMA's halves rendered silent, and a margin */
+static volatile uint8_t out_mute_req;   /* main loop: 1 fade out and stay silent, 0 fade back in */
+static volatile uint16_t out_quiet;     /* ISR: blocks rendered silent in a row (capped) */
+static int32_t out_g = 32767;           /* ISR: the gain now, Q15 */
+static void out_fade(int32_t *out, uint32_t n)
+{
+    int32_t tgt = out_mute_req ? 0 : 32767, g = out_g, step = 32767 / OUT_FADE_FRAMES + 1;
+    uint32_t i;
+    if (g == tgt && g == 32767) {                       /* (playing: untouched) */
+        out_quiet = 0;
+        return;
+    }
+    if (g == 0 && tgt == 0) {                           /* (silent: held there) */
+        for (i = 0; i < 2u * n; i++)
+            out[i] = 0;
+        if (out_quiet < 0xFFFFu)
+            out_quiet++;
+        return;
+    }
+    for (i = 0; i < n; i++) {
+        g = tgt > g ? (g + step > tgt ? tgt : g + step) : (g - step < tgt ? tgt : g - step);
+        out[2u * i] = (out[2u * i] * (g >> 3)) >> 12;
+        out[2u * i + 1u] = (out[2u * i + 1u] * (g >> 3)) >> 12;
+    }
+    out_g = g;
+    out_quiet = 0;
+}
+
 /* the mix (Q15-ish, summed tracks) -> MASTER -> master_out -> interleaved stereo for audio.c */
 static void master_block(const int32_t *l, const int32_t *r, int32_t *out, uint32_t n)
 {
@@ -112,4 +146,5 @@ static void master_block(const int32_t *l, const int32_t *r, int32_t *out, uint3
         out[2u * i] = ol;
         out[2u * i + 1u] = or_;
     }
+    out_fade(out, n);                                   /* (flash work: faded, not cut) */
 }

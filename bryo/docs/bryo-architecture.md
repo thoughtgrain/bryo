@@ -36,7 +36,7 @@ I had the Felucca source read for facts before planning, because a few of them c
 | **No audio input.** I2S out to the codec only; the ADC reads only the MASTER pot and the battery; USB audio is device to computer only. | `hal/fm1_audio.h`, `hal/fm1_adc.h`, `src/usb.c` | TAPE can't record a mic or line in. It records what Bryo itself makes (see "Where TAPE's audio comes from"). |
 | **RAM: 344 KiB pool + 96 KiB .data/.bss**, no external RAM. | `app.ld` | Four live tapes have to share about 150 KiB. That sets the tape format. |
 | **Flash: 1 MiB.** The app area is 0x4000–0x92FFF; Felucca's data region is 0x97000–0xDFFFF (296 KiB). | `hal/fm1_flash.h`, `src/storage.c` | Saved projects with audio compete for about 280 KiB. |
-| **Flash writes block interrupts.** Erase and program run with IRQs off; audio drops out. | `hal/fm1_flash.h`, `src/storage_hw.c` | Saving tapes happens with the transport stopped, as Felucca already does. |
+| **Flash writes block interrupts.** Erase and program run with IRQs off; audio drops out. | `hal/fm1_flash.h`, `src/storage_hw.c` | A page programs in well under a half buffer, so a save that only programs plays on; an erase stops the sound, so the output fades out around it (`out_fade`) and the copy a project save writes is erased ahead (see "Saving while playing"). |
 | **7 relative encoders, no push switches:** SELECT, ALGORITHM, PRESETS, KNOB 1–4. | `src/panel.c`, `hal/fm1_input.h` | The PRD's "push SELECT", and PRESETS and ALGORITHM as buttons, need another gesture. |
 | **14 buttons:** FX SCL ENV LFO EDIT GLO HOME SAVE ARP SEQ PLAY REC, plus OCT− OCT+. | `src/panel.c` | The PRD's 12 pads match. The PRD's **SEL** pad is the one printed **SCL**. |
 | **27 keys:** 16 white, 11 black (F3..G5), one single-colour LED each. | `hal/fm1_input.h` | Colour identity for the modulator slots lives on the screen only. |
@@ -1079,7 +1079,8 @@ own RAM tape is let go: what a project keeps of a tape is in its reel.
 81.0 after the RAM pass). A
 save erases and programs one sector (well under a second of flash work) plus a user reel for each new take (about a
 second each), with the sound stuttering while the flash holds the bus, as reel saves always have; the screen says
-SAVING first.
+SAVING first. (Since 2026-10-11 a save that writes no reel doesn't stop the sound, and one that does stops it once,
+faded: "Saving while playing" below.)
 
 **Tested** (`test_projects`): an empty flash boots to the defaults; a scene far from them (four sources, a DRUM
 pattern, SEQ steps, depths on a DRUM knob, a device and the channel, levels, mutes, octaves, TRACKS 3, the tempo, the
@@ -1347,6 +1348,35 @@ The GRAIN page says why a track has none: MUTED, STOPPED, NO TAPE, or SILENT.
 Tested: three silent POLY tracks with GRAIN on leave the fourth all 40; a chord on one gives it its share of 30;
 muting it gives the 40 back; SCAN TAPE stopped takes none. Mutants caught: the old WET-only rule, mute ignored,
 silence ignored, the loud count not kept, a stopped TAPE scan counted.
+
+**Saving while playing (2026-10-11, from playing it).** SAVE clicked while playing. Bryo's code runs from the flash,
+so while the flash erases a 4 KB sector nothing runs, the audio interrupt included, and the driver zeroed the audio
+buffer first (else the DMA loops the last half: a buzz): a cut to silence and back, a click at each end, and a reel's
+run of erases a stutter. Programming a 256-byte page takes well under a half buffer (2.9 ms), so the audio rides
+over those; it's the erases.
+
+- **The fade** (`master.c` `out_fade`, at the end of the output stage): the main loop asks for silence; the gain
+  slides to 0 over 256 frames (5.8 ms) and `out_quiet` counts the blocks rendered silent since. Before an erase,
+  `storage_hw.c` asks for it and waits until both of the DMA's halves hold only silence (on TIMER4, 30 ms at most;
+  no half played in 8 ms means no audio running, as at boot, and nothing to wait for). The gap stays open over a run
+  of erases, and `st_poll` lets it go 40 ms after the last: the sound fades back in. A reel's save is one soft gap.
+- **Erasing ahead** (`project.c`): a project keeps two copies and a save writes the older. If that one is already
+  erased, the save only programs and the sound plays on (`pj_blank`, the 4 KB read through XIP). After a save the
+  other copy is the next one written: it's erased at once if this save stopped the sound anyway (it erased: a reel,
+  or its own copy), else marked (`pj_pre_off`) and erased by `pj_poll` at the next quiet moment, the transport
+  stopped and every track's meter at its floor (64, about -54 dB, where its decay stops) for a second. Never while
+  the transport runs, even silent: a sound could start on the next step. Boot erases it before the audio runs, and a
+  load marks it. The copy just written is read back and in charge, so the older isn't needed as a fallback.
+
+So a project save while playing (no new take) is seamless; one with a new take stops the sound once, faded, for its
+reel's erases. Pausing the erase itself (the flash's erase suspend) would make that seamless too, but it needs
+bring-up on the device; parked.
+
+Tested on the host (the NOR model counts erases): boot erases the next copy; a save while playing erases nothing,
+twice in a row; while playing (even muted) the erase ahead waits, stopped and silent a second it happens; a save
+with a take erases the next copy in the same gap; after two saves and a power cycle, boot erases the older; the fade
+reaches silence over 6 ms and says so, and comes back to full. Each fails its mutant. Not testable here:
+`storage_hw.c`'s wait and `st_poll` (the device's), which the run sheet's row 24 now asks about.
 
 **More grains: rendering them at half rate (2026-10-11).** Asked for more grains, I profiled first (run 23, one
 track, 31 grains, functions not inlined): the mix (reading each grain's window, interpolating, the envelope, the pan)

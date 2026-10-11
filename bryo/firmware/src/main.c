@@ -248,6 +248,10 @@ static void fm1_main(void)
         settings_poll();                              /* queued settings save: only while stopped */
         vdisk_poll();                                 /* the drive: a fresh volume, a dropped WAV to its place */
         chain_poll();                                 /* the memory: growing tapes, GRAIN's buffers, TRACKS */
+        pj_poll();                                    /* a save's copy erased ahead, at a quiet moment (project.c) */
+#if FELUCCA_FLASH
+        st_poll();                                    /* the sound back after flash work (storage_hw.c) */
+#endif
         felucca_dbg.stage = 2;
         ui_leds();
         ui_draw();

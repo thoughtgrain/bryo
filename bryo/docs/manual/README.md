@@ -710,6 +710,10 @@ depth, the mixer and the tempo. A tape you recorded goes into a user reel named 
 (**P1T2** is project 1, track 2); if all six user reels are taken, SAVE tells you which tapes didn't fit. The last
 project you saved comes back when you turn the FM-1 on.
 
+**Saving while it plays:** the sound carries on. When there's a new recording to keep, the sound fades out for a
+moment while it's written, then fades back in. (Bryo gets the next save ready in a quiet moment, when the transport
+is stopped and nothing sounds, so a save mid-performance doesn't have to stop the sound.)
+
 ### 9.2 Projects: save, load, delete
 
 There are six project slots, P1 to P6.

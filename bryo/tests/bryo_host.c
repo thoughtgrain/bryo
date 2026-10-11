@@ -90,7 +90,8 @@ static void ui_redraw(void);
 static uint8_t host_nor[0x100000];
 static uint32_t host_prog_limit = 0xFFFFFFFFu;           /* bytes a save may program before the "power cut" */
 static const uint8_t *rf_ptr(uint32_t off) { return host_nor + off; }
-static int rf_erase(uint32_t off) { memset(host_nor + off, 0xFF, 4096); return 0; }
+static uint32_t host_nerase;                             /* erases so far (each one stops the device's sound) */
+static int rf_erase(uint32_t off) { memset(host_nor + off, 0xFF, 4096); host_nerase++; return 0; }
 static int rf_prog(uint32_t off, const void *src, uint32_t n)
 {
     uint32_t i;
@@ -164,6 +165,10 @@ static void power_on(void)
     pj_cur = 0;
     pj_seq = 0;
     pj_hash_at = 0;
+    pj_pre_off = 0xFFFFFFFFu;                            /* (no erase ahead pending) */
+    out_mute_req = 0;                                    /* (the output's fade: playing) */
+    out_g = 32767;
+    out_quiet = 0;
     memset(&sys, 0, sizeof sys);
     memset(&fm1_in, 0, sizeof fm1_in);
     panel = PANEL_DEFAULT;
@@ -5418,6 +5423,109 @@ static void pj_scene(void)                               /* a session far from t
     mod_nudge(0, 1, MOD_TCH + CH_FILT, 60);
 }
 
+/* saving while playing: the copy a save writes is erased ahead, so the save only programs (no gap in the sound);
+ * the next one's erased at once when the save stopped the sound anyway (a take into a reel), else when it's quiet;
+ * and the output fades out and in around flash work instead of being cut */
+static void test_save_seamless(void)
+{
+    uint32_t n0, b, i, t_;
+    int32_t worst = 0, prev = 0, mx = 0;
+    power_on();
+    pj_wipe();
+    pj_boot();
+    check("boot: P1's next copy is erased ahead (the audio isn't running yet)", pj_blank(pj_sector(0, 0)) &&
+          pj_blank(pj_sector(0, 1)) && pj_pre_off == 0xFFFFFFFFu);
+    sys.playing = 1;
+    render_poll(200);
+    n0 = host_nerase;
+    check("a save while playing, nothing new recorded: written, nothing erased (the sound plays on)",
+          pj_save(0) == 0 && host_nerase == n0);
+    check("..the next save's copy (the other) is still blank from boot: nothing to erase ahead",
+          pj_blank(pj_sector(0, 1)) && pj_pre_off == 0xFFFFFFFFu);
+    tp[0].dev[DEV_COLOR][0] = 20;                        /* (a change, saved again: into the other copy) */
+    render_poll(10);
+    n0 = host_nerase;
+    check("..saved again while playing: the other copy was blank, still nothing erased", pj_save(0) == 0 &&
+          host_nerase == n0);
+    for (t_ = 0; t_ < NTRK; t_++)                        /* (playing, everything muted: silent, but a sound could
+                                                          * start any step) */
+        track[t_].mute = 1;
+    for (b = 0; b < 1000u; b++) {                        /* playing: the erase ahead waits */
+        render_poll(1);
+        fm1_ms += 10;
+        pj_poll();
+    }
+    for (t_ = 0; t_ < NTRK; t_++)
+        track[t_].mute = 0;
+    check("..now the older copy is the next one: marked to erase ahead, and while it plays, that waits",
+          host_nerase == n0 && pj_pre_off == pj_sector(0, 0) && !pj_blank(pj_sector(0, 0)));
+    sys.playing = 0;
+    for (t_ = 0; t_ < NTRK; t_++)                        /* (stopped and silent) */
+        track[t_].mute = 1;
+    for (b = 0; b < 1000u; b++) {                       /* (the meters fall to silence, then a second of it) */
+        render_poll(1);
+        fm1_ms += 5;
+        pj_poll();
+    }
+    check("..stopped and silent a second: the next copy erased then", host_nerase == n0 + 1u &&
+          pj_pre_off == 0xFFFFFFFFu);
+    for (t_ = 0; t_ < NTRK; t_++)
+        track[t_].mute = 0;
+    sys.playing = 1;
+    fill_tape(1, 4);                                     /* a take: its reel is written (the flash stops the sound) */
+    tape_ctl[1].empty = 0;
+    n0 = host_nerase;
+    pj_save(0);
+    check("a save with a new take: the reel erased (the sound stops for it), and the next copy too, in the same gap",
+          host_nerase > n0 + 1u && pj_pre_off == 0xFFFFFFFFu);
+    tp[0].dev[DEV_COLOR][0] = 30;                        /* (both copies written, then a power cycle) */
+    pj_save(0);
+    check("..(both copies hold a save now)", !pj_blank(pj_sector(0, 0)) && !pj_blank(pj_sector(0, 1)));
+    power_on();
+    n0 = host_nerase;
+    pj_boot();
+    check("boot after saves: the older copy erased then, before the audio runs, the newer loaded",
+          host_nerase == n0 + 1u && (pj_blank(pj_sector(0, 0)) != pj_blank(pj_sector(0, 1))) &&
+          tp[0].dev[DEV_COLOR][0] == 30);
+
+    power_on();                                          /* the output's fade */
+    for (i = 1; i < NTRK; i++)
+        track[i].mute = 1;
+    sys.playing = 1;
+    render_poll(1378);
+    out_mute_req = 1;
+    {
+        uint32_t heard = 0;                              /* (output samples still sounding after the request) */
+        for (b = 0; b < 40u; b++) {
+            render(1, 0);
+            for (i = 0; i < CTL; i++) {
+                int32_t d = out[2u * i] - prev;
+                d = d < 0 ? -d : d;
+                worst = b && d > worst ? d : worst;
+                heard += out[2u * i] != 0;
+                prev = out[2u * i];
+            }
+        }
+        check("flash work: the output fades to silence over 6 ms (no cut) and says so (out_quiet)", out_g == 0 &&
+              out_quiet >= OUT_QUIET_BLOCKS && out[0] == 0 && worst < 2000 && heard > 200u);
+    }
+    out_mute_req = 0;
+    for (b = 0, worst = 0; b < 40u; b++) {
+        render(1, 0);
+        for (i = 0; i < CTL; i++) {
+            int32_t d = out[2u * i] - prev, a = out[2u * i] < 0 ? -out[2u * i] : out[2u * i];
+            d = d < 0 ? -d : d;
+            worst = d > worst ? d : worst;
+            mx = a > mx ? a : mx;
+            prev = out[2u * i];
+        }
+    }
+    check("..let go: it fades back in, to the full level", out_g == 32767 && out_quiet == 0 && mx > 1000 &&
+          worst < 2000);
+    pj_wipe();
+    power_on();
+}
+
 static void test_projects(void)
 {
     static track_params_t want[NTRK];
@@ -7176,6 +7284,7 @@ int main(int argc, char **argv)
     test_drum_play_fixes();
     test_sends();
     test_projects();
+    test_save_seamless();
     test_env_pad();
     test_page_keys();
     test_drum_mod();

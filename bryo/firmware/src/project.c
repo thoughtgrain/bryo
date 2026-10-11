@@ -583,6 +583,54 @@ static void pj_scan(uint32_t s)
 }
 
 /* main loop, at power-on: every slot's summary, then the project saved last, loaded (none: the defaults stay) */
+/* A save while playing: the copy it writes is erased ahead, so the save only programs (a page at a time, under a
+ * half buffer of the audio: seamless); erasing stops the audio (storage_hw.c fades it around that). After a save, the
+ * other copy (the older) is the next one written: erased at once if the save already stopped the sound (it wrote a
+ * reel), else at the next quiet moment (pj_poll: the transport stopped, every track silent for a second), and at boot
+ * (before the audio runs). The copy just written is read back and in charge, so the older isn't needed. */
+static uint32_t pj_pre_off = 0xFFFFFFFFu;   /* a copy to erase ahead of the next save (none: all 1s) */
+static uint32_t pj_quiet_t;                /* fm1_ms since every track has been silent (pj_poll) */
+
+/* the 4 KB at off is erased already (all 1s) */
+static int pj_blank(uint32_t off)
+{
+    const uint32_t *p = (const uint32_t *)rf_ptr(off);
+    uint32_t i;
+    for (i = 0; i < PJ_SECTOR / 4u; i++)
+        if (p[i] != 0xFFFFFFFFu)
+            return 0;
+    return 1;
+}
+
+/* main loop: the copy of slot s the next save writes, marked to erase ahead (now if now) */
+static void pj_pre_mark(uint32_t s, int now)
+{
+    pj_hdr_t h;
+    int c = s < PJ_N ? pj_current(s, &h) : -1;
+    uint32_t off = s < PJ_N ? pj_sector(s, c == 0 ? 1u : 0u) : 0xFFFFFFFFu;
+    pj_pre_off = off != 0xFFFFFFFFu && !pj_blank(off) ? off : 0xFFFFFFFFu;
+    if (now && pj_pre_off != 0xFFFFFFFFu) {
+        (void)rf_erase(pj_pre_off);
+        pj_pre_off = 0xFFFFFFFFu;
+    }
+}
+
+/* main loop, each frame: the erase ahead, at a quiet moment (the transport stopped, every track silent a second) */
+static void pj_poll(void)
+{
+    uint32_t t, loud = sys.playing != 0;
+    for (t = 0; t < NTRK; t++)
+        loud |= track_rt[t].peak >= 64;                 /* (about -54 dB: the meter's floor, its decay stops there) */
+    if (loud || pj_pre_off == 0xFFFFFFFFu) {
+        pj_quiet_t = fm1_ms;
+        return;
+    }
+    if (fm1_ms - pj_quiet_t >= 1000u) {
+        (void)rf_erase(pj_pre_off);
+        pj_pre_off = 0xFFFFFFFFu;
+    }
+}
+
 static int pj_load(uint32_t s);
 static void pj_boot(void)
 {
@@ -602,6 +650,7 @@ static void pj_boot(void)
         tpf_scene();
         pj_hash_at = pj_hash();
     }
+    pj_pre_mark(pj_cur, 1);                              /* (before the audio runs: the next save's copy erased) */
 }
 
 /* the user reel slot that holds project s's track t ("P2T3"), or -1 */
@@ -663,7 +712,7 @@ static int pj_save(uint32_t s)
 {
     pj_hdr_t h, cur;
     uint32_t t, copy;
-    int c, lost = 0, rc;
+    int c, lost = 0, rc, gap = 0;                        /* (gap: this save has stopped the sound: it erased) */
     if (s >= PJ_N)
         return -1;
     sys.rec = 0;                                         /* (REC lets go: a take mid-record can't be kept) */
@@ -674,14 +723,21 @@ static int pj_save(uint32_t s)
             lost |= 1 << t;
         else if (rc == -2)
             return -3;
+        else if (rc == 1)
+            gap = 1;                                     /* (a reel written: the flash has stopped the sound already) */
     }
     c = pj_current(s, &cur);
     copy = c == 0 ? 1u : 0u;                             /* the other copy */
     memset(&pw, 0, sizeof pw);
     pw.base = pj_sector(s, copy);
     pw.crc = 0xFFFFFFFFu;
-    if (rf_erase(pw.base))
-        return -1;
+    if (!pj_blank(pw.base)) {                            /* (erased ahead: nothing to erase, the sound plays on) */
+        if (rf_erase(pw.base))
+            return -1;
+        gap = 1;
+    }
+    if (pj_pre_off == pw.base)
+        pj_pre_off = 0xFFFFFFFFu;
     pj_write_state();
     if (pw_finish())
         return -1;
@@ -701,6 +757,8 @@ static int pj_save(uint32_t s)
     pj_cur = (uint8_t)s;
     pj_scan(s);
     pj_hash_at = pj_hash();
+    pj_pre_mark(s, gap);                                 /* (the next save's copy: erased now if the sound has
+                                                         * stopped for this one anyway, else when it's quiet) */
     return lost;
 }
 
@@ -738,6 +796,7 @@ static int pj_load(uint32_t s)
     mod_undo_buf.valid = 0;
     drm_undo_buf.valid = 0;
     pj_cur = (uint8_t)s;
+    pj_pre_mark(s, 0);                                   /* (its next save's copy, erased when it's quiet) */
     pj_hash_at = pj_hash();
     return 0;
 }
