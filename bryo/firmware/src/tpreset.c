@@ -121,6 +121,10 @@ static void tpr_read_rec(uint32_t t)
                                                           * Records are copied forward unparsed, so there's no
                                                           * version to ask) */
             P->dev[DEV_SRC][s] = DEV_P[DEV_SRC][s].def;
+    if (!P->dev[DEV_GRAIN][GP_BODY] && !P->dev[DEV_GRAIN][GP_BMOD] && !P->dev[DEV_GRAIN][GP_BTON])
+        for (s = GP_BODY; s <= GP_BTON; s++)             /* (a preset from before GRAIN's BODY: 0s there, NOTE held
+                                                          * to C1 and TONE at 30 Hz; with BODY off, its defaults) */
+            P->dev[DEV_GRAIN][s] = DEV_P[DEV_GRAIN][s].def;
     if (P->dev[DEV_SRC][TK_REEL] == 0)                   /* (its own tape: nothing named, the reel it's on stays) */
         P->dev[DEV_SRC][TK_REEL] = reel;
     if (P->pol[PL_REEL] == 0)

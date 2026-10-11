@@ -412,9 +412,13 @@ static void test_input(void)
     press(B_EDIT);
     press(B_EDIT);
     press(B_EDIT);
-    check("EDIT again: GRAIN 4 (SCAN WARP OFST FDBK)", ui.dev == DEV_GRAIN && ui.page == 3u);
+    check("EDIT again: GRAIN 4 (BODY MODE NOTE TONE)", ui.dev == DEV_GRAIN && ui.page == 3u &&
+          !strcmp(dev_p(0, DEV_GRAIN)[pdesc_at(dev_p(0, DEV_GRAIN), 12u)].label, "BODY"));
     press(B_EDIT);
-    check("EDIT again, past GRAIN's pages 2 to 4: RESONATOR", ui.dev == DEV_RESO);
+    check("..again: GRAIN 5 (PATN SCAL PRND ROUT: ROUT KNOB 4 of the last page)", ui.dev == DEV_GRAIN && ui.page == 4u &&
+          !strcmp(dev_p(0, DEV_GRAIN)[pdesc_at(dev_p(0, DEV_GRAIN), 19u)].label, "ROUT"));
+    press(B_EDIT);
+    check("EDIT again, past GRAIN's pages 2 to 5: RESONATOR", ui.dev == DEV_RESO);
     press(B_EDIT);
     press(B_EDIT);
     press(B_EDIT);
@@ -454,11 +458,14 @@ static void test_input(void)
     check("..whose KNOB 1 is WET (0 -> 30), not SIZE", tp[0].dev[DEV_GRAIN][4] == 30 && tp[0].dev[DEV_GRAIN][0] == 80);
     tp[0].dev[DEV_GRAIN][4] = 0;
     press(B_EDIT);
-    check("..again: GRAIN's page 3 (PATN SCAL PRND)", ui.dev == DEV_GRAIN && ui.page == 2u &&
-          !strcmp(dev_p(0, DEV_GRAIN)[8].label, "PATN"));
+    check("..again: GRAIN's page 3 (SCAN WARP OFST FDBK: what grains read, set up left to right)", ui.dev == DEV_GRAIN &&
+          ui.page == 2u && !strcmp(dev_p(0, DEV_GRAIN)[pdesc_at(dev_p(0, DEV_GRAIN), 8u)].label, "SCAN") &&
+          !strcmp(dev_p(0, DEV_GRAIN)[pdesc_at(dev_p(0, DEV_GRAIN), 9u)].label, "WARP"));
     press(B_EDIT);
-    check("..again: GRAIN's page 4 (SCAN WARP OFST FDBK: what grains read, set up left to right)", ui.dev == DEV_GRAIN &&
-          ui.page == 3u && !strcmp(dev_p(0, DEV_GRAIN)[12].label, "SCAN") && !strcmp(dev_p(0, DEV_GRAIN)[13].label, "WARP"));
+    check("..again: GRAIN's page 4 (BODY: a floor under the grains)", ui.dev == DEV_GRAIN && ui.page == 3u);
+    press(B_EDIT);
+    check("..again: GRAIN's page 5 (PATN SCAL PRND ROUT)", ui.dev == DEV_GRAIN && ui.page == 4u &&
+          !strcmp(dev_p(0, DEV_GRAIN)[pdesc_at(dev_p(0, DEV_GRAIN), 16u)].label, "PATN"));
     press(B_EDIT);
     check("..again: RESONATOR", ui.dev == DEV_RESO && ui.page == 0u);
     press(B_EDIT);
@@ -825,11 +832,19 @@ static void screens_in(const char *pal)
     turn(3, 40);
     shot(pal, "grain2");
     press(B_EDIT);
-    press(B_EDIT);                                       /* GRAIN 4: PATN SWNG, SCAL MAJ, PRND 5 */
+    press(B_EDIT);                                       /* GRAIN 4: BODY 40, MODE TRI, NOTE A2, TONE 400 Hz */
+    turn(0, 40);
+    turn(1, 1);
+    turn(3, 14);
+    shot(pal, "grain_body");
+    tp[0].dev[DEV_GRAIN][GP_BODY] = 0;                   /* (off again: the shots after as they were) */
+    tp[0].dev[DEV_GRAIN][GP_BMOD] = BODY_SRC;
+    tp[0].dev[DEV_GRAIN][GP_BTON] = DEV_P[DEV_GRAIN][GP_BTON].def;
+    press(B_EDIT);                                       /* GRAIN 5: PATN SWNG, SCAL MAJ, PRND 5 */
     turn(0, -2);
     turn(1, 2);
     turn(2, 5);
-    shot(pal, "grain4");
+    shot(pal, "grain5");
     {   /* playing a bar into the buffer, then the 0 black key held: the buffer frozen, the grains looping it */
         uint32_t u, z = 0;
         for (u = 0; u < 27u; u++)
@@ -2279,6 +2294,119 @@ static void test_grain_clicks(void)
           "head, POS off the end, 10 ms grains, WET to 0 and stepped)", worst == 0u);
     power_on();
     render_poll(1378);
+}
+
+/* GRAIN's BODY: a floor under the grains. Each case is run twice from power-on, BODY on and off, the rest the same
+ * (all deterministic), so the difference is BODY alone */
+#define BODY_N 1378u                                     /* blocks: a second */
+static int32_t body_on[BODY_N * CTL], body_off[BODY_N * CTL];
+static int32_t body_hf = 6000;                           /* the source's 3 kHz (0: only its 100 Hz) */
+static void body_run(int32_t *o, int body, int mode, int note, int tone, int wet, int sw_at, int sw_mode)
+{
+    static int32_t dry[CTL], l[CTL], r[CTL];
+    int16_t *p = tp[0].dev[DEV_GRAIN];
+    uint32_t b, i, t;
+    double ph1 = 0, ph2 = 0;
+    power_on();
+    tp[0].src = SRC_SYNTH;                               /* (live: the buffer records what comes in) */
+    for (t = 1; t < NTRK; t++)
+        track[t].mute = 1;
+    p[GP_WET] = (int16_t)wet;
+    p[GP_BODY] = (int16_t)body;
+    p[GP_BMOD] = (int16_t)mode;
+    p[GP_NOTE] = (int16_t)note;
+    p[GP_BTON] = (int16_t)tone;
+    sys.playing = 1;
+    chain_poll();
+    for (b = 0; b < BODY_N; b++) {
+        if (sw_at >= 0 && b == (uint32_t)sw_at)
+            p[sw_mode >= 0 ? GP_BMOD : GP_BODY] = (int16_t)(sw_mode >= 0 ? sw_mode : 100);
+        for (i = 0; i < CTL; i++, ph1 += 2 * 3.14159265358979 * 100 / 44100, ph2 += 2 * 3.14159265358979 * 3000 / 44100)
+            dry[i] = (int32_t)(6000 * sin(ph1) + body_hf * sin(ph2));   /* 100 Hz and 3 kHz */
+        gr_plan();
+        grain_block(0, dry, 0, 0, l, r, CTL);
+        for (i = 0; i < CTL; i++)
+            o[b * CTL + i] = l[i];
+    }
+}
+static double body_amp(double hz, uint32_t from)          /* the difference's amplitude at hz (Goertzel), from block */
+{
+    double w = 2 * 3.14159265358979 * hz / 44100, c = 2 * cos(w), s0, s1 = 0, s2 = 0;
+    uint32_t i, n = 0;
+    for (i = from * CTL; i < BODY_N * CTL; i++, n++) {
+        s0 = (body_on[i] - body_off[i]) + c * s1 - s2;
+        s2 = s1;
+        s1 = s0;
+    }
+    return 2 * sqrt(s1 * s1 + s2 * s2 - c * s1 * s2) / n;
+}
+static uint32_t body_xings(uint32_t from)                 /* the difference's upward zero crossings, from block */
+{
+    uint32_t i, x = 0;
+    for (i = from * CTL + 1u; i < BODY_N * CTL; i++)
+        x += body_on[i - 1u] - body_off[i - 1u] < 0 && body_on[i] - body_off[i] >= 0;
+    return x;
+}
+static int32_t body_jump(void)                            /* the difference's largest sample-to-sample move */
+{
+    uint32_t i;
+    int32_t m = 0;
+    for (i = 1; i < BODY_N * CTL; i++) {
+        int32_t d = (body_on[i] - body_off[i]) - (body_on[i - 1u] - body_off[i - 1u]);
+        d = d < 0 ? -d : d;
+        m = d > m ? d : m;
+    }
+    return m;
+}
+static void test_grain_body(void)
+{
+    double lo, hi, hi2;
+    char m[200];
+    body_run(body_off, 0, BODY_SRC, 45, 38, 100, -1, -1);
+    body_run(body_on, 100, BODY_SRC, 45, 38, 100, -1, -1);
+    lo = body_amp(100, 200);
+    hi = body_amp(3000, 200);
+    snprintf(m, sizeof m, "BODY SRC, TONE 200 Hz, WET 100: the source's low end under the grains (100 Hz at %.0f, 3 kHz "
+             "at %.0f)", lo, hi);
+    check(m, lo > 3000 && hi < lo / 10);
+    body_run(body_on, 100, BODY_SRC, 45, 90, 100, -1, -1);
+    hi2 = body_amp(3000, 200);
+    snprintf(m, sizeof m, "..TONE up (%u Hz): the 3 kHz comes through (%.0f)", CUTOFF_HZ[90], hi2);
+    check(m, hi2 > 5 * hi);
+    body_run(body_on, 100, BODY_TRI, 45, 60, 100, -1, -1);
+    snprintf(m, sizeof m, "BODY TRI at NOTE A2: 110 Hz (%u cycles in the last 0.85 s), whatever the source", body_xings(200));
+    check(m, body_xings(200) >= 92u && body_xings(200) <= 95u);
+    body_run(body_on, 100, BODY_SIN, 57, 60, 100, -1, -1);
+    snprintf(m, sizeof m, "BODY SIN at NOTE A3: 220 Hz (%u cycles)", body_xings(200));
+    check(m, body_xings(200) >= 186u && body_xings(200) <= 189u);
+    body_run(body_off, 0, BODY_SRC, 45, 38, 0, -1, -1);
+    body_run(body_on, 100, BODY_SRC, 45, 38, 0, -1, -1);
+    check("..WET 0: no BODY either (it's on the wet side)", body_amp(100, 200) < 1 && body_jump() == 0);
+    body_run(body_off, 0, BODY_TRI, 45, 60, 100, -1, -1);
+    body_run(body_on, 0, BODY_TRI, 45, 60, 100, 600, -1);          /* BODY 0 -> 100 in a block */
+    snprintf(m, sizeof m, "BODY turned 0 -> 100 at once: it ramps in (largest move %d)", body_jump());
+    check(m, body_jump() < 400);
+    body_hf = 0;                                         /* (the source only its 100 Hz: its own moves small) */
+    body_run(body_off, 0, BODY_SRC, 45, 100, 100, -1, -1);
+    body_run(body_on, 100, BODY_SRC, 45, 100, 100, 600, BODY_TRI);   /* MODE SRC -> TRI while it sounds, TONE open */
+    body_hf = 6000;
+    {                                                    /* (the move at the switch against its own playing's) */
+        uint32_t i;
+        int32_t at = 0, before = 0;
+        for (i = 300u * CTL; i < 604u * CTL; i++) {
+            int32_t d = (body_on[i] - body_off[i]) - (body_on[i - 1u] - body_off[i - 1u]);
+            d = d < 0 ? -d : d;
+            if (i < 590u * CTL)
+                before = d > before ? d : before;
+            else
+                at = d > at ? d : at;
+        }
+        snprintf(m, sizeof m, "..MODE changed while it sounds (SRC to TRI, TONE open): down and back up, no step "
+                 "(largest move at the switch %d, while it played %d)", at, before);
+        check(m, at <= 4 * before + 200 && body_xings(700) >= 50u && body_xings(700) <= 56u);   /* (0.49 s of 110
+                                                                                                * Hz) */
+    }
+    power_on();
 }
 
 /* silent grains cost nothing: a grain whose whole read is silence (every block's stored peak 0) isn't started, and a
@@ -4883,7 +5011,8 @@ static void test_mod(void)
     press(B_EDIT);
     press(B_EDIT);
     press(B_EDIT);
-    press(B_EDIT);                                       /* RESONATOR */
+    press(B_EDIT);
+    press(B_EDIT);                                       /* RESONATOR (past GRAIN's five) */
     press(B_OCTUP);
     check("..on the track's RESONATOR page: the octave", ui.dev == DEV_RESO && track[0].octave == 4u &&
                                                          tp[0].drm[DM_BAR] == 2);
@@ -5809,6 +5938,37 @@ static void test_projects(void)
     rc |= pj_load(0);
     check("a version 4 project: TAPE's envelope gets its defaults (SUS 100, REL long), not the 0s",
           rc == 0 && tp[0].dev[DEV_SRC][TK_SUS] == 100 && tp[0].dev[DEV_SRC][TK_REL] == DEV_P[DEV_SRC][TK_REL].def);
+    {
+        uint32_t k;
+        for (k = GP_BODY; k <= GP_BTON; k++)             /* a version 6 project: GRAIN's BODY wasn't there (0s) */
+            tp[0].dev[DEV_GRAIN][k] = 0;
+        pj_wver = 6;
+        rc = pj_save(0);
+        pj_wver = PJ_VERSION;
+        power_on();
+        rc |= pj_load(0);
+        check("a version 6 project: GRAIN's BODY gets its defaults (off, A2, 200 Hz), not NOTE C1 and TONE 30 Hz",
+              rc == 0 && tp[0].dev[DEV_GRAIN][GP_BODY] == 0 && tp[0].dev[DEV_GRAIN][GP_NOTE] == 45 &&
+              tp[0].dev[DEV_GRAIN][GP_BTON] == DEV_P[DEV_GRAIN][GP_BTON].def);
+        tp[0].dev[DEV_GRAIN][GP_BODY] = 60;              /* and this version keeps it as saved */
+        tp[0].dev[DEV_GRAIN][GP_BMOD] = BODY_TRI;
+        tp[0].dev[DEV_GRAIN][GP_NOTE] = 38;
+        tp[0].dev[DEV_GRAIN][GP_BTON] = 70;
+        rc = pj_save(0);
+        power_on();
+        rc |= pj_load(0);
+        check("..a version 7 one keeps BODY as saved (60, TRI, D2, TONE 70)", rc == 0 &&
+              tp[0].dev[DEV_GRAIN][GP_BODY] == 60 && tp[0].dev[DEV_GRAIN][GP_BMOD] == BODY_TRI &&
+              tp[0].dev[DEV_GRAIN][GP_NOTE] == 38 && tp[0].dev[DEV_GRAIN][GP_BTON] == 70);
+        for (k = GP_BODY; k <= GP_BTON; k++)             /* a track preset from before BODY: 0s there */
+            tp[0].dev[DEV_GRAIN][k] = 0;
+        rc = tpr_save(0, 0);
+        power_on();
+        rc |= tpr_load(0, 0);
+        check("a track preset from before BODY: its defaults (NOTE A2, TONE 200 Hz), BODY off", rc == 0 &&
+              tp[0].dev[DEV_GRAIN][GP_BODY] == 0 && tp[0].dev[DEV_GRAIN][GP_NOTE] == 45 &&
+              tp[0].dev[DEV_GRAIN][GP_BTON] == DEV_P[DEV_GRAIN][GP_BTON].def);
+    }
     pj_wipe();
     power_on();
 }
@@ -5900,9 +6060,9 @@ static void test_page_keys(void)
     let_go(B_HOME);
     check("..+ key 7 (past its four): says so, the page stays", ui.page == 2u && !strcmp(ui.msg, "NO PAGE THERE"));
     hold(B_EDIT);
-    key_edge(note_of_white(5));
+    key_edge(note_of_white(6));
     let_go(B_EDIT);
-    check("EDIT held + key 6: RESONATOR page 2 (GRAIN's four, then RESONATOR's)", ui.dev == DEV_RESO && ui.page == 1u);
+    check("EDIT held + key 7: RESONATOR page 2 (GRAIN's five, then RESONATOR's)", ui.dev == DEV_RESO && ui.page == 1u);
     press(B_EDIT);
     check("..EDIT tapped still turns pages (on the let-go): RESONATOR page 3", ui.dev == DEV_RESO && ui.page == 2u);
     hold(B_FX);
@@ -7359,6 +7519,7 @@ int main(int argc, char **argv)
     test_grain_buffer();
     test_grain_shares();
     test_grain_silence();
+    test_grain_body();
     test_grain_clicks();
     test_reso();
     test_color();

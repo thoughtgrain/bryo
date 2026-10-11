@@ -54,7 +54,8 @@
                                       * block's start: the wider the window, the rarer) */
 #define GR_BUF_MAX (12u * TAPE_SR)   /* a buffer's most, tape samples (12 s) */
 enum { GP_SIZE, GP_RATE, GP_PTCH, GP_SPRD, GP_WET, GP_SPRY, GP_CONT, GP_REV, GP_PATN, GP_SCAL, GP_PRND, GP_ROUT, GP_SCAN,
-       GP_WARP, GP_OFST, GP_FDBK };   /* (param.c DEV_P[DEV_GRAIN]: page 3's fourth knob is empty) */
+       GP_WARP, GP_OFST, GP_FDBK, GP_BODY, GP_BMOD, GP_NOTE, GP_BTON };   /* (param.c DEV_P[DEV_GRAIN]) */
+enum { BODY_SRC, BODY_TRI, BODY_SIN };
 enum { SCAN_TAPE, SCAN_STR, SCAN_POS, SCAN_DLY };
 
 /* sin^2 (pi/2 i/128), Q15: a window's rising ramp */
@@ -129,6 +130,10 @@ typedef struct {
     int32_t dsh;                     /* the dry share last block, Q15 (ROUT switched: ramped across the next) */
     int32_t hl[3], hr[3];            /* the grains' half-rate mix: its last three samples (the 2x interpolator's) */
     int32_t wetq;                    /* WET last block, Q15: the grains' mix ramps from it (0: the grains are off) */
+    uint32_t bph;                    /* BODY: its wave's phase (TRI, SIN) */
+    int32_t blp;                     /* .. TONE's low-pass */
+    int32_t bg;                      /* .. its level last block, Q15 (each block ramps from it) */
+    uint8_t bmode;                   /* .. the MODE it's sounding (a new one: down to 0 a block, then the new) */
     uint8_t hq;                      /* 1: they're 0 (nothing to carry into the next block) */
 } grain_trk_t;
 
@@ -558,6 +563,57 @@ static int32_t gr_pace(const gr_buf_t *B, int32_t len)
     return (int32_t)(((uint32_t)len << 4) / (bo >> 8));   /* (len x 4096 / bo, in 32 bits) */
 }
 
+/* audio ISR: GRAIN's BODY, a floor under the grains, into their half-rate mix (xl xr, h2 samples) before WET (the wet
+ * side's): the source low-passed (SRC), or a wave at NOTE (TRI SIN, -12 dBFS at 100), through TONE's one-pole low-pass,
+ * its level ramped across the block. A new MODE: the old one down to 0 this block, the new from 0 the next (a 0.7 ms
+ * dip, no step). Returns 1 when it added something. Out of line: off (the default), grain_block's loops compile as
+ * they did without it */
+static __attribute__((noinline)) uint32_t gr_body(grain_trk_t *G, const int16_t *p, const int32_t *dry, int32_t *xl,
+                                                  int32_t *xr, uint32_t h2)
+{
+    uint32_t mode = (uint32_t)clamp(p[GP_BMOD], 0, 2), k;
+    int32_t g1 = clamp(p[GP_BODY], 0, 100) * 32767 / 100, g0 = G->bg;
+    if (!g0 && !g1 && mode == G->bmode)
+        return 0;
+    if (mode != G->bmode) {
+        if (g0)
+            g1 = 0;                                     /* (this block: the old one out) */
+        else
+            G->bmode = (uint8_t)mode;
+    }
+    G->bg = g1;
+    if (!g0 && !g1)
+        return 0;
+    {
+        int32_t wq = (int32_t)CUTOFF_HZ[clamp(p[GP_BTON], 0, 127)] * 9337 / 1000;   /* 2 pi f / 22050, Q15 */
+        int32_t kq = (int32_t)(((uint32_t)wq << 15) / (uint32_t)(32768 + wq));        /* w / (1 + w) */
+        int32_t dg = (g1 - g0) / (int32_t)h2, gk = g0, lp = G->blp;
+        uint32_t ph = G->bph, inc = 2u * pitch_inc((uint32_t)clamp(p[GP_NOTE], 0, 127) * 16u);
+        for (k = 0; k < h2; k++) {
+            int32_t x, y;
+            if (G->bmode == BODY_SRC) {
+                x = clamp(dry[2u * k], -32767, 32767);  /* (held: the low-pass product fits 32 bits) */
+            } else {
+                ph += inc;
+                if (G->bmode == BODY_TRI) {
+                    x = (int32_t)(ph >> 16);
+                    x = ((x < 32768 ? x : 65535 - x) - 16384) >> 1;
+                } else {
+                    x = sine_i(ph) >> 2;
+                }
+            }
+            lp += ((x - lp) * kq) >> 15;
+            gk += dg;
+            y = (lp * (gk >> 3)) >> 12;
+            xl[k] += y;
+            xr[k] += y;
+        }
+        G->blp = lp;
+        G->bph = ph;
+    }
+    return 1;
+}
+
 /* -------------------------------------------------------------- a block --- */
 #define GR_DUCK_LOG2 5
 #define GR_DUCK (1u << GR_DUCK_LOG2)        /* a seam's duck: a grain fades to 0 over this many samples of what it
@@ -812,6 +868,7 @@ static void grain_block(uint32_t t, const int32_t *dry, uint32_t keys, int froze
             if (!g->left)
                 gr_clr(k);
         }
+        any |= gr_body(G, p, dry, xl + 3, xr + 3, h2);   /* BODY: a floor under the grains (out of line) */
         {                                               /* WET on the track's grains together, ramped across the block
                                                          * from last block's (no step when it's turned or modulated;
                                                          * turned to 0, they fade out over this block, then stop) */

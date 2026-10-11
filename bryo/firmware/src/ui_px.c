@@ -276,7 +276,7 @@ enum {
     PK_SHAPE, PK_FOLD, PK_SKEW, PK_SMOOTH, PK_STEPS, PK_SLEW, PK_SWING, PK_KEYS, PK_SHELF_LO, PK_SHELF_HI, PK_FILTER,
     PK_PAN, PK_TOGGLE, PK_FADE, PK_WINDOW, PK_GATE, PK_PRE, PK_MODE, PK_DIR, PK_STEPAT, PK_NONE,
     PK_CURVE, PK_VAR, PK_SRC, PK_OSC, PK_DETUNE, PK_CUTOFF, PK_RES, PK_ENVAMT, PK_KTRK, PK_VOICES, PK_PATTERN,
-    PK_SCALE, PK_SLOPE, PK_CMOD, PK_SCAN, PK_ROUTE
+    PK_SCALE, PK_SLOPE, PK_CMOD, PK_SCAN, PK_ROUTE, PK_BODY
 };
 
 /* the waveform shapes WAVE's SHAPE picks, at phase p (0..63 a cycle), x1000 */
@@ -586,6 +586,7 @@ static void px_picto(uint32_t kind, int32_t x, int32_t y, const pdesc_t *d, int3
         break;
     }
     case PK_SHAPE:                                       /* one cycle of the shape */
+    case PK_BODY:                                        /* GRAIN's BODY: SRC a slow uneven swell, TRI, SIN */
     case PK_OSC:                                         /* SYNTH's wave: SIN TRI SQR SAW, PLS a 25 % pulse */
     case PK_FOLD:
     case PK_SKEW: {
@@ -595,6 +596,8 @@ static void px_picto(uint32_t kind, int32_t x, int32_t y, const pdesc_t *d, int3
             int32_t p = i * 64 / 22, o, yy;
             if (kind == PK_OSC && v == 4) {
                 o = (p & 63) < 16 ? 1000 : -1000;
+            } else if (kind == PK_BODY) {                /* (the source's low end: two slow partials) */
+                o = v == 1 ? px_wave(1u, p) : v == 2 ? px_wave(0u, p) : (px_sin(p) * 6 + px_sin(p * 2 + 9) * 3) / 10;
             } else if (kind == PK_SHAPE || kind == PK_OSC) {
                 o = px_wave((uint32_t)v, p);
             } else if (kind == PK_FOLD) {                /* the sine driven past the rails folds back */
@@ -954,7 +957,8 @@ static const uint8_t DEV_PK[NDEV][NPK] = {
     {PK_SQUARE, PK_DOTS, PK_KNOB, PK_BOWTIE,         /* GRAIN: SIZE RATE PTCH SPRD */
      PK_MIX, PK_NOISE, PK_WINDOW, PK_DOTS,           /*        WET SPRY CONT REV */
      PK_PATTERN, PK_SCALE, PK_VAR, PK_ROUTE,         /*        PATN SCAL PRND ROUT */
-     PK_SCAN, PK_SPEED, PK_START, PK_LOOP},          /*        SCAN WARP OFST FDBK */
+     PK_SCAN, PK_SPEED, PK_START, PK_LOOP,           /*        SCAN WARP OFST FDBK */
+     PK_FADER, PK_BODY, PK_KEYS, PK_CUTOFF},         /*        BODY MODE NOTE TONE */
     {PK_KEYS, PK_DECAY, PK_TONE, PK_MIX,             /* RESONATOR: PTCH DEC TONE WET */
      PK_CUTOFF, PK_RES, PK_SLOPE, PK_SCALE,          /*            CUT RES TYPE SCAL */
      PK_ROUTE, PK_NONE, PK_NONE, PK_NONE,            /*            ROUT */

@@ -26,6 +26,7 @@ static const char *const N_TRIG[2] = {"FREE", "KEY"};
 static const char *const N_CLK[2] = {"FREE", "BPM"};
 static const char *const N_MODE[2] = {"KEYS", "FLLW"};
 static const char *const N_DIR[4] = {"FWD", "REV", "PING", "RND"};
+static const char *const N_BODY[3] = {"SRC", "TRI", "SIN"};   /* GRAIN's BODY: the source, or a wave */
 static const char *const N_SHAPE[5] = {"SIN", "TRI", "SQR", "SAW", "RND"};
 static const char *const N_SRC[6] = {"SELF", "T1", "T2", "T3", "T4", "USB"};
 static const char *const N_OSC[5] = {"SIN", "TRI", "SQR", "SAW", "PLS"};
@@ -100,7 +101,13 @@ static const pdesc_t DEV_P[NDEV][NPK] = {
          * spot or DLY's delay as a share of the buffer; FDBK, how much of the buffer stays as new sound goes in
          * (the S-4's) */
         {"SCAN", 0, 3, 1, F_ENUM, N_SCAN}, {"WARP", -200, 200, 100, F_BIPCT},
-        {"OFST", 0, 100, 25, F_PCT}, {"FDBK", 0, 100, 0, F_PCT}},
+        {"OFST", 0, 100, 25, F_PCT}, {"FDBK", 0, 100, 0, F_PCT},
+        /* 5: BODY, a floor under the grains (it helps at WET 100, where the source is gone): the track's own sound
+         * low-passed (MODE SRC: always in key and in time with it), or a wave at NOTE (TRI: heard on the small
+         * speaker too, its harmonics; SIN: the purest, for headphones), through TONE's low-pass, at BODY's level. It's
+         * part of the wet side: WET sets it with the grains (grain.c) */
+        {"BODY", 0, 100, 0, F_PCT}, {"MODE", 0, 2, 0, F_ENUM, N_BODY, 1},
+        {"NOTE", 24, 72, 45, F_NOTE}, {"TONE", 0, 100, 38, F_HZ}},
     {   /* RESONATOR (the S-4's RING) */
         {"PTCH", 33, 81, 45, F_NOTE}, {"DEC", 0, 100, 60, F_PCT},
         {"TONE", 0, 100, 60, F_PCT}, {"WET", 0, 100, 0, F_PCT},
@@ -331,7 +338,8 @@ typedef struct {
 static const playout_t PLAYOUT[] = {
     {DEV_P[DEV_SRC], 4, {0, 1, 2, 3, 12, 13, 14, 15, 4, 5, 6, 7, 8, 9, 11, 10}},   /* TAPE: the envelope second (as
                                                                                      * SYNTH's, POLY's), REEL ROTA . LVL */
-    {DEV_P[DEV_GRAIN], 4, {0, 1, 2, 3, 4, 5, 6, 7, 12, 13, 14, 15, 8, 9, 10, 11}},   /* GRAIN: SCAN.. then PATN..ROUT */
+    {DEV_P[DEV_GRAIN], 5, {0, 1, 2, 3, 4, 5, 6, 7, 12, 13, 14, 15, 16, 17, 18, 19, 8, 9, 10, 11}},   /* GRAIN: SCAN..,
+                                                                                      * BODY.., then PATN..ROUT */
     {DEV_P[DEV_RESO], 3, {0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 8, 12, 13, 14, 15}},   /* RESONATOR: . . . ROUT (12-15,
                                                                                       * RES ARP: the ARP pad's) */
     {DEV_P[DEV_COLOR], 3, {0, 1, 2, 3, 4, 5, 6, 7, 10, 11, 9, 8}},              /* COLOR: . . ROUT LVL */

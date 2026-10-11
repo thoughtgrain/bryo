@@ -93,6 +93,11 @@ static void setup(uint32_t g)
             tp[0].pol[PL_SUS] = 30;
         if (g == MOD_TG(DEV_RESO, RP_RES))
             tp[0].dev[DEV_RESO][RP_CUT] = 60;
+        if (g == MOD_TG(DEV_GRAIN, GP_NOTE) || g == MOD_TG(DEV_GRAIN, GP_BTON)) {   /* (BODY up; NOTE: a wave) */
+            tp[0].dev[DEV_GRAIN][GP_BODY] = 60;
+            if (g == MOD_TG(DEV_GRAIN, GP_NOTE))
+                tp[0].dev[DEV_GRAIN][GP_BMOD] = BODY_TRI;
+        }
     }
 }
 

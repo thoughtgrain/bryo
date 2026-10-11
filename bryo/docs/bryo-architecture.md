@@ -1295,6 +1295,36 @@ so I don't run it every frame: `ui_input` refreshes `ui.unsaved` four times a se
 flips. The manual has a "Saving, in short" section up front: tap and hold SAVE, what POLY held clears and how it
 warns first, and how to go back to the last save when undo can't help.
 
+**BODY: a floor under the grains (2026-10-11).** At WET 100 the source is gone, and with it what held a cloud down.
+GRAIN's page 4 (stored 16-19, so nothing else moved; ROUT stays KNOB 4 of the last page, now page 5) adds BODY,
+MODE, NOTE, TONE: a layer under the grains, part of the wet side (it goes into the grains' half-rate mix before WET,
+so WET sets it with them, and the 2x up costs it nothing more).
+
+- **SRC** is the track's source (the dry block, every other sample at the half rate) low-passed; **TRI** and **SIN**
+  a wave at NOTE (`pitch_inc`, doubled for the half rate), -12 dBFS at BODY 100. All three go through one one-pole
+  low-pass at TONE (CUTOFF_HZ's scale, 30 Hz to 4.2 kHz; the coefficient w / (1 + w), w = 2 pi f / 22050, worked
+  out once a block). The input's held to +-32767 so the product fits 32 bits at TONE's top.
+- Its level ramps across the block from last block's; a new MODE takes it down to 0 over one block and starts the
+  new one from 0 the next (0.7 ms), so neither steps.
+- Why these three, from the listening renders (reel 3 through GRAIN at WET 100): an oscillator only grounds the
+  cloud when it's in key, so it needs NOTE; SRC is in key and in time by construction. On the FM-1's small speaker
+  (little below about 150 Hz) a low sine nearly vanishes and a triangle's odd harmonics carry it, so TRI is the one
+  for the speaker, SIN for headphones.
+- Cost (host instructions a sample, a track with it on): TRI about 1, SRC about 3, SIN about 6.5. Off (BODY 0, the
+  default), it does two compares a block (`gr_body`, out of line); the four-track host runs still read about 18 a
+  sample more with it compiled in (run 3 2,483 to 2,502), none of it in `gr_body`: the x86-64 build lays the grain
+  code out differently (its decoding inlined otherwise). Compiled out, they're back where they were. The device's
+  compiler lays it out its own way, so I left it.
+- Projects are version 7: an older one stored 0s there (NOTE held to C1, TONE 30 Hz), so it gets the defaults. A track
+  preset has no version: BODY, MODE and TONE all 0 means one from before, and gets them too (BODY stays off either
+  way).
+
+Tested (`test_grain_body`, each case run twice, BODY on and off, so the difference is BODY alone): SRC at TONE 200 Hz
+keeps a 100 Hz and drops a 3 kHz under a tenth of it, TONE up lets it through; TRI at A2 is 110 Hz and SIN at A3
+220 Hz, whatever the source; WET 0 silences it; BODY 0 to 100 at once ramps in; a MODE change while it sounds moves
+no more at the switch than a few times what it moves playing. Projects (a version 6 one gets the defaults, a version 7
+one keeps it) and presets (one from before gets the defaults). Each fails its mutant.
+
 **Silent grains cost nothing (2026-10-11).** I measured every grain's loudest output sample across the checkpoint
 runs: grains are either silent or plainly heard, almost nothing between. 12 to 18 % of the grain work was grains
 reading nothing (a buffer not yet recorded into, the gaps between hits), 31 to 40 % when it's a SYNTH being played

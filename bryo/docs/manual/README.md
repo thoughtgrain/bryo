@@ -70,7 +70,7 @@ Every pad opens a page, and **pressing the same pad again goes to its next page*
 | Pad | Pages, in order |
 | --- | --- |
 | HOME | the source's pages (TAPE has 4; SYNTH 5; POLY 4; DRUM 4) |
-| EDIT | GRAIN 1-4, then RESONATOR 1-3 |
+| EDIT | GRAIN 1-5, then RESONATOR 1-3 |
 | FX | COLOR 1-3, then SPACE 1-3 |
 | ENV | the source's envelope: SYNTH's AMP, POLY's ENV, TAPE's slice envelope (each the second page), DRUM's KIT |
 | LFO, SEQ | a modulator's pages (LFO: M1, M2 or M3; SEQ: M4) |
@@ -82,7 +82,7 @@ KNOB 1 to 4 always change the four values you see. There's nothing hidden.
 **Jump straight to a page: hold its pad and press a white key.** While you hold a pad (HOME, EDIT, FX, ENV, LFO,
 SEQ or ARP), the white keys show its pages: one glows for each page, the page on screen is lit, and every other key
 goes dark. Press white key 3 to go to the third page. EDIT's keys run through GRAIN's pages and then RESONATOR's
-(key 6 is RESONATOR 2); FX's through COLOR's and then SPACE's. Holding LFO also lights OP1-OP3, the one it's on
+(key 7 is RESONATOR 2); FX's through COLOR's and then SPACE's. Holding LFO also lights OP1-OP3, the one it's on
 bright. Let go without pressing a key and the pad turns its page as usual.
 
 ### 0.3 Saving, in short
@@ -471,7 +471,7 @@ white key 3). It's RESONATOR's own arpeggio, separate from the track's: each ste
 that note, whatever the track plays. **MODE** turns it on (OFF, KEY, LTCH, ADD); **ORDR**, **RNGE** and **RATE** work
 as above. With MODE on, the white keys on this page play the strings' pattern and the track itself stays quiet; with
 MODE off they play the track as on the other ARP pages. A latched or piled-up pattern keeps plucking when you leave
-the page, and **hold POLY** here to clear it. You'll want RESONATOR's **WET** up (EDIT five times) to hear it.
+the page, and **hold POLY** here to clear it. You'll want RESONATOR's **WET** up (EDIT six times) to hear it.
 
 <img src="img/arp_res.png" width="240" alt="RES ARP: two notes held, the strings plucked in turn">
 
@@ -557,11 +557,26 @@ sixteenth of the loop.
 
 <img src="img/grain3.png" width="240" alt="GRAIN 3: SCAN WARP OFST FDBK">
 
+### 6.4.1 GRAIN: BODY, a floor under the grains
+
+At WET 100 you hear only grains: the original sound is gone, and with it what held the cloud down. **GRAIN 4** puts a
+floor back under them:
+
+- **BODY**: how loud the floor is (0 is off). It goes with the grains, so WET turns it down too.
+- **MODE**: what the floor is.
+  - **SRC**: the track's own sound with its top taken off. Always in key and in time with what you're playing.
+  - **TRI**: a triangle wave at **NOTE**. It's heard on the FM-1's own speaker too.
+  - **SIN**: a sine at **NOTE**: the purest, best on headphones (the speaker barely plays it when it's low).
+- **NOTE**: the wave's note (TRI and SIN), C1 to C5. Set it to the key you're in.
+- **TONE**: how much top end the floor keeps, from a deep rumble to a full low-mid.
+
+<img src="img/grain_body.png" width="240" alt="GRAIN 4: BODY 40%, MODE TRI, NOTE A2, TONE 392 Hz">
+
 ### 6.5 RESONATOR: four strings
 
 The track rings four tuned strings, like a sitar's sympathetic strings.
 
-1. Press **EDIT five times** for **RESONATOR**.
+1. Press **EDIT six times** for **RESONATOR**.
 2. Turn **KNOB 4 (WET)** up.
 3. **The white keys set the strings' root note** (on a TAPE or DRUM track they pluck the strings alone, without
    playing a slice or a drum). **PTCH** does the same with
