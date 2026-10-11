@@ -2318,6 +2318,7 @@ static void test_grain_clicks(void)
 static int32_t body_on[BODY_N * CTL], body_off[BODY_N * CTL];
 static int32_t body_hf = 6000;                           /* the source's 3 kHz (0: only its 100 Hz) */
 static int16_t body_ptch, body_prnd, body_scal;          /* the grains' PTCH PRND SCAL (0: the defaults) */
+static int16_t body_rptch = 45, body_rwet;               /* RESONATOR's PTCH and WET (ROOT RES follows it) */
 static int16_t body_seen[BODY_N], body_to[BODY_N];       /* the wave's pitch over ROOT each block, 1/16 semitone, and
                                                           * the grain's note it glides to */
 static void body_run(int32_t *o, int body, int mode, int note, int tone, int wet, int sw_at, int sw_mode)
@@ -2338,6 +2339,8 @@ static void body_run(int32_t *o, int body, int mode, int note, int tone, int wet
     p[GP_PTCH] = body_ptch;
     p[GP_PRND] = body_prnd;
     p[GP_SCAL] = body_scal;
+    tp[0].dev[DEV_RESO][RP_PTCH] = body_rptch;
+    tp[0].dev[DEV_RESO][RP_WET] = body_rwet;
     sys.playing = 1;
     chain_poll();
     for (b = 0; b < BODY_N; b++) {
@@ -2546,6 +2549,33 @@ static void test_grain_body(void)
     body_ptch = 0;
     body_prnd = 0;
     body_scal = 0;
+    body_rptch = 57;                                     /* ROOT RES: RESONATOR's root, PTCH A3 (its WET 0: the wave
+                                                          * alone measured) */
+    body_run(body_off, 0, BODY_TRI, GR_ROOT_RES, 60, 100, -1, -1);
+    body_run(body_on, 100, BODY_TRI, GR_ROOT_RES, 60, 100, -1, -1);
+    {
+        char v[8];
+        const char *u;
+        param_format(&DEV_P[DEV_GRAIN][GP_ROOT], GR_ROOT_RES, v, &u);
+        snprintf(m, sizeof m, "BODY ROOT RES (it reads \"%s\"): the wave on RESONATOR's root, PTCH A3, 220 Hz (%u cycles)",
+                 v, body_xings(200));
+        check(m, !strcmp(v, "RES") && body_xings(200) >= 186u && body_xings(200) <= 189u);
+    }
+    body_rptch = 48;                                     /* the strings on C3, RESONATOR's WET 100 (only them heard) */
+    body_rwet = 100;
+    {
+        double a2, res;
+        body_run(body_off, 0, BODY_SIN, 45, 60, 100, -1, -1);
+        body_run(body_on, 100, BODY_SIN, 45, 60, 100, -1, -1);
+        a2 = body_amp(130.81, 200);
+        body_run(body_on, 100, BODY_SIN, GR_ROOT_RES, 60, 100, -1, -1);
+        res = body_amp(130.81, 200);
+        snprintf(m, sizeof m, "..into the strings on C3 (their note, 131 Hz): BODY SIN on ROOT A2, a third away, rings it "
+                 "at %.0f, on RES at %.0f", a2, res);
+        check(m, res > 8 * a2 && res > 300);
+    }
+    body_rptch = 45;
+    body_rwet = 0;
     body_run(body_off, 0, BODY_TRI, 45, 60, 100, -1, -1);
     body_run(body_on, 100, BODY_SIN, 57, 60, 100, -1, -1);
     snprintf(m, sizeof m, "BODY SIN at ROOT A3: 220 Hz (%u cycles)", body_xings(200));

@@ -27,6 +27,8 @@ static const char *const N_CLK[2] = {"FREE", "BPM"};
 static const char *const N_MODE[2] = {"KEYS", "FLLW"};
 static const char *const N_DIR[4] = {"FWD", "REV", "PING", "RND"};
 static const char *const N_BODY[3] = {"SRC", "TRI", "SIN"};   /* GRAIN's BODY: the source, or a wave */
+static const char *const N_ROOT[1] = {"RES"};          /* BODY's ROOT at its bottom: RESONATOR's root (F_NOTE's
+                                                        * names: the name of its lowest value, if it has one) */
 static const char *const N_SHAPE[5] = {"SIN", "TRI", "SQR", "SAW", "RND"};
 static const char *const N_SRC[6] = {"SELF", "T1", "T2", "T3", "T4", "USB"};
 static const char *const N_OSC[5] = {"SIN", "TRI", "SQR", "SAW", "PLS"};
@@ -108,11 +110,12 @@ static const pdesc_t DEV_P[NDEV][NPK] = {
         {"OFST", 0, 100, 25, F_PCT}, {"FDBK", 0, 100, 0, F_PCT},
         /* 5: BODY, a floor under the grains (it helps at WET 100, where the source is gone): the track's own sound
          * low-passed (MODE SRC: always in key and in time with it), or a wave playing the grains' notes (PTCH,
-         * PRND, SCAL) in the octave over ROOT (TRI: heard on the small speaker too, its harmonics; SIN: the purest, for
+         * PRND, SCAL) in the octave over ROOT (RES, below C1: over RESONATOR's root, PTCH, a key or RES ARP's note, so
+         * it always rings the strings; TRI: heard on the small speaker too, its harmonics; SIN: the purest, for
          * headphones), through TONE's low-pass, at BODY's level. It's part of the wet side: WET sets it with the
          * grains (grain.c) */
         {"BODY", 0, 100, 0, F_PCT}, {"MODE", 0, 2, 0, F_ENUM, N_BODY, 1},
-        {"ROOT", 24, 72, 45, F_NOTE}, {"TONE", 0, 100, 38, F_HZ},
+        {"ROOT", 23, 72, 45, F_NOTE, N_ROOT}, {"TONE", 0, 100, 38, F_HZ},
         /* 6: GRNS, the grains this track holds of the pool: AUTO, shared by what each track's RATE and SIZE ask
          * (the leftover everyone's); a number, that many kept for it whatever the other tracks do, taken from
          * the AUTO tracks first (grain.c gr_plan_into). Not a modulation target: it's the pool's split */
@@ -550,6 +553,10 @@ static void param_format(const pdesc_t *d, int32_t v, char *val, const char **un
         *unit = d->fmt == F_ST ? "st" : "%";
         break;
     case F_NOTE:
+        if (d->names && v == d->min) {                  /* (its lowest value named: BODY's ROOT RES) */
+            str_cpy(val, d->names[0], 6);
+            break;
+        }
         str_cpy(val, NOTE[(uint32_t)v % 12u], 4);
         fmt_int(val + str_len(val), v / 12 - 1);
         break;

@@ -584,6 +584,9 @@ floor back under them:
   note, so when **PTCH** (GRAIN 2), **PRND** and **SCAL** (GRAIN 3) send the grains around a scale, the wave walks the same
   scale over ROOT, gliding from note to note. It always stays in the octave above ROOT, so it's a floor however high
   or low the grains go. With PTCH and PRND at 0 it holds ROOT.
+- **ROOT RES** (turn ROOT all the way down, below C1): the wave takes RESONATOR's root instead (its PTCH, the white
+  key you played on its page, or RES ARP's note), so BODY always rings the strings. RESONATOR's strings only answer
+  the notes they're tuned to: a BODY a third away from them passes through without ringing them.
 - **TONE**: how much top end the floor keeps, from a deep rumble to a full low-mid.
 
 <img src="img/grain_body.png" width="240" alt="GRAIN 5: BODY 40%, MODE TRI, ROOT A2, TONE 392 Hz">

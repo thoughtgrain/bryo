@@ -1423,6 +1423,14 @@ so WET sets it with them, and the 2x up costs it nothing more).
   so a project or preset sounds the same as it did unless its grains move; the knob's only new name is ROOT (same
   place, range and default, so no version). Cost: one modulo a grain start and a few adds a block, nothing a sample
   (runs within 1 to 7 a sample, the two changes together).
+- **ROOT RES (2026-10-11, from playing it: "the body sound is not flowing into the resonator and has no effect on
+  it").** It did flow: GRAIN's output, BODY in it, is what RESONATOR hears. But a string only rings at its own
+  partials. On the host, BODY on the strings' note added about 6 dB, a third away nothing (0.1 dB); and under RES ARP
+  the strings' root moves every step while BODY sat on its own ROOT. ROOT's lowest value (23, below C1, shown RES)
+  now takes RESONATOR's root (`reso_root16`: PTCH, a white key on its page, or RES ARP's note; last block's, 0.7 ms),
+  with the grains' degrees over it as before, so BODY always lands on the strings. Measured at the strings' note
+  (C3) with RESONATOR at WET 100: a sine on ROOT A2 rings it at 41, on RES at 6,842. A projects' or preset's ROOT is
+  24 or more, so nothing stored changes. The knob's picture marks no key on RES (the root is another device's).
 - Projects are version 7: an older one stored 0s there (NOTE held to C1, TONE 30 Hz), so it gets the defaults. A track
   preset has no version: BODY, MODE and TONE all 0 means one from before, and gets them too (BODY stays off either
   way).

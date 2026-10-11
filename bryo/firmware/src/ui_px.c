@@ -940,7 +940,8 @@ static void px_picto(uint32_t kind, int32_t x, int32_t y, const pdesc_t *d, int3
          * at this size. */
         static const int8_t WHITE[12] = {0, -1, 1, -1, 2, 3, -1, 4, -1, 5, -1, 6};
         static const int8_t BLACK_X[12] = {-1, 3, -1, 6, -1, -1, 12, -1, 15, -1, 18, -1};   /* the block's x */
-        int32_t n = (int32_t)((uint32_t)v % 12u), k;
+        int32_t n = d->names && v == d->min ? -1 : (int32_t)((uint32_t)v % 12u), k;   /* (-1: RES, another device's
+                                                         * root: none marked here) */
         px_frame(x, y + 3, 22, 16, c, 1);
         for (k = 1; k < 7; k++)
             px_line(x + k * 3, y + 12, x + k * 3, y + 17, c, 1);
@@ -951,7 +952,7 @@ static void px_picto(uint32_t kind, int32_t x, int32_t y, const pdesc_t *d, int3
                 else
                     px_box(x + BLACK_X[k] - 1, y + 3, 2, 8, c);
             }
-        if (WHITE[n] >= 0)                               /* the root, white: the key filled under the black ones */
+        if (n >= 0 && WHITE[n] >= 0)                     /* the root, white: the key filled under the black ones */
             px_box(x + WHITE[n] * 3 + 1, y + 12, 2, 6, c);
         break;
     }
