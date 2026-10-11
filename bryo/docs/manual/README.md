@@ -547,7 +547,7 @@ Each track has **four modulators**. A modulator makes knobs move by themselves.
 Let's make COLOR's crush breathe.
 
 1. Press **PLAY**, then **FX** (COLOR).
-2. **Hold LFO.** The knobs now show depths (how much slot 1 moves each one).
+2. **Hold LFO.** The knobs now show depths (how much M1 moves each one).
 3. While holding it, **turn KNOB 2 (CRSH)** to about **+40 %**.
 4. Let go.
 
@@ -570,7 +570,7 @@ After you let go, a modulated knob has a **mark under it**: a rail showing how f
 3. **Tap LFO again** for its other pages. The last one has **AMT** (how much it moves everything) and **OFS** (an
    offset).
 
-<img src="img/mod1.png" width="240" alt="Slot 1: LFO"> <img src="img/mod1_p4.png" width="240" alt="LFO's last page: PHAS SPRD AMT OFS">
+<img src="img/mod1.png" width="240" alt="M1: LFO"> <img src="img/mod1_p4.png" width="240" alt="LFO's last page: PHAS SPRD AMT OFS">
 
 ### 7.4 Choose which modulator the LFO pad controls
 
