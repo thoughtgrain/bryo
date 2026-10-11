@@ -88,7 +88,7 @@ One core, no RTOS. Three contexts, and the rules between them are most of the ar
 **Memory.** Sound lives in one pool of 152 chunks (28 s of tape-format sound: `mem.c`) handed out by use: tapes as
 long as what's on them, GRAIN's live buffers, RESONATOR's strings and SPACE's lines while they're on. Nothing is
 set aside per track. When it runs short: a cleared tape's chunks first, then a parked track's tape, then the end of
-the longest tape. Main RAM holds 82.0 of 96 KiB (.bss; 50.7 of it sound on purpose, the rest of the 96 the stack's), the pool 326.2 of 336 KiB (2026-10-09 with DRUM, 32-bit
+the longest tape. Main RAM holds 83.1 of 96 KiB (.bss; 50.7 of it sound on purpose, the rest of the 96 the stack's), the pool 329.2 of 336 KiB (2026-10-11, 40 grain slots, 32-bit
 build: the firmware preprocessed, its inline assembly taken out, compiled `-m32 -Os`, `size -A`).
 
 **Parameters.** `param.c` holds every knob as an integer in its own range (`tp[t]`), with a descriptor (name,
@@ -160,22 +160,22 @@ so it means the same on macOS, where clang would otherwise check for Mach-O). Fo
 stress test's timers for the sanitizer.
 
 **The unit of cost** is host instructions per output sample of `chain_block`, under callgrind, because I can't
-measure the device here. Where it stands (`checkpoint_sim.sh`, every run measured again 2026-10-11 after the second
-round from playing it: the arpeggiator on every source and RESONATOR's own added about 7 a sample, the per-block
-checks every track now makes):
+measure the device here. Where it stands (`checkpoint_sim.sh`, every run measured again 2026-10-11, after the
+grains went to half rate and the pool to 40, 30, 18: the dense grain runs at the same or less with more grains, light
+grain use about 12 a sample more a track for the upsampler):
 
 | Run | What | Cost |
 | --- | --- | ---: |
-| 1 | four reels, nothing on | 967 |
-| 19 | a realistic four-track groove | 1,628 |
-| 24 | the groove, modulated the way I'd play it | 1,846 (109 of it the modulators) |
-| 21 | the groove's busiest moment | 2,469 |
-| 23 | GRAIN at its densest on one track | 3,017 |
-| 25 | every slot on every track, 128 depths | 3,260 |
-| 26 | DRUM busy alone (FUNK, VARY 100, FILL 100, long decays), the others plain reels | 1,308 |
-| 27 | the groove with a DRUM track in place of its drum reel | 1,848 |
-| 28 | four DRUM tracks at once, every voice (20) | 2,409 |
-| 15 | everything on, all four tracks | 4,921 |
+| 1 | four reels, nothing on | 978 |
+| 19 | a realistic four-track groove | 1,649 |
+| 24 | the groove, modulated the way I'd play it | 1,854 (109 of it the modulators) |
+| 21 | the groove's busiest moment | 2,437 |
+| 23 | GRAIN at its densest on one track | 2,823 |
+| 25 | every slot on every track, 128 depths | 3,277 |
+| 26 | DRUM busy alone (FUNK, VARY 100, FILL 100, long decays), the others plain reels | 1,319 |
+| 27 | the groove with a DRUM track in place of its drum reel | 1,869 |
+| 28 | four DRUM tracks at once, every voice (20) | 2,420 |
+| 15 | everything on, all four tracks | 4,872 |
 
 My target for a realistic four-track scene is 2,000. The first device reading (run 1, 2026-10-10: 25 %, in 5 % steps)
 puts the ratio at about 37.6 host instructions a sample per percent, if the load scales with the host's count: the
@@ -213,7 +213,8 @@ number.
   gets the random knobs. SEQ is the PRD's own addition.
 - **2026-10-08: memory by usage.** No per-track budgets: one shared pool, given by what's in use, taken back in a
   fixed order. Tapes grow as they record (up to 23.6 s).
-- **2026-10-08: GRAIN's grains are one pool shared by demand** (32 for one track, 24 for two, 16 for three or
+- **2026-10-08: GRAIN's grains are one pool shared by demand** (since 2026-10-11, with the grains rendered at half
+  rate: 40 for one track, 30 for two, 18 for three or four; it was 32 for one track, 24 for two, 16 for three or
   four), split by what each track's settings ask for.
 - **2026-10-08: the USB record mode is its own mode.** Everything else stops while the computer is recorded;
   REC held a second opens it. Audio out to the computer in that mode is future work.

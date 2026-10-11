@@ -38,7 +38,7 @@
  * refills its window backwards. Outside what it reads: silence.
  *
  * Load: the grains that may sound at once are a pool that follows how many tracks have GRAIN on (WET above 0, in
- * use): 32 for one, 24 for two, 16 for three or four. It's shared by what each track asks for (gr_plan, every block):
+ * use): 40 for one, 30 for two, 18 for three or four. It's shared by what each track asks for (gr_plan, every block):
  * a track's need is the grains a second times SIZE, with room for bunching; a track asking less than an even share
  * gets what it asks, and the rest is split evenly among the ones that want more. So a dense pad beside a sparse grain
  * track keeps most of the pool, and only two dense tracks thin each other. A grain due while all a track's share
@@ -48,7 +48,7 @@
  *
  * Audio ISR, except grain_poll (the main loop: the buffers' memory). The main loop writes the knobs. */
 
-#define GR_SLOTS 32u                 /* grains in all */
+#define GR_SLOTS 40u                 /* grains in all (the most one track may sound: GR_POOL[1]) */
 #define GR_CAP 8u                    /* the pool's scale: x grain_cap / GR_CAP (shedding lowers grain_cap to 4) */
 #define GR_WIN 128u                  /* a grain's decoded window, samples (a reverse refill re-decodes from its
                                       * block's start: the wider the window, the rarer) */
@@ -74,7 +74,8 @@ static const int16_t GR_NORM[33] = {32767, 32767, 23170, 18918, 16384, 14654, 13
                                      9459, 9088, 8757, 8460, 8192, 7947, 7723, 7517, 7327, 7151, 6986, 6833, 6689,
                                      6554, 6426, 6306, 6193, 6085, 5983, 5885, 5793};   /* 1 / sqrt n, Q15 */
 /* the pool, by how many tracks have GRAIN on */
-static const uint8_t GR_POOL[NTRK + 1u] = {32, 32, 24, 16, 16};
+static const uint8_t GR_POOL[NTRK + 1u] = {40, 40, 30, 18, 18};   /* (2026-10-11: were 32 24 16 16, before the
+                                                                  * grains rendered at half rate) */
 /* the scales SCAL holds pitches to (OFF CHR MAJ MIN PEN): the semitones of an octave they keep */
 static const uint16_t GR_SCALE[5] = {0, 0xFFF, 0xAB5, 0x5AD, 0x295};
 
@@ -117,10 +118,15 @@ typedef struct {
     uint8_t scan;                    /* SCAN last block (a change: the cursor starts over) */
     uint8_t dset;                    /* dsh holds last block's dry share */
     int32_t dsh;                     /* the dry share last block, Q15 (ROUT switched: ramped across the next) */
+    int32_t hl[3], hr[3];            /* the grains' half-rate mix: its last three samples (the 2x interpolator's) */
+    uint8_t hq;                      /* 1: they're 0 (nothing to carry into the next block) */
 } grain_trk_t;
 
 static grain_t gslot[GR_SLOTS] __attribute__((section(".pool")));
-static uint32_t gr_used;             /* a bit per slot sounding */
+static uint32_t gr_used[2];          /* a bit per slot sounding (GR_SLOTS past 32: two words) */
+static inline uint32_t gr_on(uint32_t k) { return (gr_used[k >> 5] >> (k & 31u)) & 1u; }
+static inline void gr_set(uint32_t k) { gr_used[k >> 5] |= 1u << (k & 31u); }
+static inline void gr_clr(uint32_t k) { gr_used[k >> 5] &= ~(1u << (k & 31u)); }
 static grain_trk_t grain[NTRK];
 static gr_buf_t gbuf[NTRK];
 static uint32_t grain_cap = GR_CAP;  /* the pool's scale, lowered by chain_shed */
@@ -197,7 +203,7 @@ static uint32_t grain_count(uint32_t t)
 {
     uint32_t k, c = 0;
     for (k = 0; k < GR_SLOTS; k++)
-        c += ((gr_used >> k) & 1u) && gslot[k].trk == t;
+        c += gr_on(k) && gslot[k].trk == t;
     return c;
 }
 
@@ -207,7 +213,10 @@ static void grain_kill(uint32_t t)
     uint32_t k;
     for (k = 0; k < GR_SLOTS; k++)
         if (gslot[k].trk == t)
-            gr_used &= ~(1u << k);
+            gr_clr(k);
+    for (k = 0; k < 3u; k++)                            /* (the half-rate mix's tail: nothing left to carry) */
+        grain[t].hl[k] = grain[t].hr[k] = 0;
+    grain[t].hq = 1;
 }
 
 /* the bars a buffer holds: by TRACKS, fewer when they'd pass 12 s at this tempo */
@@ -403,11 +412,11 @@ static void gr_start(uint32_t t, grain_trk_t *G, const int16_t *p, int32_t ls, i
     if (grain_count(t) >= gr_allow(t))
         return;                                         /* all it may sound are sounding: this one is skipped */
     for (k = 0; k < GR_SLOTS && !g; k++)                /* any free slot (the shares keep the total in the pool) */
-        if (!((gr_used >> k) & 1u))
+        if (!gr_on(k))
             g = &gslot[k];
     if (!g)
         return;
-    gr_used |= 1u << (uint32_t)(g - gslot);
+    gr_set((uint32_t)(g - gslot));
     g->trk = (uint8_t)t;
     sp = ll * p[GP_SPRY] / 200;                         /* SPRY: up to half the window either way */
     at = (G->cur >> 12) + (sp ? (int32_t)(gr_rnd(G) % (uint32_t)(2 * sp + 1)) - sp : 0);
@@ -558,38 +567,69 @@ static void grain_block(uint32_t t, const int32_t *dry, uint32_t keys, int froze
         if (G->wait < (int32_t)n)
             G->wait = (int32_t)n;
     }
-    for (k = 0; k < GR_SLOTS; k++) {
-        grain_t *g = &gslot[k];
-        int32_t e0, e1, gl, gr, m;
-        if (!((gr_used >> k) & 1u) || g->trk != t)
-            continue;
-        m = (int32_t)(g->left < n ? g->left : n);
-        e0 = gr_env(g, g->len - g->left);               /* the window: its value at the block's ends, ramped */
-        e1 = gr_env(g, g->len - g->left + (uint32_t)m);
-        gl = g->gl * wet / 100;                         /* (WET folded into the pan) */
-        gr = g->gr * wet / 100;
-        {
-            int32_t pos = g->pos, inc = g->inc, wlo = g->wlo, de = ((e1 - e0) * 32) >> CTL_LOG2, e = e0 << 5;
-            const int16_t *w = g->w;
-            for (i = 0; i < m; i++, e += de, pos += inc) {   /* (the grain's state in locals: l and r can't alias it) */
-                int32_t ix = (pos >> 12) - wlo, x, a, b;
-                if (wlo >= 0 && ix >= 0 && ix + 1 < (int32_t)GR_WIN) {   /* (the usual case: inside the window) */
-                    a = w[ix];
-                    b = w[ix + 1];
-                    x = a + (((b - a) * (pos & 4095)) >> 12);
-                } else {
-                    x = gr_read(g, &v, pos);
-                    wlo = g->wlo;
-                }
-                x = (x * (e >> 5)) >> 15;
-                l[i] += (x * gl) >> 15;
-                r[i] += (x * gr) >> 15;
-            }
-            g->pos = pos;
+    {                                                   /* the grains, at half rate (the buffer's and the tape's
+                                                         * 22.05 kHz: nothing in them above 11 kHz), into xl xr
+                                                         * after the last block's three; then 2x up into l and r */
+        int32_t xl[3u + CTL / 2u], xr[3u + CTL / 2u];
+        uint32_t h2 = n / 2u, any = 0;
+        for (k = 0; k < 3u; k++) {
+            xl[k] = G->hl[k];
+            xr[k] = G->hr[k];
         }
-        g->left -= (uint32_t)m;
-        if (!g->left)
-            gr_used &= ~(1u << k);
+        for (k = 0; k < h2; k++)
+            xl[3u + k] = xr[3u + k] = 0;
+        for (k = 0; k < GR_SLOTS; k++) {
+            grain_t *g = &gslot[k];
+            int32_t e0, e1, gl, gr, m, h;
+            if (!gr_on(k) || g->trk != t)
+                continue;
+            any = 1;
+            m = (int32_t)(g->left < n ? g->left : n);
+            h = (m + 1) / 2;                            /* (half-rate samples: a grain ending mid-block rounds up) */
+            e0 = gr_env(g, g->len - g->left);           /* the window: its value at the block's ends, ramped */
+            e1 = gr_env(g, g->len - g->left + (uint32_t)m);
+            gl = g->gl * wet / 100;                     /* (WET folded into the pan) */
+            gr = g->gr * wet / 100;
+            {
+                int32_t pos = g->pos, inc = 2 * g->inc, wlo = g->wlo, de = ((e1 - e0) * 32) >> (CTL_LOG2 - 1), e = e0 << 5;
+                const int16_t *w = g->w;
+                int32_t *ol = xl + 3, *or = xr + 3;
+                for (i = 0; i < h; i++, e += de, pos += inc) {   /* (the grain's state in locals: the mix can't
+                                                                  * alias it) */
+                    int32_t ix = (pos >> 12) - wlo, x, a, b;
+                    if (wlo >= 0 && ix >= 0 && ix + 1 < (int32_t)GR_WIN) {   /* (the usual case: inside the window) */
+                        a = w[ix];
+                        b = w[ix + 1];
+                        x = a + (((b - a) * (pos & 4095)) >> 12);
+                    } else {
+                        x = gr_read(g, &v, pos);
+                        wlo = g->wlo;
+                    }
+                    x = (x * (e >> 5)) >> 15;
+                    ol[i] += (x * gl) >> 15;
+                    or[i] += (x * gr) >> 15;
+                }
+                g->pos = pos;
+            }
+            g->left -= (uint32_t)m;
+            if (!g->left)
+                gr_clr(k);
+        }
+        if (any || !G->hq) {                            /* 2x up, a cubic's midpoint (-1 9 9 -1)/16 between each pair,
+                                                         * two half-rate samples late; then their tail carried on */
+            for (k = 0; k < h2; k++) {
+                const int32_t *a = xl + k, *b = xr + k;
+                l[2u * k] += a[1];
+                l[2u * k + 1u] += (9 * (a[1] + a[2]) - a[0] - a[3]) >> 4;
+                r[2u * k] += b[1];
+                r[2u * k + 1u] += (9 * (b[1] + b[2]) - b[0] - b[3]) >> 4;
+            }
+            for (k = 0; k < 3u; k++) {
+                G->hl[k] = xl[h2 + k];
+                G->hr[k] = xr[h2 + k];
+            }
+            G->hq = !any && !xl[h2] && !xl[h2 + 1u] && !xl[h2 + 2u] && !xr[h2] && !xr[h2 + 1u] && !xr[h2 + 2u];
+        }
     }
 }
 

@@ -782,15 +782,15 @@ re-decodes from its block's start at each refill, which is why the window is 128
 
 **A pool of grains, shared by what each track asks** (changed 2026-10-08; it was 32 in four fixed groups of 8, so
 16 a track at most). How many grains may sound at once now follows how many tracks have GRAIN on (WET above 0, in
-use): **32 for one, 24 for two, 16 for three or four**. Several dense clouds at once are the expensive case, and one
-dense cloud the musical one (a freeze, a transition, a pad), so the pool shrinks as more tracks use it and a track
-alone can have all 32.
+use): **40 for one, 30 for two, 18 for three or four** (since 2026-10-11, when the grains went to half rate; it was
+32, 24, 16). Several dense clouds at once are the expensive case, and one dense cloud the musical one (a freeze, a
+transition, a pad), so the pool shrinks as more tracks use it and a track alone can have all 40.
 
 The pool is shared by need, every control block (`gr_plan`). A track's need is the grains a second times SIZE (what
 overlaps), plus half again and two for the bunching PATN and chance make. A track asking less than an even share of
 what's left gets what it asks, round by round; the rest is split evenly among the tracks that want more. So a dense
-pad (asking 62) beside a sparse grain track at the defaults (asking 3) keeps 21 of 24, and only two dense tracks
-thin each other (12 and 12). Any grain slot serves any track now; the shares keep the total inside the pool.
+pad (asking 62) beside a sparse grain track at the defaults (asking 3) keeps 27 of 30, and only two dense tracks
+thin each other (15 and 15). Any grain slot serves any track now; the shares keep the total inside the pool.
 
 When a share drops (another track's GRAIN comes on), nothing is cut: the grains sounding finish, and new ones are
 skipped until the track is inside its share, so a cloud thins over one grain's length. A grain's level counts only
@@ -1293,6 +1293,48 @@ load. It's `pj_changed()`, the project's fingerprint (a hash over the track stat
 so I don't run it every frame: `ui_input` refreshes `ui.unsaved` four times a second and the header redraws when it
 flips. The manual has a "Saving, in short" section up front: tap and hold SAVE, what POLY held clears and how it
 warns first, and how to go back to the last save when undo can't help.
+
+**More grains: rendering them at half rate (2026-10-11).** Asked for more grains, I profiled first (run 23, one
+track, 31 grains, functions not inlined): the mix (reading each grain's window, interpolating, the envelope, the pan)
+was about half the grain cost, the ADPCM decoding the other half, about 66 host instructions a grain a sample in all.
+The live buffer and the tape are both 22.05 kHz, so a grain has nothing in it above 11 kHz, yet each one was computed
+at 44.1 kHz. Now:
+
+- Each grain renders at 22.05 kHz: a block of 32 output samples is 16 grain samples, the read position stepping twice
+  as far and the envelope ramping over 16 steps. The track's grains mix into a 16-sample stereo bus.
+- The bus goes up to 44.1 kHz once a track: the even samples are the bus's, the odd ones a cubic's midpoint between
+  two (-1 9 9 -1)/16. That keeps three samples of history a track (`hl`, `hr`) and puts the grains two half-rate
+  samples (about 90 us) after the dry, which nobody hears in a grain. When a track's grains have all ended and the
+  tail is 0, the upsampler is skipped (`hq`).
+- Decoding didn't change: it's per buffer sample read, whatever the output rate. The shared decoded-block cache I
+  also proposed would be the next step for that half.
+
+What it sounds like: at a grain's own pitch it's at least as clean as before. The old path interpolated linearly
+between 22 kHz samples, which at 8 kHz is about 3 dB down with an image about 11 dB under; the cubic is about 2 dB
+down with its image about 14 dB under, and below 5 kHz the image is 28 dB or more under (82 dB at 1 kHz). A grain
+pitched up now folds what it lifts past 11 kHz, where before it folded past 22 kHz, so a high, bright grain pitched up
+an octave can sound a little grittier. The one-grain test still checks every sample against a model (the tape read
+at half rate, the window, the pan, then the cubic with its carried history).
+
+What it bought, and where I spent it. A grain costs about 43 a sample now instead of 59 (from runs 2 and 3), but the
+upsampler adds about 12 a sample for each track with grains sounding. I raised the pool only as far as keeps every
+dense run at or under what it cost before: 40, 30, 18 (from 32, 24, 16). The slot mask is two words now (40 slots;
+`gr_on`, `gr_set`, `gr_clr`), and the pool grew 2.4 KB (eight more slots), to 329.2 of 336 KiB.
+
+| Run (host instructions a sample) | Before | Now |
+| --- | ---: | ---: |
+| 3: dense on four tracks | 2,363 (16 grains) | 2,320 (18) |
+| 4: the same, all backwards | 2,743 (16) | 2,751 (18) |
+| 6: dense on two tracks | 2,273 (24) | 2,219 (30) |
+| 15: everything on four tracks | 4,921 (16) | 4,872 (18) |
+| 23: one track alone | 3,017 (31) | 2,823 (40) |
+| 2: four tracks at the defaults (a few grains each) | 1,652 | 1,702 |
+| 19: the realistic groove | 1,628 | 1,649 |
+
+So the dense cases got more grains for the same or less; light grain use pays the upsampler's fixed cost (run 2:
++50, the groove +21). Tested against mutants: a linear upsampler, no history carried, the tail dropped when the last
+grain ends, the read stepping at full rate, and a one-word mask (which `grain_count` had hidden by counting through
+the same mask: a test now checks the words themselves).
 
 ## Sends: ROUT, as built (2026-10-09)
 

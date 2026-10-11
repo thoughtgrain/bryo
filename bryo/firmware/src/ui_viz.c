@@ -287,7 +287,7 @@ static void viz_grain(const int16_t *v, uint32_t f)
     for (k = 0; k < (int32_t)GR_SLOTS; k++) {                          /* the grains sounding */
         const grain_t *g = &gslot[k];
         int32_t rate, span, p0, a0, xa, xb, ph, yc, fr;
-        if (!((gr_used >> k) & 1u) || g->trk != sys.sel || !g->len)
+        if (!gr_on((uint32_t)k) || g->trk != sys.sel || !g->len)
             continue;
         n++;
         rate = g->inc < 0 ? -g->inc : g->inc;
@@ -2085,7 +2085,7 @@ static uint32_t viz_sig(void)
         h = (h ^ (uint32_t)((G->cur >> 12) / 256 * 2 + grain_frozen + sh[sys.sel] * 4096u)) * 16777619u;
         h = (h ^ (uint32_t)(B->len + B->bars * 7u + (uint32_t)B->w / 1024u * 131u)) * 16777619u;
         for (k = 0; k < GR_SLOTS; k++)
-            if (((gr_used >> k) & 1u) && gslot[k].trk == sys.sel)
+            if (gr_on((uint32_t)k) && gslot[k].trk == sys.sel)
                 h = (h ^ (uint32_t)(gslot[k].pos >> 18) ^ k << 24) * 16777619u;
     }
     if (ui.kind == FOCUS_DEV && ui.dev == DEV_RESO)                    /* RESONATOR: a key's root */

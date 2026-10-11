@@ -140,8 +140,8 @@ static double run(int n, char *say, size_t sz)
         if (n == 6)
             chain_tracks(2);
         play(6);
-        snprintf(say, sz, "%s: %u grains sounding (%u %u %u %u)", n == 3 ? "dense on all four (the pool: 16)" : n == 4 ? "dense on all four, all backwards"
-                 : n == 5 ? "dense on all four, SCAN TAPE" : "dense, TRACKS 2 (the pool: 24)", sounding(), grain_count(0), grain_count(1),
+        snprintf(say, sz, "%s: %u grains sounding (%u %u %u %u)", n == 3 ? "dense on all four (the pool: 18)" : n == 4 ? "dense on all four, all backwards"
+                 : n == 5 ? "dense on all four, SCAN TAPE" : "dense, TRACKS 2 (the pool: 30)", sounding(), grain_count(0), grain_count(1),
                  grain_count(2), grain_count(3));
         return 6;
     case 7: {                                            /* a blank tape recorded for 12 s, then looped */

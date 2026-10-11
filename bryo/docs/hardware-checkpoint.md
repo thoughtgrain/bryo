@@ -119,7 +119,7 @@ Write down the CPU reading for each, and anything you hear.
 | 13 | Power-cycle. Each track's COLOR: DRV 60, CRSH 40, NOIS 30, TILT 30 (FX, KNOB 1-4); CMOD BOTH (COLOR 2) | every track driven, crushed and noisy | CPU |
 | 14 | Power-cycle. Each track's SPACE 2: DLY 50, VERB 40 | echoes and a room on every track | CPU; does the mixer's memory ribbon show it? |
 | 15 | Runs 12, 13 and 14 together (everything on) | the hardest case there is | CPU; does it crackle, does shedding settle it? |
-| 15b | TRACKS 4 again, GRAIN off on tracks 2-4 (WET 0), track 1 still at RATE 100, SIZE 500 | one track with the whole pool: "31 OF 32 GRAINS" on GRAIN's page | CPU |
+| 15b | TRACKS 4 again, GRAIN off on tracks 2-4 (WET 0), track 1 still at RATE 100, SIZE 500 | one track with the whole pool: "40 OF 40 GRAINS" on GRAIN's page | CPU |
 | 16 | Plugged into a computer: is there an output named Bryo? Pick it, play something; on the FM-1, stopped, hold REC a second | the USB record mode, the level bar moving, the sound in your headphones | did the computer switch its output to Bryo by itself when plugged in? any clicks in what you hear? |
 | 17 | REC, 10 s of something you know, REC, white key 2, REC | track 2's tape is the take; PLAY plays it | the length on TAPE's page; does it sound like what the computer played (mono, 22 kHz)? |
 | 18 | Record the FM-1 on the computer (Bryo as its input) while it plays | the master output arrives (Felucca's, untested with Bryo) | any dropouts? |
@@ -145,21 +145,22 @@ under the address and undefined-behaviour sanitizers).
 | # | Host cost | Predicted | Read | Heard |
 | --- | ---: | ---: | ---: | --- |
 | 1 | 940 | (the scale) | 25 % | clean |
-| 2 | 1,652 | 44 % | | |
-| 3 | 2,363 | 63 % | | |
+| 2 | 1,702 | 45 % | | |
+| 3 | 2,320 | 62 % | | |
 | 4 | ? | | | |
-| 5 | 2,006 | 53 % | | |
-| 6 | 2,273 | 60 % | | |
-| 11 | 1,914 | 51 % | | |
-| 12 | 3,291 | 88 % (sheds) | | |
-| 13 | 1,712 | 46 % | | |
-| 14 | 1,842 | 49 % | | |
-| 15 | 4,921 | 131 % (sheds) | | |
-| 19 | 1,628 | 43 % | | |
-| 22 | 1,799 | 48 % | | |
+| 5 | 1,962 | 52 % | | |
+| 6 | 2,219 | 59 % | | |
+| 11 | 1,921 | 51 % | | |
+| 12 | 3,242 | 86 % (sheds) | | |
+| 13 | 1,723 | 46 % | | |
+| 14 | 1,853 | 49 % | | |
+| 15 | 4,872 | 130 % (sheds) | | |
+| 19 | 1,649 | 44 % | | |
+| 22 | 1,819 | 48 % | | |
 
 The host costs were measured again on 2026-10-11, after the second round from playing it (the arpeggiator on every
-source, RESONATOR's own: about 7 a sample more on every run). Row 1 stays at 940, the build the 25 % was read on,
+source, RESONATOR's own: about 7 a sample more on every run) and after the grains went to half rate with a bigger
+pool (runs 3, 5, 6, 12, 15 now sound 18 or 30 grains where they sounded 16 or 24, for a little less). Row 1 stays at 940, the build the 25 % was read on,
 since it sets the scale (run 1 is 967 now).
 
 **The factory scene, 2026-10-10:** CPU above 80 % and crackles once the drums came in, where the host predicted
