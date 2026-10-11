@@ -40,6 +40,9 @@ typedef struct {                     /* ISR only */
     int32_t filt_seen;               /* FILT the coefficients were made for, Q8 (CH_NONE: none) */
     tsvf_t fc;
     int32_t pl, pr;                  /* the pan's gains last block, Q15 */
+    int32_t glo, ghi;                /* the shelves' gains (G - 1, Q12) at the end of last block: each block ramps from
+                                      * them, so a modulated LOW or HIGH glides instead of stepping at block edges */
+    uint8_t lorun, hirun;            /* each shelf ran last block (off: its state is stale, seeded again when it runs) */
 } chan_t;
 
 static chan_t chan[NTRK];
@@ -105,18 +108,81 @@ static int32_t ch_cut(int32_t f8)
     return 14 * oct8 / 1000 + 1490;                     /* (+ log2(40 / 30) octaves) */
 }
 
+/* audio ISR: one side c of a channel strip's block, x in place: the shelves (each on if do*: its gain from g*, moving d*
+ * a sample when ramp) and the filter (f). Inlined with ramp a constant, so a strip whose gains hold runs no ramp */
+static inline __attribute__((always_inline)) void ch_side(chan_t *C, uint32_t c, int32_t *x, uint32_t n, int dolo,
+                                                         int dohi, int32_t f, int32_t gl, int32_t gh, int32_t dlo,
+                                                         int32_t dhi, int ramp)
+{
+    int32_t lo = C->lo[c], hi = C->hi[c], s1 = C->f1[c], s2 = C->f2[c];   /* (the state in locals: the compiler
+                                                                           * can't know the buffer doesn't alias it) */
+    int32_t klo = C->klo, khi = C->khi, a1 = C->fc.a1, a2 = C->fc.a2, a3 = C->fc.a3, kd = C->fc.k;
+    uint32_t i;
+    for (i = 0; i < n; i++) {
+        int32_t y = clamp(x[i], -65535, 65535);
+        if (ramp ? dolo : gl != 0) {                    /* the low shelf: y + (G - 1) x its low end (held: on when its
+                                                         * gain isn't 0, the gain its own flag, one register less) */
+            int32_t v = ((y - lo) * klo) >> 15, p = v + lo;
+            lo = p + v;
+            y += (p * gl) >> 12;
+        }
+        if (ramp ? dohi : gh != 0) {                    /* the high shelf: y + (G - 1) x what's above 1.9 kHz */
+            int32_t v = ((y - hi) * khi) >> 15, p = v + hi;
+            hi = p + v;
+            y += (((y - p) >> 1) * gh) >> 11;
+        }
+        if (f) {                                        /* the filter (dsp.c's tsvf, unrolled: with the input held
+                                                         * to +-65535 and no resonance its states stay under
+                                                         * 2 x 65535, so the products fit without clamping them) */
+            int32_t v3, v1, v2;
+            y = clamp(y, -65535, 65535);
+            v3 = y - s2;
+            v1 = (a1 * s1 + a2 * v3) >> 13;
+            v2 = s2 + ((a2 * s1 + a3 * v3) >> 13);
+            s1 = 2 * v1 - s1;
+            s2 = 2 * v2 - s2;
+            y = f < 0 ? v2 : y - ((kd * v1) >> 12) - v2;
+        }
+        x[i] = y;
+        if (ramp) {
+            gl += dlo;
+            gh += dhi;
+        }
+    }
+    C->lo[c] = lo;
+    C->hi[c] = hi;
+    C->f1[c] = s1;
+    C->f2[c] = s2;
+}
+
 /* audio ISR: track t's channel strip on its stereo block, before its level (LOW HIGH FILT) */
 static void mix_channel(uint32_t t, int32_t *l, int32_t *r, uint32_t n)
 {
     chan_t *C = &chan[t];
     const int16_t *ch = TPD(t, MA_CH);
     int32_t glo = ch[CH_LOW] ? db_q10(ch[CH_LOW]) * 4 - 4096 : 0, ghi = ch[CH_HIGH] ? db_q10(ch[CH_HIGH]) * 4 - 4096 : 0;
-    int32_t f = ch[CH_FILT], f8 = mod_fine8(t, FN_FILT, f);
-    uint32_t i, c;
-    if (!glo && !ghi && !f) {
+    int32_t f = ch[CH_FILT], f8 = mod_fine8(t, FN_FILT, f), glo0 = C->glo, ghi0 = C->ghi, dlo, dhi;
+    int dolo = glo || glo0, dohi = ghi || ghi0;         /* (a shelf runs while its gain, now or last block, isn't 0) */
+    uint32_t c;
+    if (dolo && !C->lorun) {                            /* (a shelf back on: its low-pass from the signal as it is, not
+                                                         * from whenever it last ran; its gain ramps up from 0) */
+        C->lo[0] = clamp(l[0], -65535, 65535);
+        C->lo[1] = clamp(r[0], -65535, 65535);
+    }
+    if (dohi && !C->hirun) {
+        C->hi[0] = clamp(l[0], -65535, 65535);
+        C->hi[1] = clamp(r[0], -65535, 65535);
+    }
+    C->lorun = (uint8_t)dolo;
+    C->hirun = (uint8_t)dohi;
+    if (!dolo && !dohi && !f) {
         C->filt_seen = CH_NONE;                         /* (the filter starts from rest when it's turned again) */
         return;
     }
+    dlo = (glo - glo0) >> CTL_LOG2;                     /* (n is a control block: CTL) */
+    dhi = (ghi - ghi0) >> CTL_LOG2;
+    C->glo = glo;
+    C->ghi = ghi;
     if (f && (f8 < 0) != (f < 0))                       /* (the fine value holds the knob's side: LP or HP) */
         f8 = f < 0 ? -1 : 1;
     if (ch[CH_LOW] != C->lo_seen || !C->klo) {
@@ -133,40 +199,11 @@ static void mix_channel(uint32_t t, int32_t *l, int32_t *r, uint32_t n)
         tsvf_coef_k(&C->fc, ch_cut(f8), CH_BW);
         C->filt_seen = f8;
     }
-    for (c = 0; c < 2u; c++) {                          /* (the state in locals: the compiler can't know the
-                                                         *  buffers don't alias it) */
-        int32_t *x = c ? r : l, lo = C->lo[c], hi = C->hi[c], s1 = C->f1[c], s2 = C->f2[c];
-        int32_t klo = C->klo, khi = C->khi, a1 = C->fc.a1, a2 = C->fc.a2, a3 = C->fc.a3, kd = C->fc.k;
-        for (i = 0; i < n; i++) {
-            int32_t y = clamp(x[i], -65535, 65535);
-            if (glo) {                                  /* the low shelf: y + (G - 1) x its low end */
-                int32_t v = ((y - lo) * klo) >> 15, p = v + lo;
-                lo = p + v;
-                y += (p * glo) >> 12;
-            }
-            if (ghi) {                                  /* the high shelf: y + (G - 1) x what's above 1.9 kHz */
-                int32_t v = ((y - hi) * khi) >> 15, p = v + hi;
-                hi = p + v;
-                y += (((y - p) >> 1) * ghi) >> 11;
-            }
-            if (f) {                                    /* the filter (dsp.c's tsvf, unrolled: with the input held
-                                                         * to +-65535 and no resonance its states stay under
-                                                         * 2 x 65535, so the products fit without clamping them) */
-                int32_t v3, v1, v2;
-                y = clamp(y, -65535, 65535);
-                v3 = y - s2;
-                v1 = (a1 * s1 + a2 * v3) >> 13;
-                v2 = s2 + ((a2 * s1 + a3 * v3) >> 13);
-                s1 = 2 * v1 - s1;
-                s2 = 2 * v2 - s2;
-                y = f < 0 ? v2 : y - ((kd * v1) >> 12) - v2;
-            }
-            x[i] = y;
-        }
-        C->lo[c] = lo;
-        C->hi[c] = hi;
-        C->f1[c] = s1;
-        C->f2[c] = s2;
+    for (c = 0; c < 2u; c++) {
+        if (dlo || dhi)                                 /* (a gain moving: ramped; held: the loop without the ramp) */
+            ch_side(C, c, c ? r : l, n, dolo, dohi, f, glo0, ghi0, dlo, dhi, 1);
+        else
+            ch_side(C, c, c ? r : l, n, dolo, dohi, f, glo, ghi, 0, 0, 0);
     }
 }
 

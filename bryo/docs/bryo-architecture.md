@@ -1551,6 +1551,23 @@ applied a block at a time in steps does), and, with `--cost`, the instructions.
   in what the edge test finds, and 25 to 50 more instructions a sample on the groove (runs 18, 19), so I took that
   back out. The edge test is the one that tells.
 - TAPE's HALF flags as a step: it's a switch, the speed changes at once by design.
+- The channel's LOW stepped (found 2026-10-11, and fixed): the shelf's gain was set once a block, so an LFO on it
+  jumped up to a dB at every block's start (the audit's edge: 15.0 dB against 0.3 without). Three things were wrong,
+  all in `mix_channel`: the gain jumped at the block's edge; a shelf passing through 0 dB stopped running, so its
+  low-pass held a stale value and pulled toward it when the gain came back; and the strip switched off the moment
+  LOW HIGH and FILT read 0, cutting a gain still on its way down. Now both shelves' gains ramp across the block from
+  last block's (as PAN's already did), a shelf runs while its gain is non-0 this block or the last, and a shelf coming
+  back on seeds its low-pass from the signal as it is. Tests: LOW and HIGH swung 0/+6 and -12/+12 dB a block (the
+  largest sample-to-sample move 14,589 before, 656 after; HIGH 12,605 and 3,464), and a shelf back on after the
+  signal moved stays on the signal's side. The audit now finds no knob stepping.
+
+  The ramp's per-sample arithmetic cost on a strip whose gains hold, so the loop has a held path without it
+  (`ch_side`, inlined with the ramp a constant). On the host a strip with every shelf and the filter on still costs
+  about 32 a sample more (run 17: 1,753 to 1,785), and none of it is arithmetic: it's three extra register moves a
+  sample in the shelves, the x86-64 compiler laying out the inlined copies differently. I tried the gain as its own
+  flag (as the old loop had it) and four steps a block instead of a ramp (worse: 1,816, and a 24 dB swing became
+  four 6 dB steps); neither helped, and the device's compiler (32-bit, -Os) lays it out its own way, so I left it.
+  Everything else moved by under 15.
 - Cost: a slot with one depth adds about 20 instructions a sample; what the device does with the moving knob comes
   on top, in proportion (the channel filter switched on, more grains at a higher RATE, more notes overlapping with a
   longer REL). Nothing costs more just for being modulated.

@@ -3257,6 +3257,72 @@ static double ch_db(double hz, double amp)
 }
 
 /* the mixer's sound (mixer.c): each channel strip does what its picture draws, the pan, the master compressor */
+/* a channel strip's shelf gain changing between blocks (as a modulator moves LOW or HIGH a block at a time) glides
+ * across the block, no jump at its edge; a shelf passing through 0 dB keeps its state */
+static void test_chan_glide(void)
+{
+    static int32_t l[CTL], r[CTL];
+    int32_t last = 0, jump = 0, b, i, k;
+    power_on();
+    for (k = 0; k < 2; k++) {                            /* LOW, then HIGH (a sine at 100 Hz, then at 2 kHz) */
+        int16_t *g = &tp[0].ch[k ? CH_HIGH : CH_LOW];
+        uint32_t ph = 0, inc = (k ? 2000u : 100u) * (0xFFFFFFFFu / 44100u);
+        jump = 0;
+        for (b = 0; b < 400; b++) {
+            *g = (int16_t)(b < 200 ? (b & 1 ? 6 : 0) : (b & 1 ? 12 : -12));   /* (the worst: a whole range a block) */
+            for (i = 0; i < (int32_t)CTL; i++, ph += inc)
+                l[i] = r[i] = sine_i(ph) >> 3;
+            mix_channel(0, l, r, CTL);
+            for (i = 0; i < (int32_t)CTL; i++) {
+                int32_t d = l[i] - last;
+                d = d < 0 ? -d : d;
+                jump = b > 4 && d > jump ? d : jump;
+                last = l[i];
+            }
+        }
+        *g = 0;
+        mix_channel(0, l, r, CTL);
+        /* (measured: stepping at the block edges, LOW's largest sample-to-sample move was 14,589 and HIGH's 12,605;
+         * gliding, 656 and 3,464: the gain's own ramp and the louder sine's slope) */
+        check(k ? "HIGH swung 0/+6 and -12/+12 dB a block: it glides across each block, no jump at the edges"
+                : "LOW swung 0/+6 and -12/+12 dB a block: it glides across each block, no jump at the edges",
+              jump < (k ? 5000 : 1500));
+    }
+}
+
+/* a shelf that stopped (its gain at 0, the strip off) and the signal moved on meanwhile: back on, it starts from the
+ * signal as it is, not from what it held when it stopped */
+static void test_chan_reseed(void)
+{
+    static int32_t l[CTL], r[CTL];
+    int32_t b, i, worst = -65536;
+    power_on();
+    for (b = 0; b < 100; b++) {                          /* LOW +12 on +8000: its low-pass settles at +8000 */
+        tp[0].ch[CH_LOW] = 12;
+        for (i = 0; i < (int32_t)CTL; i++)
+            l[i] = r[i] = 8000;
+        mix_channel(0, l, r, CTL);
+    }
+    tp[0].ch[CH_LOW] = 0;
+    for (b = 0; b < 10; b++) {                           /* off (after its ramp down, still on +8000), then the
+                                                         * signal -8000 while it's stopped */
+        for (i = 0; i < (int32_t)CTL; i++)
+            l[i] = r[i] = b ? -8000 : 8000;
+        mix_channel(0, l, r, CTL);
+    }
+    tp[0].ch[CH_LOW] = 12;
+    for (b = 0; b < 3; b++) {                            /* back on: -8000 only gets lower (x up to 4), never above */
+        for (i = 0; i < (int32_t)CTL; i++)
+            l[i] = r[i] = -8000;
+        mix_channel(0, l, r, CTL);
+        for (i = 0; i < (int32_t)CTL; i++)
+            worst = l[i] > worst ? l[i] : worst;
+    }
+    check("a low shelf back on after the signal moved: it starts from the signal now (no swing toward the old one)",
+          worst <= -8000);
+    tp[0].ch[CH_LOW] = 0;
+}
+
 static void test_mixer(void)
 {
     enum { N = 8192 };
@@ -6961,6 +7027,8 @@ int main(int argc, char **argv)
     test_space();
     test_usbrec();
     test_mixer();
+    test_chan_glide();
+    test_chan_reseed();
     test_mod();
     test_mod_engines();
     test_mod_audio();
