@@ -120,6 +120,7 @@ typedef struct {                     /* ISR only */
     uint8_t est, ekey;               /* the slice envelope's stage (TE_*), and the key that started it */
     int32_t env;                     /* .. its level at the last block's end, Q15 (32767: as it is) */
     uint32_t keys_prev;
+    int16_t rota;                    /* ROTATE as the head last went by it (turned while running: the head moves) */
 } tape_rt_t;
 enum { TE_IDLE, TE_JUMP, TE_ATK, TE_DEC, TE_SUS, TE_REL };
 static tape_rt_t tape_rt[NTRK] __attribute__((section(".pool")));
@@ -255,14 +256,18 @@ static void tape_view_of(uint32_t t, uint32_t s, tape_view_t *v)
 
 static void tape_view(uint32_t t, tape_view_t *v) { tape_view_of(t, tape_src(t), v); }
 
-/* the loop window in samples: STRT and LEN in % of what the track plays (at least one block long) */
+/* the loop window in samples: from STRT, LEN long, both in % of what the track plays; past the tape's end it's
+ * trimmed there (so STRT always cuts the start away: before 2026-10-11 the window slid back instead, and at LEN
+ * 100 STRT did nothing), at least one block long */
 static void tape_window(uint32_t t, uint32_t len, int32_t *ls, int32_t *ll)
 {
     const int16_t *k = TPD(t, DEV_SRC);
     int32_t s = (int32_t)len * k[TK_STRT] / 100, l = (int32_t)len * k[TK_LEN] / 100;
+    if (s + l > (int32_t)len)
+        l = (int32_t)len - s;
     if (l < (int32_t)TAPE_BLK)
         l = (int32_t)TAPE_BLK;
-    if (s + l > (int32_t)len)
+    if (s + l > (int32_t)len)                          /* (STRT at the very end: the last block) */
         s = (int32_t)len - l;
     *ls = s < 0 ? 0 : s;
     *ll = l > (int32_t)len ? (int32_t)len : l;
@@ -504,6 +509,17 @@ static void tape_block(uint32_t t, uint32_t keys, const int32_t *rec_in, int32_t
             int32_t o = ((rt->pos >> 12) - ls) % ll;  /* (the tape got shorter under the head: back inside) */
             tape_jump(t, (ls + (o < 0 ? o + ll : o)) << 12);
             rt->wlast = -1;
+        }
+        if (TPD(t, DEV_SRC)[TK_ROTA] != rt->rota) {    /* ROTATE turned: the loop turns under the head (it plays
+                                                         * on from where the new rotation puts it: the same moment
+                                                         * of the bar now hears another part of the tape) */
+            int32_t d = TPD(t, DEV_SRC)[TK_ROTA] - rt->rota, o;
+            rt->rota = TPD(t, DEV_SRC)[TK_ROTA];
+            if (v.len && rt->running && playing && rt->stop_left == 0) {
+                o = ((rt->pos >> 12) - ls + ll * d / 100) % ll;
+                tape_jump(t, ((ls + (o < 0 ? o + ll : o)) << 12) | (rt->pos & 4095));
+                rt->wlast = -1;
+            }
         }
     }
     rt->keys_prev = keys;

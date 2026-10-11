@@ -1104,9 +1104,10 @@ three rooms anyway. The middle way that was asked for: two rooms the tracks shar
 **What it is now.**
 
 - Two rooms, **A** and **B** (`room[]` in `space.c`), each with SIZE, DEC, TONE, QUAL and PRE (`rmp[]`, `RM_P` in
-  `param.c`). They're the mix's, like the master compressor: one pair for the instrument, on the mixer's ROOMS
-  pages (EDIT past MASTER: A, B, then both pre-delays), saved with the project, and not modulation targets (no
-  track's slot owns them, and a room's lengths are what the main loop sizes its memory for).
+  `param.c`). They're the mix's, like the master compressor: one pair for the instrument, saved with the project,
+  and not modulation targets (no track's slot owns them, and a room's lengths are what the main loop sizes its
+  memory for). I first put their knobs on mixer pages; asked to keep them on FX, they're on SPACE's pages now (see
+  "The room's knobs on SPACE" below).
 - Each track's SPACE keeps its delay (TIME FDBK DLY TONE SPRD) and sends to one room: **ROOM** (A or B) on SPACE 2,
   **VERB** the amount on page 1, next to DLY. Tracks 1-2 start on A, 3-4 on B. ROOM is `nomod` (it picks the memory).
 - The send is a bus. `space_block` adds the track's mono at half rate, times VERB times the track's level (Q12: so
@@ -1146,6 +1147,16 @@ the track's when one loads (the rooms are the mix's), so an older preset's SIZE 
 **The factory scene** sets the rooms: A small (SIZE 45: T1's kit, T2's bells), B large and long (SIZE 80, DEC 65:
 T3's strings), both at QUAL LO. That last part is a choice made for the number: at HI the scene is 2,949 a sample
 (78 %), at LO 2,821 (75 %), inside the 65 to 75 % the device read before. A new project starts at HI.
+
+**The room's knobs on SPACE (later the same day).** The mixer's ROOMS pages felt one step removed: you shape a
+room where you send to it. SPACE has three pages now: TIME FDBK DLY VERB / ROOM SIZE DEC PRE / TONE SPRD RTON QUAL.
+SIZE DEC RTON QUAL PRE are descriptors in SPACE's table (stored places 3 and 8-11, `nomod`) that `SP_RMK` maps to
+the room's knobs: `sp_knob()` hands the page (and the picture's tag) the value of the room the track's ROOM picks,
+so turning one changes that room for every track on it; the track's own values in those places are never read
+(the DSP reads `rmp`). The picture's label names the room, or the room and every track on it when another track
+shares it ("B: T1 T2"). LFO held on one says THE ROOM IS SHARED: NO DEPTHS. A version 7 project's raw knobs at 3 and
+8 still go to `pj_rooms7`, never to the track. Tested: a track's SIZE turns its room's and not the other's, ROOM
+moves which room the page edits, QUAL is the room's, no depth on a room knob.
 
 **What it costs.** Host instructions a sample, same harness before and after:
 
@@ -1710,6 +1721,21 @@ So the dense cases got more grains for the same or less; light grain use pays th
 grain ends, the read stepping at full rate, and a one-word mask (which `grain_count` had hidden by counting through
 the same mask: a test now checks the words themselves).
 
+## From playing it on the FM-1, round 3 (2026-10-11)
+
+**TAPE's STRT did nothing at LEN 100.** The loop window was STRT plus LEN, both as a share of the whole tape, and
+when it ran past the end the window slid back to fit. At LEN 100 (the default) it always slid back to 0, so moving
+STRT never took the start of the sample away. `tape_window` now starts at STRT and trims at the tape's end (LEN is
+still a share of the whole tape, so STRT 40 LEN 30 is 40 % to 70 %; STRT 90 LEN 30 is 90 % to the end). GRAIN's
+SCAN TAPE and the picture use the same window. Tested at LEN 100, 30, and trimmed at the end.
+
+**ROTA seemed to do nothing.** It did, but only at PLAY and for the slice keys: it moved where the loop starts
+counting, and once the loop was running nothing you heard changed until the next PLAY. It rotates the tape you hear
+now: turned while the loop runs, the head jumps by the same share of the loop (crossfaded over FADE or the 2 ms
+declick), so the same moment of the bar plays another part of the tape, and it plays on from there (`rt->rota` is
+what the head last went by; a change while stopped only moves where PLAY starts). Under modulation it jumps when the
+whole percent changes. Tested: ROTA 0 to 25 while playing moves the head a quarter of the loop on, then it runs on.
+
 ## Sends: ROUT, as built (2026-10-09)
 
 GRAIN, RESONATOR and COLOR each have a WET, and until now it was always a crossfade: turning WET up turned the dry
@@ -2262,7 +2288,7 @@ The black keys' shortcuts are off then, all of them (a key can't be a sharp and 
 where OP1-OP3 still pick. TAPE's slices, DRUM's kit, GRAIN's cursor and RESONATOR's root keep the white keys as
 they were.
 
-**SETUP**, the mixer's fourth page (its last, after the ROOMS pages since 2026-10-11): KEYS, KNOB, HOLD and LEDS, the instrument's, not a project's. HOLD and LEDS were
+**SETUP**, the mixer's fourth page: KEYS, KNOB, HOLD and LEDS, the instrument's, not a project's. HOLD and LEDS were
 Felucca's MENU settings (kept in its fields all along); KEYS and KNOB are a byte of their own in the settings record:
 favorites.factory[15][0], an engine Felucca never had, so going back to Felucca reads nothing from it. KNOB is how
 far a detent moves a value with more than 32 steps: 1X, 2X, 4X, or ACC, Felucca's acceleration (#52: the time

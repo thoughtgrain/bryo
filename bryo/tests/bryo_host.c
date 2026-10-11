@@ -619,25 +619,6 @@ static void test_input(void)
     check("..KNOB 1 sets the master compressor's AMT (0 -> 20), one for all tracks", mst[MS_AMT] == 20);
     mst[MS_AMT] = 0;
     tap(B_EDIT);
-    check("..tapped again: ROOMS, room A's page (latched): ROOMS A in the header", ui.chan == CHAN_ROOMA &&
-          ui.chan_latched && ui.view == VIEW_MIXER);
-    host_enc[panel.enc[EN_K1]] = 6;                      /* (SIZE 50 -> 56) */
-    ui_input();
-    check("..KNOB 1 sets room A's SIZE (one for every track sending to it)", rmp[0][RM_SIZE] == 56);
-    rmp[0][RM_SIZE] = RM_P[RM_SIZE].def;
-    tap(B_EDIT);
-    host_enc[panel.enc[EN_K4]] = 1;
-    ui_input();
-    check("..tapped again: room B's page; KNOB 4 sets its QUAL to LO", ui.chan == CHAN_ROOMB &&
-          rmp[1][RM_QUAL] == RQ_LO && rmp[0][RM_QUAL] == RQ_HI);
-    rmp[1][RM_QUAL] = RQ_HI;
-    tap(B_EDIT);
-    host_enc[panel.enc[EN_K2]] = 10;
-    ui_input();
-    check("..tapped again: the pre-delays' page; KNOB 2 is room B's PRE", ui.chan == CHAN_ROOMP &&
-          rmp[1][RM_PRE] > RM_P[RM_PRE].def && rmp[0][RM_PRE] == RM_P[RM_PRE].def);
-    rmp[1][RM_PRE] = RM_P[RM_PRE].def;
-    tap(B_EDIT);
     check("..tapped again: SETUP, the panel's preferences (latched)", ui.chan == CHAN_SETUP && ui.chan_latched &&
           ui.view == VIEW_MIXER);
     tap(B_EDIT);
@@ -947,10 +928,21 @@ static void screens_in(const char *pal)
     turn(2, 50);
     turn(3, 30);
     shot(pal, "space_long");
-    press(B_FX);                                         /* SPACE 2: ROOM B, TONE -40 */
+    tp[1].dev[DEV_SPACE][SP_VERB] = 40;                  /* (T2 sends to room B too) */
+    tp[1].dev[DEV_SPACE][SP_ROOM] = 1;
+    press(B_FX);                                         /* SPACE 2: ROOM B, its SIZE 80, DEC 70 (T1 and T2 share it) */
     turn(0, 1);
-    turn(1, -40);
+    turn(1, 30);
+    turn(2, 30);
+    chain_poll();
     shot(pal, "space2");
+    press(B_FX);                                         /* SPACE 3: the echoes' TONE -40, the room's QUAL LO */
+    turn(0, -40);
+    turn(3, 1);
+    shot(pal, "space3");
+    for (s = 0; s < NROOM * NRM; s++)
+        rmp[s / NRM][s % NRM] = RM_P[s % NRM].def;
+    tp[1].dev[DEV_SPACE][SP_VERB] = 0;
     for (s = 0; s < NSLOT; s++) {                        /* (by slot: mod3 is the SEQ, M4; mod4 slot 3, M3) */
         static const uint8_t B[NSLOT] = {B_LFO, B_LFO, B_SEQ, B_LFO};
         char nm[8] = {'m', 'o', 'd', (char)('1' + s), 0};
@@ -1103,22 +1095,6 @@ static void screens_in(const char *pal)
     comp.gr_q8 = 0;
     for (s = 0; s < NMS; s++)
         mst[s] = MS_P[s].def;
-    tp[1].dev[DEV_SPACE][SP_VERB] = 40;                  /* (T2 sends to room B too, with T1) */
-    tp[1].dev[DEV_SPACE][SP_ROOM] = 1;
-    chain_poll();
-    tap(B_EDIT);                                         /* ROOMS: room A, nothing sent to it (dim) */
-    shot(pal, "mixer_room_a");
-    tap(B_EDIT);                                         /* room B: SIZE 80, DEC 70, QUAL LO; T1 and T2 send to it */
-    turn(0, 30);
-    turn(1, 30);
-    turn(3, 1);
-    shot(pal, "mixer_rooms");
-    tap(B_EDIT);                                         /* the pre-delays: A 20 ms, B 90 */
-    turn(1, 14);
-    shot(pal, "mixer_predelay");
-    for (s = 0; s < NROOM * NRM; s++)
-        rmp[s / NRM][s % NRM] = RM_P[s % NRM].def;
-    tp[1].dev[DEV_SPACE][SP_VERB] = 0;
     tap(B_EDIT);
     tap(B_GLO);
     hold(B_GLO);
@@ -3822,6 +3798,31 @@ static void test_space(void)
     chain_poll();
     check("DLY and VERB 0: every chunk back to the pool", !mem_count(MEM_SPACE) && !mem_count(MEM_SPACE + 1) &&
           !mem_count(MEM_ROOM) && !mem_count(MEM_ROOM + 1) && !room[0].rev.nch && !room[0].pre.nch);
+
+    power_on();                                          /* the room's knobs on SPACE's pages: the room's, shared */
+    sys.sel = 0;
+    focus_dev(DEV_SPACE, 1);
+    turn(1, 6);
+    check("SPACE 2 on T1 (room A): KNOB 2 turns room A's SIZE (50 -> 56), not a knob of the track's",
+          rmp[0][RM_SIZE] == 56 && rmp[1][RM_SIZE] == 50 && tp[0].dev[DEV_SPACE][3] == DEV_P[DEV_SPACE][3].def);
+    sys.sel = 2;
+    focus_dev(DEV_SPACE, 1);
+    check("..T3's SPACE 2 shows room B's (50)", ui.view == VIEW_PAGE && rmp[1][RM_SIZE] == 50);
+    turn(2, 10);
+    turn(0, -1);                                         /* T3 to room A: its page now shows and turns A's */
+    turn(1, 4);
+    check("..its DEC turns B's; ROOM A then puts T3 on A, and SIZE turns A's (56 -> 60)",
+          rmp[1][RM_DEC] == 50 && tp[2].dev[DEV_SPACE][SP_ROOM] == 0 && rmp[0][RM_SIZE] == 60);
+    focus_dev(DEV_SPACE, 2);
+    turn(3, 1);
+    check("..SPACE 3's QUAL is the room's too (A to LO)", rmp[0][RM_QUAL] == RQ_LO);
+    focus_dev(DEV_SPACE, 1);
+    hold(B_LFO);
+    turn(1, 20);
+    let_go(B_LFO);
+    check("..LFO held + the room's SIZE: no depth (the room is shared), and it says so",
+          mod_count(2) == 0 && rmp[0][RM_SIZE] == 60 && !strncmp(ui.msg, "THE ROOM IS SHARED", 18));
+    power_on();
 }
 
 /* the computer playing into the FM-1 (what usb.c's uaco_service hands usbrec.c from each 1 ms packet): frames of a
@@ -4347,6 +4348,39 @@ static void test_tape_edges(void)
               abs(s0 - (int32_t)len * 97 / 100) < 64 && abs(ran - (int32_t)len / 16 * 2 / CTL) <= 2);
     }
     tp[0].dev[DEV_SRC][TK_ROTA] = 0;
+
+    tp[0].dev[DEV_SRC][TK_STRT] = 40;                    /* STRT cuts the start away, LEN 100: the rest of the tape */
+    tape_window(0, len, &ls, &ll);
+    check("STRT 40 at LEN 100: the loop is 40 % to the end (it used to slide back to 0)",
+          ls == (int32_t)len * 40 / 100 && ls + ll == (int32_t)len);
+    tp[0].dev[DEV_SRC][TK_LEN] = 30;
+    tape_window(0, len, &ls, &ll);
+    check("..LEN 30 from there: 40 % to 70 %", ls == (int32_t)len * 40 / 100 && ll == (int32_t)len * 30 / 100);
+    tp[0].dev[DEV_SRC][TK_STRT] = 90;
+    tape_window(0, len, &ls, &ll);
+    check("..STRT 90, LEN 30: trimmed at the end (90 % to the end), not slid back", ls == (int32_t)len * 90 / 100 &&
+          ls + ll == (int32_t)len);
+    tp[0].dev[DEV_SRC][TK_STRT] = 0;
+    tp[0].dev[DEV_SRC][TK_LEN] = 100;
+    sys.playing = 1;                                     /* ROTATE turned while it plays: the loop turns under it */
+    render(200, 0);
+    {
+        int32_t p0 = tape_rt[0].pos >> 12, p1, want;
+        tp[0].dev[DEV_SRC][TK_ROTA] = 25;
+        render(1, 0);
+        p1 = tape_rt[0].pos >> 12;
+        want = (p0 + (int32_t)len / 4 + CTL / 2) % (int32_t)len;
+        check("ROTA turned 0 -> 25 while playing: the head jumps a quarter of the loop on (crossfaded), so you hear it",
+              abs(p1 - want) < 32 && tape_rt[0].xf > 0);
+        render(10, 0);
+        p0 = tape_rt[0].pos >> 12;
+        render(1, 0);
+        check("..and then plays on from there", abs((tape_rt[0].pos >> 12) - p0 - CTL / 2) <= 1);
+    }
+    sys.playing = 0;
+    render(400, 0);
+    tp[0].dev[DEV_SRC][TK_ROTA] = 0;
+    render(1, 0);
 
     {   /* DUB's balance: +100 keeps the loop untouched, -50 halves it each pass under silence */
         uint32_t k, same = 1;
@@ -6517,6 +6551,7 @@ static void test_projects(void)
         a[3] = 25;
         a[SP_TONE] = -30;
         a[SP_TIME] = 200;
+        a[8] = 20;                                       /* (PRE, where a version 7 file kept it: 20 ms) */
         a = tp[2].dev[DEV_SPACE];                        /* T3: VERB 60, SIZE 20, DEC 95 */
         a[SP_VERB] = 60;
         a[2] = 20;
@@ -6532,12 +6567,12 @@ static void test_projects(void)
         power_on();
         rc |= pj_load(0);
         check("a version 7 project: room A from T2 (the first of T1-T2 sending: SIZE 70, DEC 25, TONE -30), B from T3 "
-              "(SIZE 20, DEC 95); T1-T2 send to A, T3-T4 to B; the old DEC knob empty; the rest as saved",
+              "(SIZE 20, DEC 95); T1-T2 send to A, T3-T4 to B; the old DEC not kept as the track's; the rest as saved",
               rc == 0 && rmp[0][RM_SIZE] == 70 && rmp[0][RM_DEC] == 25 && rmp[0][RM_TONE] == -30 &&
               rmp[1][RM_SIZE] == 20 && rmp[1][RM_DEC] == 95 && rmp[1][RM_QUAL] == RQ_HI &&
               rmp[0][RM_PRE] == RM_P[RM_PRE].def && tp[0].dev[DEV_SPACE][SP_ROOM] == 0 &&
               tp[1].dev[DEV_SPACE][SP_ROOM] == 0 && tp[2].dev[DEV_SPACE][SP_ROOM] == 1 &&
-              tp[3].dev[DEV_SPACE][SP_ROOM] == 1 && !tp[1].dev[DEV_SPACE][3] && tp[1].dev[DEV_SPACE][SP_VERB] == 40 &&
+              tp[3].dev[DEV_SPACE][SP_ROOM] == 1 && tp[1].dev[DEV_SPACE][3] == DEV_P[DEV_SPACE][3].def && tp[1].dev[DEV_SPACE][SP_VERB] == 40 &&
               tp[1].dev[DEV_SPACE][SP_TIME] == 200 && tp[1].dev[DEV_SPACE][SP_TONE] == -30);
         rmp[1][RM_QUAL] = RQ_LO;                         /* this version keeps the rooms as saved */
         rmp[0][RM_PRE] = 150;
@@ -8005,10 +8040,7 @@ static void test_arp_keys(void)
     tap(B_EDIT);
     tap(B_EDIT);
     tap(B_EDIT);
-    tap(B_EDIT);
-    tap(B_EDIT);
-    tap(B_EDIT);
-    check("SETUP: the mixer's last page (GLO, EDIT x6: CHANNEL MASTER ROOMS x3 SETUP)", ui.view == VIEW_MIXER &&
+    check("SETUP: the mixer's last page (GLO, EDIT x3: CHANNEL MASTER SETUP)", ui.view == VIEW_MIXER &&
           ui.chan == CHAN_SETUP);
     turn(1, 2);                                          /* KNOB: 1X -> 4X */
     check("..KNOB 2 sets KNOB: 4X", ((bryo_prefs >> 1) & 3u) == KNOB_4X);

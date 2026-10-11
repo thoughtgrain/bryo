@@ -699,8 +699,7 @@ static void on_button(uint32_t b)
             break;
         }
         if (ui.view == VIEW_MIXER) {                    /* (held: while held; tapped: latched; tapped again: off) */
-            if (ui.chan == CHAN_SETUP && ui.chan_latched) {   /* LEVELS -> CHANNEL -> MASTER -> ROOMS (A, B, PRE)
-                                                         * -> SETUP -> LEVELS */
+            if (ui.chan == CHAN_SETUP && ui.chan_latched) {   /* LEVELS -> CHANNEL -> MASTER -> SETUP -> LEVELS */
                 ui.chan = CHAN_LEVELS;
                 ui.chan_latched = 0;
             } else {
@@ -1077,7 +1076,8 @@ static void on_knob(uint32_t c, int32_t d)
         }
         if (v == -128)
             ui_message(pdesc_empty(p) ? "NO KNOB THERE" : mod_tdesc(page_target(c)) ? "32 DEPTHS ON THIS TRACK: MONO CLEARS"
-                                                                                    : "THE REEL CAN'T BE MODULATED");
+                       : p->names == N_REEL ? "THE REEL CAN'T BE MODULATED"
+                       : ui.dev == DEV_SPACE ? "THE ROOM IS SHARED: NO DEPTHS" : "THIS KNOB CAN'T BE MODULATED");
         return;
     }
     if (ui.slot_held != SLOT_NONE)                      /* (a page without depths: the knob as usual) */

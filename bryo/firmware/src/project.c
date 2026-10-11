@@ -492,7 +492,7 @@ static int pj_read_state(void)
                     pj_old_sp[t][i] = i < 9u ? OLD[i] : 0;
                 pr_a16(pj_old_sp[t], NPK, 0);
                 for (i = 0; i < NPK; i++)                /* (TIME FDBK DLY VERB TONE SPRD stay where they were) */
-                    if (i != SP_ROOM && !pdesc_empty(&DEV_P[DEV_SPACE][i]))
+                    if (i != SP_ROOM && !SP_RMK[i] && !pdesc_empty(&DEV_P[DEV_SPACE][i]))
                         P->dev[DEV_SPACE][i] = (int16_t)clamp(pj_old_sp[t][i], DEV_P[DEV_SPACE][i].min,
                                                               DEV_P[DEV_SPACE][i].max);
             } else if (s < NDEV)

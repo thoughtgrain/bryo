@@ -147,14 +147,17 @@ static const pdesc_t DEV_P[NDEV][NPK] = {
          * nothing colours adds the dry to itself, +6 dB at WET 100: LVL is there for it) */
         {"LVL", -24, 6, 0, F_DB}, P_ROUT, {""}, {""}},
     {   /* SPACE (the S-4's VAST, its room shared: space.c): the track's delay (TIME FDBK, DLY its level, TONE in its
-         * feedback, SPRD the right echo ahead), and its send to a room (ROOM: A or B, the mixer's ROOMS pages; VERB
-         * how much). Stored 3 and 8 were SIZE DEC and PRE until the rooms were shared (2026-10-11): empty now.
+         * feedback, SPRD the right echo ahead), and its send to a room (ROOM: A or B; VERB how much). SIZE DEC RTON
+         * QUAL PRE are the knobs of the room ROOM picks (SP_RMK: the page edits rmp[], shared by every track on
+         * that room; the track's own values there are unused), so they're not modulation targets. Stored 3 and 8
+         * were the track's own SIZE and PRE until the rooms were shared (project.c reads a version 7 file's raw).
          * (DLY 0, VERB 0: off until turned up, taking no memory) */
         {"TIME", 10, 370, 250, F_MS}, {"FDBK", 0, 100, 30, F_PCT},
-        {"ROOM", 0, 1, 0, F_ENUM, N_ROOMS, 1}, {""},
+        {"ROOM", 0, 1, 0, F_ENUM, N_ROOMS, 1}, {"SIZE", 0, 100, 50, F_PCT, 0, 1},
         {"DLY", 0, 100, 0, F_PCT}, {"VERB", 0, 100, 0, F_PCT},
         {"TONE", -100, 100, 0, F_BIPCT}, {"SPRD", 0, 100, 100, F_PCT},
-        {""}, {""}, {""}, {""}},
+        {"DEC", 0, 100, 40, F_PCT, 0, 1}, {"RTON", -100, 100, 0, F_BIPCT, 0, 1},
+        {"QUAL", 0, 1, 0, F_ENUM, N_QUAL, 1}, {"PRE", 0, 200, 20, F_MS, 0, 1}},
 };
 
 /* The source engines: what starts a track's chain (docs/bryo-architecture.md, "Source engines"). TAPE's knobs are
@@ -260,9 +263,10 @@ static const pdesc_t MS_P[NMS] = {
 };
 static int16_t mst[NMS];
 
-/* The two rooms the tracks share (space.c; the mixer's ROOMS pages, EDIT past MASTER: A, B, then their pre-delays):
- * SIZE, DEC, TONE (- darker, + a high-pass in front), QUAL (HI 22.05 kHz, LO 11.025: half the work, a darker tail),
- * PRE. One pair for the whole instrument, stored with the project; not modulation targets (no track owns them). */
+/* The two rooms the tracks share (space.c; edited on SPACE's pages, the room the track's ROOM picks): SIZE, DEC,
+ * TONE (RTON on the page: - darker, + a high-pass in front), QUAL (HI 22.05 kHz, LO 11.025: half the work, a darker
+ * tail), PRE. One pair for the whole instrument, stored with the project; not modulation targets (no track owns
+ * them). */
 #define NROOM 2u
 enum { RM_SIZE, RM_DEC, RM_TONE, RM_QUAL, RM_PRE, NRM };
 enum { RQ_HI, RQ_LO };
@@ -270,10 +274,10 @@ static const pdesc_t RM_P[NRM] = {
     {"SIZE", 0, 100, 50, F_PCT}, {"DEC", 0, 100, 40, F_PCT}, {"TONE", -100, 100, 0, F_BIPCT},
     {"QUAL", 0, 1, RQ_HI, F_ENUM, N_QUAL, 1}, {"PRE", 0, 200, 20, F_MS},
 };
-static const pdesc_t RMP_P[4] = {   /* the third ROOMS page: the two pre-delays (RM_P's PRE, named by room) */
-    {"PREA", 0, 200, 20, F_MS}, {"PREB", 0, 200, 20, F_MS}, {""}, {""},
-};
 static int16_t rmp[NROOM][NRM];
+/* SPACE's stored knob k as its room's: RM_* + 1 (0: the track's own) */
+static const uint8_t SP_RMK[NPK] = {0, 0, 0, RM_SIZE + 1, 0, 0, 0, 0, RM_DEC + 1, RM_TONE + 1, RM_QUAL + 1, RM_PRE + 1};
+
 
 /* The arpeggiator (arp.c), one per track, on the ARP pad: it plays the notes held on a SYNTH or POLY track one at a
  * time, in time. MODE: OFF; KEY, while keys are held; LTCH, the last chord keeps playing after the keys are let go
@@ -378,9 +382,9 @@ static const playout_t PLAYOUT[] = {
                                                                                       * RES ARP: the ARP pad's) */
     {DEV_P[DEV_COLOR], 3, {0, 1, 9, 7, 2, 3, 4, 5, 6, 10, 11, 8}},              /* COLOR: DRV CRSH ROUT WET, NOIS TILT
                                                                                  * NDEC NTON, CMOD . . LVL */
-    {DEV_P[DEV_SPACE], 2, {0, 1, 4, 5, 2, 6, 7, 3}},                           /* SPACE: TIME FDBK DLY VERB, ROOM TONE
-                                                                                 * SPRD . (the room's own knobs: the
-                                                                                 * mixer's ROOMS) */
+    {DEV_P[DEV_SPACE], 3, {0, 1, 4, 5, 2, 3, 8, 11, 6, 7, 9, 10}},             /* SPACE: TIME FDBK DLY VERB, ROOM SIZE
+                                                                                 * DEC PRE, TONE SPRD RTON QUAL (2-3
+                                                                                 * and 8-11: the room's, SP_RMK) */
     {SYN_P, 5, {0, 1, 2, 3, 8, 9, 10, 11, 4, 5, 6, 7, 12, 13, 14, 15, 17, 18, 19, 16}},   /* OSC AMP FILTER VOICE, LVL */
     {POL_P, 4, {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 12}},         /* POLY: . . . LVL */
     {ME_P[ME_WAVE], 4, {0, 1, 2, 3, 4, 5, 6, 7, 12, 13, 14, 15, 10, 11, 8, 9}},  /* LFO: timing, then PHAS SPRD AMT OFS */
@@ -456,6 +460,13 @@ typedef struct {
     int16_t arp[NARP];           /* the arpeggiator's knobs (arp.c) */
 } track_params_t;
 static track_params_t tp[NTRK];
+/* the value knob k of track t's SPACE edits: the track's own, or (SP_RMK) its room's */
+static int16_t *sp_knob(uint32_t t, uint32_t k)
+{
+    if (k < NPK && SP_RMK[k])
+        return &rmp[clamp(tp[t].dev[DEV_SPACE][2], 0, 1)][SP_RMK[k] - 1u];
+    return &tp[t].dev[DEV_SPACE][k % NPK];
+}
 
 /* What a track's REC records (the routing view: ALGORITHM, KNOB 1..4 a track each). AUTO is what REC always did:
  * on a TAPE track the other tracks' mix, on a SYNTH or POLY track its own source (play, then slice it). OTHR: the

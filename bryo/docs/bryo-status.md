@@ -231,8 +231,8 @@ number.
   track instead (1-40, taken from the AUTO tracks first, kept whatever the others do).
 - **2026-10-11: two shared rooms in place of a room a track.** One LFO on a drum's level put the factory scene over
   80 % with crackles; the depth costs half a percent, the scene had crept to 3,046 a sample (81 %), and SPACE's
-  three rooms were its biggest part. Now every track's SPACE sends (VERB x its level) to room A or B, set on the
-  mixer's ROOMS pages with a QUAL each (HI 22.05 kHz, LO 11.025 kHz: half the work, a darker tail); a room costs the
+  three rooms were its biggest part. Now every track's SPACE sends (VERB x its level) to room A or B, whose knobs
+  are on SPACE's pages 2-3 (shared: turning them changes the room for every track on it), with a QUAL each (HI 22.05 kHz, LO 11.025 kHz: half the work, a darker tail); a room costs the
   same however many tracks send to it, and takes memory only while one does. The scene's rooms are both LO: 2,821,
   75 %. Projects went to version 8 (older ones become the two rooms from their tracks). The 1,547 below, for
   2026-10-10, was measured another way; by today's measure (5 s of the scene after a second's warm-up) it was 2,886.
