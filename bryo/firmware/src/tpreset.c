@@ -42,7 +42,7 @@ static void tpr_write_rec(uint32_t t)
     pw_u16(NDEV);                                        /* (the sources the track isn't on: counted 0, so the
                                                           * track it's loaded into keeps its own there) */
     for (s = 0; s < NDEV; s++)
-        pw_a16(P->dev[s], s != DEV_SRC || P->src == SRC_TAPE ? pdesc_len(DEV_P[s]) : 0u);
+        pw_a16(pj_dev_out(P, s), s != DEV_SRC || P->src == SRC_TAPE ? pdesc_len(DEV_P[s]) : 0u);
     pw_u16(NSLOT);
     for (s = 0; s < NSLOT; s++) {
         pw_byte(P->engine[s]);

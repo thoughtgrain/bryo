@@ -2474,6 +2474,7 @@ static void test_bar_record(void)
     snprintf(b, sizeof b, "..then it stops by itself: the take is exactly 2 bars (%u tape samples, 88,200 at 120 BPM), REC "
              "let go, and it says so", v.len);
     check(b, v.len == 88200u && !((sys.rec >> 1) & 1u) && !tape_ctl[1].grow && !strncmp(ui.msg, "T2: THE TAKE IS IN", 18));
+    check("..and its SYNC is set to its 2 bars (it keeps to them when the tempo moves)", tp[1].dev[DEV_SRC][TK_SYNC] == 2);
     {
         int32_t p0, k;
         uint32_t wraps = 0;
@@ -3977,7 +3978,7 @@ static void test_space(void)
     focus_dev(DEV_SPACE, 1);
     turn(1, 6);
     check("SPACE 2 on T1 (room A): KNOB 2 turns room A's SIZE (50 -> 56), not a knob of the track's",
-          rmp[0][RM_SIZE] == 56 && rmp[1][RM_SIZE] == 50 && tp[0].dev[DEV_SPACE][3] == DEV_P[DEV_SPACE][3].def);
+          rmp[0][RM_SIZE] == 56 && rmp[1][RM_SIZE] == 50 && tp[0].dev[DEV_SPACE][3] == 0);
     sys.sel = 2;
     focus_dev(DEV_SPACE, 1);
     check("..T3's SPACE 2 shows room B's (50)", ui.view == VIEW_PAGE && rmp[1][RM_SIZE] == 50);
@@ -3995,6 +3996,118 @@ static void test_space(void)
     let_go(B_LFO);
     check("..LFO held + the room's SIZE: no depth (the room is shared), and it says so",
           mod_count(2) == 0 && rmp[0][RM_SIZE] == 60 && !strncmp(ui.msg, "THE ROOM IS SHARED", 18));
+    power_on();
+}
+
+/* SYNC: TAPE's loop, GRAIN's grains and SPACE's delay to the tempo */
+static int32_t sync_err(uint32_t t)                      /* the head against where the beat says it is, samples */
+{
+    tape_view_t v;
+    int32_t ls, ll, o, d;
+    uint32_t per = tape_sync_bars(t) * 4u, f;
+    tape_view(t, &v);
+    tape_window(t, v.len, &ls, &ll);
+    f = tape_sync_frac(t, per, 0);
+    o = (int32_t)(((uint32_t)ll >> 16) * f + ((((uint32_t)ll & 0xFFFFu) * f) >> 16));
+    d = ls + o - (tape_rt[t].pos >> 12);
+    if (d > ll / 2)
+        d -= ll;
+    else if (d < -ll / 2)
+        d += ll;
+    return d;
+}
+static void test_sync(void)
+{
+    char b[200];
+    int32_t e, worst = 0;
+    uint32_t k;
+    static int32_t l[44100], r[44100];
+    power_on();
+    tp[0].dev[DEV_SRC][TK_SYNC] = 1;                     /* T1's 2 s reel as 1 bar */
+    sys.bpm = 100;                                       /* (1 bar: 2.4 s) */
+    sys.playing = 1;
+    render(1378u, 0);
+    for (k = 0; k < 1378u * 30u; k++) {
+        render(1, 0);
+        e = abs(sync_err(0));
+        worst = e > worst ? e : worst;
+    }
+    snprintf(b, sizeof b, "TAPE SYNC 1BR at 100 BPM: the 2 s loop stretched to the bar's 2.4 s, on the beat for 30 s "
+             "(the head at most %d samples, %.1f ms, off where it belongs)", worst, worst / 22.05);
+    check(b, worst < 64);
+    sys.bpm = 140;                                       /* a new tempo while it plays */
+    render(1378u * 2u, 0);
+    for (k = 0, worst = 0; k < 1378u * 10u; k++) {
+        render(1, 0);
+        e = abs(sync_err(0));
+        worst = e > worst ? e : worst;
+    }
+    snprintf(b, sizeof b, "..140 BPM while playing: locked again within 2 s, then at most %d samples off", worst);
+    check(b, worst < 64);
+    fm1_in.notes = note_bit_of_white(4);                 /* a slice while synced: the loop goes on from it */
+    render(1, 0);
+    fm1_in.notes = 0;
+    render(1378u * 3u, 0);
+    snprintf(b, sizeof b, "..white key 5: the loop jumps to slice 5 and keeps to the beat from there (%d samples off, "
+             "the jump kept: %u)", sync_err(0), tape_rt[0].soff);
+    check(b, abs(sync_err(0)) < 64 && tape_rt[0].soff != 0u);
+    sys.playing = 0;
+    render(400, 0);
+
+    power_on();                                          /* GRAIN SYNC: a grain on every beat */
+    tp[0].dev[DEV_GRAIN][GP_WET] = 100;
+    tp[0].dev[DEV_GRAIN][GP_SYNC] = 1;
+    tp[0].dev[DEV_GRAIN][GP_RATE] = 25;                  /* (1/4) */
+    tp[0].dev[DEV_GRAIN][GP_PATN] = 0;                   /* EVEN */
+    tp[0].dev[DEV_GRAIN][GP_SIZE] = 50;
+    chain_poll();
+    sys.playing = 1;
+    {
+        uint32_t n0 = grain[0].n, n, off = 0;
+        for (k = 0; k < 1378u * 4u; k++) {
+            n = grain[0].n;
+            render(1, 0);
+            if (grain[0].n != n && ((0x10000u - (mclk.beat & 0xFFFFu)) & 0xFFFFu) > mclk.inc + 1u)
+                off++;                                   /* (a grain whose block didn't hold a beat) */
+            if (k % 64u == 0u)
+                chain_poll();
+        }
+        snprintf(b, sizeof b, "GRAIN SYNC 1/4 at 120: %u grains in 4 s (8 beats), each in the block its beat falls in "
+                 "(%u not)", grain[0].n - n0, off);
+        check(b, grain[0].n - n0 >= 7u && grain[0].n - n0 <= 9u && off == 0u);
+    }
+    sys.playing = 0;
+    render(400, 0);
+
+    power_on();                                          /* SPACE SYNC: TIME as a division */
+    tp[0].dev[DEV_SPACE][SP_DLY] = 100;
+    tp[0].dev[DEV_SPACE][SP_FDBK] = 0;
+    tp[0].dev[DEV_SPACE][SP_SPRD] = 0;
+    tp[0].dev[DEV_SPACE][SP_SYNC] = 1;
+    tp[0].dev[DEV_SPACE][SP_TIME] = 200;                 /* 1/8 */
+    chain_poll();
+    {
+        uint32_t a, j;
+        int32_t T[3] = {200, 200, 300};                  /* 1/8 at 120 and 100, 1/4 (folded) at 120 */
+        uint16_t B[3] = {120, 100, 120};
+        double want[3] = {250.0, 300.0, 250.0};
+        for (j = 0; j < 3u; j++) {
+            tp[0].dev[DEV_SPACE][SP_TIME] = (int16_t)T[j];
+            sys.bpm = B[j];
+            memset(l, 0, sizeof l);
+            memset(r, 0, sizeof r);
+            dev_run(sp_run, l, r, 44100);                /* (the last echo out; TIME's glide there) */
+            memset(l, 0, sizeof l);
+            memset(r, 0, sizeof r);
+            l[0] = r[0] = l[1] = r[1] = 20000;
+            dev_run(sp_run, l, r, 44100 / 2);
+            a = peak_at(l, 100, 44100 / 2);
+            snprintf(b, sizeof b, "SPACE SYNC: %s at %u BPM, the echo at %.1f ms (%.0f)", j == 2u ? "1/4 (too long "
+                     "for the line: halved)" : "1/8", B[j], a / 44.1, want[j]);
+            check(b, fabs(a / 44.1 - want[j]) < 1.0);
+        }
+    }
+    sys.bpm = 120;
     power_on();
 }
 
@@ -6377,6 +6490,10 @@ static void test_project_worst(void)
             if (mod_tdesc(g) && mod_nudge(t, g % NSLOT, g, (int32_t)((wr_rnd = wr_rnd * 1103515245u + 12345u) >> 16) % 199 - 99) != -128)
                 n++;
     }
+    for (t = 0; t < NTRK; t++)                           /* (SPACE's places for its room's knobs: stored as 0) */
+        for (k = 0; k < NPK; k++)
+            if (SP_RMK[k])
+                tp[t].dev[DEV_SPACE][k] = 0;
     memcpy(want, tp, sizeof tp);
     memcpy(wdep, mdl, sizeof mdl);
     memcpy(wrm, rmp, sizeof rmp);
@@ -6747,7 +6864,7 @@ static void test_projects(void)
               rmp[1][RM_SIZE] == 20 && rmp[1][RM_DEC] == 95 && rmp[1][RM_QUAL] == RQ_HI &&
               rmp[0][RM_PRE] == RM_P[RM_PRE].def && tp[0].dev[DEV_SPACE][SP_ROOM] == 0 &&
               tp[1].dev[DEV_SPACE][SP_ROOM] == 0 && tp[2].dev[DEV_SPACE][SP_ROOM] == 1 &&
-              tp[3].dev[DEV_SPACE][SP_ROOM] == 1 && tp[1].dev[DEV_SPACE][3] == DEV_P[DEV_SPACE][3].def && tp[1].dev[DEV_SPACE][SP_VERB] == 40 &&
+              tp[3].dev[DEV_SPACE][SP_ROOM] == 1 && tp[1].dev[DEV_SPACE][3] == 0 && tp[1].dev[DEV_SPACE][SP_VERB] == 40 &&
               tp[1].dev[DEV_SPACE][SP_TIME] == 200 && tp[1].dev[DEV_SPACE][SP_TONE] == -30);
         rmp[1][RM_QUAL] = RQ_LO;                         /* this version keeps the rooms as saved */
         rmp[0][RM_PRE] = 150;
@@ -8489,6 +8606,7 @@ int main(int argc, char **argv)
     test_resting();
     test_bar_record();
     test_zoom();
+    test_sync();
     test_grain_clicks();
     test_reso();
     test_color();

@@ -49,7 +49,7 @@
 
 /* the knobs (param.c DEV_P[DEV_SRC]) */
 enum { TK_STRT, TK_LEN, TK_SPD, TK_DUB, TK_FADE, TK_REV, TK_HALF, TK_GAIN, TK_REEL, TK_ROTA, TK_LVL, TK_SFIN, TK_ATK,
-       TK_DEC, TK_SUS, TK_REL, TK_LFIN };
+       TK_DEC, TK_SUS, TK_REL, TK_LFIN, TK_SYNC };
 
 typedef struct {                     /* a reel in flash (bryo_reels.h REELS_INIT) */
     const char *name;
@@ -125,6 +125,8 @@ typedef struct {                     /* ISR only */
     uint8_t rbar;                    /* a take of set bars (sys.rec_bars): TB_* */
     uint32_t bar;                    /* the transport's bar last block (its downbeats) */
     int32_t rec_left;                /* .. output samples it has left */
+    uint8_t rec_full;                /* .. it ran its bars on a blank tape (the main loop sets SYNC to them) */
+    uint16_t soff;                   /* SYNC: where a slice key moved the loop against the beat (Q16 of the loop) */
 } tape_rt_t;
 enum { TB_IDLE, TB_WAIT, TB_REC, TB_DONE };   /* not armed for bars; armed, waiting for a downbeat; recording; done
                                                * (the main loop lets REC go: tape_poll) */
@@ -283,6 +285,24 @@ static void tape_window(uint32_t t, uint32_t len, int32_t *ls, int32_t *ll)
         s = (int32_t)len - l;
     *ls = s < 0 ? 0 : s;
     *ll = l > (int32_t)len ? (int32_t)len : l;
+}
+
+/* SYNC's bars (0: off): OFF 1 2 4 8 16 */
+static uint32_t tape_sync_bars(uint32_t t)
+{
+    int32_t s = clamp(tp[t].dev[DEV_SRC][TK_SYNC], 0, 5);
+    return s ? 1u << (s - 1) : 0u;
+}
+
+/* SYNC: the beat's place in the loop's per beats now, Q16 of the loop */
+static uint32_t tape_sync_clock(uint32_t per) { return (mclk.beat % (per << 16)) / per; }
+
+/* SYNC: where the head belongs in the loop now, Q16: ROTATE's start and where a slice key moved it, then the beat's
+ * place forward (backwards: back from them, so PLAY starts it just before ROTATE's start, as tape_rot does) */
+static uint32_t tape_sync_frac(uint32_t t, uint32_t per, int rev)
+{
+    uint32_t r = (uint32_t)TPD(t, DEV_SRC)[TK_ROTA] * 65536u / 100u + tape_rt[t].soff, c = tape_sync_clock(per);
+    return (rev ? r - c : r + c) & 0xFFFFu;
 }
 
 /* the head's step per output sample, Q12 of a tape sample: 0.5 at 100 % (22.05 kHz under 44.1 kHz); SPD
@@ -568,6 +588,7 @@ static void tape_block(uint32_t t, uint32_t keys, const int32_t *rec_in, int32_t
         rt->env = 32767;
         if (playing) {
             mod_seam |= (uint8_t)(1u << t);            /* (the loop starts: an ADSR's one-shot, mod.c) */
+            rt->soff = 0;                              /* (SYNC: the loop starts with the bar) */
             rt->pos = (grow ? 0 : tape_rot(t, ls, ll, inc < 0 ? -1 : 0)) << 12;
             rt->xf = 0;
             rt->running = 1;
@@ -582,8 +603,37 @@ static void tape_block(uint32_t t, uint32_t keys, const int32_t *rec_in, int32_t
             rt->est = playing ? TE_JUMP : TE_ATK;      /* (its envelope, from silence) */
             rt->ekey = (uint8_t)k;
             rt->env = 0;
+            if (tape_sync_bars(t) && playing) {        /* (SYNC: the loop goes on from the slice, against the beat;
+                                                         * backwards from the slice's end) */
+                uint32_t c = tape_sync_clock(tape_sync_bars(t) * 4u);
+                rt->soff = (uint16_t)(inc < 0 ? (k + 1u) * 4096u + c : k * 4096u - c);
+            }
             break;
         }
+    if (tape_sync_bars(t) && !grow && !rec && v.len) {   /* SYNC: the loop lasts its bars at the tempo. The speed
+                                                         * for that, and a soft lock to the beat: the error to where
+                                                         * the beat says the head is pulls the speed by at most 1/64
+                                                         * (a quarter tone), so it never jumps; a large one (a new
+                                                         * tempo, the transport) jumps there, crossfaded */
+        uint32_t per = tape_sync_bars(t) * 4u, out = per * (2646000u / (uint32_t)clamp(sys.bpm, 40, 240));
+        int32_t s = (int32_t)(((uint32_t)ll << 12) / out);
+        inc = inc < 0 ? -s : s;
+        if (playing && rt->running && rt->stop_left == 0) {
+            uint32_t f = tape_sync_frac(t, per, inc < 0);
+            int32_t o = (int32_t)(((uint32_t)ll >> 16) * f + ((((uint32_t)ll & 0xFFFFu) * f) >> 16));
+            int32_t p = inc < 0 ? (o ? ls + o - 1 : ls + ll - 1) : ls + o, d = p - (rt->pos >> 12);
+            if (d > ll / 2)
+                d -= ll;
+            else if (d < -ll / 2)
+                d += ll;
+            if (d > ll / 8 || d < -ll / 8) {
+                tape_jump(t, p << 12);
+                rt->wlast = -1;
+            } else {
+                inc += clamp(d * 2, -(s >> 6), s >> 6);   /* (the error over ~2,000 samples) */
+            }
+        }
+    }
     if (grow) {                                        /* (a growing tape: as it is) */
         rt->est = TE_IDLE;
         rt->env = 32767;
@@ -632,6 +682,7 @@ static void tape_block(uint32_t t, uint32_t keys, const int32_t *rec_in, int32_t
                 rt->rbar = TB_DONE;
                 rec = 0;
                 if (grow) {                            /* a blank tape: as long as the bars, to the sample */
+                    rt->rec_full = 1;
                     int32_t len = (rt->pos + inc) >> 12;
                     c->nblk = (uint16_t)((len + (int32_t)TAPE_BLK - 1) / (int32_t)TAPE_BLK);
                     c->trim = (uint8_t)((int32_t)c->nblk * (int32_t)TAPE_BLK - len);
@@ -838,6 +889,16 @@ static void tape_poll(void)
             sys.rec &= (uint8_t)~(1u << t);
             tape_unprepare(t);
             tape_bars_done |= (uint8_t)(1u << t);
+            if (tape_rt[t].rec_full) {                 /* (all its bars, on a blank tape: SYNC to them, so it keeps
+                                                         * to the bars when the tempo moves) */
+                uint32_t s = 1u, b = sys.rec_bars;
+                while (b > 1u) {
+                    b >>= 1;
+                    s++;
+                }
+                tp[t].dev[DEV_SRC][TK_SYNC] = (int16_t)(sys.rec_bars ? s : 0u);
+                tape_rt[t].rec_full = 0;
+            }
         }
         if (c->grow) {
             if ((uint32_t)c->nch * MEM_CB < c->nblk + 2u * MEM_CB)   /* (two chunks, 372 ms, ready ahead) */

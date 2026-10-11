@@ -171,22 +171,23 @@ sound of grains that ran off the buffer's end: the dense grain runs 7 to 11 % mo
 device (NPK 24, GRAIN's GRNS): the modulators copy wider arrays, 29 a sample on run 25, 6 on run 24, 1 to 2 elsewhere; then the step keys' lights, 1 to 4; then the devices resting on silence and muted tracks' devices hearing
 silence: run 29, stopped, 1,717 to 798, run 30, three tracks muted, 3,200 to 2,618, the playing runs within -125 to
 +17; then the two shared rooms in place of a room a track: run 14 1,879 to 1,678, run 15 5,072 to 4,871, the
-one-room runs 12 to 31 more):
+one-room runs 12 to 31 more; then round 3 (bar record, the zoom, SYNC: a few checks a block, 2 to 22 a
+sample more):
 
 | Run | What | Cost |
 | --- | --- | ---: |
-| 1 | four reels, nothing on | 996 |
-| 19 | a realistic four-track groove | 1,699 |
-| 24 | the groove, modulated the way I'd play it | 1,929 (115 of it the modulators) |
-| 21 | the groove's busiest moment | 2,516 |
-| 23 | GRAIN at its densest on one track | 2,863 |
-| 25 | every slot on every track, 128 depths | 2,969 |
-| 26 | DRUM busy alone (FUNK, VARY 100, FILL 100, long decays), the others plain reels | 1,337 |
-| 27 | the groove with a DRUM track in place of its drum reel | 1,924 |
+| 1 | four reels, nothing on | 1,018 |
+| 19 | a realistic four-track groove | 1,716 |
+| 24 | the groove, modulated the way I'd play it | 1,947 (115 of it the modulators) |
+| 21 | the groove's busiest moment | 2,535 |
+| 23 | GRAIN at its densest on one track | 2,885 |
+| 25 | every slot on every track, 128 depths | 2,904 |
+| 26 | DRUM busy alone (FUNK, VARY 100, FILL 100, long decays), the others plain reels | 1,353 |
+| 27 | the groove with a DRUM track in place of its drum reel | 1,937 |
 | 28 | four DRUM tracks at once, every voice (20) | 2,438 |
-| 15 | everything on, all four tracks | 4,871 |
-| 29 | the busiest groove's devices all on, the transport stopped (what "nothing playing" costs) | 808 |
-| 30 | one track heard (dense grains, strings with RES ARP, a room), the other three muted | 2,635 |
+| 15 | everything on, all four tracks | 4,902 |
+| 29 | the busiest groove's devices all on, the transport stopped (what "nothing playing" costs) | 810 |
+| 30 | one track heard (dense grains, strings with RES ARP, a room), the other three muted | 2,652 |
 
 My target for a realistic four-track scene is 2,000. The first device reading (run 1, 2026-10-10: 25 %, in 5 % steps)
 puts the ratio at about 37.6 host instructions a sample per percent, if the load scales with the host's count: the
@@ -229,6 +230,13 @@ number.
   four), split by what each track's settings ask for when it runs short; what's left over is everyone's (since
   2026-10-11: a track alone has all 40, not just what RATE and SIZE ask). GRAIN 6's GRNS can hold a number for a
   track instead (1-40, taken from the AUTO tracks first, kept whatever the others do).
+- **2026-10-11, round 3 from playing it.** The rooms' knobs went back to SPACE's pages (ROOM picks A or B; the
+  room's knobs there are the room's, shared). TAPE's STRT trims the start at any LEN (it slid back before); ROTA
+  rotates the loop you hear while it plays. User reels can be deleted (the project view's REELS page). REC held +
+  SELECT records exactly 1-8 bars from the downbeat, and a tape has an exact end now so such a loop doesn't drift.
+  HOME held + a loop's edge zooms (hundredths of a percent, the decoded sound drawn); POLY has END. TAPE, GRAIN's
+  RATE and SPACE's TIME can follow the tempo (SYNC), locked to the beat clock. See "From playing it on the FM-1,
+  round 3" in the architecture doc.
 - **2026-10-11: two shared rooms in place of a room a track.** One LFO on a drum's level put the factory scene over
   80 % with crackles; the depth costs half a percent, the scene had crept to 3,046 a sample (81 %), and SPACE's
   three rooms were its biggest part. Now every track's SPACE sends (VERB x its level) to room A or B, whose knobs

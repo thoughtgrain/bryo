@@ -1797,6 +1797,36 @@ zoom without turning the page; whole-percent turns keep the hundredths; zoomed p
 held note at 0.580 s of a 2.32 s sound; POLY's zoom on END and STRT. Each fails its mutant (the window without the
 hundredths, END ignored, no zoom).
 
+**What follows the tempo.** Asked why the tempo didn't seem to move the LFOs, grains and arpeggiator, I measured it
+first: at 60, 120 and 180 BPM (and turned while playing) the arpeggiator, DRUM, the SEQ and the LFOs on SYNC BPM (the
+default) all scale with it. What didn't: the tapes and reels (they play at their own speed), GRAIN's RATE (grains a
+second) and SPACE's TIME (ms), and an LFO on FREE. Those three now have a SYNC each, all locked to the same beat
+clock (`mclk`, mod.c) rather than a free counter of their own, so none of them drifts against the drums:
+
+- **TAPE SYNC** (TAPE 4, KNOB 3; stored 17): OFF or 1, 2, 4, 8, 16 bars. The loop window lasts that many bars at the
+  tempo: the head's step is the window over the bars' output samples (one divide a block), with the pitch following
+  as on a tape machine (SPD's size is set aside, its sign and REV kept). Every block, where the beat says the head
+  belongs (`tape_sync_frac`: the beat's place in the bars, plus ROTATE and where a slice key moved it, `soff`) is
+  compared with where it is, and the step is pulled by at most 1/64 to close the gap over about 2,000 samples: a
+  soft lock, so it never jumps, and the step's rounding (under 1/2,048) never adds up. A gap over an eighth of the
+  loop (a new tempo, a slice key, PLAY) jumps there, crossfaded. A take of set bars on a blank tape sets SYNC to its
+  bars. Measured: 30 s at 100 BPM with a 2 s reel as one bar (2.4 s), at most 14 samples (0.6 ms) off the beat; 140
+  BPM while playing, locked again within 2 s, at most 19 off; a slice key moves the loop and it keeps time from there.
+- **GRAIN SYNC** (GRAIN 6, KNOB 2; stored 21): RATE picks a division (1 bar .. 1/64, with triplets), and a grain
+  starts in the block each step of that grid falls in (`gr_snext`: the next step at or after a beat, in PATN's
+  rhythm: EVEN, SWNG the odd steps a third late, CLST three a quarter step apart then quiet for the rest of four, RND
+  each step's grain at a place in it from the step's number). The pool's planning reads the division's grains a
+  second (`gr_rate_gps`). Measured: 1/4 at 120, 8 grains in 4 s, each in its beat's block.
+- **SPACE SYNC** (SPACE 4, KNOB 1; stored 12): TIME picks a division in 96ths of a beat (1/64 .. 1/2, dotted and
+  triplets). The line is 370 ms, so one longer at the tempo is halved until it fits (`sp_sync_d96`; a 1/4 at 120 BPM
+  plays 1/8), which keeps it on the grid; the strip names what plays. The glide on TIME still smooths a change.
+  Measured: 1/8 at 120 and 100 BPM, 250.0 and 299.3 ms; 1/4 at 120, 250.4.
+
+Project room: the three new knobs would have run the biggest project past its sector, so a project now stores the
+places of SPACE's room knobs (the track's own, never read) as 0, which packs to almost nothing, and they're 0 in
+memory too: the biggest project is 3,804 bytes with the new knobs. The default project costs 10 a sample more
+(2,831: the SYNC checks a block).
+
 ## Sends: ROUT, as built (2026-10-09)
 
 GRAIN, RESONATOR and COLOR each have a WET, and until now it was always a crossfade: turning WET up turned the dry

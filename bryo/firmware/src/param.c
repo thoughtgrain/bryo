@@ -73,6 +73,7 @@ enum { ARO_UP, ARO_DOWN, ARO_UPDN, ARO_RND, ARO_PLAY };   /* (PK_DIR's order, th
 static const char *const N_ARM[4] = {"OFF", "KEY", "LTCH", "ADD"};
 static const char *const N_ARO[5] = {"UP", "DOWN", "UPDN", "RND", "PLAY"};
 static const char *const N_ARATE[6] = {"1/4", "1/8", "8T", "1/16", "16T", "1/32"};
+static const char *const N_TSYNC[6] = {"OFF", "1BR", "2BR", "4BR", "8BR", "16BR"};   /* TAPE SYNC: the loop, in bars */
 
 /* (each table in the order its knobs are stored; the "1:", "2:" notes are those blocks of four. Where a page shows
  * them otherwise, PLAYOUT below says so) */
@@ -96,7 +97,10 @@ static const pdesc_t DEV_P[NDEV][NPK] = {
         /* (on no page; with SFIN at 11) LEN's hundredths of a percent, as STRT's: HOME held + STRT or LEN turns them
          * (the zoom), so a loop's edge lands to the sample on a long tape. 0 in a file from before them: as it was.
          * Not targets */
-        {"LFIN", 0, 99, 0, F_NUM, 0, 1}},
+        {"LFIN", 0, 99, 0, F_NUM, 0, 1},
+        /* SYNC (page 3, KNOB 3): the loop lasts that many bars at the tempo, its speed (and pitch, as on a tape
+         * machine) following it, its place locked to the beat (tape.c tape_sync). A take of set bars sets it */
+        {"SYNC", 0, 5, 0, F_ENUM, N_TSYNC, 1}},
     {   /* GRAIN (the S-4's MOSAIC) */
         {"SIZE", 5, 500, 80, F_MS}, {"RATE", 0, 100, 40, F_PCT},
         {"PTCH", -24, 24, 0, F_ST}, {"SPRD", 0, 100, 30, F_PCT},
@@ -126,7 +130,9 @@ static const pdesc_t DEV_P[NDEV][NPK] = {
         /* 6: GRNS, the grains this track holds of the pool: AUTO, shared by what each track's RATE and SIZE ask
          * (the leftover everyone's); a number, that many kept for it whatever the other tracks do, taken from
          * the AUTO tracks first (grain.c gr_plan_into). Not a modulation target: it's the pool's split */
-        {"GRNS", 0, GR_GRNS_MAX, 0, F_ENUM, N_GRNS, 1}},
+        {"GRNS", 0, GR_GRNS_MAX, 0, F_ENUM, N_GRNS, 1},
+        /* SYNC: RATE in the tempo's divisions (1 bar .. 1/64), the grains on that grid, PATN shaping it (grain.c) */
+        {"SYNC", 0, 1, 0, F_ENUM, N_OFFON, 1}},
     {   /* RESONATOR (the S-4's RING) */
         {"PTCH", 33, 81, 45, F_NOTE}, {"DEC", 0, 100, 60, F_PCT},
         {"TONE", 0, 100, 60, F_PCT}, {"WET", 0, 100, 0, F_PCT},
@@ -162,7 +168,9 @@ static const pdesc_t DEV_P[NDEV][NPK] = {
         {"DLY", 0, 100, 0, F_PCT}, {"VERB", 0, 100, 0, F_PCT},
         {"TONE", -100, 100, 0, F_BIPCT}, {"SPRD", 0, 100, 100, F_PCT},
         {"DEC", 0, 100, 40, F_PCT, 0, 1}, {"RTON", -100, 100, 0, F_BIPCT, 0, 1},
-        {"QUAL", 0, 1, 0, F_ENUM, N_QUAL, 1}, {"PRE", 0, 200, 20, F_MS, 0, 1}},
+        {"QUAL", 0, 1, 0, F_ENUM, N_QUAL, 1}, {"PRE", 0, 200, 20, F_MS, 0, 1},
+        /* 4: SYNC, TIME in the tempo's divisions (space.c sp_sync_time) */
+        {"SYNC", 0, 1, 0, F_ENUM, N_OFFON, 1}},
 };
 
 /* The source engines: what starts a track's chain (docs/bryo-architecture.md, "Source engines"). TAPE's knobs are
@@ -380,7 +388,8 @@ typedef struct {
 } playout_t;
 static const playout_t PLAYOUT[] = {
     {DEV_P[DEV_SRC], 4, {0, 1, 2, 3, 12, 13, 14, 15, 4, 5, 6, 7, 8, 9, 17, 10}},   /* TAPE: the envelope second (as
-                                                                                     * SYNTH's, POLY's), REEL ROTA . LVL */
+                                                                                     * SYNTH's, POLY's), REEL ROTA SYNC
+                                                                                     * LVL */
     /* the effects open with their mix: ROUT and WET KNOB 3-4 of page 1 (SPACE: DLY and VERB, its sends), so the
      * first press of EDIT or FX can bring one in; the sound's knobs follow (2026-10-11) */
     {DEV_P[DEV_GRAIN], 6, {0, 1, 11, 4, 2, 3, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23}},
@@ -391,9 +400,10 @@ static const playout_t PLAYOUT[] = {
                                                                                       * RES ARP: the ARP pad's) */
     {DEV_P[DEV_COLOR], 3, {0, 1, 9, 7, 2, 3, 4, 5, 6, 10, 11, 8}},              /* COLOR: DRV CRSH ROUT WET, NOIS TILT
                                                                                  * NDEC NTON, CMOD . . LVL */
-    {DEV_P[DEV_SPACE], 3, {0, 1, 4, 5, 2, 3, 8, 11, 6, 7, 9, 10}},             /* SPACE: TIME FDBK DLY VERB, ROOM SIZE
-                                                                                 * DEC PRE, TONE SPRD RTON QUAL (2-3
-                                                                                 * and 8-11: the room's, SP_RMK) */
+    {DEV_P[DEV_SPACE], 4, {0, 1, 4, 5, 2, 3, 8, 11, 6, 7, 9, 10, 12, 13, 14, 15}},   /* SPACE: TIME FDBK DLY VERB,
+                                                                                 * ROOM SIZE DEC PRE, TONE SPRD RTON
+                                                                                 * QUAL, SYNC (2-3 and 8-11: the
+                                                                                 * room's, SP_RMK) */
     {SYN_P, 5, {0, 1, 2, 3, 8, 9, 10, 11, 4, 5, 6, 7, 12, 13, 14, 15, 17, 18, 19, 16}},   /* OSC AMP FILTER VOICE, LVL */
     {POL_P, 4, {0, 1, 13, 2, 4, 5, 6, 7, 8, 9, 10, 11, 3, 16, 17, 12}},         /* POLY: REEL STRT END TUNE, ..., VOIC
                                                                                  * . . LVL (14-15: the zoom's) */
@@ -527,8 +537,8 @@ static void param_defaults(void)
             rmp[s][k] = RM_P[k].def;
     for (t = 0; t < NTRK; t++) {
         for (d = 0; d < NDEV; d++)
-            for (k = 0; k < NPK; k++)
-                tp[t].dev[d][k] = pdesc_empty(&DEV_P[d][k]) ? 0 : DEV_P[d][k].def;
+            for (k = 0; k < NPK; k++)                    /* (SPACE's places for its room's knobs: 0, never read) */
+                tp[t].dev[d][k] = pdesc_empty(&DEV_P[d][k]) || (d == DEV_SPACE && SP_RMK[k]) ? 0 : DEV_P[d][k].def;
         for (k = 0; k < NCH; k++)
             tp[t].ch[k] = CH_P[k].def;
         tp[t].src = SRC_TAPE;

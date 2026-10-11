@@ -84,7 +84,7 @@ Every pad opens a page, and **pressing the same pad again goes to its next page*
 | --- | --- |
 | HOME | the source's pages (TAPE has 4; SYNTH 5; POLY 4; DRUM 4) |
 | EDIT | GRAIN 1-6, then RESONATOR 1-3 |
-| FX | COLOR 1-3, then SPACE 1-3 |
+| FX | COLOR 1-3, then SPACE 1-4 |
 | ENV | the source's envelope: SYNTH's AMP, POLY's ENV, TAPE's slice envelope (each the second page), DRUM's KIT |
 | LFO, SEQ | a modulator's pages (LFO: M1, M2 or M3; SEQ: M4) |
 | ARP | the arpeggiator: 2 pages, then RES ARP (RESONATOR's own arpeggio) |
@@ -247,8 +247,12 @@ Press **ENV** (or HOME to the second page): **ATK DEC SUS REL**, an envelope for
 3. **KNOB 2 (ROTA)** rotates the loop against the beat: turn it while it plays and the loop shifts round by that
    much at once (a quick crossfade), so the bar starts on another part of the tape; PLAY and the slice keys count
    from there too. **KNOB 4 (LVL)** is how loud the track hears its source.
+4. **KNOB 3 (SYNC)** ties the loop to the tempo: pick how many bars it is (**1BR** to **16BR**) and it plays exactly
+   that long at whatever tempo you set, speeding up or slowing down (and its pitch with it, like a tape machine),
+   locked to the beat. A loop you record with a set number of bars ([4.3](#43-record-exactly-some-bars-for-drum-loops))
+   comes with SYNC set to them. **OFF** plays it at its own speed (SPD).
 
-<img src="img/tape3.png" width="240" alt="TAPE 4: REEL, ROTA, LVL">
+<img src="img/tape3.png" width="240" alt="TAPE 4: REEL, ROTA, SYNC, LVL">
 
 ---
 
@@ -640,6 +644,11 @@ floor back under them:
 - GRNS sets how many may sound; **RATE** and **SIZE** still decide how many start. For a full 12, turn those up
   until the page reads "12 OF 12 HELD".
 
+**SYNC** (KNOB 2 on GRAIN 6) puts the grains on the tempo: **RATE** then picks a division (1 bar, 1/2, 1/4, 1/8, 8T,
+1/16, 16T, 1/32, 32T, 1/64) and a grain starts on each step of that grid, following the tempo as it changes. **PATN**
+still shapes it: SWNG makes every other step late, CLST plays three quick grains then rests, RND puts each step's
+grain somewhere inside it.
+
 <img src="img/grain6.png" width="240" alt="GRAIN 6: GRNS 12; 4 OF 12 HELD">
 
 ### 6.5 RESONATOR: four strings
@@ -682,6 +691,10 @@ whether one track or four send to it, so a room per pair is the cheap way to put
 knobs on SPACE 2 and 3 belong to the room, so turning them on one track changes it for every track on it; the label
 under the picture names the others when there are any ("B: T1 T2"). They're saved with the project, and they can't
 be modulated (the room is shared). A track preset keeps the track's room choice.
+
+4. **SPACE 4**: **SYNC** puts the delay on the tempo: **TIME** then picks a division (1/64 to 1/2, with dotted and
+   triplet ones) and the strip shows it. The delay line holds 370 ms, so a division longer than that at your tempo is
+   halved until it fits (a 1/4 at 120 BPM plays as 1/8), which keeps it on the beat; the strip shows what plays.
 
 <img src="img/space_long.png" width="240" alt="SPACE: TIME FDBK DLY VERB"> <img src="img/space2.png" width="240" alt="SPACE 2: ROOM SIZE DEC PRE, T1 and T2 sharing room B"> <img src="img/space3.png" width="240" alt="SPACE 3: TONE SPRD RTON QUAL">
 

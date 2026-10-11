@@ -336,6 +336,19 @@ static uint32_t pj_hash(void)
     return (h ^ (sys.bpm | (uint32_t)sys.ntrk << 16)) * 16777619u;
 }
 
+/* track P's device array s as it's stored: SPACE's places for its room's knobs (SP_RMK: the page shows the room's,
+ * the track's own are never read) as 0, which packs to almost nothing */
+static const int16_t *pj_dev_out(const track_params_t *P, uint32_t s)
+{
+    static int16_t a[NPK];
+    uint32_t k;
+    if (s != DEV_SPACE || pj_wver < 8u)                  /* (a version 7 file, the tests': its own rooms there) */
+        return P->dev[s];
+    for (k = 0; k < NPK; k++)
+        a[k] = SP_RMK[k] ? 0 : P->dev[s][k];
+    return a;
+}
+
 /* the whole state into the stream (the writer set up) */
 static void pj_write_state(void)
 {
@@ -356,7 +369,7 @@ static void pj_write_state(void)
         pw_byte(P->recin);
         pw_u16(NDEV);
         for (s = 0; s < NDEV; s++)                       /* (each array up to its last knob: pdesc_len) */
-            pw_a16(P->dev[s], pdesc_len(DEV_P[s]));
+            pw_a16(pj_dev_out(P, s), pdesc_len(DEV_P[s]));
         pw_u16(NSLOT);
         for (s = 0; s < NSLOT; s++) {
             pw_byte(P->engine[s]);

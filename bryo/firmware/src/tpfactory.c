@@ -125,7 +125,7 @@ static void tpf_apply(uint32_t t, const tpf_t *F)
     int16_t room = P->dev[DEV_SPACE][SP_ROOM];          /* (the room it sends to stays: the rooms are the mix's) */
     for (d = 1; d < NDEV; d++)                           /* the sound from its defaults: the devices, the channel */
         for (k = 0; k < NPK; k++)
-            P->dev[d][k] = pdesc_empty(&DEV_P[d][k]) ? 0 : DEV_P[d][k].def;
+            P->dev[d][k] = pdesc_empty(&DEV_P[d][k]) || (d == DEV_SPACE && SP_RMK[k]) ? 0 : DEV_P[d][k].def;
     P->dev[DEV_SPACE][SP_ROOM] = room;
     for (k = 0; k < NCH; k++)
         P->ch[k] = CH_P[k].def;

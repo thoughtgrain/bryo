@@ -666,6 +666,7 @@ static void viz_space(const int16_t *v, uint32_t f)
     int32_t t, x, py = DY1, rise = 10 + q[RM_SIZE] * 80 / 100, len = 200 + q[RM_DEC] * 40, g = 32767, first = -1;
     int32_t pre = q[RM_PRE];
     int32_t tl = 100 - (v[6] < 0 ? -v[6] : v[6]) / 5;                  /* TONE: what each pass keeps, % */
+    int32_t tms = v[SP_SYNC] ? sp_sync_q8(v[0]) / 5645 : v[0];         /* TIME, ms (SYNC: the division's) */
     int32_t dly = v[4] ? v[4] : 100, verb = v[5] ? v[5] : 100;
     int live = space_sounding(sys.sel);                                /* (sounding now: the echoes and the tail in
                                                                         * orange; resting, white) */
@@ -688,9 +689,9 @@ static void viz_space(const int16_t *v, uint32_t f)
     }
     px_line(DX0 + 1, DY1, DX0 + 1, DY0 + 1, px_ink, 1);                /* the dry hit */
     vz_node(DX0 + 1, DY0 + 1, 1);
-    for (t = v[0]; t < 2000 && g > 1500; t += v[0]) {                  /* the echoes: stems with nodes */
+    for (t = tms; t < 2000 && g > 1500; t += tms) {                    /* the echoes: stems with nodes */
         int32_t h;
-        g = (t == v[0]) ? 26000 : g * v[1] / 100 * tl / 100;
+        g = (t == tms) ? 26000 : g * v[1] / 100 * tl / 100;
         x = DX0 + t * DW / 2000;
         h = g * DH / 32767 * dly / 100;
         if (first < 0)

@@ -560,6 +560,13 @@ static void draw_strip(void)
             static const char *const DIV[16] = {"16BR", "8BR", "4BR", "3BR", "2BR", "6/4", "1BR", "3/4", "1/2",
                                                 "3/8", "1/4", "3/16", "1/8", "1/8T", "1/16", "1/32"};
             str_cpy(val, DIV[clamp(v, 0, 127) >> 3], sizeof val);
+        } else if (d == &DEV_P[DEV_SPACE][SP_TIME] && tp[sys.sel].dev[DEV_SPACE][SP_SYNC]) {   /* TIME, SYNC: the
+                                                         * division the delay plays (halved to fit the line) */
+            str_cpy(val, sp_div_name(sp_sync_d96(v)), sizeof val);
+        } else if (d == &DEV_P[DEV_GRAIN][GP_RATE] && tp[sys.sel].dev[DEV_GRAIN][GP_SYNC]) {   /* RATE, SYNC */
+            static const char *const GN[GR_NSDIV] = {"1BR", "1/2", "1/4", "1/8", "8T", "1/16", "16T", "1/32", "32T",
+                                                     "1/64"};
+            str_cpy(val, GN[(uint32_t)clamp(v, 0, 100) * GR_NSDIV / 101u], sizeof val);
         } else if (ui.zoom == k + 1u && zoom_fine(d) && v < 100) {   /* the zoom: to the hundredth, "12.34" */
             int16_t fn = *zoom_fine(d);
             char h[3] = {(char)('0' + fn / 10), (char)('0' + fn % 10), 0};

@@ -34,8 +34,8 @@
 #define SP_REV 5u                    /* a room: a comb in each of four chunks, the four allpasses in the fifth */
 #define SP_KEEP 16u                  /* chunks (3 s) a 16-bit line leaves free, or it starts 8-bit */
 #define SP_LMAX 8u
-enum { SP_TIME, SP_FDBK, SP_ROOM, SP_X3, SP_DLY, SP_VERB, SP_TONE, SP_SPRD, SP_X8 };   /* (3 and 8: SIZE DEC and PRE
-                                                                                        * until they went to the rooms) */
+/* (3 and 8: the track's own SIZE and PRE until the rooms were shared; 3 and 8-11 the room's knobs now: SP_RMK) */
+enum { SP_TIME, SP_FDBK, SP_ROOM, SP_X3, SP_DLY, SP_VERB, SP_TONE, SP_SPRD, SP_X8, SP_SYNC = 12 };
 
 /* the combs' longest (SIZE 100), and the allpasses (left pair, right pair), samples at 22.05 kHz: Freeverb's
  * lengths, the combs half again as long for a room rather than a box */
@@ -92,6 +92,34 @@ static room_t room[NROOM];
  * filters in its loops are let go to 0 as it rests (a residue under the threshold can't hold it awake). */
 #define SP_QUIET_OUT 16
 static inline int32_t sp_loud(int32_t x) { return (uint32_t)(x + SP_QUIET_OUT) > 2u * SP_QUIET_OUT; }   /* |x| > 16 */
+
+/* SYNC: TIME as the tempo's divisions (96ths of a beat): 1/64 1/32 16T 1/16 8T 16D 1/8 4T 8D 1/4 4D 1/2. One the line
+ * can't hold at the tempo (370 ms) plays halved until it fits (1/4 at 120 BPM: 1/8), so it stays on the grid */
+static const uint8_t SP_SDIV[12] = {6, 12, 16, 24, 32, 36, 48, 64, 72, 96, 144, 192};
+static uint32_t sp_sync_d96(int32_t time)
+{
+    uint32_t d = SP_SDIV[(uint32_t)(clamp(time, 10, 370) - 10) * 12u / 361u], bpm = (uint32_t)clamp(sys.bpm, 40, 240);
+    while (d > 3u && d * 3528000u / bpm > 370u * 5645u)
+        d >>= 1;
+    return d;
+}
+/* .. a division's name (the strip's TIME under SYNC) */
+static const char *sp_div_name(uint32_t d96)
+{
+    static const uint8_t D[16] = {3, 6, 8, 9, 12, 16, 18, 24, 32, 36, 48, 64, 72, 96, 144, 192};
+    static const char *const N[16] = {"1/128", "1/64", "32T", "64D", "1/32", "16T", "32D", "1/16", "8T", "16D", "1/8",
+                                      "4T", "8D", "1/4", "4D", "1/2"};
+    uint32_t i;
+    for (i = 0; i < 16u && D[i] != d96; i++)
+        ;
+    return i < 16u ? N[i] : "?";
+}
+
+/* .. the delay it gives, Q8 samples at 22.05 kHz (a beat at 1 BPM is 1,323,000 samples: x 256 / 96 = 3,528,000) */
+static int32_t sp_sync_q8(int32_t time)
+{
+    return (int32_t)(sp_sync_d96(time) * 3528000u / (uint32_t)clamp(sys.bpm, 40, 240));
+}
 
 /* ------------------------------------------------- 8-bit companding --- */
 /* sign, a 3-bit segment, a 4-bit step inside it: 16 steps of 16 below 256, then each segment twice the last up to
@@ -384,7 +412,8 @@ static void space_block(uint32_t t, int32_t *l, int32_t *r, uint32_t n, int32_t 
     room_t *R = &room[clamp(v[SP_ROOM], 0, 1)];
     int32_t tone = v[SP_TONE], sprd = clamp(v[SP_SPRD], 0, 100), gd1, gv1, gd0 = S->gd, gv0 = S->gv;
     int32_t kl = 32767, kh = 0, fbg = clamp(v[SP_FDBK], 0, 100) * 32112 / 100;
-    int32_t tgt = clamp(v[SP_TIME], 10, 370) * 5645;   /* ms -> Q8 samples at 22.05 kHz (22.05 x 256) */
+    int32_t tgt = v[SP_SYNC] ? sp_sync_q8(v[SP_TIME])   /* (SYNC: the tempo's division) */
+                             : clamp(v[SP_TIME], 10, 370) * 5645;   /* ms -> Q8 samples at 22.05 kHz (22.05 x 256) */
     int32_t off = sprd * 220 * 256 / 100;
     uint32_t i, dl = 0, h = n / 2u;
     int dlb = 0;

@@ -988,13 +988,14 @@ static const uint8_t DEV_PK[NDEV][NPK] = {
     {PK_START, PK_LENGTH, PK_SPEED, PK_LAYERS,       /* TAPE: STRT LEN SPD DUB */
      PK_FADE, PK_TOGGLE, PK_TOGGLE, PK_FADER,        /*       XFAD REV HALF GAIN */
      PK_SRC, PK_CLOCK, PK_FADER, PK_NONE,            /*       REEL ROTA LVL */
-     PK_ATTACK, PK_DECAY, PK_SUSTAIN, PK_RELEASE},   /*       ATK DEC SUS REL (its page 2: PLAYOUT) */
+     PK_ATTACK, PK_DECAY, PK_SUSTAIN, PK_RELEASE,    /*       ATK DEC SUS REL (its page 2: PLAYOUT) */
+     PK_NONE, PK_CLOCK},                             /*       (LFIN) SYNC */
     {PK_SQUARE, PK_DOTS, PK_KNOB, PK_BOWTIE,         /* GRAIN: SIZE RATE PTCH SPRD */
      PK_MIX, PK_NOISE, PK_WINDOW, PK_DOTS,           /*        WET SPRY CONT REV */
      PK_PATTERN, PK_SCALE, PK_VAR, PK_ROUTE,         /*        PATN SCAL PRND ROUT */
      PK_SCAN, PK_SPEED, PK_START, PK_LOOP,           /*        SCAN WARP OFST FDBK */
      PK_FADER, PK_BODY, PK_KEYS, PK_CUTOFF,          /*        BODY MODE ROOT TONE */
-     PK_GRNS},                                       /*        GRNS */
+     PK_GRNS, PK_CLOCK},                             /*        GRNS SYNC */
     {PK_KEYS, PK_DECAY, PK_TONE, PK_MIX,             /* RESONATOR: PTCH DEC TONE WET */
      PK_CUTOFF, PK_RES, PK_SLOPE, PK_SCALE,          /*            CUT RES TYPE SCAL */
      PK_ROUTE, PK_NONE, PK_NONE, PK_NONE,            /*            ROUT */
@@ -1004,7 +1005,8 @@ static const uint8_t DEV_PK[NDEV][NPK] = {
      PK_FADER, PK_ROUTE, PK_NONE, PK_NONE},          /*        LVL ROUT */
     {PK_CLOCK, PK_LOOP, PK_TOGGLE, PK_ROOM,          /* SPACE: TIME FDBK ROOM SIZE */
      PK_MIX, PK_MIX, PK_FILTER, PK_BOWTIE,           /*        DLY VERB TONE SPRD */
-     PK_DECAY, PK_FILTER, PK_TOGGLE, PK_PRE},        /*        DEC RTON QUAL PRE (the room's) */
+     PK_DECAY, PK_FILTER, PK_TOGGLE, PK_PRE,         /*        DEC RTON QUAL PRE (the room's) */
+     PK_CLOCK},                                      /*        SYNC */
 };
 static const uint8_t SYN_PK[NPK] = {
     PK_OSC, PK_DETUNE, PK_MIX, PK_NOISE,             /* SYNTH: WAVE DTUN MIX NOIS */

@@ -55,7 +55,7 @@
 #define GR_BUF_MAX (12u * TAPE_SR)   /* a buffer's most, tape samples (12 s) */
 enum { GP_SIZE, GP_RATE, GP_PTCH, GP_SPRD, GP_WET, GP_SPRY, GP_CONT, GP_REV, GP_PATN, GP_SCAL, GP_PRND, GP_ROUT, GP_SCAN,
        GP_WARP, GP_OFST, GP_FDBK, GP_BODY, GP_BMOD, GP_ROOT, GP_BTON,
-       GP_GRNS };   /* (param.c DEV_P[DEV_GRAIN]) */
+       GP_GRNS, GP_SYNC };   /* (param.c DEV_P[DEV_GRAIN]) */
 enum { BODY_SRC, BODY_TRI, BODY_SIN };
 enum { SCAN_TAPE, SCAN_STR, SCAN_POS, SCAN_DLY };
 
@@ -121,6 +121,8 @@ typedef struct {                     /* a track's live buffer */
 typedef struct {
     int32_t cur;                     /* the cursor, Q12 samples */
     int32_t wait;                    /* output samples until the next grain */
+    uint32_t sb;                     /* SYNC: the beat (Q16) the next grain starts on */
+    uint8_t sync_on;                 /* .. sb is set (SYNC was on last block) */
     uint32_t n;                      /* grains started (PATN's beat count) */
     uint32_t keys;                   /* the white keys last block (the GRAIN page) */
     int32_t rng;
@@ -165,11 +167,30 @@ static int trk_live(uint32_t t) { return t < gr_ntrk() && !sys.usbrec; }
 /* the grains a second x 100 at RATE r (1..80, on a square law) */
 static inline int32_t gr_gps100(int32_t r) { return 100 + r * r * 79 / 100; }
 
+/* SYNC: RATE as the tempo's divisions, a grain each (beats, Q16): 1 bar, 1/2, 1/4, 1/8, 8T, 1/16, 16T, 1/32, 32T,
+ * 1/64 (ui.c names them) */
+#define GR_NSDIV 10u
+static const uint32_t GR_SDIV[GR_NSDIV] = {4u << 16, 2u << 16, 1u << 16, 1u << 15, 21845u, 1u << 14, 10923u, 1u << 13,
+                                           5461u, 1u << 12};
+static inline uint32_t gr_sdiv(const int16_t *p)
+{
+    return GR_SDIV[(uint32_t)clamp(p[GP_RATE], 0, 100) * GR_NSDIV / 101u];
+}
+
+/* the grains a second x 100 that RATE asks for (SYNC: its division at the tempo) */
+static inline int32_t gr_rate_gps(const int16_t *p)
+{
+    if (!p[GP_SYNC])
+        return gr_gps100(p[GP_RATE]);
+    return (int32_t)((uint32_t)clamp(sys.bpm, 40, 240) * 109227u / gr_sdiv(p));   /* (100 x bpm / 60 a beat: x 65536
+                                                         * / 60 = 109,227 over the division's beats Q16) */
+}
+
 /* the grains a track's knobs ask for at once: those a second x SIZE (m), with room for PATN's and chance's
  * bunching (m + m/2 + 2) */
 static uint32_t gr_need(const int16_t *p)
 {
-    int32_t m = gr_gps100(p[GP_RATE]) * p[GP_SIZE] / 100000;
+    int32_t m = gr_rate_gps(p) * p[GP_SIZE] / 100000;
     return (uint32_t)(m + m / 2 + 2);
 }
 
@@ -519,6 +540,33 @@ static int32_t gr_gap(grain_trk_t *G, const int16_t *p)
     }
 }
 
+/* SYNC: the first beat (Q16) at or after `at` that a grain starts on: the grid of division dv in PATN's rhythm. EVEN
+ * every step; SWNG the odd steps a third late; CLST three a quarter step apart, then the rest of four steps quiet;
+ * RND each step's grain somewhere in it (the same place each time round: from the step's number) */
+static uint32_t gr_snext(const int16_t *p, uint32_t dv, uint32_t at, uint32_t seed)
+{
+    uint32_t c, j, best = 0xFFFFFFFFu;
+    switch (p[GP_PATN]) {
+    case 0: return (at + dv - 1u) / dv * dv;
+    case 2: {
+        uint32_t g = at / (4u * dv);
+        for (c = g; c < g + 2u; c++)
+            for (j = 0; j < 3u; j++)
+                if (c * 4u * dv + j * dv / 4u >= at && c * 4u * dv + j * dv / 4u < best)
+                    best = c * 4u * dv + j * dv / 4u;
+        return best;
+    }
+    default:
+        for (c = at / dv; c < at / dv + 3u; c++) {
+            uint32_t pt = c * dv + (p[GP_PATN] == 1 ? ((c & 1u) ? dv / 3u : 0u)
+                                                    : ((c ^ seed) * 2654435761u >> 8) % dv);
+            if (pt >= at && pt < best)
+                best = pt;
+        }
+        return best;
+    }
+}
+
 /* a new grain of track t around the cursor, in the window [ls, ls + ll) of what it reads */
 /* what grains read from lo to hi (samples, either end past the view's: round its loop of ll) is silent: every block's
  * stored peak 0 (under 128: about -48 dB). Not the block being written (busy: its peak is the old sound's), nor more
@@ -581,7 +629,7 @@ static void gr_start(uint32_t t, grain_trk_t *G, const int16_t *p, int32_t ls, i
     g->wlo = -1;
     g->wver = gbuf[t].cver;
     g->qb = -1;
-    gps100 = gr_gps100(p[GP_RATE]);                     /* grains overlapping: a second's grains x SIZE, but no */
+    gps100 = gr_rate_gps(p);                            /* grains overlapping: a second's grains x SIZE, but no */
     ov = clamp(gps100 * p[GP_SIZE] / 100000, 1, clamp((int32_t)gr_allow(t), 1, 32));   /* more than it may sound */
     pan = p[GP_SPRD] ? (int32_t)(gr_rnd(G) % (uint32_t)(2 * p[GP_SPRD] + 1)) - p[GP_SPRD] : 0;
     g->gl = GR_NORM[ov] * (100 - pan) / 200;            /* (centre: each side half) */
@@ -844,8 +892,28 @@ static void grain_block(uint32_t t, const int32_t *dry, uint32_t keys, int froze
         grain_kill(t);
         return;
     }
-    G->wait -= (int32_t)n;
-    if (G->wait <= 0 && wet && (playing || keys || (scan != SCAN_TAPE && (live || frozen)))) {
+    if (p[GP_SYNC]) {                                   /* SYNC: on the tempo's grid, from the beat clock (mod.c) */
+        uint32_t dv = gr_sdiv(p), b0 = mclk.beat, b1 = b0 + mclk.inc + 1u;
+        if (!G->sync_on || G->sb + 8u * dv < b0 || G->sb > b1 + 8u * dv) {   /* (from now: started, or the beat
+                                                         * jumped: PLAY) */
+            G->sb = gr_snext(p, dv, b0, t);
+            G->sync_on = 1;
+        }
+        G->wait = 1;                                    /* (the free clock waits) */
+        if (G->sb < b1) {
+            if (wet && (playing || keys || (scan != SCAN_TAPE && (live || frozen)))) {
+                gr_start(t, G, p, ls, ll, &v, scan != SCAN_TAPE && B->staged ? (int32_t)B->sblk : -1);
+                G->n++;
+            }
+            G->sb = gr_snext(p, dv, G->sb + 1u, t);
+            if (G->sb < b1)                             /* (one a block: past it, the next from the next block) */
+                G->sb = gr_snext(p, dv, b1, t);
+        }
+    } else {
+        G->sync_on = 0;
+        G->wait -= (int32_t)n;
+    }
+    if (!p[GP_SYNC] && G->wait <= 0 && wet && (playing || keys || (scan != SCAN_TAPE && (live || frozen)))) {
         gr_start(t, G, p, ls, ll, &v, scan != SCAN_TAPE && B->staged ? (int32_t)B->sblk : -1);
         G->n++;
         G->wait += gr_gap(G, p);
