@@ -227,7 +227,7 @@ static void viz_grain(const int16_t *v, uint32_t f)
     tape_view_t tv;
     uint32_t scan = (uint32_t)clamp(v[GP_SCAN], 0, 3), buf = scan != SCAN_TAPE;
     int32_t ls, ll, i, k, x, cx, yc0 = buf ? 16 : 19, n = 0, sp, reach, gspan, fw, cur;
-    char b[16];
+    char b[24];
     if (buf) {
         gr_buf_view(sys.sel, &tv);
         ls = 0;
@@ -355,6 +355,9 @@ static void viz_grain(const int16_t *v, uint32_t f)
 labels:
     if (!v[GP_WET])
         str_cpy(b, "WET 0: OFF", sizeof b);
+    else if (!n && gr_why(sys.sel))                                    /* no share: why ("STOPPED", "MUTED", "SILENT": nothing
+                                                                        * in the buffer yet), not "0 OF 0" */
+        str_cpy(b, gr_why(sys.sel), sizeof b);
     else {
         fmt_int(b, n);                                                 /* "5 OF 12 GRAINS": its share now */
         str_cpy(b + str_len(b), " OF ", 5);

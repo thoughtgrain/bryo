@@ -513,6 +513,12 @@ GRAIN keeps the last bars of the track's sound and plays tiny pieces of it (grai
 
 **You'll hear:** a cloud of the track's sound. Each block in the picture is a grain.
 
+**How many grains:** under the picture, "5 OF 40 GRAINS" is how many are sounding and how many this track may have
+right now. There's a pool of 40 for one track, 30 between two and 18 between three or four, and only tracks whose
+grains you'd hear share it. A muted track doesn't, and neither does one with nothing in its buffer yet (a SYNTH or
+POLY track nobody has played), or one reading the tape while the transport is stopped. When a track has no grains,
+the page says why: **MUTED**, **STOPPED** or **SILENT**.
+
 ### 6.2 GRAIN: shape the grains
 
 On **GRAIN 1** (press EDIT once):

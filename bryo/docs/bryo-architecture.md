@@ -1294,6 +1294,24 @@ so I don't run it every frame: `ui_input` refreshes `ui.unsaved` four times a se
 flips. The manual has a "Saving, in short" section up front: tap and hold SAVE, what POLY held clears and how it
 warns first, and how to go back to the last save when undo can't help.
 
+**The pool goes to grains you'd hear (2026-10-11, from playing it).** One track's grains stayed at a low share with
+no other track making grains you could hear. The pool's size and its split counted every track with GRAIN's WET above
+0, and a SYNTH or POLY track with GRAIN on starts grains all the time (its buffer always records), reading silence
+when nobody plays it. The factory scene has three such tracks, so a dense cloud on the fourth got a third of 18.
+Muted tracks and a stopped TAPE-scan track counted too.
+
+Now a track takes a share only when its grains would be heard (`gr_wants`): WET above 0, not muted, something to read
+(a tape; a buffer with sound in it), and grains able to start (grain_block's rule). Whether a buffer has sound is
+already known per block: each committed block stores its peak, so the buffer keeps a count of its blocks with a peak
+of 1 or more (above about -48 dB), adjusted as each block is written (`gr_bcommit`) and counted again once after a
+resize (`gr_buf_loud`, the ISR's, before the plan). No per-sample cost. A track that stops wanting keeps the grains
+it has sounding (they finish) and starts none; the moment sound goes into its buffer (a block, 12 ms) it's back in.
+The GRAIN page says why a track has none: MUTED, STOPPED, NO TAPE, or SILENT.
+
+Tested: three silent POLY tracks with GRAIN on leave the fourth all 40; a chord on one gives it its share of 30;
+muting it gives the 40 back; SCAN TAPE stopped takes none. Mutants caught: the old WET-only rule, mute ignored,
+silence ignored, the loud count not kept, a stopped TAPE scan counted.
+
 **More grains: rendering them at half rate (2026-10-11).** Asked for more grains, I profiled first (run 23, one
 track, 31 grains, functions not inlined): the mix (reading each grain's window, interpolating, the envelope, the pan)
 was about half the grain cost, the ADPCM decoding the other half, about 66 host instructions a grain a sample in all.

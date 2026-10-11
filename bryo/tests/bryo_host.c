@@ -1959,6 +1959,7 @@ static void test_grain(void)
         grain[0].wait = 0;
         grain[0].cur = 0;
         sys.playing = 1;
+        gr_plan();                                       /* (its share, now it plays) */
         tape_view(0, &v);
         grain_block(0, dry, 0, 0, gl, gr, CTL);
         {
@@ -2199,6 +2200,52 @@ static uint32_t buf_loud(uint32_t t, uint32_t from, uint32_t to)   /* blocks of 
     return n;
 }
 
+/* the pool goes to the tracks whose grains would be heard: GRAIN on but nothing in its buffer (a POLY track nobody
+ * has played), or the track muted, takes no share; the moment there's sound to granulate, it takes its share */
+static void test_grain_shares(void)
+{
+    uint32_t t, b, mx = 0;
+    power_on();
+    sys.bpm = 120;
+    sys.sel = 0;
+    tp[0].dev[DEV_GRAIN][GP_WET] = 100;                  /* track 1: its tape, dense grains */
+    tp[0].dev[DEV_GRAIN][GP_RATE] = 100;
+    tp[0].dev[DEV_GRAIN][GP_SIZE] = 500;
+    for (t = 1; t < NTRK; t++) {                         /* tracks 2-4: POLY with GRAIN on, nobody playing them */
+        tp[t].src = SRC_POLY;
+        tp[t].dev[DEV_GRAIN][GP_WET] = 40;
+    }
+    sys.playing = 1;
+    render_poll(1378 * 2);
+    for (b = 0; b < 1378u; b++) {
+        render_poll(1);
+        mx = grain_count(0) > mx ? grain_count(0) : mx;
+    }
+    check("GRAIN on four tracks, three of them POLY with nothing played: track 1 has the whole pool (40 sounding)",
+          gr_allow(0) == 40u && mx == 40u && gr_allow(1) == 0u && gr_allow(2) == 0u && gr_allow(3) == 0u &&
+          grain_count(1) == 0u && gr_why(1) && !strcmp(gr_why(1), "SILENT: NO GRAINS") && !gr_why(0));
+    sys.sel = 1;                                         /* a chord on track 2: there's something to granulate */
+    fm1_in.notes = note_bit_of_white(0) | note_bit_of_white(4);
+    render_poll(200);
+    fm1_in.notes = 0;
+    render_poll(64);
+    check("..a chord played on track 2: it takes its share of a pool of 30, track 1 the rest",
+          gr_allow(1) > 0u && gr_allow(0) + gr_allow(1) == 30u && gr_allow(2) == 0u);
+    track[1].mute = 1;
+    render_poll(2);
+    check("..track 2 muted: its grains wouldn't be heard, the whole pool is track 1's again",
+          gr_allow(1) == 0u && gr_allow(0) == 40u && gr_why(1) && !strcmp(gr_why(1), "MUTED: NO GRAINS"));
+    track[1].mute = 0;
+    sys.playing = 0;
+    tp[0].dev[DEV_GRAIN][GP_SCAN] = SCAN_TAPE;
+    render_poll(64);
+    check("..SCAN TAPE, transport stopped: no grains can start on track 1, it takes no share (track 2 the pool's)",
+          gr_allow(0) == 0u && gr_allow(1) > 0u && gr_why(0) && !strcmp(gr_why(0), "STOPPED: NO GRAINS"));
+    power_on();                                          /* (all quiet again for the next test: the master's filters
+                                                          * settle on silence) */
+    render_poll(1378);
+}
+
 static void test_grain_buffer(void)
 {
     char b[120];
@@ -2245,7 +2292,14 @@ static void test_grain_buffer(void)
              (int)gbuf[0].w);
     check(b, abs(gbuf[0].w - 22050) < CTL && buf_loud(0, 0, 86) > 40u);
     render_poll(1378 * 3);
-    check("..WET 100, SCAN STR: grains sound", grain_count(0) > 0);
+    {                                                    /* (sparse at the defaults: over a quarter second) */
+        uint32_t q, mx = 0;
+        for (q = 0; q < 345u; q++) {
+            render_poll(1);
+            mx = grain_count(0) > mx ? grain_count(0) : mx;
+        }
+        check("..WET 100, SCAN STR: grains sound", mx > 0u);
+    }
 
     tp[0].src = SRC_SYNTH;                               /* the carry-over: TAPE -> SYNTH (silent), FDBK 0 */
     render_poll(10);
@@ -2371,9 +2425,12 @@ static void test_grain_buffer(void)
         render_poll(1378 * 2);
     }
 
-    {   /* the pool follows how many tracks have GRAIN on (40, 30, 18), shared by what each asks */
+    {   /* the pool follows how many tracks have GRAIN on (40, 30, 18), shared by what each asks (the other tracks
+         * heard here: a muted track's grains take no share) */
         uint32_t mx = 0, t2;
         int16_t *q = tp[1].dev[DEV_GRAIN];
+        for (t2 = 1; t2 < NTRK; t2++)
+            track[t2].mute = 0;
         p[GP_RATE] = 100;
         p[GP_SIZE] = 500;
         render_poll(1378);
@@ -2384,7 +2441,7 @@ static void test_grain_buffer(void)
         snprintf(b, sizeof b, "GRAIN on one track, dense (RATE 100, SIZE 500): the whole pool, %u at once (40)", mx);
         check(b, mx == 40u && gr_allow(0) == 40u);
         q[GP_WET] = 100;                                 /* track 2 on, sparse (the defaults: about 1 at once) */
-        render_poll(1);
+        render_poll(64);                                 /* (its buffer has the tape's sound in it) */
         snprintf(b, sizeof b, "..a second track on, sparse: a pool of 30, it gets the %u it asks, the dense one the other %u",
                  gr_allow(1), gr_allow(0));
         check(b, gr_allow(1) == 3u && gr_allow(0) == 27u);
@@ -2402,7 +2459,7 @@ static void test_grain_buffer(void)
         tp[2].dev[DEV_GRAIN][GP_RATE] = 100;
         tp[2].dev[DEV_GRAIN][GP_SIZE] = 500;
         tp[3].dev[DEV_GRAIN][GP_WET] = 100;
-        render_poll(1);
+        render_poll(64);
         for (t2 = 0, mx = 0; t2 < NTRK; t2++)
             mx += gr_allow(t2);
         snprintf(b, sizeof b, "..four on, one sparse: a pool of 18: %u %u %u, and the sparse one its %u", gr_allow(0),
@@ -2420,6 +2477,8 @@ static void test_grain_buffer(void)
         }
         p[GP_RATE] = 40;
         p[GP_SIZE] = 80;
+        for (t2 = 1; t2 < NTRK; t2++)
+            track[t2].mute = 1;
         render_poll(1378);
     }
 
@@ -7022,6 +7081,7 @@ int main(int argc, char **argv)
     test_poly();
     test_grain();
     test_grain_buffer();
+    test_grain_shares();
     test_reso();
     test_color();
     test_space();

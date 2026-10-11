@@ -105,6 +105,10 @@ typedef struct {                     /* a track's live buffer */
     uint8_t was_playing;
     uint32_t sblk;
     int16_t stage[TAPE_BLK];
+    uint16_t nloud;                  /* ISR: its blocks with sound in them (a peak of 1 or more: above about -48 dB),
+                                      * kept as each is written; 0: grains of it would be silence */
+    uint32_t loud_len;               /* .. the length and chunks it was counted over (changed: counted again) */
+    uint8_t loud_nch;
 } gr_buf_t;
 
 typedef struct {
@@ -154,16 +158,52 @@ static uint32_t gr_need(const int16_t *p)
     return (uint32_t)(m + m / 2 + 2);
 }
 
-/* the pool shared out by need, into share[]. Those asking less than an even share of what's left get what they ask,
- * round by round; the rest is split evenly among those that want more. (The ISR's every block, gr_plan; the screen
- * the same, for itself.) */
+/* track t's grains would be heard now, so it takes a share of the pool: GRAIN on (WET above 0), the track not muted,
+ * something to read (a tape: there is one; the buffer: sound has gone into it, gr_buf_loud), and grains able to start
+ * (grain_block's rule: the transport playing, or on the GRAIN page; reading the buffer, also a SYNTH or POLY track or
+ * frozen). A track that isn't keeps the grains it has sounding (they finish); it starts none. loud: the ISR's
+ * gr_buf_loud, or the screen's last copy of it */
+static int gr_wants(uint32_t t, int loud)
+{
+    const int16_t *p = TPD(t, DEV_GRAIN);
+    uint32_t scan = (uint32_t)clamp(p[GP_SCAN], 0, 3);
+    int keys = t == sys.sel && sys.keys_grain;
+    if (!trk_live(t) || p[GP_WET] <= 0 || track[t].mute)
+        return 0;
+    if (scan == SCAN_TAPE) {
+        tape_view_t v;
+        tape_view(t, &v);
+        return v.len && (sys.playing || keys);
+    }
+    return loud && (sys.playing || keys || tp[t].src != SRC_TAPE || grain_frozen);
+}
+
+/* why track t takes no share now (gr_wants said no), for the GRAIN page; 0: it would take one */
+static const char *gr_why(uint32_t t)
+{
+    const int16_t *p = TPD(t, DEV_GRAIN);
+    if (gr_wants(t, gbuf[t].nloud != 0 && gbuf[t].loud_len == gbuf[t].len) || p[GP_WET] <= 0 || !trk_live(t))
+        return 0;
+    if (track[t].mute)
+        return "MUTED: NO GRAINS";
+    if (clamp(p[GP_SCAN], 0, 3) == SCAN_TAPE) {
+        tape_view_t v;
+        tape_view(t, &v);
+        return v.len ? "STOPPED: NO GRAINS" : "NO TAPE: NO GRAINS";
+    }
+    return tp[t].src == SRC_TAPE && !sys.playing ? "STOPPED: NO GRAINS" : "SILENT: NO GRAINS";
+}
+
+/* the pool shared out by need, into share[]. The pool's size follows the tracks whose grains would be heard
+ * (gr_wants); those asking less than an even share of what's left get what they ask, round by round; the rest is
+ * split evenly among those that want more. (The ISR's every block, gr_plan; the screen the same, for itself.) */
 static void gr_plan_into(uint8_t *share)
 {
     uint32_t t, on = 0, act = 0, left, need[NTRK], k;
     uint8_t *gr_share = share;
     for (t = 0; t < NTRK; t++) {
         gr_share[t] = 0;
-        if (trk_live(t) && TPD(t, DEV_GRAIN)[GP_WET] > 0) {
+        if (gr_wants(t, gbuf[t].nloud != 0 && gbuf[t].loud_len == gbuf[t].len)) {
             act |= 1u << t;
             on++;
             need[t] = gr_need(TPD(t, DEV_GRAIN));
@@ -193,7 +233,14 @@ static void gr_plan_into(uint8_t *share)
 }
 
 /* audio ISR, each block: the shares the grains start under */
-static void gr_plan(void) { gr_plan_into(gr_share); }
+static int gr_buf_loud(uint32_t t);
+static void gr_plan(void)
+{
+    uint32_t t;
+    for (t = 0; t < NTRK; t++)                          /* (the loud counts current before the plan reads them) */
+        (void)gr_buf_loud(t);
+    gr_plan_into(gr_share);
+}
 
 /* how many grains track t may sound at once now */
 static uint32_t gr_allow(uint32_t t) { return gr_share[t]; }
@@ -256,7 +303,31 @@ static void gr_bcommit(gr_buf_t *B)
     c = mem_at(B->map[b / MEM_CB]);
     ima_fit(B->stage, &c->pred[b % MEM_CB], &c->idx[b % MEM_CB]);
     ima_enc(B->stage, c->pred[b % MEM_CB], c->idx[b % MEM_CB], c->data[b % MEM_CB], TAPE_BLK);
-    c->peak[b % MEM_CB] = ima_peak(B->stage, TAPE_BLK);
+    {
+        uint8_t pk = ima_peak(B->stage, TAPE_BLK);
+        if (B->loud_len == B->len && B->loud_nch == B->nch)   /* (the count follows the block: loud now, or not) */
+            B->nloud = (uint16_t)(B->nloud + (pk != 0) - (c->peak[b % MEM_CB] != 0));
+        c->peak[b % MEM_CB] = pk;
+    }
+}
+
+/* audio ISR: track t's buffer has sound in it (its loud blocks, counted again when it has been resized) */
+static int gr_buf_loud(uint32_t t)
+{
+    gr_buf_t *B = &gbuf[t];
+    uint32_t len = B->len, nch = B->nch, b, nb, c = 0;
+    if (!len || !nch)
+        return 0;
+    if (B->loud_len != len || B->loud_nch != nch) {    /* (sized again: once, every block's peak) */
+        nb = len / TAPE_BLK;
+        nb = nb < nch * MEM_CB ? nb : nch * MEM_CB;
+        for (b = 0; b < nb; b++)
+            c += mem_at(B->map[b / MEM_CB])->peak[b % MEM_CB] != 0;
+        B->nloud = (uint16_t)c;
+        B->loud_len = len;
+        B->loud_nch = (uint8_t)nch;
+    }
+    return B->nloud != 0;
 }
 
 /* one sample x into the buffer at the write head: what's there x FDBK % + x */
