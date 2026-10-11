@@ -409,19 +409,15 @@ static void test_input(void)
     check("power-on: TRACK 1, the source (TAPE) focused", sys.sel == 0 && ui.kind == FOCUS_DEV && ui.dev == DEV_SRC);
     press(B_EDIT);
     check("EDIT: GRAIN", ui.kind == FOCUS_DEV && ui.dev == DEV_GRAIN);
+    check("..GRAIN 1 opens with its mix: KNOB 3 ROUT, KNOB 4 WET", !strcmp(dev_p(0, DEV_GRAIN)[pdesc_at(dev_p(0, DEV_GRAIN), 2u)].label, "ROUT") && !strcmp(dev_p(0, DEV_GRAIN)[pdesc_at(dev_p(0, DEV_GRAIN), 3u)].label, "WET"));
     press(B_EDIT);
     press(B_EDIT);
     press(B_EDIT);
-    check("EDIT again: GRAIN 4 (BODY MODE ROOT TONE)", ui.dev == DEV_GRAIN && ui.page == 3u &&
-          !strcmp(dev_p(0, DEV_GRAIN)[pdesc_at(dev_p(0, DEV_GRAIN), 12u)].label, "BODY"));
     press(B_EDIT);
-    check("..again: GRAIN 5 (PATN SCAL PRND, KNOB 4 empty)", ui.dev == DEV_GRAIN && ui.page == 4u &&
-          !strcmp(dev_p(0, DEV_GRAIN)[pdesc_at(dev_p(0, DEV_GRAIN), 16u)].label, "PATN") &&
-          pdesc_empty(&dev_p(0, DEV_GRAIN)[pdesc_at(dev_p(0, DEV_GRAIN), 19u)]));
+    check("EDIT again: GRAIN 5 (BODY MODE ROOT TONE)", ui.dev == DEV_GRAIN && ui.page == 4u &&
+          !strcmp(dev_p(0, DEV_GRAIN)[pdesc_at(dev_p(0, DEV_GRAIN), 16u)].label, "BODY"));
     press(B_EDIT);
-    check("..again: GRAIN 6 (GRNS . . ROUT: ROUT KNOB 4 of the last page)", ui.dev == DEV_GRAIN && ui.page == 5u &&
-          !strcmp(dev_p(0, DEV_GRAIN)[pdesc_at(dev_p(0, DEV_GRAIN), 20u)].label, "GRNS") &&
-          !strcmp(dev_p(0, DEV_GRAIN)[pdesc_at(dev_p(0, DEV_GRAIN), 23u)].label, "ROUT"));
+    check("..again: GRAIN 6 (GRNS)", ui.dev == DEV_GRAIN && ui.page == 5u && !strcmp(dev_p(0, DEV_GRAIN)[pdesc_at(dev_p(0, DEV_GRAIN), 20u)].label, "GRNS"));
     press(B_EDIT);
     check("EDIT again, past GRAIN's pages 2 to 6: RESONATOR", ui.dev == DEV_RESO);
     press(B_EDIT);
@@ -460,26 +456,27 @@ static void test_input(void)
     check("..again: GRAIN's page 2", ui.dev == DEV_GRAIN && ui.page == 1u);
     host_enc[panel.enc[EN_K1]] = 30;
     ui_input();
-    check("..whose KNOB 1 is WET (0 -> 30), not SIZE", tp[0].dev[DEV_GRAIN][4] == 30 && tp[0].dev[DEV_GRAIN][0] == 80);
-    tp[0].dev[DEV_GRAIN][4] = 0;
+    check("..whose KNOB 1 is PTCH (0 -> +24), not SIZE", tp[0].dev[DEV_GRAIN][GP_PTCH] == 24 &&
+          tp[0].dev[DEV_GRAIN][0] == 80);
+    tp[0].dev[DEV_GRAIN][GP_PTCH] = 0;
     press(B_EDIT);
-    check("..again: GRAIN's page 3 (SCAN WARP OFST FDBK: what grains read, set up left to right)", ui.dev == DEV_GRAIN &&
-          ui.page == 2u && !strcmp(dev_p(0, DEV_GRAIN)[pdesc_at(dev_p(0, DEV_GRAIN), 8u)].label, "SCAN") &&
-          !strcmp(dev_p(0, DEV_GRAIN)[pdesc_at(dev_p(0, DEV_GRAIN), 9u)].label, "WARP"));
+    check("..again: GRAIN's page 3 (REV PATN SCAL PRND)", ui.dev == DEV_GRAIN && ui.page == 2u &&
+          !strcmp(dev_p(0, DEV_GRAIN)[pdesc_at(dev_p(0, DEV_GRAIN), 8u)].label, "REV") && !strcmp(dev_p(0, DEV_GRAIN)[pdesc_at(dev_p(0, DEV_GRAIN), 11u)].label, "PRND"));
     press(B_EDIT);
-    check("..again: GRAIN's page 4 (BODY: a floor under the grains)", ui.dev == DEV_GRAIN && ui.page == 3u);
+    check("..again: GRAIN's page 4 (SCAN WARP OFST FDBK: what grains read, set up left to right)", ui.dev == DEV_GRAIN &&
+          ui.page == 3u && !strcmp(dev_p(0, DEV_GRAIN)[pdesc_at(dev_p(0, DEV_GRAIN), 12u)].label, "SCAN") && !strcmp(dev_p(0, DEV_GRAIN)[pdesc_at(dev_p(0, DEV_GRAIN), 13u)].label, "WARP"));
     press(B_EDIT);
-    check("..again: GRAIN's page 5 (PATN SCAL PRND)", ui.dev == DEV_GRAIN && ui.page == 4u &&
-          !strcmp(dev_p(0, DEV_GRAIN)[pdesc_at(dev_p(0, DEV_GRAIN), 16u)].label, "PATN"));
+    check("..again: GRAIN's page 5 (BODY: a floor under the grains)", ui.dev == DEV_GRAIN && ui.page == 4u);
     press(B_EDIT);
-    check("..again: GRAIN's page 6 (GRNS, ROUT)", ui.dev == DEV_GRAIN && ui.page == 5u);
+    check("..again: GRAIN's page 6 (GRNS)", ui.dev == DEV_GRAIN && ui.page == 5u);
     press(B_EDIT);
-    check("..again: RESONATOR", ui.dev == DEV_RESO && ui.page == 0u);
+    check("..again: RESONATOR, opening with ROUT WET", ui.dev == DEV_RESO && ui.page == 0u &&
+          pdesc_at(DEV_P[DEV_RESO], 2u) == RP_ROUT && pdesc_at(DEV_P[DEV_RESO], 3u) == RP_WET);
     press(B_EDIT);
     check("..again: RESONATOR's page 2 (CUT RES TYPE SCAL)", ui.dev == DEV_RESO && ui.page == 1u);
     press(B_EDIT);
-    check("..again: RESONATOR's page 3 (ROUT; its arpeggio is the ARP pad's)", ui.dev == DEV_RESO && ui.page == 2u &&
-          !strcmp(dev_p(0, DEV_RESO)[RP_ROUT].label, "ROUT") && pdesc_pages(DEV_P[DEV_RESO]) == 3u);
+    check("..again: RESONATOR's page 3 (TONE; its arpeggio is the ARP pad's)", ui.dev == DEV_RESO && ui.page == 2u &&
+          pdesc_at(DEV_P[DEV_RESO], 8u) == RP_TONE && pdesc_pages(DEV_P[DEV_RESO]) == 3u);
     press(B_EDIT);
     check("..again: back to GRAIN, page 1", ui.dev == DEV_GRAIN && ui.page == 0u);
     press(B_FX);
@@ -828,18 +825,23 @@ static void screens_in(const char *pal)
     let_go(B_HOME);
     press(B_EDIT);
     shot(pal, "grain");
-    turn(1, 40);                                         /* RATE 80 %, PTCH +7, SPRD 90 % */
-    turn(2, 7);
-    turn(3, 60);
+    turn(1, 40);                                         /* GRAIN 1: RATE 80 %, WET 80 (its mix: ROUT WET) */
+    turn(3, 80);
     shot(pal, "grain_busy");
-    press(B_EDIT);                                       /* GRAIN 2: WET 80, SPRY 60, CONT 100, REV 40 */
-    turn(0, 80);
-    turn(1, 40);
-    turn(2, 50);
-    turn(3, 40);
+    press(B_EDIT);                                       /* GRAIN 2: PTCH +7, SPRD 90, SPRY 60, CONT 100 */
+    turn(0, 7);
+    turn(1, 60);
+    turn(2, 40);
+    turn(3, 50);
     shot(pal, "grain2");
+    press(B_EDIT);                                       /* GRAIN 3: REV 40, PATN SWNG, SCAL MAJ, PRND 5 */
+    turn(0, 40);
+    turn(1, -2);
+    turn(2, 2);
+    turn(3, 5);
+    shot(pal, "grain3");
     press(B_EDIT);
-    press(B_EDIT);                                       /* GRAIN 4: BODY 40, MODE TRI, ROOT A2, TONE 400 Hz */
+    press(B_EDIT);                                       /* GRAIN 5: BODY 40, MODE TRI, ROOT A2, TONE 400 Hz */
     turn(0, 40);
     turn(1, 1);
     turn(3, 14);
@@ -847,11 +849,7 @@ static void screens_in(const char *pal)
     tp[0].dev[DEV_GRAIN][GP_BODY] = 0;                   /* (off again: the shots after as they were) */
     tp[0].dev[DEV_GRAIN][GP_BMOD] = BODY_SRC;
     tp[0].dev[DEV_GRAIN][GP_BTON] = DEV_P[DEV_GRAIN][GP_BTON].def;
-    press(B_EDIT);                                       /* GRAIN 5: PATN SWNG, SCAL MAJ, PRND 5 */
-    turn(0, -2);
-    turn(1, 2);
-    turn(2, 5);
-    shot(pal, "grain5");
+    focus_dev(DEV_GRAIN, 0);                             /* (playing, on GRAIN 1: SIZE RATE ROUT WET) */
     {   /* playing a bar into the buffer, then the 0 black key held: the buffer frozen, the grains looping it */
         uint32_t u, z = 0;
         for (u = 0; u < 27u; u++)
@@ -872,13 +870,13 @@ static void screens_in(const char *pal)
         render(100, 0);
         shot(pal, "grain6");
         turn(0, -12);
-        focus_dev(DEV_GRAIN, 2);                         /* GRAIN 3: SCAN DLY, WARP 52 %, OFST 50, FDBK 30 */
+        focus_dev(DEV_GRAIN, 3);                         /* GRAIN 4: SCAN DLY, WARP 52 %, OFST 50, FDBK 30 */
         turn(0, 2);
         turn(1, -12);
         turn(2, 25);
         turn(3, 30);
         render(400, 0);
-        shot(pal, "grain3");
+        shot(pal, "grain4");
         turn(0, -3);                                     /* SCAN TAPE: grains of the tape, its field zoomed */
         render(400, 0);
         shot(pal, "grain_tape");
@@ -892,8 +890,8 @@ static void screens_in(const char *pal)
     focus_dev(DEV_RESO, 0);
     shot(pal, "resonator");
     turn(1, 35);                                         /* DEC 95: sharp peaks */
-    turn(2, 30);                                         /* TONE 90: the upper partials kept */
-    turn(3, 80);                                         /* WET 80 */
+    turn(3, 80);                                         /* WET 80 (KNOB 3-4: ROUT WET, its mix) */
+    tp[0].dev[DEV_RESO][RP_TONE] = 90;                   /* TONE 90 (page 3): the upper partials kept */
     shot(pal, "resonator_wet");
     press(B_EDIT);                                       /* RESONATOR 2: CUT down, RES 60, BP, the major chord */
     turn(0, -40);
@@ -911,27 +909,27 @@ static void screens_in(const char *pal)
     shot(pal, "color_drive");
     turn(1, 70);                                         /* CRUSH 70: steps */
     shot(pal, "color_crush");
-    turn(2, 50);                                         /* NOISE 50 */
+    turn(3, -30);                                        /* WET 70 (KNOB 3-4: ROUT WET, its mix) */
+    press(B_FX);                                         /* COLOR 2: NOIS TILT NDEC NTON */
+    turn(0, 50);                                         /* NOISE 50 */
     shot(pal, "color_noise");
-    turn(3, -30);                                        /* TILT -30: darker */
+    turn(1, -30);                                        /* TILT -30: darker */
     shot(pal, "color_tone");
-    press(B_FX);                                         /* COLOR 2: NDEC longer, NTON -30, CMOD BOTH, WET 70 */
-    turn(0, 30);
-    turn(1, -30);
-    turn(2, 2);
+    turn(2, 30);                                         /* NDEC longer, NTON -30 */
     turn(3, -30);
     shot(pal, "color2");
-    press(B_FX);                                         /* COLOR 3: LVL -6 dB */
+    press(B_FX);                                         /* COLOR 3: CMOD BOTH, LVL -6 dB */
+    turn(0, 2);
     turn(3, -6);
     shot(pal, "color3");
     press(B_FX);
     shot(pal, "space");
-    turn(1, 40);                                         /* FDBK 70 */
-    turn(3, 40);                                         /* DECAY 80 */
+    turn(1, 40);                                         /* FDBK 70; its sends, DLY 50 and VERB 30 (KNOB 3-4) */
+    turn(2, 50);
+    turn(3, 30);
     shot(pal, "space_long");
-    press(B_FX);                                         /* SPACE 2: DLY 80, VERB 60, TONE -40 */
-    turn(0, 50);
-    turn(1, 30);
+    press(B_FX);                                         /* SPACE 2: DECAY 80, TONE -40 */
+    turn(1, 40);
     turn(2, -40);
     shot(pal, "space2");
     press(B_FX);                                         /* SPACE 3: PRE 120 ms */
@@ -5028,13 +5026,13 @@ static void test_mod(void)
     /* the pages' layout: every knob once; a source's LVL on KNOB 4 of its last page, ROUT left of it (or KNOB 4);
      * every modulator's AMT and OFS on KNOB 3 and 4 of its last page */
     {
-        static const struct { const pdesc_t *p; const char *a, *b; uint32_t away; } R[] = {   /* (away: knobs another
-                                                                                       * pad's page shows) */
+        static const struct { const pdesc_t *p; const char *a, *b; uint32_t away; const char *f3, *f4; } R[] = {
+            /* (a b: KNOB 3-4 of the last page; f3 f4: of the first; away: knobs another pad's page shows) */
             {DEV_P[DEV_SRC], 0, "LVL"}, {SYN_P, 0, "LVL"}, {POL_P, 0, "LVL"}, {DRM_P, 0, "LVL"},
-            {DEV_P[DEV_COLOR], "ROUT", "LVL"}, {DEV_P[DEV_GRAIN], 0, "ROUT"},
-            {DEV_P[DEV_RESO], 0, "ROUT", 0xF000u},            /* (12-15: RES ARP, the ARP pad's page 3) */
+            {DEV_P[DEV_COLOR], 0, "LVL", 0, "ROUT", "WET"}, {DEV_P[DEV_GRAIN], 0, 0, 0, "ROUT", "WET"},
+            {DEV_P[DEV_RESO], 0, 0, 0xF000u, "ROUT", "WET"},   /* (12-15: RES ARP, the ARP pad's page 3) */
             {ME_P[ME_WAVE], "AMT", "OFS"}, {ME_P[ME_ADSR], "AMT", "OFS"}, {ME_P[ME_SEQ], "AMT", "OFS"},
-            {ME_P[ME_FOLLOW], "AMT", "OFS"}, {DEV_P[DEV_SPACE], 0, 0}};
+            {ME_P[ME_FOLLOW], "AMT", "OFS"}, {DEV_P[DEV_SPACE], 0, 0, 0, "DLY", "VERB"}};
         uint32_t i, k, ok = 1, rule = 1;
         for (i = 0; i < sizeof R / sizeof R[0]; i++) {
             uint32_t n = 4u * pdesc_pages(R[i].p), seen = 0, labelled = 0;
@@ -5053,10 +5051,13 @@ static void test_mod(void)
                 rule &= !strcmp(R[i].p[pdesc_at(R[i].p, n - 1u)].label, R[i].b);
             if (R[i].a)
                 rule &= !strcmp(R[i].p[pdesc_at(R[i].p, n - 2u)].label, R[i].a);
+            if (R[i].f3)
+                rule &= !strcmp(R[i].p[pdesc_at(R[i].p, 2u)].label, R[i].f3) &&
+                        !strcmp(R[i].p[pdesc_at(R[i].p, 3u)].label, R[i].f4);
         }
         check("layout: every page position is one stored knob, every knob is on a page", ok);
-        check("..LVL is KNOB 4 of the last page (ROUT left of it, or KNOB 4); AMT OFS are KNOB 3-4 of a modulator's last",
-              rule);
+        check("..LVL is KNOB 4 of a source's (and COLOR's) last page; an effect opens with ROUT WET at KNOB 3-4 (SPACE: its "
+              "sends, DLY VERB); AMT OFS are KNOB 3-4 of a modulator's last", rule);
     }
     power_on();
     press(B_HOME);
@@ -5064,13 +5065,15 @@ static void test_mod(void)
     press(B_HOME);                                       /* TAPE page 4 (the source shows from power-on) */
     turn(3, -2);
     check("TAPE page 4 (its last), KNOB 4: LVL", ui.page == 3u && tp[0].dev[DEV_SRC][TK_LVL] == -2);
-    press(B_FX);
+    press(B_FX);                                         /* COLOR page 1 */
+    turn(2, 1);
+    turn(3, 30);
+    check("COLOR page 1: KNOB 3 ROUT, KNOB 4 WET (an effect opens with its mix)",
+          tp[0].dev[DEV_COLOR][CP_ROUT] == 1 && tp[0].dev[DEV_COLOR][CP_WET] > 0);
     press(B_FX);
     press(B_FX);                                         /* COLOR page 3 */
-    turn(2, 1);
     turn(3, -3);
-    check("COLOR page 3: KNOB 3 ROUT, KNOB 4 LVL", tp[0].dev[DEV_COLOR][CP_ROUT] == 1 &&
-                                                     tp[0].dev[DEV_COLOR][CP_LVL] == -3);
+    check("COLOR page 3: KNOB 4 LVL", tp[0].dev[DEV_COLOR][CP_LVL] == -3);
     tp[0].src = SRC_SYNTH;
     press(B_HOME);
     press(B_HOME);                                       /* SYNTH page 2: the envelope (POLY's order) */
@@ -5138,8 +5141,8 @@ static void test_mod(void)
         turn(1, -2);
         check("..turning back the way it came isn't held", mod_dep(0, 0, g) == -2);
         turn(1, 2);
-        turn(2, 3);                                      /* another knob: no catch of its own */
-        check("..the catch is that knob's alone", mod_dep(0, 0, g) == 0 && mod_dep(0, 0, MOD_TG(DEV_COLOR, 2)) == 3);
+        turn(0, 3);                                      /* another knob: no catch of its own */
+        check("..the catch is that knob's alone", mod_dep(0, 0, g) == 0 && mod_dep(0, 0, MOD_TG(DEV_COLOR, 0)) == 3);
         check("mod_nudge: from 0 a turn either way just sets it", mod_nudge(0, 1, g, -7) == -7 && mod_nudge(0, 1, g, 7) == 0
                                                                 && mod_nudge(0, 1, g, 7) == 7);
     }
@@ -5149,7 +5152,7 @@ static void test_mod(void)
     /* a slot's pad + MONO held 0.5 s: that slot's depths on the page shown go; other slots' and other pages' stay */
     power_on();
     {
-        uint32_t mn = black_note(BK_MONO), cr = MOD_TG(DEV_COLOR, 1), dr = MOD_TG(DEV_COLOR, 2), n0;
+        uint32_t mn = black_note(BK_MONO), cr = MOD_TG(DEV_COLOR, 1), dr = MOD_TG(DEV_COLOR, CP_WET), n0;
         mod_nudge(0, 0, cr, 30);
         mod_nudge(0, 0, dr, -20);
         mod_nudge(0, 1, cr, 40);                         /* slot 2, same page: stays */
@@ -6668,8 +6671,8 @@ static void test_tpresets(void)
           tp[0].dev[DEV_COLOR][CP_DRIV] == 0 && tp[0].dev[DEV_COLOR][CP_CRSH] == 50 &&
           !strcmp(ui.msg, "DRV TO DEFAULT. HOLD SAVE: UNDO"));
     press(B_FX);
-    check("..+ FX (the page's pad): the whole page to its defaults, and the page stays",
-          tp[0].dev[DEV_COLOR][CP_CRSH] == 0 && tp[0].dev[DEV_COLOR][CP_TILT] == 0 && ui.dev == DEV_COLOR &&
+    check("..+ FX (the page's pad): the whole page to its defaults (TILT, on page 2, as it was), and the page stays",
+          tp[0].dev[DEV_COLOR][CP_CRSH] == 0 && tp[0].dev[DEV_COLOR][CP_TILT] == -40 && ui.dev == DEV_COLOR &&
           ui.page == 0u);
     check("..the footer says what SCL does", ui.scl_held == 1u);
     let_go(B_SCL);
@@ -7599,9 +7602,9 @@ static void test_arp_keys(void)
     v = tp[0].dev[DEV_COLOR][0];
     turn(0, 1);
     check("..4X: one detent of DRV (0-100) moves it 4", tp[0].dev[DEV_COLOR][0] == v + 4);
-    focus_dev(DEV_COLOR, 1);
+    focus_dev(DEV_COLOR, 2);
     c = (uint32_t)tp[0].dev[DEV_COLOR][6];
-    turn(2, 1);
+    turn(0, 1);
     check("..a choice (CMOD) still moves one a detent", (uint32_t)tp[0].dev[DEV_COLOR][6] == c + 1u);
     bryo_prefs = (uint8_t)((bryo_prefs & ~6u) | KNOB_ACC << 1);
     focus_dev(DEV_COLOR, 0);

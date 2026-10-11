@@ -223,6 +223,8 @@ number.
   four), split by what each track's settings ask for when it runs short; what's left over is everyone's (since
   2026-10-11: a track alone has all 40, not just what RATE and SIZE ask). GRAIN 6's GRNS can hold a number for a
   track instead (1-40, taken from the AUTO tracks first, kept whatever the others do).
+- **2026-10-11: every effect opens with its mix.** ROUT and WET are KNOB 3-4 of page 1 on GRAIN, RESONATOR and
+  COLOR (SPACE: DLY and VERB, its sends); the rest close up behind. Layout only: nothing stored moved.
 - **2026-10-11: six pages a device (NPK 24), for GRAIN's GRNS.** GRAIN's 20 were full. Projects and presets store
   each array with its count and depths by array and knob, so the format didn't change and older files read as they
   are; but the biggest project, written 24 wide, no longer fit its sector (it was within 35 bytes at 20). So each
@@ -262,7 +264,7 @@ number.
   level and REC IN stay with the track. They live in the last two free flash sectors, as one more A/B pair. Eight
   factory presets follow them, two a source, level-matched to the defaults; they need tuning by ear on hardware.
 - **2026-10-10: the pages follow two rules, through a layout, not by moving storage.** LVL is KNOB 4 of a source's
-  last page (ROUT left of it); a modulator's AMT OFS are KNOB 3-4 of its last page; SYNTH turns its pages in
+  last page (ROUT left of it; since 2026-10-11 ROUT and WET open an effect's first page instead); a modulator's AMT OFS are KNOB 3-4 of its last page; SYNTH turns its pages in
   POLY's order. `PLAYOUT` maps page places to stored knobs, so the DSP, the depths and the projects didn't move
   (SEQ's new SPRD AMT OFS made the project format version 2). DRUM's hits trigger the modulators as keys do; HOME
   turns the page as it's let go; OCT moves DRUM's bar only on DRUM's own pages.

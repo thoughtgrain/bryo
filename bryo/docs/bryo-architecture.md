@@ -815,7 +815,7 @@ No per-sample cost: the plan is per block, a few compares more.
 
 Why one knob and not an amount plus a LOCK switch: a number that's kept whatever happens already is the lock, and
 AUTO is the unlocked state, so a second control would only make combinations that mean the same. Why a 6th page:
-GRAIN's 20 knobs were full (see "Six pages (NPK 24)").
+GRAIN's 20 knobs were full (see "Six pages (NPK 24)"). (GRNS is now GRAIN 6 alone: ROUT moved to page 1, below.)
 
 When a share drops (another track's GRAIN comes on), nothing is cut: the grains sounding finish, and new ones are
 skipped until the track is inside its share, so a cloud thins over one grain's length. A grain's level counts only
@@ -1728,7 +1728,20 @@ file's arrays are 20 long and the rest come from the defaults (a project load st
 did matter: the biggest project there can be (`test_project_worst`: every knob random, every step and pattern set,
 32 depths a track) packed to 3,805 of the sector's 3,840 bytes at 20 wide and didn't fit at 24. So a project and a
 preset now write each array only up to its last knob with a label (`pdesc_len`): past it every knob is empty and
-reads as 0 anyway. That packs the biggest to 3,741, under what it was. Reading one, an empty knob past what was
+reads as 0 anyway. That packs the biggest to 3,741, under what it was.
+
+**Every effect opens with its mix (2026-10-11, from playing it: "wet and send options should be farther up in the
+page count for all parameters that have them").** ROUT and WET are KNOB 3 and 4 of page 1 on GRAIN, RESONATOR and
+COLOR; SPACE's sends, DLY and VERB, the same. Bringing an effect in is the first thing you do with it, and with
+WET 0 (the default) nothing else on its pages is heard, so it was backwards to have WET on GRAIN 2 and ROUT on
+the last page of everything. Only the `PLAYOUT` rows moved: stored order is the same, so projects, presets,
+modulation targets and the DSP are untouched. The rest close up behind: GRAIN SIZE RATE ROUT WET / PTCH SPRD SPRY
+CONT / REV PATN SCAL PRND / SCAN WARP OFST FDBK / BODY MODE ROOT TONE / GRNS; RESONATOR PTCH DEC ROUT WET / CUT
+RES TYPE SCAL / TONE; COLOR DRV CRSH ROUT WET / NOIS TILT NDEC NTON / CMOD . . LVL; SPACE TIME FDBK DLY VERB /
+SIZE DEC TONE SPRD / PRE. The layout lint (`test_mod`) checks the rule: an effect's page 1 ends ROUT WET (SPACE DLY
+VERB), a source's (and COLOR's) last page ends LVL, a modulator's AMT OFS. The other rule ("ROUT KNOB 4 of the last
+page") is gone with it. The pictures in the visualizations don't care which page they're on (they follow the knob
+turned), so nothing else changed but the tests and the manual. Reading one, an empty knob past what was
 stored is set to 0 (it was left as it was, which after a slot changed engine could be the old engine's default).
 An older Bryo reads the newer files too: it takes the counts it knows and skips the rest. GRAIN's pages: 5 is PATN
 SCAL PRND and an empty KNOB 4; 6 is GRNS, two empty, ROUT (ROUT stays KNOB 4 of the last page). Cost: 384 B of main
@@ -2014,7 +2027,8 @@ found and what I did with it.
 1. **One place for the output knobs.** A source's LVL (and COLOR's) is KNOB 4 of its last page; ROUT sits just
    left of it, or on KNOB 4 where there's no LVL. TAPE 3 reads REEL ROTA . LVL, SYNTH 5 and POLY 4 . . . LVL,
    COLOR 3 . . ROUT LVL, RESONATOR 3 . . . ROUT, DRUM's STEP already ended in LVL. GRAIN's pages 3 and 4 swapped,
-   so its ROUT (with PATN SCAL PRND) is on its last page and SCAN WARP OFST FDBK come first.
+   so its ROUT (with PATN SCAL PRND) is on its last page and SCAN WARP OFST FDBK come first. (Superseded for ROUT
+   on 2026-10-11: an effect's ROUT and WET are KNOB 3-4 of its first page now, "Every effect opens with its mix".)
 2. **SYNTH turns its pages in POLY's order**: OSC, AMP (the envelope), FILTER, VOICE, LEVEL.
 3. **AMT and OFS are KNOB 3 and 4 of every modulator's last page.** LFO's page 3 is its timing (SYNC TRIG FADE),
    page 4 PHAS SPRD AMT OFS; ADSR already ended VEL LOOP AMT OFS; FOLLOW's page 2 is HOLD SPRD AMT OFS. SEQ has a

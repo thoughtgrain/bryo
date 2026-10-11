@@ -70,7 +70,7 @@ Every pad opens a page, and **pressing the same pad again goes to its next page*
 | Pad | Pages, in order |
 | --- | --- |
 | HOME | the source's pages (TAPE has 4; SYNTH 5; POLY 4; DRUM 4) |
-| EDIT | GRAIN 1-5, then RESONATOR 1-3 |
+| EDIT | GRAIN 1-6, then RESONATOR 1-3 |
 | FX | COLOR 1-3, then SPACE 1-3 |
 | ENV | the source's envelope: SYNTH's AMP, POLY's ENV, TAPE's slice envelope (each the second page), DRUM's KIT |
 | LFO, SEQ | a modulator's pages (LFO: M1, M2 or M3; SEQ: M4) |
@@ -82,7 +82,9 @@ KNOB 1 to 4 always change the four values you see. There's nothing hidden.
 **Jump straight to a page: hold its pad and press a white key.** While you hold a pad (HOME, EDIT, FX, ENV, LFO,
 SEQ or ARP), the white keys show its pages: one glows for each page, the page on screen is lit, and every other key
 goes dark. Press white key 3 to go to the third page. EDIT's keys run through GRAIN's pages and then RESONATOR's
-(key 7 is RESONATOR 2); FX's through COLOR's and then SPACE's. Holding LFO also lights OP1-OP3, the one it's on
+(key 8 is RESONATOR 2); FX's through COLOR's and then SPACE's. Every effect's first page ends with its mix:
+**ROUT** on KNOB 3 and **WET** on KNOB 4 (SPACE: **DLY** and **VERB**, its two sends), so one press of EDIT or FX
+and KNOB 4 brings an effect in. Holding LFO also lights OP1-OP3, the one it's on
 bright. Let go without pressing a key and the pad turns its page as usual.
 
 ### 0.3 Saving, in short
@@ -474,7 +476,7 @@ white key 3). It's RESONATOR's own arpeggio, separate from the track's: each ste
 that note, whatever the track plays. **MODE** turns it on (OFF, KEY, LTCH, ADD); **ORDR**, **RNGE** and **RATE** work
 as above. With MODE on, the white keys on this page play the strings' pattern and the track itself stays quiet; with
 MODE off they play the track as on the other ARP pages. A latched or piled-up pattern keeps plucking when you leave
-the page, and **hold POLY** here to clear it. You'll want RESONATOR's **WET** up (EDIT six times) to hear it.
+the page, and **hold POLY** here to clear it. You'll want RESONATOR's **WET** up (EDIT seven times, KNOB 4) to hear it.
 
 <img src="img/arp_res.png" width="240" alt="RES ARP: two notes held, the strings plucked in turn">
 
@@ -509,10 +511,10 @@ and VERB at 0), so turn them up to hear them.
 GRAIN keeps the last bars of the track's sound and plays tiny pieces of it (grains), scattered and layered.
 
 1. Press **PLAY**.
-2. Press **EDIT twice**: **GRAIN 2**.
-3. Turn **KNOB 1 (WET)** up to 80 %.
+2. Press **EDIT**: **GRAIN 1**.
+3. Turn **KNOB 4 (WET)** up to 80 %.
 
-<img src="img/grain2.png" width="240" alt="GRAIN 2: WET SPRY CONT REV"> <img src="img/grain_playing.png" width="240" alt="Grains playing">
+<img src="img/grain_busy.png" width="240" alt="GRAIN 1: SIZE RATE ROUT WET, WET 80%"> <img src="img/grain_playing.png" width="240" alt="Grains playing">
 
 **You'll hear:** a cloud of the track's sound. Each block in the picture is a grain.
 
@@ -531,12 +533,15 @@ On **GRAIN 1** (press EDIT once):
 
 - **SIZE**: how long each grain is.
 - **RATE**: how many there are.
-- **PTCH**: their pitch, in semitones.
-- **SPRD**: how wide in stereo.
+- **ROUT** and **WET**: how the grains mix in (6.8).
 
-On **GRAIN 2**: **SPRY** scatters where they start, **CONT** softens their edges, **REV** plays some backwards.
+On **GRAIN 2**: **PTCH** their pitch in semitones, **SPRD** how wide in stereo, **SPRY** scatters where they
+start, **CONT** softens their edges.
 
-<img src="img/grain.png" width="240" alt="GRAIN 1: SIZE RATE PTCH SPRD">
+On **GRAIN 3**: **REV** plays some backwards, **PATN** the rhythm they fire in, **SCAL** holds their pitch to a scale
+and **PRND** gives each a random pitch.
+
+<img src="img/grain.png" width="240" alt="GRAIN 1: SIZE RATE ROUT WET"> <img src="img/grain2.png" width="240" alt="GRAIN 2: PTCH SPRD SPRY CONT">
 
 ### 6.3 GRAIN: freeze
 
@@ -549,7 +554,7 @@ On **GRAIN 2**: **SPRY** scatters where they start, **CONT** softens their edges
 
 ### 6.4 GRAIN: where the grains read
 
-On **GRAIN 3**, **SCAN** chooses:
+On **GRAIN 4**, **SCAN** chooses:
 
 | SCAN | The grains read |
 | --- | --- |
@@ -561,11 +566,11 @@ On **GRAIN 3**, **SCAN** chooses:
 **FDBK** feeds the grains back into themselves. On any GRAIN page, the **white keys move the reading spot** to their
 sixteenth of the loop.
 
-<img src="img/grain3.png" width="240" alt="GRAIN 3: SCAN WARP OFST FDBK">
+<img src="img/grain4.png" width="240" alt="GRAIN 4: SCAN WARP OFST FDBK">
 
 ### 6.4.1 GRAIN: BODY, a floor under the grains
 
-At WET 100 you hear only grains: the original sound is gone, and with it what held the cloud down. **GRAIN 4** puts a
+At WET 100 you hear only grains: the original sound is gone, and with it what held the cloud down. **GRAIN 5** puts a
 floor back under them:
 
 - **BODY**: how loud the floor is (0 is off). It goes with the grains, so WET turns it down too.
@@ -575,16 +580,16 @@ floor back under them:
   - **SIN**: a sine that plays the grains' notes: the purest, best on headphones (the speaker barely plays it when
     it's low).
 - **ROOT**: where the wave sits (TRI and SIN), C1 to C5. Set it to the key you're in. The wave follows each grain's
-  note, so when **PTCH** (GRAIN 1), **PRND** and **SCAL** (GRAIN 5) send the grains around a scale, the wave walks the same
+  note, so when **PTCH** (GRAIN 2), **PRND** and **SCAL** (GRAIN 3) send the grains around a scale, the wave walks the same
   scale over ROOT, gliding from note to note. It always stays in the octave above ROOT, so it's a floor however high
   or low the grains go. With PTCH and PRND at 0 it holds ROOT.
 - **TONE**: how much top end the floor keeps, from a deep rumble to a full low-mid.
 
-<img src="img/grain_body.png" width="240" alt="GRAIN 4: BODY 40%, MODE TRI, ROOT A2, TONE 392 Hz">
+<img src="img/grain_body.png" width="240" alt="GRAIN 5: BODY 40%, MODE TRI, ROOT A2, TONE 392 Hz">
 
 ### 6.4.2 GRAIN: how many grains a track holds
 
-**GRAIN 6** has **GRNS** (KNOB 1) and **ROUT** (KNOB 4).
+**GRAIN 6** has **GRNS** (KNOB 1).
 
 - **GRNS AUTO** (the default): the track shares the pool with the others, by what each one's RATE and SIZE ask for.
   Whatever nobody needs is shared out too, so a track alone has all 40.
@@ -597,19 +602,18 @@ floor back under them:
 - GRNS sets how many may sound; **RATE** and **SIZE** still decide how many start. For a full 12, turn those up
   until the page reads "12 OF 12 HELD".
 
-<img src="img/grain6.png" width="240" alt="GRAIN 6: GRNS 12, ROUT INS; 4 OF 12 HELD">
+<img src="img/grain6.png" width="240" alt="GRAIN 6: GRNS 12; 4 OF 12 HELD">
 
 ### 6.5 RESONATOR: four strings
 
 The track rings four tuned strings, like a sitar's sympathetic strings.
 
-1. Press **EDIT six times** for **RESONATOR**.
-2. Turn **KNOB 4 (WET)** up.
+1. Press **EDIT seven times** for **RESONATOR**.
+2. Turn **KNOB 4 (WET)** up (KNOB 3 is ROUT, see 6.8).
 3. **The white keys set the strings' root note** (on a TAPE or DRUM track they pluck the strings alone, without
-   playing a slice or a drum). **PTCH** does the same with
-   a knob. **DEC** is how long they ring; **TONE** how bright.
+   playing a slice or a drum). **PTCH** does the same with a knob. **DEC** is how long they ring.
 4. **RESONATOR 2**: a filter (CUT, RES, TYPE) and **SCAL**, the chord the four strings make (HARM, MAJ, MIN, PEN).
-5. **RESONATOR 3**: ROUT (see 6.8).
+5. **RESONATOR 3**: **TONE**, how bright they ring.
 6. To make the strings play a pattern of their own, use **RES ARP**, the ARP pad's third page ([5.8](#58-arp-the-arpeggiator)).
 
 <img src="img/resonator_wet.png" width="240" alt="RESONATOR ringing"> <img src="img/resonator2.png" width="240" alt="RESONATOR 2: CUT RES TYPE SCAL">
@@ -617,32 +621,32 @@ The track rings four tuned strings, like a sitar's sympathetic strings.
 ### 6.6 COLOR: dirt and character
 
 1. Press **FX**: **COLOR**.
-2. **DRV** drives it, **CRSH** crushes it (lo-fi), **NOIS** adds noise that rides on the sound, **TILT** makes it
-   darker or brighter.
-3. **COLOR 2**: the noise's length and tone (NDEC, NTON), what CRSH crushes (CMOD: BIT, RATE, BOTH), and **WET**.
+2. **DRV** drives it, **CRSH** crushes it (lo-fi), and **ROUT** and **WET** mix it in.
+3. **COLOR 2**: **NOIS** adds noise that rides on the sound, **TILT** makes it darker or brighter, then the noise's
+   length and tone (NDEC, NTON).
+4. **COLOR 3**: what CRSH crushes (CMOD: BIT, RATE, BOTH) and **LVL**, its level.
 
-<img src="img/color.png" width="240" alt="COLOR: DRV CRSH NOIS TILT"> <img src="img/color2.png" width="240" alt="COLOR 2: NDEC NTON CMOD WET">
+<img src="img/color.png" width="240" alt="COLOR: DRV CRSH ROUT WET"> <img src="img/color2.png" width="240" alt="COLOR 2: NOIS TILT NDEC NTON">
 
 ### 6.7 SPACE: echoes and a room
 
-1. Press **FX four times**: **SPACE**. **TIME** is the echo's time, **FDBK** how many echoes, **SIZE** and **DEC**
-   the room.
-2. Press **FX** again for **SPACE 2**: turn up **DLY** (the echoes) and **VERB** (the room). **TONE** darkens or
-   brightens them.
+1. Press **FX four times**: **SPACE**. **TIME** is the echo's time, **FDBK** how many echoes; turn up **DLY** (the
+   echoes) and **VERB** (the room), its two sends.
+2. Press **FX** again for **SPACE 2**: **SIZE** and **DEC** shape the room, **TONE** darkens or brightens both.
 3. **SPACE 3**: **PRE**, a short gap before the room starts.
 
-<img src="img/space.png" width="240" alt="SPACE: TIME FDBK SIZE DEC"> <img src="img/space2.png" width="240" alt="SPACE 2: DLY VERB TONE SPRD">
+<img src="img/space_long.png" width="240" alt="SPACE: TIME FDBK DLY VERB"> <img src="img/space2.png" width="240" alt="SPACE 2: SIZE DEC TONE SPRD">
 
 ### 6.8 Insert or send
 
-GRAIN, RESONATOR and COLOR have **ROUT** on their last page:
+GRAIN, RESONATOR and COLOR have **ROUT** on KNOB 3 of their first page, next to WET:
 
 - **INS** (insert): **WET** fades from the dry sound to the effect.
 - **SEND**: the dry sound stays at full and WET adds the effect on top.
 
 SPACE always works as a send.
 
-<img src="img/color3.png" width="240" alt="COLOR 3: ROUT LVL">
+<img src="img/color.png" width="240" alt="COLOR 1: DRV CRSH ROUT WET">
 
 ---
 

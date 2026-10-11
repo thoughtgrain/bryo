@@ -335,9 +335,10 @@ static const pdesc_t ME_P[NME][NPK] = {
 static const int8_t SEQ_DEF[16] = {100, 25, 60, 25, 80, 25, 60, 40, 100, 25, 60, 25, 80, 50, 35, 20};
 
 /* Where the knobs sit on the pages. A table above is in the order its knobs are stored (the DSP, the modulation
- * targets and the projects number them that way); a page shows them in the order below. Two rules hold for every
- * device and engine: a source's (and COLOR's) LVL is KNOB 4 of its last page, with ROUT just left of it (no LVL:
- * ROUT is KNOB 4); a modulator's AMT and OFS are KNOB 3 and 4 of its last page. at[]: the stored knob at each page
+ * targets and the projects number them that way); a page shows them in the order below. These rules hold for every
+ * device and engine: a source's (and COLOR's) LVL is KNOB 4 of its last page; an effect's ROUT and WET are KNOB 3
+ * and 4 of its first (SPACE's sends, DLY and VERB, the same); a modulator's AMT and OFS are KNOB 3 and 4 of its last
+ * page. at[]: the stored knob at each page
  * position (an empty knob's index where the position is empty). A table not listed shows in stored order. */
 typedef struct {
     const pdesc_t *p;
@@ -347,11 +348,18 @@ typedef struct {
 static const playout_t PLAYOUT[] = {
     {DEV_P[DEV_SRC], 4, {0, 1, 2, 3, 12, 13, 14, 15, 4, 5, 6, 7, 8, 9, 11, 10}},   /* TAPE: the envelope second (as
                                                                                      * SYNTH's, POLY's), REEL ROTA . LVL */
-    {DEV_P[DEV_GRAIN], 6, {0, 1, 2, 3, 4, 5, 6, 7, 12, 13, 14, 15, 16, 17, 18, 19, 8, 9, 10, 21, 20, 22, 23, 11}},
-                                                    /* GRAIN: SCAN.., BODY.., PATN SCAL PRND, then GRNS . . ROUT */
-    {DEV_P[DEV_RESO], 3, {0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 8, 12, 13, 14, 15}},   /* RESONATOR: . . . ROUT (12-15,
+    /* the effects open with their mix: ROUT and WET KNOB 3-4 of page 1 (SPACE: DLY and VERB, its sends), so the
+     * first press of EDIT or FX can bring one in; the sound's knobs follow (2026-10-11) */
+    {DEV_P[DEV_GRAIN], 6, {0, 1, 11, 4, 2, 3, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23}},
+                                                    /* GRAIN: SIZE RATE ROUT WET, PTCH SPRD SPRY CONT, REV PATN SCAL
+                                                     * PRND, SCAN.., BODY.., GRNS */
+    {DEV_P[DEV_RESO], 3, {0, 1, 8, 3, 4, 5, 6, 7, 2, 9, 10, 11, 12, 13, 14, 15}},   /* RESONATOR: PTCH DEC ROUT WET,
+                                                                                      * CUT RES TYPE SCAL, TONE (12-15,
                                                                                       * RES ARP: the ARP pad's) */
-    {DEV_P[DEV_COLOR], 3, {0, 1, 2, 3, 4, 5, 6, 7, 10, 11, 9, 8}},              /* COLOR: . . ROUT LVL */
+    {DEV_P[DEV_COLOR], 3, {0, 1, 9, 7, 2, 3, 4, 5, 6, 10, 11, 8}},              /* COLOR: DRV CRSH ROUT WET, NOIS TILT
+                                                                                 * NDEC NTON, CMOD . . LVL */
+    {DEV_P[DEV_SPACE], 3, {0, 1, 4, 5, 2, 3, 6, 7, 8, 9, 10, 11}},              /* SPACE: TIME FDBK DLY VERB, SIZE DEC
+                                                                                 * TONE SPRD, PRE */
     {SYN_P, 5, {0, 1, 2, 3, 8, 9, 10, 11, 4, 5, 6, 7, 12, 13, 14, 15, 17, 18, 19, 16}},   /* OSC AMP FILTER VOICE, LVL */
     {POL_P, 4, {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 12}},         /* POLY: . . . LVL */
     {ME_P[ME_WAVE], 4, {0, 1, 2, 3, 4, 5, 6, 7, 12, 13, 14, 15, 10, 11, 8, 9}},  /* LFO: timing, then PHAS SPRD AMT OFS */
