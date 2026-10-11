@@ -334,7 +334,9 @@ static uint32_t page_target(uint32_t c)
 {
     if (ui.view == VIEW_MIXER && ui.chan == CHAN_STRIP)
         return MOD_TCH + c;
-    if (ui.view != VIEW_PAGE || ui.kind != FOCUS_DEV || ui.drm_inst)   /* (an instrument's own knobs: none) */
+    if (ui.view == VIEW_PAGE && ui.kind == FOCUS_DEV && ui.drm_inst)   /* an instrument's own knobs (its key held) */
+        return c < NDIN ? MOD_TDIN + ((ui.drm_inst - 1u) & 15u) * NDIN + c : MOD_NTGT;
+    if (ui.view != VIEW_PAGE || ui.kind != FOCUS_DEV)
         return MOD_NTGT;
     c = pdesc_at(dev_p(sys.sel, ui.dev), c + 4u * ui.page);   /* (the page's position: the stored knob) */
     return ui.dev == DEV_SRC ? MOD_TSRC + (tp[sys.sel].src % NSRC) * NPK + c : MOD_TG(ui.dev, c);
@@ -1175,7 +1177,8 @@ static void ui_input(void)
     {                                                   /* DRUM: STEP's mode; an instrument held on the other pages */
         uint32_t w = white_keys(fm1_in.notes), m = drm_step_page() ? (uint32_t)tp[sys.sel].drm[DM_MODE] : DMODE_HITS;
         sys.drum_mode = (uint8_t)(m == DMODE_LIVE || m == DMODE_ERAS ? m : DMODE_HITS);
-        if (drm_page() && !drm_step_page() && !pad_down() && !ui.glo_held && w) {
+        if (drm_page() && !drm_step_page() && (!pad_down() || ui.drm_inst) && !ui.glo_held && w) {   /* (a key held
+                                                                        * first, then a modulator's pad: its depths) */
             for (k = 0; !((w >> k) & 1u); k++)
                 ;
             if (ui.drm_inst != k + 1u)

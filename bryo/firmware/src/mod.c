@@ -32,10 +32,13 @@
 
 #define MOD_TSRC (4u * NPK)
 #define MOD_TCH (8u * NPK)
-#define MOD_NTGT (8u * NPK + NCH)
+#define MOD_TDIN (8u * NPK + NCH)  /* DRUM's instruments: instrument i's knob k (TUNE DEC LVL TONE) is MOD_TDIN + i x
+                                   * NDIN + k (after the channel, so every target before keeps its number) */
+#define MOD_NTGT (MOD_TDIN + 16u * NDIN)
 #define MOD_TG(d, k) (((d) - 1u) * NPK + (k))   /* device d's (GRAIN..SPACE) knob k as a target */
 #define MOD_MAX 32u                  /* depths that aren't 0, per track (the main loop refuses more) */
-enum { MA_SYN = NDEV, MA_POL, MA_DRM, MA_CH, MOD_NARR };   /* the knob arrays: dev[DEV_*], then SYNTH's, POLY's, DRUM's,
+enum { MA_SYN = NDEV, MA_POL, MA_DRM, MA_CH, MA_DIN0, MOD_NARR = MA_DIN0 + 4 };   /* (MA_DIN0..3: DRUM's instruments,
+                                                                                * four to an array, NDIN knobs each) */   /* the knob arrays: dev[DEV_*], then SYNTH's, POLY's, DRUM's,
                                                              * the channel */
 
 /* ------------------------------------------------------------ depths --- */
@@ -139,8 +142,10 @@ static const pdesc_t *mod_tdesc(uint32_t g)
     else if (g < MOD_TCH)
         d = (g - MOD_TSRC) / NPK == SRC_TAPE ? &DEV_P[DEV_SRC][k] : (g - MOD_TSRC) / NPK == SRC_SYNTH ? &SYN_P[k]
           : (g - MOD_TSRC) / NPK == SRC_POLY ? &POL_P[k] : &DRM_P[k];
-    else if (g < MOD_NTGT)
+    else if (g < MOD_TDIN)
         d = &CH_P[g - MOD_TCH];
+    else if (g < MOD_NTGT)
+        d = &DRI_P[(g - MOD_TDIN) % NDIN];
     else
         return 0;
     return pdesc_empty(d) || d->names == N_REEL || d->nomod ? 0 : d;
@@ -150,6 +155,10 @@ static const pdesc_t *mod_tdesc(uint32_t g)
 static uint32_t mod_tarr(uint32_t g, uint32_t *k)
 {
     uint32_t s = (g - MOD_TSRC) / NPK;
+    if (g >= MOD_TDIN) {                               /* (an instrument: its group's array, 16 knobs) */
+        *k = (g - MOD_TDIN) % 16u;
+        return MA_DIN0 + (g - MOD_TDIN) / 16u;
+    }
     *k = g < MOD_TCH ? g % NPK : g - MOD_TCH;
     if (g < MOD_TSRC)
         return 1u + g / NPK;
@@ -161,8 +170,12 @@ static uint32_t mod_tarr(uint32_t g, uint32_t *k)
 /* knob array a of track t, as the main loop sets it */
 static int16_t *mod_base(uint32_t t, uint32_t a)
 {
-    return a < NDEV ? tp[t].dev[a] : a == MA_SYN ? tp[t].syn : a == MA_POL ? tp[t].pol : a == MA_DRM ? tp[t].drm : tp[t].ch;
+    return a < NDEV ? tp[t].dev[a] : a == MA_SYN ? tp[t].syn : a == MA_POL ? tp[t].pol : a == MA_DRM ? tp[t].drm :
+           a >= MA_DIN0 ? &tp[t].dins[4u * (a - MA_DIN0)][0] : tp[t].ch;
 }
+
+/* knob array a's length: the channel's NCH, an instrument group's 4 x NDIN, the rest NPK */
+static inline uint32_t mod_alen(uint32_t a) { return a == MA_CH ? NCH : a >= MA_DIN0 ? 4u * NDIN : NPK; }
 
 /* main loop: track t's list from its depths, published whole */
 static void mod_rebuild(uint32_t t)
@@ -778,7 +791,7 @@ static void mod_tick(uint32_t keys, uint32_t sel, const int32_t *const *last)
             if ((arrs >> a) & 1u) {
                 const int16_t *b = mod_base(t, a);
                 int16_t *d = mda[t][a];
-                for (i = 0; i < (a == MA_CH ? NCH : NPK); i++)
+                for (i = 0; i < mod_alen(a); i++)
                     d[i] = b[i];
             }
         mod_pan_r[t] = mda[t][MA_CH][CH_PAN];

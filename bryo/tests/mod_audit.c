@@ -62,7 +62,7 @@ static void setup(uint32_t g)
     sys.black_short = 1;
     sys.sel = 0;
     tp[0].dev[DEV_SRC][TK_REEL] = 2;                 /* KEYS: tonal and rhythmic */
-    tp[0].src = a == MA_SYN ? SRC_SYNTH : a == MA_POL ? SRC_POLY : a == MA_DRM ? SRC_DRUM : SRC_TAPE;
+    tp[0].src = a == MA_SYN ? SRC_SYNTH : a == MA_POL ? SRC_POLY : a == MA_DRM || a >= MA_DIN0 ? SRC_DRUM : SRC_TAPE;
     if (a == MA_DRM && k != DM_SEED)                 /* (a version for VARY, FILL and EVOL to act on) */
         tp[0].drm[DM_SEED] = 5;
     if (a == DEV_GRAIN)
@@ -134,7 +134,8 @@ int main(int argc, char **argv)
         }
         deep = d->fmt == F_ENUM || d->max - d->min <= 4;   /* (a switch needs the full swing to cross half a step) */
         if (list)
-            fprintf(list, "%u,%u,%u,%s,%d,%d,%u,%d\n", g, a, k, d->label, d->min, d->max, d->fmt, deep);
+            fprintf(list, "%u,%u,%u,%s%s%s,%d,%d,%u,%d\n", g, a, k, g >= MOD_TDIN ? DRM_KIT[(g - MOD_TDIN) / NDIN].code : "",
+                    g >= MOD_TDIN ? " " : "", d->label, d->min, d->max, d->fmt, deep);   /* (an instrument's: "SD LVL") */
         for (pass = 0; pass < (a == MA_SYN || a == MA_POL ? 2u : 1u); pass++) {
             phrase = pass == 0;
             setup(g);

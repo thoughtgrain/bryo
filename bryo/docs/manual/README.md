@@ -407,6 +407,10 @@ To clear the whole pattern: **hold black key POLY** half a second. **Hold SAVE**
 1. On PATTERN, VARY or KIT, **hold a white key**.
 2. While holding it, KNOB 1 to 4 are **that instrument's** TUNE, DEC (length), LVL and TONE. The header shows which
    one.
+3. **To modulate one of them**, keep the key held, then also hold **LFO** (or SEQ) and turn the knob: that's the
+   modulator's depth to this drum's TUNE, DEC, LVL or TONE. Hold the key first; pressed after the pad, a white key
+   jumps to a page instead. Each hit takes the value the modulator has at that moment, so an LFO on the hi-hat's LVL
+   makes the hats swell and fade, a SEQ on the snare's TUNE plays a little melody.
 
 <img src="img/drum_inst.png" width="240" alt="One instrument's own knobs">
 

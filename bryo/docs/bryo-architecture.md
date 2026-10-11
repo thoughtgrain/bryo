@@ -1217,6 +1217,16 @@ HOME and the slot pads already did; a pad that was used for a key doesn't turn i
 gesture had to move: HOME + a white key picked DRUM's instrument on its pages, and it's a page jump now like everywhere
 else; STEP's INST knob picks the instrument (it always could).
 
+**Each drum's own knobs modulate.** An instrument's TUNE DEC LVL TONE lived on a held-key page and weren't targets, so
+an LFO couldn't swell the hats or a SEQ tune the snare. They're 64 targets now (16 instruments x 4), numbered after
+the channel strip (`MOD_TDIN`), so every target before them, and every project's depths, keep their numbers; a
+project stores a depth by array and knob, and the instruments are four new knob arrays of 16 values (four
+instruments each, `MA_DIN0..3`), which fit the machinery the others use (the modulated copy, the strip, the rails).
+A hit reads its instrument's knobs from the modulated copy as it's struck, so each hit samples the modulator. The
+gesture: the drum's key held, then the modulator's pad, a knob (in that order; the pad first, a key is a page jump).
+The pool grew by 640 B (the four arrays' modulated copies). The audit (`mod_audit.sh`) runs them too: each moves its
+drum when the test pattern plays it.
+
 ## Sends: ROUT, as built (2026-10-09)
 
 GRAIN, RESONATOR and COLOR each have a WET, and until now it was always a crossfade: turning WET up turned the dry

@@ -502,7 +502,8 @@ static void drm_recover(void)
 static void drm_strike(uint32_t t, const int16_t *p, uint32_t i, uint32_t acc, uint32_t soft)
 {
     drm_rt_t *r = &drm_rt[t];
-    const int16_t *in = tp[t].dins[i];
+    const int16_t *in = TPD(t, MA_DIN0 + i / 4u) + (i % 4u) * NDIN;   /* (its own knobs as modulated now: the hit
+                                                                     * takes them as they are when it's struck) */
     dk_knobs_t k;
     uint32_t j, best = 0, cap;
     for (j = 0; j < DRM_NV; j++)                        /* what this one chokes */

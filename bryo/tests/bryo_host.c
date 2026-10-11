@@ -4994,8 +4994,9 @@ static void test_drum(void)
     fm1_in.notes = note_bit_of_white(4);                 /* an instrument held: its own knobs */
     ui_input();
     turn(2, -24);
-    check("PATTERN, the low conga held: KNOB 3 is its own LVL (-24 dB); the box names it",
-          ui.drm_inst == DI_LC + 1u && tp[0].dins[DI_LC][DIN_LVL] == -24 && page_target(2) == MOD_NTGT);
+    check("PATTERN, the low conga held: KNOB 3 is its own LVL (-24 dB), a modulation target too; the box names it",
+          ui.drm_inst == DI_LC + 1u && tp[0].dins[DI_LC][DIN_LVL] == -24 &&
+          page_target(2) == MOD_TDIN + DI_LC * NDIN + DIN_LVL);
     fm1_in.notes = 0;
     ui_input();
     check("..let go: the page's own knobs again", !ui.drm_inst && ui_page(2, (int16_t **)&p) == &DRM_P[DM_SWNG]);
@@ -5350,6 +5351,63 @@ static void test_projects(void)
           rc == 0 && tp[0].dev[DEV_SRC][TK_SUS] == 100 && tp[0].dev[DEV_SRC][TK_REL] == DEV_P[DEV_SRC][TK_REL].def);
     pj_wipe();
     power_on();
+}
+
+/* each drum's own knobs (TUNE DEC LVL TONE) are modulation targets: its key held, then a modulator's pad, a knob */
+static int32_t din_peak(void)
+{
+    uint32_t b;
+    int32_t pk = 0;
+    sys.playing = 1;
+    for (b = 0; b < 300u; b++) {
+        render(1, 0);
+        pk = peak_of(track_rt[0].last, CTL) > pk ? peak_of(track_rt[0].last, CTL) : pk;
+    }
+    sys.playing = 0;
+    render(2000, 0);
+    return pk;
+}
+static void test_drum_mod(void)
+{
+    uint32_t g = MOD_TDIN + DI_SD * NDIN + DIN_LVL;
+    int32_t plain, low;
+    power_on();
+    tp[0].src = SRC_DRUM;
+    track[1].mute = track[2].mute = track[3].mute = 1;
+    focus_dev(DEV_SRC, 2);                               /* KIT */
+    fm1_in.notes = note_bit_of_white(1);                 /* SD's key held */
+    key_edge(note_of_white(1));
+    check("KIT, SD's key held: KNOB 1-4 are SD's own, and they're targets", ui.drm_inst == DI_SD + 1u &&
+          page_target(2) == g && mod_tdesc(g) == &DRI_P[DIN_LVL]);
+    hold(B_LFO);                                         /* then the modulator's pad (no page jump: the key was first) */
+    turn(2, 50);
+    let_go(B_LFO);
+    fm1_in.notes = 0;
+    ui_input();
+    check("..then LFO held + KNOB 3: M1's depth to SD's LVL, 50 (the page stays KIT)", mod_dep(0, 0, g) == 50 &&
+          ui.page == 2u && tp[0].dins[DI_SD][DIN_LVL] == 0);
+    mod_dep_set(0, 0, g, 0);
+    mod_rebuild(0);
+
+    /* the sound: SD alone on step 1; M1 an LFO held at -1 (AMT 0, OFS -100) and a depth of 100 on SD's LVL */
+    memset(tp[0].dpat, 0, sizeof tp[0].dpat);
+    tp[0].dpat[0][0] = 1u << DI_SD;
+    plain = din_peak();
+    tp[0].mod[0][8] = 0;                                 /* M1 (LFO) AMT 0 */
+    tp[0].mod[0][9] = -100;                              /* OFS -100: its output pinned to the bottom */
+    mod_nudge(0, 0, g, 100);
+    low = din_peak();
+    check("an LFO on SD's LVL reaches the hit: pinned low, the snare much quieter (-24 dB at the bottom)",
+          plain > 1000 && low < plain / 8);
+    check("..SD's own LVL knob isn't touched (the modulated copy is what the hit reads)", tp[0].dins[DI_SD][DIN_LVL] == 0);
+    /* a project keeps it */
+    pj_wipe();
+    pj_save(0);
+    mod_dep_set(0, 0, g, 0);
+    mod_rebuild(0);
+    pj_load(0);
+    check("..a project keeps a depth on an instrument's knob", mod_dep(0, 0, g) == 100);
+    pj_wipe();
 }
 
 /* page keys: a page's pad held, the white keys show its pages (dim: there, lit: shown) and pick one */
@@ -6727,6 +6785,7 @@ int main(int argc, char **argv)
     test_projects();
     test_env_pad();
     test_page_keys();
+    test_drum_mod();
     test_tpresets();
     test_tpfactory();
     test_arp_keys();

@@ -399,6 +399,10 @@ static uint32_t pj_target(uint32_t a, uint32_t k)
     case MA_POL: return MOD_TSRC + SRC_POLY * NPK + k;
     case MA_DRM: return MOD_TSRC + SRC_DRUM * NPK + k;
     case MA_CH: return k < NCH ? MOD_TCH + k : MOD_NTGT;
+    case MA_DIN0:
+    case MA_DIN0 + 1:
+    case MA_DIN0 + 2:
+    case MA_DIN0 + 3: return k < 4u * NDIN ? MOD_TDIN + (a - MA_DIN0) * 16u + k : MOD_NTGT;   /* (an instrument's) */
     default: return MOD_NTGT;
     }
 }
