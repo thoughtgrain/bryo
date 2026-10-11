@@ -1121,6 +1121,22 @@ static void on_knob(uint32_t c, int32_t d)
     }
     if (pdesc_empty(p))                                 /* an unused knob on a page */
         return;
+    if (zoom_fine(p) && ui.home_held && ((fm1_in.buttons >> panel.btn[B_HOME]) & 1u)) {
+        /* HOME held + a loop's edge (TAPE STRT LEN, POLY STRT END): the zoom. A detent moves it a hundredth of a
+         * percent (the knob and its hidden hundredths as one number; a fast turn goes further, as KNOB says), the
+         * picture zooms to the decoded sound around the edge */
+        int16_t *fn = zoom_fine(p);
+        int32_t tot = *vp * 100 + *fn + knob_steps(c, d, 1000);
+        tot = clamp(tot, p->min * 100, p->max * 100);
+        *vp = (int16_t)(tot / 100);
+        *fn = (int16_t)(tot % 100);
+        ui.home_used = 1;
+        ui.zoom = (uint8_t)(c + 1u);
+        ui.hot = (uint8_t)c;
+        ui.hot_t = 33;
+        ui.last = (uint8_t)c;
+        return;
+    }
     v = param_nudge(p, *vp, knob_steps(c, d, p->fmt == F_ENUM ? 0 : (p->max - p->min) / param_step(p)));
     if (ui.view == VIEW_MIXER && ui.chan == CHAN_SETUP)
         setup_set(c, v);
@@ -1259,6 +1275,7 @@ static void ui_input(void)
     if (ui.home_held && !((fm1_in.buttons >> panel.btn[B_HOME]) & 1u)) {   /* HOME let go: the source's next page,
                                                                            * unless it was held for something */
         ui.home_held = 0;
+        ui.zoom = 0;
         if (!ui.home_used)
             pad_devices(DEV_SRC, DEV_SRC);
     }

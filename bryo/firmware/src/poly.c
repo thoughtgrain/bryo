@@ -39,6 +39,14 @@ static int32_t pol_inc(uint32_t t, uint32_t note)
     return (int32_t)(pitch_inc((uint32_t)n16) / (pitch_inc(48u * 16u) >> 11));   /* (C3: the sound's own) */
 }
 
+/* where a note stops in a sound len samples long: END and its hundredths, never past the sound */
+static uint32_t pol_end(uint32_t t, uint32_t len)
+{
+    const int16_t *p = TPD(t, MA_POL);
+    uint32_t e = len * (uint32_t)clamp(p[PL_END], 1, 100) / 100u + len * (uint32_t)clamp(p[PL_EFIN], 0, 99) / 10000u;
+    return e < len ? e : len;
+}
+
 static void pol_start(uint32_t t, uint32_t k, uint32_t nv, uint32_t len)
 {
     pol_t *s = &pol[t];
@@ -63,7 +71,8 @@ static void pol_start(uint32_t t, uint32_t k, uint32_t nv, uint32_t len)
         v->ic1 = v->ic2 = 0;
         v->env = 0;
     }
-    v->pos = (int32_t)(len * (uint32_t)TPD(t, MA_POL)[PL_STRT] / 100u) << 12;
+    v->pos = (int32_t)(len * (uint32_t)TPD(t, MA_POL)[PL_STRT] / 100u +   /* (STRT, and its hundredths: the zoom's) */
+                       len * (uint32_t)TPD(t, MA_POL)[PL_SFIN] / 10000u) << 12;
     v->note = (uint8_t)clamp((int32_t)key_base[t] + (int32_t)k, 0, 127);
     v->inc = pol_inc(t, v->note);
     v->key = (uint8_t)k;
@@ -103,7 +112,8 @@ static void pol_voice(uint32_t t, pol_voice_t *v, tape_rd_t *rd, const tape_view
     e15 = v->env >> 9;
     a1 = e15;
     v->inc = pol_inc(t, v->note);                           /* (TUNE as it is now) */
-    if ((uint32_t)((pos + v->inc * (int32_t)n) >> 12) >= vw->len) {   /* the sound's end: fade out, done */
+    if ((uint32_t)((pos + v->inc * (int32_t)n) >> 12) >= pol_end(t, vw->len)) {   /* END (or the sound's): fade out,
+                                                                                   * done */
         a1 = 0;
         v->stage = 0;
         v->env = 0;

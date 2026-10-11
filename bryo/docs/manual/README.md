@@ -204,8 +204,12 @@ Stopped, a key plays its slice once.
 2. The brackets on the tape close in: the loop is now half as long.
 3. Turn **KNOB 1 (STRT)** to cut the start away: the loop begins there and runs **LEN** on, stopping at the tape's
    end if LEN reaches past it (so at LEN 100 STRT simply trims the front).
+4. **Zoom in on an edge:** hold **HOME** and turn **STRT** or **LEN**. Each click now moves it a hundredth of a
+   percent, the value shows to the hundredth in orange, and the picture becomes the sound itself around that edge
+   (what plays bright, the rest dim), with its time in seconds. Let go of HOME to zoom out. Turning without HOME keeps
+   the hundredths and moves in whole percents.
 
-<img src="img/tape_loop.png" width="240" alt="A shorter loop, moved along the tape">
+<img src="img/tape_loop.png" width="240" alt="A shorter loop, moved along the tape"> <img src="img/tape_zoom.png" width="240" alt="HOME held + STRT: zoomed in on the loop's start, 0.07 %">
 
 ### 2.3 Speed, and backwards
 
@@ -406,11 +410,12 @@ Press **HOME** again to go through its five pages:
 POLY plays a reel (or the track's own tape) at the pitch of each key, up to four notes at once.
 
 1. Switch the track to **POLY** (hold HOME, turn SELECT).
-2. **KNOB 1 (REEL)** picks the sound. **STRT** moves where in it each note starts, **TUNE** shifts the pitch,
-   **VOIC** is how many notes at once.
+2. **KNOB 1 (REEL)** picks the sound. **STRT** moves where in it each note starts, **END** where it stops, **TUNE**
+   shifts the pitch. Hold **HOME** and turn STRT or END to zoom in on that edge, as on TAPE
+   ([2.2](#22-make-the-loop-shorter)). **VOIC**, how many notes at once, is on the last page with LVL.
 3. Play the white keys.
 
-<img src="img/poly.png" width="240" alt="POLY: REEL STRT TUNE VOIC">
+<img src="img/poly.png" width="240" alt="POLY: REEL STRT END TUNE"> <img src="img/poly_zoom.png" width="240" alt="HOME held + STRT: zoomed in on where notes start">
 
 Its other pages: **ENV** (ATK DEC SUS REL), **FILTER** (CUT RES TYPE ENV), **LEVEL**.
 

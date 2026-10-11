@@ -86,12 +86,17 @@ static const pdesc_t DEV_P[NDEV][NPK] = {
         /* 3: what the track plays: its own tape, a factory reel or one of your reels (in flash; REC copies it onto
          * the tape); ROTATE: where in the loop playing (and slice 1) starts against the transport; LVL: what the
          * track hears of its tape (the S-4's LEVEL, on every source's last page; REC's GAIN is what goes on) */
-        {"REEL", 0, NREEL + USLOT_N, 0, F_ENUM, N_REEL}, {"ROTA", 0, 99, 0, F_PCT}, {"LVL", -24, 6, 0, F_DB}, {""},
+        {"REEL", 0, NREEL + USLOT_N, 0, F_ENUM, N_REEL}, {"ROTA", 0, 99, 0, F_PCT}, {"LVL", -24, 6, 0, F_DB},
+        {"SFIN", 0, 99, 0, F_NUM, 0, 1},   /* (on no page: STRT's hundredths, below) */
         /* the envelope of a slice the keys play (ENV opens it, page 2): stopped, the slice through ATK DEC SUS while
          * the key's held and REL after; playing, a key's jump fades in over ATK (the loop itself isn't gated). The
          * defaults change nothing: REL long enough that a tapped slice plays to its end */
         {"ATK", 0, 127, 0, F_TIME}, {"DEC", 0, 127, 60, F_TIME}, {"SUS", 0, 100, 100, F_PCT},
-        {"REL", 0, 127, 127, F_TIME}},
+        {"REL", 0, 127, 127, F_TIME},
+        /* (on no page; with SFIN at 11) LEN's hundredths of a percent, as STRT's: HOME held + STRT or LEN turns them
+         * (the zoom), so a loop's edge lands to the sample on a long tape. 0 in a file from before them: as it was.
+         * Not targets */
+        {"LFIN", 0, 99, 0, F_NUM, 0, 1}},
     {   /* GRAIN (the S-4's MOSAIC) */
         {"SIZE", 5, 500, 80, F_MS}, {"RATE", 0, 100, 40, F_PCT},
         {"PTCH", -24, 24, 0, F_ST}, {"SPRD", 0, 100, 30, F_PCT},
@@ -189,7 +194,8 @@ static const pdesc_t SYN_P[NPK] = {
 /* POLY (poly.c): a sound played at the keys' pitches, up to four at once, each through its own envelope and filter.
  * The sound is any reel choice: a factory reel, one of yours, or this track's own tape (record into it, then play it
  * across the keys). White key 1 at OCT 3 plays it as it was recorded. */
-enum { PL_REEL, PL_STRT, PL_TUNE, PL_VOIC, PL_ATK, PL_DEC, PL_SUS, PL_REL, PL_CUT, PL_RES, PL_TYPE, PL_ENV, PL_LVL };
+enum { PL_REEL, PL_STRT, PL_TUNE, PL_VOIC, PL_ATK, PL_DEC, PL_SUS, PL_REL, PL_CUT, PL_RES, PL_TYPE, PL_ENV, PL_LVL,
+       PL_END, PL_SFIN, PL_EFIN };
 #define POL_NV 4u                /* voices per track */
 static const pdesc_t POL_P[NPK] = {
     /* SAMPLE: which sound, where in it a note starts, the tuning, how many notes at once */
@@ -200,8 +206,11 @@ static const pdesc_t POL_P[NPK] = {
     /* FILTER: each voice's state-variable filter, and how far its envelope moves the cutoff */
     {"CUT", 0, 127, 127, F_HZ}, {"RES", 0, 100, 0, F_PCT}, {"TYPE", 0, 2, 0, F_ENUM, N_SLOP},
     {"ENV", -100, 100, 0, F_BIPCT},
-    /* LEVEL: what the track hears of POLY's voices */
-    {"LVL", -24, 6, 0, F_DB}, {""}, {""}, {""}};
+    /* LEVEL: what the track hears of POLY's voices; END: where in the sound a note stops (page 1, after STRT) */
+    {"LVL", -24, 6, 0, F_DB}, {"END", 1, 100, 100, F_PCT},
+    /* (on no page) STRT's and END's hundredths of a percent: HOME held + STRT or END turns them (the zoom). Not
+     * targets */
+    {"SFIN", 0, 99, 0, F_NUM, 0, 1}, {"EFIN", 0, 99, 0, F_NUM, 0, 1}};
 
 /* DRUM (drum.c): a drum machine. Sixteen synthesized instruments on the white keys, played from a pattern of 2..4
  * bars of sixteenths. Four pages: the PATTERN (a written rhythm to start from, its length, swing, how hard an
@@ -370,7 +379,7 @@ typedef struct {
     uint8_t at[NPK];
 } playout_t;
 static const playout_t PLAYOUT[] = {
-    {DEV_P[DEV_SRC], 4, {0, 1, 2, 3, 12, 13, 14, 15, 4, 5, 6, 7, 8, 9, 11, 10}},   /* TAPE: the envelope second (as
+    {DEV_P[DEV_SRC], 4, {0, 1, 2, 3, 12, 13, 14, 15, 4, 5, 6, 7, 8, 9, 17, 10}},   /* TAPE: the envelope second (as
                                                                                      * SYNTH's, POLY's), REEL ROTA . LVL */
     /* the effects open with their mix: ROUT and WET KNOB 3-4 of page 1 (SPACE: DLY and VERB, its sends), so the
      * first press of EDIT or FX can bring one in; the sound's knobs follow (2026-10-11) */
@@ -386,7 +395,8 @@ static const playout_t PLAYOUT[] = {
                                                                                  * DEC PRE, TONE SPRD RTON QUAL (2-3
                                                                                  * and 8-11: the room's, SP_RMK) */
     {SYN_P, 5, {0, 1, 2, 3, 8, 9, 10, 11, 4, 5, 6, 7, 12, 13, 14, 15, 17, 18, 19, 16}},   /* OSC AMP FILTER VOICE, LVL */
-    {POL_P, 4, {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 12}},         /* POLY: . . . LVL */
+    {POL_P, 4, {0, 1, 13, 2, 4, 5, 6, 7, 8, 9, 10, 11, 3, 16, 17, 12}},         /* POLY: REEL STRT END TUNE, ..., VOIC
+                                                                                 * . . LVL (14-15: the zoom's) */
     {ME_P[ME_WAVE], 4, {0, 1, 2, 3, 4, 5, 6, 7, 12, 13, 14, 15, 10, 11, 8, 9}},  /* LFO: timing, then PHAS SPRD AMT OFS */
     {ME_P[ME_SEQ], 3, {0, 1, 2, 3, 4, 5, 6, 7, 11, 8, 9, 10}},                  /* SEQ: . SPRD AMT OFS */
     {ME_P[ME_FOLLOW], 2, {0, 1, 2, 3, 4, 7, 5, 6}},                             /* FOLLOW: HOLD SPRD AMT OFS */

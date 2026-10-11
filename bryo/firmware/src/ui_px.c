@@ -1016,7 +1016,7 @@ static const uint8_t POL_PK[NPK] = {
     PK_SRC, PK_START, PK_KNOB, PK_VOICES,            /* POLY: REEL STRT TUNE VOIC */
     PK_ATTACK, PK_DECAY, PK_SUSTAIN, PK_RELEASE,     /*       ATK DEC SUS REL */
     PK_CUTOFF, PK_RES, PK_SLOPE, PK_ENVAMT,          /*       CUT RES TYPE ENV */
-    PK_FADER};                                       /*       LVL */
+    PK_FADER, PK_LENGTH};                            /*       LVL END */
 static const uint8_t DRM_PK[NPK] = {
     PK_PATTERN, PK_LENGTH, PK_SWING, PK_FADER,       /* DRUM: PATN LEN SWNG ACNT */
     PK_DOTS, PK_VAR, PK_STAIRS, PK_LOOP,             /*       SEED VARY FILL EVOL */

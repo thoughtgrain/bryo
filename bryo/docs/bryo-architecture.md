@@ -1770,6 +1770,33 @@ lets go by itself and the take loops once every 4 s; saved into a reel it's stil
 playing at 130 it waits for the downbeat, then one bar is 40,707 samples. Each fails its mutant (no trim, no wait for
 the downbeat, the reel dropping the trim, REC never letting go).
 
+**The zoom on a loop's edges, and POLY's END.** STRT and LEN are whole percents, which on a 20 s tape is 200 ms a
+step: no way to set a loop's start on a hit. Changing their units would have broken every saved preset (track
+presets carry no version, and their records are copied forward unparsed), so each edge gets its hundredths in a
+knob of its own on no page: TAPE's SFIN at stored place 11 (empty until now) and LFIN at 16, POLY's SFIN and EFIN at
+14-15, `nomod`, 0 in every older file (as it was). `tape_window` and POLY's start and `pol_end` add them, in two
+parts (len x % / 100 + len x hundredths / 10,000: the whole product would pass 32 bits on a long tape).
+
+HOME held + STRT or LEN (POLY: STRT or END) is the zoom (`zoom_fine`, ui.c; `ui.zoom`): the knob and its hundredths
+turn as one number, a hundredth a click (a fast turn further, as KNOB says), the strip shows "12.34" in orange, and
+the picture (`vz_zoom`) is the sound itself around the edge, decoded (each column the lowest and highest sample
+under it), half a percent either way (23 to 370 ms), what plays bright and the rest dim, the edge's time under it.
+HOME's let-go doesn't turn the page after a zoom; turning without HOME moves whole percents and keeps the
+hundredths. The footer says KEYS:PAGES KNOB:ZOOM while HOME is held there.
+
+POLY had no end: **END** (1-100 %, default 100) joins page 1 after STRT, and VOIC moves to the last page beside LVL
+(layout only: stored places unchanged but for the new ones). A note stops at END as at the sound's end, with the
+same fade. The picture lights the sound from STRT to END.
+
+The cost is project space: the biggest project there can be went from 3,748 to 3,816 bytes of the sector's 3,840
+(the hundredths are stored per track; POLY's END too). There are 24 bytes left; the next knobs that grow a track's
+arrays need room found first.
+
+Tested: 7 clicks with HOME held put the loop's start at 0.07 % to the sample; LEN 99.97 %; HOME's let-go ends the
+zoom without turning the page; whole-percent turns keep the hundredths; zoomed past 0 holds at 0.00; END 25 stops a
+held note at 0.580 s of a 2.32 s sound; POLY's zoom on END and STRT. Each fails its mutant (the window without the
+hundredths, END ignored, no zoom).
+
 ## Sends: ROUT, as built (2026-10-09)
 
 GRAIN, RESONATOR and COLOR each have a WET, and until now it was always a crossfade: turning WET up turned the dry

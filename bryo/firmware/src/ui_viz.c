@@ -98,10 +98,63 @@ static void vz_poly(const int32_t *xs, const int32_t *ys, int32_t n, uint16_t c,
         px_line(xs[k - 1], ys[k - 1], xs[k], ys[k], c, step);
 }
 
+/* -------------------------------------------------------------- ZOOM --- */
+/* The zoom (HOME held + a loop's edge: TAPE STRT LEN, POLY STRT END): the sound itself around the edge at e (tape
+ * samples), decoded, each dot column the lowest and highest sample under it; what plays lit (right of a start,
+ * left of an end: right), the rest dim; the edge a line in orange. The window is half a percent of the sound either
+ * way, at least 23 ms (512 samples) and at most 370 ms, so a detent (a hundredth of a percent) moves the line a
+ * dot or so on any length. Under it: the edge's name and time, and the window's half width. */
+static void vz_zoom(const tape_view_t *tv, int32_t e, int right, const char *name)
+{
+    static tape_rd_t rd;
+    int32_t w = clamp((int32_t)tv->len / 200, 512, 8192), x, mid = DMID, amp = DH / 2 - 1, cx = DX0 + DW / 2;
+    char b[24];
+    rd.ok = 0;
+    px_line(DX0, mid, DX1, mid, px_dim, 2);
+    for (x = DX0; x <= DX1; x++) {
+        int32_t s0 = e - w + (x - DX0) * 2 * w / DW, s1 = e - w + (x + 1 - DX0) * 2 * w / DW, s, lo = 0, hi = 0;
+        int in = right ? x >= cx : x < cx;
+        for (s = s0; s < s1 || s == s0; s++) {
+            int32_t y = s >= 0 && (uint32_t)s < tv->len ? tape_at(tv, &rd, s) : 0;
+            lo = y < lo ? y : lo;
+            hi = y > hi ? y : hi;
+        }
+        px_box(x, mid - hi * amp / 32768, 1, (hi - lo) * amp / 32768 + 1, in ? px_ink : px_dim);
+    }
+    px_line(cx, DY0, cx, DY1, px_live, 1);                             /* the edge */
+    px_box(cx - 2, DY0, 5, 1, px_live);
+    px_box(cx - 1, DY0 + 1, 3, 1, px_live);
+    str_cpy(b, name, sizeof b);                                        /* "IN 1.234 S" */
+    str_cpy(b + str_len(b), " ", 2);
+    fmt_int(b + str_len(b), e / TAPE_SR);
+    str_cpy(b + str_len(b), ".", 2);
+    {
+        int32_t ms = e % TAPE_SR * 1000 / TAPE_SR;
+        char d3[4] = {(char)('0' + ms / 100), (char)('0' + ms / 10 % 10), (char)('0' + ms % 10), 0};
+        str_cpy(b + str_len(b), d3, 4);
+    }
+    str_cpy(b + str_len(b), " S", 3);
+    px_tag(1, DLBL - 1, PXF_3, b, px_ink, px_bg);
+    str_cpy(b, "+-", sizeof b);
+    fmt_int(b + 2, w * 1000 / TAPE_SR);
+    str_cpy(b + str_len(b), " MS", 4);
+    px_text(118 - px_text_w(PXF_3, b), DLBL, PXF_3, b, px_dim);
+}
+
 /* -------------------------------------------------------------- TAPE --- */
 static void viz_adsr(const int16_t *v, uint32_t f);
 static void viz_tape(const int16_t *v, uint32_t f)
 {
+    if (ui.zoom && (f == TK_STRT || f == TK_LEN)) {   /* HOME held + STRT or LEN: the zoom on that edge */
+        tape_view_t tv;
+        int32_t ls, ll;
+        tape_view(sys.sel, &tv);
+        if (tv.len) {
+            tape_window(sys.sel, tv.len, &ls, &ll);
+            vz_zoom(&tv, f == TK_STRT ? ls : ls + ll, f == TK_STRT, f == TK_STRT ? "IN" : "OUT");
+            return;
+        }
+    }
     if (pdesc_at(DEV_P[DEV_SRC], 4u * ui.page) / 4u == 3u) {   /* the envelope's page: the envelope, as SYNTH's */
         int16_t a[NPK] = {0};
         a[0] = v[TK_ATK];
@@ -985,23 +1038,40 @@ static void viz_synth(const int16_t *v, uint32_t f)
 }
 
 /* -------------------------------------------------------------- POLY --- */
-/* SAMPLE: the sound (its blocks' peaks; named), lit from STRT on, where every note starts; the keys' range under it
- * (OCT, TUNE) and how fast the top and bottom keys read it; the voices as boxes. ENV: the envelope, as SYNTH's.
+/* SAMPLE: the sound (its blocks' peaks; named), lit from STRT, where every note starts, to END, where it stops; the
+ * keys' range under it (OCT, TUNE) and how fast the top and bottom keys read it; the voices as boxes. ENV: the envelope, as SYNTH's.
  * FILTER: the response, its TYPE, dotted where ENV takes it */
 static void viz_poly(const int16_t *v, uint32_t f)
 {
     uint32_t bp = pdesc_at(POL_P, 4u * ui.page) / 4u;   /* the stored block the page shows */
     static const char NOTE[12][3] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
     int32_t x, k;
+    if (bp == 0u && ui.zoom && (f == PL_STRT || f == PL_END)) {   /* HOME held + STRT or END: the zoom on that edge */
+        tape_view_t vw;
+        tape_view_of(sys.sel, (uint32_t)clamp(v[PL_REEL], 0, (int32_t)(NREEL + USLOT_N)), &vw);
+        if (vw.len) {
+            int32_t e = f == PL_STRT ? (int32_t)(vw.len * (uint32_t)v[PL_STRT] / 100u +
+                                                 vw.len * (uint32_t)v[PL_SFIN] / 10000u)
+                                     : (int32_t)pol_end(sys.sel, vw.len);
+            vz_zoom(&vw, e, f == PL_STRT, f == PL_STRT ? "STRT" : "END");
+            return;
+        }
+    }
     if (bp == 0u) {
         tape_view_t vw;
-        int32_t sx = DX0 + v[PL_STRT] * DW / 100, mid = 11, lo, hi, nv = v[PL_VOIC];
+        int32_t sx = DX0 + (v[PL_STRT] * 100 + v[PL_SFIN]) * DW / 10000, mid = 11, lo, hi, nv = v[PL_VOIC];
+        int32_t ex = DX0 + (v[PL_END] * 100 + v[PL_EFIN]) * DW / 10000;
         char b[24];
         tape_view_of(sys.sel, (uint32_t)clamp(v[PL_REEL], 0, (int32_t)(NREEL + USLOT_N)), &vw);
         for (x = DX0; x <= DX1; x++) {                                 /* the sound */
             uint32_t blk = vw.len ? (uint32_t)(x - DX0) * (vw.len / TAPE_BLK) / (uint32_t)(DW + 1) : 0;
             int32_t a = vw.len ? (int32_t)tv_peak(&vw, blk) * 9 / 255 : 0;
-            px_box(x, mid - a, 1, 2 * a + 1, x >= sx ? px_ink : px_dim);
+            px_box(x, mid - a, 1, 2 * a + 1, x >= sx && x <= ex ? px_ink : px_dim);
+        }
+        if (ex < DX1) {                                                /* END: where every note stops */
+            px_box(ex, DY0, 1, 22, px_ink);
+            for (k = 0; k < 3; k++)
+                px_box(ex - 2 + k, DY0 + 21 - k, 5 - 2 * k, 1, px_ink);
         }
         if (!vw.len)
             px_text_c(0, 120, mid - 2, PXF_3, "EMPTY", px_ink);
@@ -1024,7 +1094,8 @@ static void viz_poly(const int16_t *v, uint32_t f)
         vz_label(DX0 + 14, tape_name_of(sys.sel, (uint32_t)clamp(v[PL_REEL], 0, (int32_t)(NREEL + USLOT_N))), f == 0u);
         if (sx > DX0 + 34 || f == 1u)                                  /* (clear of the name, unless just turned) */
             vz_label(clamp(sx, DX0 + 14, DX1 - 30), "STRT", f == 1u);
-        vz_label(DX1 - 18, "VOIC", f == 3u);
+        if (ex < DX1 - 10 || f == PL_END)
+            vz_label(clamp(ex, DX0 + 30, DX1 - 8), "END", f == PL_END);
         if (f == 2u)
             vz_ktag(78, DLBL - 1, &POL_P[PL_TUNE], v[PL_TUNE]);
     } else if (bp == 1u) {
@@ -2220,7 +2291,7 @@ static uint32_t viz_sig(void)
         const int16_t *v = ui.kind == FOCUS_SLOT ? tp[sys.sel].mod[ui.slot] : dev_v(sys.sel, ui.dev);
         h = (h ^ (uint32_t)(v[k] + 32768)) * 16777619u;
     }
-    h += ui.page * 389u;
+    h += ui.page * 389u + ui.zoom * 7349u;
     if (ui.kind == FOCUS_SLOT && tp[sys.sel].engine[ui.slot] == ME_SEQ)   /* SEQ draws its step values (and the one
                                                                          * playing) */
         h = (h ^ (uint32_t)(sys.playing ? mod_seq_now(sys.sel, ui.slot) + 2 : 0)) * 16777619u;

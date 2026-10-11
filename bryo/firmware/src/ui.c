@@ -85,6 +85,8 @@ static struct {
     uint32_t catch_t;
     uint16_t steps_held;             /* a SEQ page: the white keys held, the steps KNOB 1 sets */
     uint8_t zero_held;               /* the 0 key down: let go before HOLD, a tap (the freeze latches or lets go) */
+    uint8_t zoom;                    /* HOME held and a loop's edge turned with it (STRT LEN, POLY STRT END): its knob
+                                      * + 1; 0 when not zooming (HOME let go) */
     uint8_t rec_turned;              /* .. SELECT turned while REC was down (a take's bars: no arm, no USB mode) */
     uint8_t rec_held, rec_said;      /* REC down (stopped: its arm waits for the let-go; held a second: USB record),
                                       * and the hint shown */
@@ -189,6 +191,22 @@ static const pdesc_t *ui_page(uint32_t k, int16_t **vp)
     *vp = ui.dev == DEV_SPACE ? sp_knob(sys.sel, k)    /* (SPACE: its room's knobs, the room's) */
         : &dev_v(sys.sel, ui.dev)[k];                  /* (the source: the chosen source's knobs) */
     return &dev_p(sys.sel, ui.dev)[k];
+}
+
+/* the zoom (HOME held + STRT or LEN on TAPE, STRT or END on POLY): the hundredths of a percent knob p's turn moves,
+ * or 0 when p isn't a loop's edge */
+static int16_t *zoom_fine(const pdesc_t *p)
+{
+    track_params_t *P = &tp[sys.sel];
+    if (p == &DEV_P[DEV_SRC][TK_STRT])
+        return &P->dev[DEV_SRC][TK_SFIN];
+    if (p == &DEV_P[DEV_SRC][TK_LEN])
+        return &P->dev[DEV_SRC][TK_LFIN];
+    if (p == &POL_P[PL_STRT])
+        return &P->pol[PL_SFIN];
+    if (p == &POL_P[PL_END])
+        return &P->pol[PL_EFIN];
+    return 0;
 }
 
 static uint32_t hash_str(uint32_t h, const char *s)
@@ -473,7 +491,13 @@ static void draw_strip(void)
             sig = (sig ^ (uint32_t)(mod_any(sys.sel, page_target(k)) |
                                     (ui.slot_held < NSLOT ? (mod_dep(sys.sel, ui.slot_held, page_target(k)) + 256) << 1 : 0))) * 16777619u;
     }
-    sig += ui.slot_held * 2909u + ui.drm_inst * 6151u;
+    sig += ui.slot_held * 2909u + ui.drm_inst * 6151u + ui.zoom * 50331653u;
+    for (k = 0; ui.zoom && k < 4u; k++) {               /* (zooming: the hundredths) */
+        int16_t *vp;
+        const pdesc_t *d = ui_page(k, &vp);
+        if (zoom_fine(d))
+            sig = (sig ^ (uint32_t)*zoom_fine(d)) * 16777619u;
+    }
     sig += (ui.last < 4u ? ui.last + 1u : 0u) * 7919u + sys.ntrk * 15485863u + sys.sel * 104729u + ui.view * 31u + ui.page * 263u + ui.chan * 5u + ui.kind * 131u +
            ui.dev * 1031u + (ui.kind == FOCUS_SLOT ? tp[sys.sel].engine[ui.slot] * 65537u : tp[sys.sel].src * 3571u);
     if (!ui.force && sig == ui.sig_strip)
@@ -536,11 +560,17 @@ static void draw_strip(void)
             static const char *const DIV[16] = {"16BR", "8BR", "4BR", "3BR", "2BR", "6/4", "1BR", "3/4", "1/2",
                                                 "3/8", "1/4", "3/16", "1/8", "1/8T", "1/16", "1/32"};
             str_cpy(val, DIV[clamp(v, 0, 127) >> 3], sizeof val);
+        } else if (ui.zoom == k + 1u && zoom_fine(d) && v < 100) {   /* the zoom: to the hundredth, "12.34" */
+            int16_t fn = *zoom_fine(d);
+            char h[3] = {(char)('0' + fn / 10), (char)('0' + fn % 10), 0};
+            fmt_int(val, v);
+            str_cpy(val + str_len(val), ".", 2);
+            str_cpy(val + str_len(val), h, 3);
         } else {
             param_format(d, v, val, &unit);
             str_cpy(val + str_len(val), unit, 4);      /* "-140%", "250MS": at most 5, 29 dots */
         }
-        px_text_c(x, 30, 37, PXF_5, val, px_ink);
+        px_text_c(x, 30, 37, PXF_5, val, ui.zoom == k + 1u ? px_live : px_ink);   /* (zooming: the edge's value) */
     }
     rails_draw(RAIL_Y);                                /* (what modulation does to each knob: draw_rails) */
     ui.sig_rail = rails_sig();
@@ -560,7 +590,10 @@ static void draw_foot(void)
     else if (ui.scl_held)                             /* SCL held: what a knob and the page's pad do */
         str_cpy(a, "KNOB:DEFAULT PAD:PAGE", sizeof a);
     else if (ui.pg_pad < NB && ((fm1_in.buttons >> panel.btn[ui.pg_pad]) & 1u) && ui.slot_held >= NSLOT)
-        str_cpy(a, "KEYS: ITS PAGES", sizeof a);      /* a page's pad held: the white keys pick its pages */
+        str_cpy(a, ui.pg_pad == B_HOME && ui.kind == FOCUS_DEV && ui.dev == DEV_SRC &&
+                   (tp[sys.sel].src == SRC_TAPE || tp[sys.sel].src == SRC_POLY) && ui.page == 0u
+                   ? "KEYS:PAGES KNOB:ZOOM" : "KEYS: ITS PAGES", sizeof a);   /* a page's pad held: the keys
+                                                       * pick its pages (HOME on TAPE's or POLY's first: the zoom) */
     else if (ui.slot_held < NSLOT)                    /* a slot's pad held: what it does (the LFO pad: OP1-3 pick
                                                        * its slot; the SEQ's engine stays) */
         str_cpy(a, ui.slot_btn == B_LFO ? "KNOB:DEPTH OP1-3:M1-3" : ui.slot_held == SLOT_SEQ ? "KNOB:DEPTH"

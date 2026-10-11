@@ -48,8 +48,8 @@
 #define TAPE_DECLICK 88              /* the shortest fade (a jump, start and stop): 2 ms at 44.1 kHz */
 
 /* the knobs (param.c DEV_P[DEV_SRC]) */
-enum { TK_STRT, TK_LEN, TK_SPD, TK_DUB, TK_FADE, TK_REV, TK_HALF, TK_GAIN, TK_REEL, TK_ROTA, TK_LVL, TK_ATK = 12, TK_DEC,
-       TK_SUS, TK_REL };
+enum { TK_STRT, TK_LEN, TK_SPD, TK_DUB, TK_FADE, TK_REV, TK_HALF, TK_GAIN, TK_REEL, TK_ROTA, TK_LVL, TK_SFIN, TK_ATK,
+       TK_DEC, TK_SUS, TK_REL, TK_LFIN };
 
 typedef struct {                     /* a reel in flash (bryo_reels.h REELS_INIT) */
     const char *name;
@@ -272,7 +272,9 @@ static void tape_view(uint32_t t, tape_view_t *v) { tape_view_of(t, tape_src(t),
 static void tape_window(uint32_t t, uint32_t len, int32_t *ls, int32_t *ll)
 {
     const int16_t *k = TPD(t, DEV_SRC);
-    int32_t s = (int32_t)len * k[TK_STRT] / 100, l = (int32_t)len * k[TK_LEN] / 100;
+    int32_t s = (int32_t)len * k[TK_STRT] / 100 + (int32_t)len * k[TK_SFIN] / 10000;   /* (in two parts: the whole
+                                                         * product would pass 32 bits on a long tape) */
+    int32_t l = (int32_t)len * k[TK_LEN] / 100 + (int32_t)len * k[TK_LFIN] / 10000;
     if (s + l > (int32_t)len)
         l = (int32_t)len - s;
     if (l < (int32_t)TAPE_BLK)
@@ -670,6 +672,7 @@ static void tape_init(void)
 {
     uint32_t t;
     mem_init();
+    tape_bars_done = 0;
     for (t = 0; t < NTRK; t++) {
         tape_rt[t].wlast = -1;
         tape_rt[t].stop_left = 0;

@@ -2520,6 +2520,84 @@ static void test_bar_record(void)
     power_on();
 }
 
+/* the zoom: HOME held + a loop's edge moves it a hundredth of a percent, and the picture zooms to it; POLY's END */
+static void test_zoom(void)
+{
+    tape_view_t v;
+    int32_t ls, ll, lsb, llb;
+    uint32_t i;
+    power_on();
+    focus_dev(DEV_SRC, 0);                               /* T1's TAPE, page 1 */
+    tape_view(0, &v);
+    tape_window(0, v.len, &lsb, &llb);
+    hold(B_HOME);
+    turn(0, 7);
+    tape_window(0, v.len, &ls, &ll);
+    check("HOME held + STRT 7 detents: 0.07 % (STRT 0, its hundredths 7), the loop starts there to the sample",
+          tp[0].dev[DEV_SRC][TK_STRT] == 0 && tp[0].dev[DEV_SRC][TK_SFIN] == 7 && ls == (int32_t)v.len * 7 / 10000 &&
+          ui.zoom == 1u);
+    ui.msg_t = 0;
+    ui_draw();
+    shot_screen("BRYO", "tape_zoom");
+    turn(1, -3);
+    tape_window(0, v.len, &ls, &ll);
+    check("..LEN 3 detents back from 100: 99.97 % (LEN 99 and 97 hundredths; from 0.07 % that's past the end, so the "
+          "loop runs to it)", tp[0].dev[DEV_SRC][TK_LEN] == 99 && tp[0].dev[DEV_SRC][TK_LFIN] == 97 &&
+          ls + ll == (int32_t)v.len);
+    turn(0, -7);
+    tape_window(0, v.len, &ls, &ll);
+    check("..STRT back to 0: the loop is 99.97 % long, to the sample", ls == 0 &&
+          ll == (int32_t)v.len * 99 / 100 + (int32_t)v.len * 97 / 10000);
+    turn(0, 7);
+    let_go(B_HOME);
+    check("..HOME let go: the zoom ends, and the page stays (it was held for the zoom)", ui.zoom == 0u &&
+          ui.view == VIEW_PAGE && ui.page == 0u && ui.dev == DEV_SRC);
+    turn(0, 2);
+    check("..STRT turned alone: whole percents, its hundredths kept (2.07 %)", tp[0].dev[DEV_SRC][TK_STRT] == 2 &&
+          tp[0].dev[DEV_SRC][TK_SFIN] == 7);
+    hold(B_HOME);
+    turn(0, -300);
+    let_go(B_HOME);
+    check("..zoomed back past 0: held at 0.00", tp[0].dev[DEV_SRC][TK_STRT] == 0 && tp[0].dev[DEV_SRC][TK_SFIN] == 0);
+    (void)lsb;
+    (void)llb;
+
+    power_on();                                          /* POLY's END: where every note stops */
+    make_sine_reel(0, 440.0, 200);
+    tp[0].src = SRC_POLY;
+    tp[0].pol[PL_REEL] = (int16_t)(NREEL + 1u);
+    tp[0].pol[PL_ATK] = 0;
+    tp[0].pol[PL_SUS] = 100;
+    tp[0].pol[PL_END] = 25;                              /* a quarter of 2.3 s: 0.58 s at the sound's pitch */
+    focus_dev(DEV_SRC, 0);
+    check("POLY's first page: REEL STRT END TUNE", !strcmp(POL_P[pdesc_at(POL_P, 2u)].label, "END") &&
+          !strcmp(POL_P[pdesc_at(POL_P, 3u)].label, "TUNE") && !strcmp(POL_P[pdesc_at(POL_P, 12u)].label, "VOIC"));
+    fm1_in.notes = note_bit_of_white(0);
+    render(1, 0);
+    for (i = 1; i < 1378u && pol_sounding(0); i++)
+        render(1, 0);
+    fm1_in.notes = 0;
+    render(4, 0);
+    {
+        char b[120];
+        double t = i * CTL / 44100.0;
+        snprintf(b, sizeof b, "END 25: a held note stops by itself at a quarter of the sound (%.3f s, 0.580)", t);
+        check(b, fabs(t - 0.580) < 0.01);
+    }
+    hold(B_HOME);
+    turn(2, -10);                                        /* (page 1 KNOB 3: END) */
+    let_go(B_HOME);
+    check("..HOME held + END: hundredths (24.90 %)", tp[0].pol[PL_END] == 24 && tp[0].pol[PL_EFIN] == 90);
+    hold(B_HOME);
+    turn(1, 5);
+    ui.msg_t = 0;
+    ui_draw();
+    shot_screen("BRYO", "poly_zoom");
+    let_go(B_HOME);
+    check("..and STRT: 0.05 %", tp[0].pol[PL_STRT] == 0 && tp[0].pol[PL_SFIN] == 5);
+    power_on();
+}
+
 /* resting: a device whose input is digital silence and whose tail has gone does none of its work, and wakes on the
  * next sound as it was. From playing it (2026-10-11): half the CPU with nothing playing, and muting tracks saved
  * nothing. Also, in integers SPACE's room and the channel's FILT cycled at -66 and -55 dB for good: that's gone */
@@ -5516,7 +5594,9 @@ static void test_mod(void)
     {
         static const struct { const pdesc_t *p; const char *a, *b; uint32_t away; const char *f3, *f4; } R[] = {
             /* (a b: KNOB 3-4 of the last page; f3 f4: of the first; away: knobs another pad's page shows) */
-            {DEV_P[DEV_SRC], 0, "LVL"}, {SYN_P, 0, "LVL"}, {POL_P, 0, "LVL"}, {DRM_P, 0, "LVL"},
+            {DEV_P[DEV_SRC], 0, "LVL", 0x10800u}, {SYN_P, 0, "LVL"}, {POL_P, 0, "LVL", 0xC000u},   /* (the zoom's
+                                                         * hundredths, on no page: TAPE 11 16, POLY 14 15) */
+            {DRM_P, 0, "LVL"},
             {DEV_P[DEV_COLOR], 0, "LVL", 0, "ROUT", "WET"}, {DEV_P[DEV_GRAIN], 0, 0, 0, "ROUT", "WET"},
             {DEV_P[DEV_RESO], 0, 0, 0xF000u, "ROUT", "WET"},   /* (12-15: RES ARP, the ARP pad's page 3) */
             {ME_P[ME_WAVE], "AMT", "OFS"}, {ME_P[ME_ADSR], "AMT", "OFS"}, {ME_P[ME_SEQ], "AMT", "OFS"},
@@ -8408,6 +8488,7 @@ int main(int argc, char **argv)
     test_settle();
     test_resting();
     test_bar_record();
+    test_zoom();
     test_grain_clicks();
     test_reso();
     test_color();
