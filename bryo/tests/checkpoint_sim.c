@@ -251,7 +251,11 @@ static double run(int n, char *say, size_t sz)
         play(6);
         for (t = 0; t < NTRK; t++) {
             nsp += mem_count(MEM_SPACE + t);
-            n8 += space[t].dly.bits8 + space[t].pre.bits8;
+            n8 += space[t].dly.bits8;
+        }
+        for (t = 0; t < NROOM; t++) {                    /* (the shared rooms) */
+            nsp += mem_count(MEM_ROOM + t);
+            n8 += room[t].pre.bits8;
         }
         snprintf(say, sz, "%s: SPACE %u chunks (%u lines 8-bit), %u grains, %u strings, %.1f s free",
                  n == 13 ? "COLOR on all four (DRV 60, CRSH 40 BOTH, NOIS 30, TILT 30)" :
@@ -389,7 +393,7 @@ static double run(int n, char *say, size_t sz)
         tp[0].dev[DEV_GRAIN][GP_RATE] = 70;
         tp[0].dev[DEV_GRAIN][GP_SIZE] = 300;
         tp[0].dev[DEV_SPACE][SP_VERB] = 70;
-        tp[0].dev[DEV_SPACE][SP_DEC] = 80;
+        rmp[0][RM_DEC] = 80;                             /* (room A: both tracks send to it) */
         tp[0].dev[DEV_SPACE][SP_DLY] = 30;
         tp[1].dev[DEV_RESO][RP_WET] = 50;                /* T2: a reel through the strings, in the room */
         tp[1].dev[DEV_SPACE][SP_VERB] = 50;
@@ -585,10 +589,12 @@ static uint32_t books(void)
             SEE(reso[t].map[k], MEM_RESO + t, "a string");
         for (k = 0; k < space[t].dly.nch; k++)
             SEE(space[t].dly.map[k], MEM_SPACE + t, "the delay's line");
-        for (k = 0; k < space[t].pre.nch; k++)
-            SEE(space[t].pre.map[k], MEM_SPACE + t, "the pre-delay's line");
-        for (k = 0; k < space[t].rev.nch; k++)
-            SEE(space[t].rev.map[k], MEM_SPACE + t, "the room");
+        if (t < NROOM) {                                 /* (the shared rooms, A and B) */
+            for (k = 0; k < room[t].pre.nch; k++)
+                SEE(room[t].pre.map[k], MEM_ROOM + t, "a room's pre-delay line");
+            for (k = 0; k < room[t].rev.nch; k++)
+                SEE(room[t].rev.map[k], MEM_ROOM + t, "a room");
+        }
         if (tape_ctl[t].nblk > tape_ctl[t].nch * MEM_CB && !tape_ctl[t].empty)
             if (bad++ < 8)
                 printf("checkpoint: track %u's tape longer (%u blocks) than its chunks (%u)\n", t, tape_ctl[t].nblk,
@@ -694,12 +700,16 @@ static int stress(double secs)
             sys.bpm = (uint16_t)(60 + st_rand(140));
         } else if (a < 50) {                             /* a clear */
             tape_clear(st_rand(NTRK));
-        } else if (a < 62) {                             /* RESONATOR's WET, SPACE's DLY, VERB, TIME, PRE (memory */
-            static const uint8_t K[5] = {RP_WET, SP_DLY, SP_VERB, SP_TIME, SP_PRE};   /* taken and given back) */
-            uint32_t t = st_rand(NTRK), k = st_rand(5), dv = k ? DEV_SPACE : DEV_RESO;
-            const pdesc_t *d = &DEV_P[dv][K[k]];
+        } else if (a < 62) {                             /* RESONATOR's WET, SPACE's DLY, VERB, TIME, ROOM (memory */
+            static const uint8_t K[5] = {RP_WET, SP_DLY, SP_VERB, SP_TIME, SP_ROOM};   /* taken and given back), */
+            uint32_t t = st_rand(NTRK), k = st_rand(5), dv = k ? DEV_SPACE : DEV_RESO;   /* a room's knob (QUAL: */
+            const pdesc_t *d = &DEV_P[dv][K[k]];                                         /* its rate) */
             int32_t x = d->min + (int32_t)st_rand((uint32_t)(d->max - d->min + 1));
             tp[t].dev[dv][K[k]] = (int16_t)(st_rand(3) == 0 ? d->min : x);
+            if (k == 4u) {
+                uint32_t r = st_rand(NROOM), j = st_rand(NRM);
+                rmp[r][j] = (int16_t)(RM_P[j].min + (int32_t)st_rand((uint32_t)(RM_P[j].max - RM_P[j].min + 1)));
+            }
         } else if (a < 70) {                             /* the USB record mode: in, a take, onto a track, out */
             if (ur.state == UR_OFF) {
                 if (!sys.usbrec && !ur.isr_in) {

@@ -41,7 +41,7 @@
  *   KNOB 1..4      the four values on screen (SETUP's KNOB: a detent 1, 2 or 4 steps, or more on a fast turn);
  *                  SELECT: the tempo
  *   black OP1..OP4 track mutes (SETUP's KEYS on NOTE: the black keys play, and none of their shortcuts are there)
- *   GLO held + OCT+  KEYS: the black keys as shortcuts or notes (SETUP, the mixer's fourth page, has it too)
+ *   GLO held + OCT+  KEYS: the black keys as shortcuts or notes (SETUP, the mixer's last page, has it too)
  * What the later phases add (p-locks, the views behind PRESETS, the other black keys) slots into the same
  * functions. */
 
@@ -699,12 +699,12 @@ static void on_button(uint32_t b)
             break;
         }
         if (ui.view == VIEW_MIXER) {                    /* (held: while held; tapped: latched; tapped again: off) */
-            if (ui.chan == CHAN_SETUP && ui.chan_latched) {   /* LEVELS -> CHANNEL -> MASTER -> SETUP -> LEVELS */
+            if (ui.chan == CHAN_SETUP && ui.chan_latched) {   /* LEVELS -> CHANNEL -> MASTER -> ROOMS (A, B, PRE)
+                                                         * -> SETUP -> LEVELS */
                 ui.chan = CHAN_LEVELS;
                 ui.chan_latched = 0;
             } else {
-                ui.chan = !ui.chan_latched ? CHAN_STRIP : ui.chan == CHAN_STRIP ? CHAN_MASTER : ui.chan == CHAN_MASTER
-                        ? CHAN_SETUP : CHAN_STRIP;
+                ui.chan = !ui.chan_latched || ui.chan >= CHAN_SETUP ? CHAN_STRIP : (uint8_t)(ui.chan + 1u);
                 ui.chan_latched = 0;
                 ui.chan_held = 1;
                 ui.chan_used = 0;

@@ -186,7 +186,7 @@ static void chain_block(int32_t *out, uint32_t n)
                 gl[i] = gr[i] = 0;
         reso_block(t, gl, gr, rk, tp[t].src == SRC_TAPE || tp[t].src == SRC_DRUM, anote, n);
         color_block(t, gl, gr, n);
-        space_block(t, gl, gr, n);
+        space_block(t, gl, gr, n, g);                   /* (its delay; its send to a room, at its level) */
         if (a0 != 32767 || a1 != 32767)                  /* switching on or off: the 2 ms ramp */
             for (i = 0; i < n; i++) {
                 int32_t a = a0 + (((a1 - a0) * (int32_t)i) >> CTL_LOG2);
@@ -211,6 +211,7 @@ static void chain_block(int32_t *out, uint32_t n)
     grain_recover();
     reso_recover();
     drm_recover();
+    space_rooms(l, r, n);                               /* the rooms A and B on what the tracks sent (space.c) */
     mix_comp(l, r, n);                                  /* the master compressor on the sum (mixer.c) */
     master_block(l, r, out, n);
     if (sys.usbrec) {                                   /* the record mode opening: this block fades the tracks out */

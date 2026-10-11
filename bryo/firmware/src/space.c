@@ -1,23 +1,28 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
-/* Bryo: SPACE, the last device on a track (docs/bryo-architecture.md, "SPACE, as built"): the S-4's VAST, a delay
- * and a small room, run at half the rate (22.05 kHz) to halve both their memory and their load.
+/* Bryo: SPACE (docs/bryo-architecture.md, "SPACE, as built"): each track's delay, and two rooms the tracks share, the
+ * S-4's VAST split in two: a delay that belongs to the track, a reverb that belongs to the mix. All of it at half
+ * the rate (22.05 kHz) or below.
  *
- * The delay: TIME (10..370 ms) back, gliding when TIME turns (a tape echo's pitch bend, no clicks); FDBK what each
- * echo feeds back (100: nearly forever); TONE in the feedback (- a low-pass, + a high-pass, so each echo is darker or
- * thinner than the last); DLY its level (100: the first echo at 0.8 of the sound). The reverb: Felucca's ROOM (four
- * damped combs and two allpasses, Freeverb's shape) with SIZE setting the combs' lengths (15..46 ms), DEC the time
- * the tail takes to fall 60 dB (0.2..4.2 s), TONE the combs' damping (- darker) or a high-pass in front (+), PRE the
- * pre-delay (0..200 ms); VERB its level. SPRD is the stereo: the delay's right echo up to 10 ms ahead of the left, the
- * reverb's right side from a second pair of allpasses fed a different mix of the combs; at 0 both are mono. The
- * picture (ui_viz.c viz_space) draws the same mappings.
+ * The delay, a track's own: TIME (10..370 ms) back, gliding when TIME turns (a tape echo's pitch bend, no clicks);
+ * FDBK what each echo feeds back (100: nearly forever); TONE in the feedback (- a low-pass, + a high-pass, so each
+ * echo is darker or thinner than the last); DLY its level (100: the first echo at 0.8 of the sound); SPRD the right
+ * echo up to 10 ms ahead of the left (0: mono).
  *
- * Memory, from the shared chunks (mem.c), only while it's used: the delay's line while DLY is above 0 (8 chunks,
- * 8,192 samples), the reverb (a chunk per comb, the allpasses in a fifth) and its pre-delay line (5 chunks) while
- * VERB is above 0, on a track in use. A line is 16-bit when there's room for it with 3 s still free; when memory is
- * short it starts 8-bit (companded like A-law: half the chunks, the noise riding under the sound), and when nothing
- * is free it takes from the end of the longest tape, like GRAIN and RESONATOR. A line never changes format while it
- * sounds: it's chosen when it's switched on. The reverb's own buffers are always 16-bit (a feedback loop would grow
- * 8-bit's noise).
+ * The rooms (2026-10-11, from playing it: four rooms were the default project's largest cost, and "let me configure
+ * the quality of rooms, and drop from 4 rooms to 2 ... share rooms with tracks"): A and B, each Felucca's ROOM (four
+ * damped combs and two pairs of allpasses, Freeverb's shape) with its own SIZE (the combs' lengths, 15..46 ms), DEC
+ * (the time to fall 60 dB, 0.2..4.2 s), TONE (- darker combs, + a high-pass in front), PRE (a pre-delay, 0..200 ms)
+ * and QUAL: HI runs it at 22.05 kHz, LO at 11.025 kHz (half the work, a darker tail). Their knobs are the mixer's
+ * ROOMS pages (rmp[], stored with the project, not modulation targets: no track owns them). A track's ROOM picks A or
+ * B and its VERB is how much it sends there: its sound after COLOR, mono, times VERB and the track's level (so a
+ * track turned down or muted leaves its room too). The rooms come back after the tracks, stereo, into the master.
+ *
+ * Memory, from the shared chunks (mem.c), only while used: a track's delay line while DLY is above 0 (8 chunks,
+ * 8,192 samples); a room (a chunk per comb, the allpasses in a fifth) and its pre-delay (5 chunks) while a track in
+ * use sends to it. A line is 16-bit when there's room for it with 3 s still free; when memory is short it starts
+ * 8-bit (companded like A-law: half the chunks, the noise riding under the sound), and when nothing is free it takes
+ * from the end of the longest tape. A line never changes format while it sounds. The rooms' own buffers are always
+ * 16-bit (a feedback loop would grow 8-bit's noise).
  *
  * Audio ISR, except space_poll (the main loop: the memory). Integer only. */
 
@@ -26,10 +31,11 @@
 #define SP_DLY8 4u                   /* .. 8-bit */
 #define SP_PRE16 5u                  /* the pre-delay's line: 5,120 samples, PRE's 200 ms */
 #define SP_PRE8 3u                   /* .. 8-bit (6,144) */
-#define SP_REV 5u                    /* the reverb: a comb in each of four chunks, the four allpasses in the fifth */
+#define SP_REV 5u                    /* a room: a comb in each of four chunks, the four allpasses in the fifth */
 #define SP_KEEP 16u                  /* chunks (3 s) a 16-bit line leaves free, or it starts 8-bit */
 #define SP_LMAX 8u
-enum { SP_TIME, SP_FDBK, SP_SIZE, SP_DEC, SP_DLY, SP_VERB, SP_TONE, SP_SPRD, SP_PRE };
+enum { SP_TIME, SP_FDBK, SP_ROOM, SP_X3, SP_DLY, SP_VERB, SP_TONE, SP_SPRD, SP_X8 };   /* (3 and 8: SIZE DEC and PRE
+                                                                                        * until they went to the rooms) */
 
 /* the combs' longest (SIZE 100), and the allpasses (left pair, right pair), samples at 22.05 kHz: Freeverb's
  * lengths, the combs half again as long for a room rather than a box */
@@ -45,34 +51,47 @@ typedef struct {                     /* a line in chunks of the shared memory */
     volatile uint8_t gen;            /* counts each time it's handed over (the ISR starts it from silence) */
 } sp_line_t;
 
-typedef struct {
-    sp_line_t dly, pre, rev;         /* the main loop's (ready: published to the ISR) */
+typedef struct {                     /* a track's SPACE */
+    sp_line_t dly;                   /* the main loop's (ready: published to the ISR) */
     /* the ISR's */
-    uint8_t dlive, rlive;            /* the delay and the reverb running (their state reset when they start) */
-    uint8_t dgen, rgen;              /* the lines' gen they started on (a line given back and taken again between
-                                      * two blocks starts over too) */
-    uint32_t dw, pw;                 /* the lines' write indices */
+    uint8_t dlive;                   /* the delay running (its state reset when it starts) */
+    uint8_t dgen;                    /* the line's gen it started on */
+    uint32_t dw;                     /* the line's write index */
     int32_t dq;                      /* the delay's distance, Q8 samples (glides toward TIME) */
     int32_t dlp;                     /* TONE's filter in the feedback */
-    int32_t rhp;                     /* TONE's high-pass in front of the reverb */
-    uint16_t ci[4], ai[4];           /* the combs' and allpasses' indices */
-    uint16_t clen[4];                /* the combs' lengths now (SIZE) */
-    int32_t clp[4], cg[4];           /* the combs' damping filters, their loop gains (DEC), Q15 */
-    int16_t size_seen, dec_seen;     /* what clen and cg were set for (-1: nothing yet) */
-    int32_t gd, gv;                  /* DLY's and VERB's gains last block, Q15 (ramped across the next) */
-    int32_t pl, pr;                  /* the wet's last half-rate sample, each side (the step back up to 44.1 kHz) */
+    int32_t gd, gv;                  /* DLY's gain and the send's (VERB x the track's level) last block, Q15 */
+    int32_t pl, pr;                  /* the delay's last half-rate sample, each side (the step back up to 44.1 kHz) */
     uint32_t quiet;                  /* half-rate samples in a row of silence in and next to none out (sp_quiet) */
 } space_t;
 
+typedef struct {                     /* a room, A or B */
+    sp_line_t pre, rev;              /* the main loop's */
+    volatile uint8_t users;          /* main loop -> screen: the tracks sending to it (a bit each) */
+    /* the ISR's */
+    uint8_t live, gen;               /* running (its state reset when it starts), on the lines' gen */
+    uint8_t qual;                    /* the QUAL it runs at now */
+    uint32_t pw;                     /* the pre-delay's write index */
+    uint16_t ci[4], ai[4];           /* the combs' and allpasses' indices */
+    uint16_t clen[4], alen[4];       /* their lengths now (SIZE, QUAL) */
+    int32_t clp[4], cg[4];           /* the combs' damping filters, their loop gains (DEC), Q15 */
+    int16_t size_seen, dec_seen;     /* what clen and cg were set for (-1: nothing yet) */
+    int32_t rhp;                     /* TONE's high-pass in front */
+    int32_t in[CTL / 2u];            /* this block's sends, mono at 22.05 kHz (space_block adds, space_rooms takes) */
+    int32_t pl, pr;                  /* its last output sample, each side (the step back up to 44.1 kHz) */
+    uint32_t quiet;                  /* samples (at its rate) of silence in and next to none out (sp_quiet) */
+} room_t;
+
+static space_t space[NTRK];
+static room_t room[NROOM];
+
 /* SPACE resting (2026-10-11, from playing it: half the CPU with nothing playing). With silence going in and next to
- * nothing coming out (|wet| <= 16 both sides, -66 dB: the room's combs, in integers, cycle at about that for good
- * once the tail is gone, a faint sound of their own) for longer than its lines are long (the delay's, and the
- * pre-delay plus the longest comb and the allpasses), everything in them has gone round and come out as next to
+ * nothing coming out (|wet| <= 16 both sides, -66 dB: a room's combs, in integers, cycle at about that for good
+ * once the tail is gone, a faint sound of their own) for longer than its lines are long (the delay's; a room's
+ * pre-delay plus its longest comb and allpasses), everything in them has gone round and come out as next to
  * nothing: it stops working until sound comes in again, where it carries on from its lines as they are. The
  * filters in its loops are let go to 0 as it rests (a residue under the threshold can't hold it awake). */
 #define SP_QUIET_OUT 16
-
-static space_t space[NTRK];
+static inline int32_t sp_loud(int32_t x) { return (uint32_t)(x + SP_QUIET_OUT) > 2u * SP_QUIET_OUT; }   /* |x| > 16 */
 
 /* ------------------------------------------------- 8-bit companding --- */
 /* sign, a 3-bit segment, a 4-bit step inside it: 16 steps of 16 below 256, then each segment twice the last up to
@@ -171,10 +190,11 @@ static void sp_line_free(sp_line_t *ln)
         mem_free(ln->map[--ln->nch]);
 }
 
-/* main loop, every pass: each track's lines while its SPACE uses them (DLY or VERB above 0, the track in use) */
+/* main loop, every pass: each track's delay line while its DLY is up (the track in use); each room's lines while a
+ * track in use sends to it (VERB up, its ROOM that room) */
 static void space_poll(void)
 {
-    uint32_t t;
+    uint32_t t, k, users[NROOM] = {0, 0};
     for (t = 0; t < NTRK; t++) {
         space_t *S = &space[t];
         int use = trk_live(t);                          /* (DLY or VERB at 0 but modulated up: on) */
@@ -182,32 +202,42 @@ static void space_poll(void)
             sp_line_fill(&S->dly, MEM_SPACE + t, SP_DLY16, SP_DLY8);
         else if (S->dly.nch)
             sp_line_free(&S->dly);
-        if (use && mod_peak(t, MOD_TG(DEV_SPACE, SP_VERB)) > 0) {
-            if (sp_line_fill(&S->rev, MEM_SPACE + t, SP_REV, 0))
-                sp_line_fill(&S->pre, MEM_SPACE + t, SP_PRE16, SP_PRE8);
+        if (use && mod_peak(t, MOD_TG(DEV_SPACE, SP_VERB)) > 0)
+            users[clamp(tp[t].dev[DEV_SPACE][SP_ROOM], 0, 1)] |= 1u << t;
+    }
+    for (k = 0; k < NROOM; k++) {
+        room_t *R = &room[k];
+        R->users = (uint8_t)users[k];
+        if (users[k]) {
+            if (sp_line_fill(&R->rev, MEM_ROOM + k, SP_REV, 0))
+                sp_line_fill(&R->pre, MEM_ROOM + k, SP_PRE16, SP_PRE8);
         } else {
-            if (S->pre.nch)
-                sp_line_free(&S->pre);
-            if (S->rev.nch)
-                sp_line_free(&S->rev);
+            if (R->pre.nch)
+                sp_line_free(&R->pre);
+            if (R->rev.nch)
+                sp_line_free(&R->rev);
         }
     }
 }
 
 /* ------------------------------------------------------------ audio --- */
-/* the reverb's combs for SIZE and DEC */
-static void sp_room(space_t *S, int32_t size, int32_t dec)
+/* a room's combs and allpasses for SIZE, DEC and QUAL (LO: every length half, each sample twice as long) */
+static void sp_room(room_t *R, int32_t size, int32_t dec, uint32_t lo)
 {
     uint32_t k, t60 = (uint32_t)(200 + dec * 40);
     for (k = 0; k < 4u; k++) {
-        uint32_t len = SP_COMB[k] * (uint32_t)(40 + size * 60 / 100) / 100u;
-        S->clen[k] = (uint16_t)len;
-        if (S->ci[k] >= len)
-            S->ci[k] = 0;
-        S->cg[k] = rs_gain(2u * len, t60);              /* (rs_gain counts samples at 44.1 kHz) */
+        uint32_t len = (SP_COMB[k] * (uint32_t)(40 + size * 60 / 100) / 100u) >> lo;
+        R->clen[k] = (uint16_t)len;
+        if (R->ci[k] >= len)
+            R->ci[k] = 0;
+        R->alen[k] = (uint16_t)(SP_AP[k] >> lo);
+        if (R->ai[k] >= R->alen[k])
+            R->ai[k] = 0;
+        R->cg[k] = rs_gain((2u << lo) * len, t60);      /* (rs_gain counts samples at 44.1 kHz) */
     }
-    S->size_seen = (int16_t)size;
-    S->dec_seen = (int16_t)dec;
+    R->size_seen = (int16_t)size;
+    R->dec_seen = (int16_t)dec;
+    R->qual = (uint8_t)lo;
 }
 
 /* saturate to the lines' 16 bits (one compare when it's inside) */
@@ -265,7 +295,7 @@ static void sp_delay(space_t *S, uint8_t *const *db, int dlb, uint32_t dl, int32
 #define SP_COMB_STEP(k)                                                                                   \
     do {                                                                                                  \
         o = c##k[i##k];                                                                                   \
-        lp##k = o + (((lp##k - o) * damp) >> 15);                                                         \
+        lp##k = o + sp_mul(lp##k - o, damp);                                                              \
         c##k[i##k] = (int16_t)sp_sat(in + sp_mul(lp##k, cg##k));                                          \
         if (++i##k >= n##k)                                                                               \
             i##k = 0;                                                                                     \
@@ -276,30 +306,31 @@ static void sp_delay(space_t *S, uint8_t *const *db, int dlb, uint32_t dl, int32
         int32_t o_ = ap##k[j##k];                                                                         \
         ap##k[j##k] = (int16_t)sp_sat((a) + o_ / 2);                                                      \
         (a) = o_ - (a);                                                                                   \
-        if (++j##k >= SP_AP[k])                                                                           \
+        if (++j##k >= m##k)                                                                               \
             j##k = 0;                                                                                     \
     } while (0)
 
-/* the room over a block at half the rate: m in, through the pre-delay, its tail added to wl, wr */
-static void sp_room_run(space_t *S, uint8_t *const *pb, int plb, uint32_t pl, int32_t pre, uint8_t *const *rb,
-                        int32_t kh, int32_t damp, int32_t sprd, int32_t v0, int32_t v1, const int32_t *m, int32_t *wl,
-                        int32_t *wr)
+/* a room over ns samples at its rate: x in (mono), through the pre-delay (pre samples), its tail into wl, wr (stereo,
+ * the right side from its own pair of allpasses fed a different mix of the combs) */
+static void sp_room_run(room_t *R, uint8_t *const *pb, int plb, uint32_t pl, int32_t pre, uint8_t *const *rb,
+                        int32_t kh, int32_t damp, const int32_t *xin, uint32_t ns, int32_t *wl, int32_t *wr)
 {
     int16_t *c0 = (int16_t *)(void *)rb[0], *c1 = (int16_t *)(void *)rb[1], *c2 = (int16_t *)(void *)rb[2];
     int16_t *c3 = (int16_t *)(void *)rb[3], *ap0 = (int16_t *)(void *)rb[4] + SP_APO[0];
     int16_t *ap1 = (int16_t *)(void *)rb[4] + SP_APO[1], *ap2 = (int16_t *)(void *)rb[4] + SP_APO[2];
     int16_t *ap3 = (int16_t *)(void *)rb[4] + SP_APO[3];
-    uint32_t i0 = S->ci[0], i1 = S->ci[1], i2 = S->ci[2], i3 = S->ci[3], n0 = S->clen[0], n1 = S->clen[1];
-    uint32_t n2 = S->clen[2], n3 = S->clen[3], j0 = S->ai[0], j1 = S->ai[1], j2 = S->ai[2], j3 = S->ai[3];
-    int32_t lp0 = S->clp[0], lp1 = S->clp[1], lp2 = S->clp[2], lp3 = S->clp[3], cg0 = S->cg[0], cg1 = S->cg[1];
-    int32_t cg2 = S->cg[2], cg3 = S->cg[3], hp = S->rhp, w = (int32_t)S->pw, gq = v0 << (CTL_LOG2 - 1), dg = v1 - v0;
+    uint32_t i0 = R->ci[0], i1 = R->ci[1], i2 = R->ci[2], i3 = R->ci[3], n0 = R->clen[0], n1 = R->clen[1];
+    uint32_t n2 = R->clen[2], n3 = R->clen[3], j0 = R->ai[0], j1 = R->ai[1], j2 = R->ai[2], j3 = R->ai[3];
+    uint32_t m0 = R->alen[0], m1 = R->alen[1], m2 = R->alen[2], m3 = R->alen[3];
+    int32_t lp0 = R->clp[0], lp1 = R->clp[1], lp2 = R->clp[2], lp3 = R->clp[3], cg0 = R->cg[0], cg1 = R->cg[1];
+    int32_t cg2 = R->cg[2], cg3 = R->cg[3], hp = R->rhp, w = (int32_t)R->pw;
     uint32_t i;
-    for (i = 0; i < CTL / 2u; i++, gq += dg) {
-        int32_t x, in, o, al, ar, ix = w - pre, g = gq >> (CTL_LOG2 - 1);
+    for (i = 0; i < ns; i++) {
+        int32_t x, in, o, al, ar, ix = w - pre;
         if (ix < 0)
             ix += (int32_t)pl;
-        sp_wr(pb, plb, (uint32_t)w, m[i]);
-        x = pre ? sp_rd(pb, plb, (uint32_t)ix) : m[i];
+        sp_wr(pb, plb, (uint32_t)w, xin[i]);
+        x = pre ? sp_rd(pb, plb, (uint32_t)ix) : xin[i];
         if (++w >= (int32_t)pl)
             w = 0;
         if (kh) {                                       /* TONE +: a high-pass in front */
@@ -322,40 +353,41 @@ static void sp_room_run(space_t *S, uint8_t *const *pb, int plb, uint32_t pl, in
         SP_AP_STEP(1, al);
         SP_AP_STEP(2, ar);
         SP_AP_STEP(3, ar);
-        ar = al + (((ar - al) * sprd) >> 12);           /* SPRD (Q12 here: 0 mono, 4096 apart) */
-        wl[i] += (al * g) >> 15;
-        wr[i] += (ar * g) >> 15;
+        wl[i] = al;
+        wr[i] = ar;
     }
-    S->ci[0] = (uint16_t)i0;
-    S->ci[1] = (uint16_t)i1;
-    S->ci[2] = (uint16_t)i2;
-    S->ci[3] = (uint16_t)i3;
-    S->ai[0] = (uint16_t)j0;
-    S->ai[1] = (uint16_t)j1;
-    S->ai[2] = (uint16_t)j2;
-    S->ai[3] = (uint16_t)j3;
-    S->clp[0] = lp0;
-    S->clp[1] = lp1;
-    S->clp[2] = lp2;
-    S->clp[3] = lp3;
-    S->rhp = hp;
-    S->pw = (uint32_t)w;
+    R->ci[0] = (uint16_t)i0;
+    R->ci[1] = (uint16_t)i1;
+    R->ci[2] = (uint16_t)i2;
+    R->ci[3] = (uint16_t)i3;
+    R->ai[0] = (uint16_t)j0;
+    R->ai[1] = (uint16_t)j1;
+    R->ai[2] = (uint16_t)j2;
+    R->ai[3] = (uint16_t)j3;
+    R->clp[0] = lp0;
+    R->clp[1] = lp1;
+    R->clp[2] = lp2;
+    R->clp[3] = lp3;
+    R->rhp = hp;
+    R->pw = (uint32_t)w;
 }
 #undef SP_COMB_STEP
 #undef SP_AP_STEP
 
-/* audio ISR: track t's SPACE added to its stereo block (n even) */
-static void space_block(uint32_t t, int32_t *l, int32_t *r, uint32_t n)
+/* audio ISR: track t's SPACE on its stereo block (n even): its delay added to it, and what it sends to its room
+ * (VERB x lvl, the track's level, Q12) added to the room's input for space_rooms */
+static void space_block(uint32_t t, int32_t *l, int32_t *r, uint32_t n, int32_t lvl)
 {
     space_t *S = &space[t];
     const int16_t *v = TPD(t, DEV_SPACE);
-    uint8_t *db[SP_LMAX], *pb[SP_LMAX], *rb[SP_REV];
+    uint8_t *db[SP_LMAX];
+    room_t *R = &room[clamp(v[SP_ROOM], 0, 1)];
     int32_t tone = v[SP_TONE], sprd = clamp(v[SP_SPRD], 0, 100), gd1, gv1, gd0 = S->gd, gv0 = S->gv;
-    int32_t kl = 32767, kh = 0, damp = 6554, fbg = clamp(v[SP_FDBK], 0, 100) * 32112 / 100;
+    int32_t kl = 32767, kh = 0, fbg = clamp(v[SP_FDBK], 0, 100) * 32112 / 100;
     int32_t tgt = clamp(v[SP_TIME], 10, 370) * 5645;   /* ms -> Q8 samples at 22.05 kHz (22.05 x 256) */
-    int32_t off = sprd * 220 * 256 / 100, pre = clamp(v[SP_PRE], 0, 200) * 2205 / 100;
-    uint32_t i, k, dl = 0, pl = 0, h = n / 2u;
-    int dlb = 0, plb = 0;
+    int32_t off = sprd * 220 * 256 / 100;
+    uint32_t i, dl = 0, h = n / 2u;
+    int dlb = 0;
     if (S->dly.ready) {
         if (!S->dlive || S->dgen != S->dly.gen) {      /* starting: from silence, at TIME already */
             S->dgen = S->dly.gen;
@@ -370,65 +402,40 @@ static void space_block(uint32_t t, int32_t *l, int32_t *r, uint32_t n)
         dlb = S->dly.bits8;
     } else
         S->dlive = 0;
-    if (S->rev.ready && S->pre.ready) {
-        if (!S->rlive || S->rgen != (uint8_t)(S->rev.gen + S->pre.gen)) {
-            S->rgen = (uint8_t)(S->rev.gen + S->pre.gen);
-            S->pw = 0;
-            S->rhp = 0;
-            for (k = 0; k < 4u; k++) {
-                S->ci[k] = S->ai[k] = 0;
-                S->clp[k] = 0;
-            }
-            S->size_seen = -1;
-            S->rlive = 1;
-            S->quiet = 0;
-        }
-        sp_bases(&S->pre, pb);
-        sp_bases(&S->rev, rb);
-        pl = sp_len(&S->pre);
-        plb = S->pre.bits8;
-        if (v[SP_SIZE] != S->size_seen || v[SP_DEC] != S->dec_seen)
-            sp_room(S, clamp(v[SP_SIZE], 0, 100), clamp(v[SP_DEC], 0, 100));
-    } else
-        S->rlive = 0;
     gd1 = S->dlive ? clamp(v[SP_DLY], 0, 100) * 26214 / 100 : 0;   /* DLY 100: the first echo at 0.8 */
-    gv1 = S->rlive ? clamp(v[SP_VERB], 0, 100) * 32767 / 100 : 0;
+    gv1 = R->rev.ready && R->pre.ready ? (clamp(v[SP_VERB], 0, 100) * 32767 / 100) * clamp(lvl, 0, 4096) >> 12 : 0;
     S->gd = gd1;
     S->gv = gv1;
     if (!gd0 && !gd1 && !gv0 && !gv1) {                 /* nothing on (or nothing yet) */
         S->pl = S->pr = 0;
         return;
     }
-    if (tone < 0) {                                     /* - : a low-pass in the feedback, darker combs */
+    if (tone < 0)                                       /* - : a low-pass in the feedback */
         kl = 32767 + tone * 287;                        /* (to 0.12 at -100: ~430 Hz) */
-        damp = 6554 - tone * 200;
-    } else if (tone > 0) {                              /* + : a high-pass in the feedback and before the room */
+    else if (tone > 0)                                  /* + : a high-pass in the feedback */
         kh = tone * 60;                                 /* (to 0.18 at 100: ~650 Hz) */
-        damp = 6554 - tone * 49;
-    }
     if (dl && tgt > (int32_t)(dl - 4u) << 8)
         tgt = (int32_t)(dl - 4u) << 8;
-    if (pl && pre > (int32_t)pl - 2)
-        pre = (int32_t)pl - 2;
     {
         int32_t m[CTL / 2], wl[CTL / 2], wr[CTL / 2], ol = S->pl, or_ = S->pr, in = 0, loud = 0;
-        uint32_t settle = (S->dlive ? dl : 0u) + (S->rlive ? pl + 1017u + 1020u : 0u);   /* (sp_quiet) */
         for (i = 0; i < h; i++) {                       /* mono, at half the rate */
             m[i] = sp_sat((l[2 * i] + r[2 * i] + l[2 * i + 1] + r[2 * i + 1]) >> 2);
             in |= m[i];
-            wl[i] = wr[i] = 0;
         }
-        if (!in && S->quiet > settle) {                 /* resting: silence in, nothing left in its lines */
+        if (gv0 || gv1) {                               /* the send, ramped across the block */
+            int32_t gq = gv0 << (CTL_LOG2 - 1), dg = gv1 - gv0;
+            for (i = 0; i < h; i++, gq += dg)
+                R->in[i] += (m[i] * (gq >> (CTL_LOG2 - 1))) >> 15;
+        }
+        if (!S->dlive || (!in && S->quiet > dl)) {      /* no delay, or resting: silence in, nothing left in it */
             S->pl = S->pr = 0;
             return;
         }
-        if (S->dlive)
-            sp_delay(S, db, dlb, dl, tgt, off, kl, kh, fbg, gd0, gd1, m, wl, wr);
-        if (S->rlive)
-            sp_room_run(S, pb, plb, pl, pre, rb, kh, damp, sprd * 4096 / 100, gv0, gv1, m, wl, wr);   /* (SPRD Q12: a
-                                                                                * multiply a sample, not a divide) */
+        for (i = 0; i < h; i++)
+            wl[i] = wr[i] = 0;
+        sp_delay(S, db, dlb, dl, tgt, off, kl, kh, fbg, gd0, gd1, m, wl, wr);
         for (i = 0; i < h; i++) {                       /* back up to 44.1 kHz: halfway, then the sample */
-            loud |= wl[i] > SP_QUIET_OUT || wl[i] < -SP_QUIET_OUT || wr[i] > SP_QUIET_OUT || wr[i] < -SP_QUIET_OUT;
+            loud |= sp_loud(wl[i]) | sp_loud(wr[i]);
             l[2 * i] += (ol + wl[i]) >> 1;
             r[2 * i] += (or_ + wr[i]) >> 1;
             l[2 * i + 1] += wl[i];
@@ -440,10 +447,103 @@ static void space_block(uint32_t t, int32_t *l, int32_t *r, uint32_t n)
         S->pr = or_;
         if (in || loud)
             S->quiet = 0;
-        else if ((S->quiet += h) > settle) {            /* settled: its loops' filters let go as it rests */
-            S->dlp = S->rhp = 0;
-            for (k = 0; k < 4u; k++)
-                S->clp[k] = 0;
+        else if ((S->quiet += h) > dl)                  /* settled: its feedback's filter let go as it rests */
+            S->dlp = 0;
+    }
+}
+
+/* audio ISR, after the tracks: the rooms on what the tracks sent them this block, into the mix (l r, n samples);
+ * their inputs cleared for the next block. HI at 22.05 kHz, LO at 11.025 kHz (the sends averaged in pairs, the tail
+ * stepped back up across four samples) */
+static void space_rooms(int32_t *l, int32_t *r, uint32_t n)
+{
+    uint32_t k, i, h = n / 2u;
+    for (k = 0; k < NROOM; k++) {
+        room_t *R = &room[k];
+        const int16_t *q = rmp[k];
+        uint8_t *pb[SP_LMAX], *rb[SP_REV];
+        uint32_t lo = (uint32_t)clamp(q[RM_QUAL], 0, 1), ns = h >> lo, pl, settle;
+        int32_t tone = q[RM_TONE], kh = 0, damp = 6554, pre, in = 0, loud = 0, wl[CTL / 2], wr[CTL / 2], x[CTL / 2];
+        int plb;
+        if (!(R->rev.ready && R->pre.ready)) {
+            R->live = 0;
+            for (i = 0; i < h; i++)
+                R->in[i] = 0;
+            continue;
+        }
+        if (!R->live || R->gen != (uint8_t)(R->rev.gen + R->pre.gen) || R->qual != lo) {   /* starting (or a new
+                                                         * QUAL: its lengths mean another time): from silence */
+            R->gen = (uint8_t)(R->rev.gen + R->pre.gen);
+            R->pw = 0;
+            R->rhp = 0;
+            for (i = 0; i < 4u; i++) {
+                R->ci[i] = R->ai[i] = 0;
+                R->clp[i] = 0;
+            }
+            R->size_seen = -1;
+            R->qual = (uint8_t)lo;
+            R->live = 1;
+            R->quiet = 0;
+            R->pl = R->pr = 0;
+        }
+        sp_bases(&R->pre, pb);
+        sp_bases(&R->rev, rb);
+        pl = sp_len(&R->pre);
+        plb = R->pre.bits8;
+        if (q[RM_SIZE] != R->size_seen || q[RM_DEC] != R->dec_seen || R->clen[0] == 0)
+            sp_room(R, clamp(q[RM_SIZE], 0, 100), clamp(q[RM_DEC], 0, 100), lo);
+        if (tone < 0)                                   /* - : darker combs */
+            damp = 6554 - tone * 200;
+        else if (tone > 0) {                            /* + : a high-pass in front, the combs a little brighter */
+            kh = (tone * 60) << lo;
+            damp = 6554 - tone * 49;
+        }
+        pre = (clamp(q[RM_PRE], 0, 200) * 2205 / 100) >> lo;
+        if (pre > (int32_t)pl - 2)
+            pre = (int32_t)pl - 2;
+        settle = (uint32_t)pre + (1017u >> lo) + (1020u >> lo);
+        for (i = 0; i < ns; i++) {                      /* what came in (LO: two by two) */
+            x[i] = lo ? (R->in[2 * i] + R->in[2 * i + 1]) >> 1 : R->in[i];
+            x[i] = sp_sat(x[i]);
+            in |= x[i];
+        }
+        for (i = 0; i < h; i++)
+            R->in[i] = 0;
+        if (!in && R->quiet > settle)                   /* resting (sp_quiet) */
+            continue;
+        sp_room_run(R, pb, plb, pl, pre, rb, kh, damp, x, ns, wl, wr);
+        {
+            int32_t ol = R->pl, or_ = R->pr;
+            for (i = 0; i < ns; i++) {
+                loud |= sp_loud(wl[i]) | sp_loud(wr[i]);
+                if (lo) {                               /* 11.025 -> 44.1 kHz: a quarter of the way at a time */
+                    int32_t dl = wl[i] - ol, dr = wr[i] - or_;
+                    l[4 * i] += ol + (dl >> 2);
+                    r[4 * i] += or_ + (dr >> 2);
+                    l[4 * i + 1] += ol + (dl >> 1);
+                    r[4 * i + 1] += or_ + (dr >> 1);
+                    l[4 * i + 2] += ol + ((dl * 3) >> 2);
+                    r[4 * i + 2] += or_ + ((dr * 3) >> 2);
+                    l[4 * i + 3] += wl[i];
+                    r[4 * i + 3] += wr[i];
+                } else {                                /* 22.05 -> 44.1 kHz: halfway, then the sample */
+                    l[2 * i] += (ol + wl[i]) >> 1;
+                    r[2 * i] += (or_ + wr[i]) >> 1;
+                    l[2 * i + 1] += wl[i];
+                    r[2 * i + 1] += wr[i];
+                }
+                ol = wl[i];
+                or_ = wr[i];
+            }
+            R->pl = ol;
+            R->pr = or_;
+        }
+        if (in || loud)
+            R->quiet = 0;
+        else if ((R->quiet += ns) > settle) {           /* settled: its loops' filters let go as it rests */
+            R->rhp = 0;
+            for (i = 0; i < 4u; i++)
+                R->clp[i] = 0;
         }
     }
 }

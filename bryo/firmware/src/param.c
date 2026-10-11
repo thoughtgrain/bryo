@@ -53,6 +53,8 @@ static const char *const DEV_NAME[NDEV] = {"TAPE", "GRAIN", "RESONATOR", "COLOR"
 static const char *const N_PATN[4] = {"EVEN", "SWNG", "CLST", "RND"};
 static const char *const N_SCAN[4] = {"TAPE", "STR", "POS", "DLY"};
 static const char *const N_GSCAL[5] = {"OFF", "CHR", "MAJ", "MIN", "PEN"};
+static const char *const N_ROOMS[2] = {"A", "B"};       /* SPACE's ROOM: the shared room a track sends to */
+static const char *const N_QUAL[2] = {"HI", "LO"};      /* a room's QUAL: 22.05 or 11.025 kHz */
 #define GR_GRNS_MAX 40                /* GRAIN's GRNS: the most it can hold (the pool for one track, grain.c GR_POOL) */
 static const char *const N_GRNS[1 + GR_GRNS_MAX] = {"AUTO", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40"};
 static const char *const N_RSCAL[4] = {"HARM", "MAJ", "MIN", "PEN"};
@@ -144,15 +146,15 @@ static const pdesc_t DEV_P[NDEV][NPK] = {
         /* 3: the output level (drive adds loudness), how WET mixes COLOR in (ROUT: INS or SEND; a send of a sound
          * nothing colours adds the dry to itself, +6 dB at WET 100: LVL is there for it) */
         {"LVL", -24, 6, 0, F_DB}, P_ROUT, {""}, {""}},
-    {   /* SPACE (the S-4's VAST) */
+    {   /* SPACE (the S-4's VAST, its room shared: space.c): the track's delay (TIME FDBK, DLY its level, TONE in its
+         * feedback, SPRD the right echo ahead), and its send to a room (ROOM: A or B, the mixer's ROOMS pages; VERB
+         * how much). Stored 3 and 8 were SIZE DEC and PRE until the rooms were shared (2026-10-11): empty now.
+         * (DLY 0, VERB 0: off until turned up, taking no memory) */
         {"TIME", 10, 370, 250, F_MS}, {"FDBK", 0, 100, 30, F_PCT},
-        {"SIZE", 0, 100, 50, F_PCT}, {"DEC", 0, 100, 40, F_PCT},
-        /* 2: the delay's and the reverb's levels, a tone on both (- low-pass, + high-pass, on the feedback and the
-         * tail), the stereo spread (DLY 0, VERB 0: off until turned up, taking no memory: space.c) */
+        {"ROOM", 0, 1, 0, F_ENUM, N_ROOMS, 1}, {""},
         {"DLY", 0, 100, 0, F_PCT}, {"VERB", 0, 100, 0, F_PCT},
         {"TONE", -100, 100, 0, F_BIPCT}, {"SPRD", 0, 100, 100, F_PCT},
-        /* 3: the reverb's pre-delay */
-        {"PRE", 0, 200, 20, F_MS}, {""}, {""}, {""}},
+        {""}, {""}, {""}, {""}},
 };
 
 /* The source engines: what starts a track's chain (docs/bryo-architecture.md, "Source engines"). TAPE's knobs are
@@ -258,6 +260,21 @@ static const pdesc_t MS_P[NMS] = {
 };
 static int16_t mst[NMS];
 
+/* The two rooms the tracks share (space.c; the mixer's ROOMS pages, EDIT past MASTER: A, B, then their pre-delays):
+ * SIZE, DEC, TONE (- darker, + a high-pass in front), QUAL (HI 22.05 kHz, LO 11.025: half the work, a darker tail),
+ * PRE. One pair for the whole instrument, stored with the project; not modulation targets (no track owns them). */
+#define NROOM 2u
+enum { RM_SIZE, RM_DEC, RM_TONE, RM_QUAL, RM_PRE, NRM };
+enum { RQ_HI, RQ_LO };
+static const pdesc_t RM_P[NRM] = {
+    {"SIZE", 0, 100, 50, F_PCT}, {"DEC", 0, 100, 40, F_PCT}, {"TONE", -100, 100, 0, F_BIPCT},
+    {"QUAL", 0, 1, RQ_HI, F_ENUM, N_QUAL, 1}, {"PRE", 0, 200, 20, F_MS},
+};
+static const pdesc_t RMP_P[4] = {   /* the third ROOMS page: the two pre-delays (RM_P's PRE, named by room) */
+    {"PREA", 0, 200, 20, F_MS}, {"PREB", 0, 200, 20, F_MS}, {""}, {""},
+};
+static int16_t rmp[NROOM][NRM];
+
 /* The arpeggiator (arp.c), one per track, on the ARP pad: it plays the notes held on a SYNTH or POLY track one at a
  * time, in time. MODE: OFF; KEY, while keys are held; LTCH, the last chord keeps playing after the keys are let go
  * (a new chord, pressed after letting go, replaces it); ADD, every key pressed joins the notes for good (an endless
@@ -274,7 +291,7 @@ static const pdesc_t ARP_P[NPK] = {   /* (NPK long: pdesc_pages looks past the l
     {"RATE", 0, 5, 3, F_ENUM, N_ARATE, 1}};
 #define ARP_RES 8u                   /* ARP_P's index of RES ARP's first knob (page 3) */
 
-/* SETUP, the mixer's fourth page (EDIT tapped three times): how the panel behaves, for the instrument, not a project
+/* SETUP, the mixer's last page (EDIT tapped six times): how the panel behaves, for the instrument, not a project
  * (settings.c keeps them). KEYS: the black keys as the shortcuts (SHRT: mutes, reverse, clears, freeze) or as notes
  * (NOTE: the 27 keys a keyboard, F to G, on SYNTH and POLY; GLO held + OCT+ flips it too). KNOB: how far a detent
  * moves a value with a range wider than 32 steps: 1X, 2X, 4X, or ACC (a slow turn 1, a fast one up to 4). HOLD: how
@@ -361,8 +378,9 @@ static const playout_t PLAYOUT[] = {
                                                                                       * RES ARP: the ARP pad's) */
     {DEV_P[DEV_COLOR], 3, {0, 1, 9, 7, 2, 3, 4, 5, 6, 10, 11, 8}},              /* COLOR: DRV CRSH ROUT WET, NOIS TILT
                                                                                  * NDEC NTON, CMOD . . LVL */
-    {DEV_P[DEV_SPACE], 3, {0, 1, 4, 5, 2, 3, 6, 7, 8, 9, 10, 11}},              /* SPACE: TIME FDBK DLY VERB, SIZE DEC
-                                                                                 * TONE SPRD, PRE */
+    {DEV_P[DEV_SPACE], 2, {0, 1, 4, 5, 2, 6, 7, 3}},                           /* SPACE: TIME FDBK DLY VERB, ROOM TONE
+                                                                                 * SPRD . (the room's own knobs: the
+                                                                                 * mixer's ROOMS) */
     {SYN_P, 5, {0, 1, 2, 3, 8, 9, 10, 11, 4, 5, 6, 7, 12, 13, 14, 15, 17, 18, 19, 16}},   /* OSC AMP FILTER VOICE, LVL */
     {POL_P, 4, {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 12}},         /* POLY: . . . LVL */
     {ME_P[ME_WAVE], 4, {0, 1, 2, 3, 4, 5, 6, 7, 12, 13, 14, 15, 10, 11, 8, 9}},  /* LFO: timing, then PHAS SPRD AMT OFS */
@@ -483,6 +501,9 @@ static void param_defaults(void)
     uint32_t t, d, k, s;
     for (k = 0; k < NMS; k++)                            /* the master compressor */
         mst[k] = MS_P[k].def;
+    for (s = 0; s < NROOM; s++)                          /* the rooms */
+        for (k = 0; k < NRM; k++)
+            rmp[s][k] = RM_P[k].def;
     for (t = 0; t < NTRK; t++) {
         for (d = 0; d < NDEV; d++)
             for (k = 0; k < NPK; k++)
@@ -501,6 +522,7 @@ static void param_defaults(void)
         drm_defaults(t);
         tp[t].pol[PL_REEL] = (int16_t)(t < NREEL ? t + 1u : 1u);       /* POLY starts on the track's reel too */
         tp[t].dev[DEV_SRC][8] = (int16_t)(t < NREEL ? t + 1u : 0u);   /* track n plays reel n to start */
+        tp[t].dev[DEV_SPACE][2] = (int16_t)(t >= 2u);                  /* SPACE ROOM: tracks 1-2 room A, 3-4 B */
         for (s = 0; s < NSLOT; s++) {
             param_engine(t, s, SLOT_DEF_ENGINE[s]);
             if (s == 3u) {                               /* ARP's slot: the random LFO, a loop that drifts a little */

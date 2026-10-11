@@ -135,6 +135,7 @@ Write down the CPU reading for each, and anything you hear.
 | 28 | Track 1: GRAIN WET 80, RATE 60, SIZE 300, PLAY; GRAIN 6, GRNS 12. Then track 2 a SYNTH with GRAIN WET 80, play chords; then track 2 GRNS 30 | track 1 reads "n OF 12 HELD" and its cloud stays as thick when track 2 comes in; track 2 holding 30 of the pool of 30: track 1 keeps its 12, track 2 gets the other 18 | does a held cloud sound steady while the others change? CPU with both dense |
 | 29 | Load a busy project, PLAY a while, then stop and wait 5 s; then PLAY, and mute three tracks, leaving one with grains, RESONATOR (RES ARP on) and a room | stopped: CPU well under the 50 % it read, no hiss even with COLOR's NOIS up; muted: CPU lower than with them heard, no crackle; unmuting brings them straight back | the CPU numbers for both; any click as a device wakes |
 | 30 | Walk the pages: EDIT, FX, LFO, SEQ, ARP; PLAY with GRAIN, RESONATOR and SPACE up; arm REC; change a knob | blue page names on the blue pads' pages, purple on the modulators'; grains, ringing strings, the room's tail, the step playing in orange; the tempo bar red while REC is armed; a yellow ✱ after the change | do the hues read as intended on the panel (RGB565, its gamma), is the orange lively without being loud, can the yellow ✱ be seen at a glance; anything that flickers |
+| 31 | Power-cycle (the factory scene), PLAY. Then track 1 (DRUM): an LFO on one drum's level (on the KIT page hold the drum's white key, then LFO, KNOB 3 (LVL) to +40 %, let go). Then GLO, EDIT x4: room B; QUAL to HI, then back to LO | the scene and the depth together without crackle, near 75 %; room B at HI about 2 % more and a little brighter | the CPU for the scene, with the depth, with room B at HI; does LO's tail sound dull or grainy? |
 
 ## What the FM-1 read
 
@@ -148,20 +149,21 @@ under the address and undefined-behaviour sanitizers).
 | # | Host cost | Predicted | Read | Heard |
 | --- | ---: | ---: | ---: | --- |
 | 1 | 940 | (the scale) | 25 % | clean |
-| 2 | 1,742 | 46 % | | |
-| 3 | 2,509 | 67 % | | |
+| 2 | 1,745 | 46 % | | |
+| 3 | 2,512 | 67 % | | |
 | 4 | ? | | | |
-| 5 | 2,143 | 57 % | | |
-| 6 | 2,343 | 62 % | | |
-| 11 | 1,948 | 52 % | | |
-| 12 | 3,447 | 92 % (sheds) | | |
-| 13 | 1,715 | 46 % | | |
-| 14 | 1,878 | 50 % | | |
-| 15 | 5,061 | 135 % (sheds) | | |
-| 19 | 1,680 | 45 % | | |
-| 22 | 1,719 | 46 % | | |
-| 29 | 798 | 21 % (was 46 %) | | |
-| 30 | 2,618 | 70 % (was 85 %) | | |
+| 5 | 2,147 | 57 % | | |
+| 6 | 2,346 | 62 % | | |
+| 11 | 1,965 | 52 % | | |
+| 12 | 3,462 | 92 % (sheds) | | |
+| 13 | 1,719 | 46 % | | |
+| 14 | 1,678 | 45 % | | |
+| 15 | 4,871 | 130 % (sheds) | | |
+| 19 | 1,699 | 45 % | | |
+| 22 | 1,731 | 46 % | | |
+| 29 | 808 | 21 % (was 46 %) | | |
+| 30 | 2,635 | 70 % (was 85 %) | | |
+| 31 | 2,821 (the factory scene) | 75 % (was 81 %) | | |
 
 The host costs were measured again on 2026-10-11, after the second round from playing it (the arpeggiator on every
 source, RESONATOR's own: about 7 a sample more on every run) and after the grains went to half rate with a bigger
@@ -169,12 +171,22 @@ pool (runs 3, 5, 6, 12, 15 now sound 18 or 30 grains where they sounded 16 or 24
 since it sets the scale. Read again after the grain pool stopped capping a track at
 what RATE and SIZE ask and BODY's wave followed the grains' notes: those moved them by 1 to 7 a sample. And again after
 six pages a device (NPK 24, for GRAIN's GRNS): 1 to 2 a sample more; then the step keys' lights, 1 to 4 more; then resting on silence (runs 29 and 30 new: what
-stopped costs, and three tracks muted) (run 1 is 991).
+stopped costs, and three tracks muted). And after the shared rooms (two rooms A and B every track sends to, in
+place of a room per track): where several tracks had rooms the cost fell (run 14, SPACE on all four, 1,879 to
+1,678; run 15 5,072 to 4,871; run 20 1,864 to 1,753); with one room it rose a little (runs 18, 21, 30: 12 to 31 a
+sample: the room always runs both sides now, and its damping rounds toward zero) (run 1 is 996).
 
 **The factory scene, 2026-10-10:** CPU above 80 % and crackles once the drums came in, where the host predicted
 about 45 % (1,720). So the scale from run 1 doesn't hold for every kind of work: the target divides where the host
 multiplies (see bryo-status.md's decision of the day). After the fixes the host reads 1,547; the device's reading
 is the next number to take.
+
+**The factory scene again, 2026-10-11:** one modulation depth on a drum's LVL put it over 80 % with crackles. The
+depth itself costs about 19 a sample (half a percent); the scene had crept up with the day's features, and the 1,547
+above was taken another way. Measured the way I measure it now (5 s of the scene playing, after a second's warm-up,
+under callgrind: row 31) it was 2,886 after the fixes, 3,046 (81 %) before the rooms. SPACE was the biggest single
+part (about 620 a sample: three rooms and two delays). With the two shared rooms, both at QUAL LO in the scene, it's
+2,821, 75 %. Run sheet row 31 asks for the device's number.
 
 ## What I'll do with the numbers
 

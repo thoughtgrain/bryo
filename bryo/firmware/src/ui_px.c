@@ -1002,9 +1002,9 @@ static const uint8_t DEV_PK[NDEV][NPK] = {
     {PK_DRIVE, PK_STAIRS, PK_NOISE, PK_TONE,         /* COLOR: DRV CRSH NOIS TILT */
      PK_DECAY, PK_TONE, PK_CMOD, PK_MIX,             /*        NDEC NTON CMOD WET */
      PK_FADER, PK_ROUTE, PK_NONE, PK_NONE},          /*        LVL ROUT */
-    {PK_CLOCK, PK_LOOP, PK_ROOM, PK_DECAY,           /* SPACE: TIME FDBK SIZE DEC */
+    {PK_CLOCK, PK_LOOP, PK_ROOM, PK_NONE,            /* SPACE: TIME FDBK ROOM */
      PK_MIX, PK_MIX, PK_FILTER, PK_BOWTIE,           /*        DLY VERB TONE SPRD */
-     PK_PRE, PK_NONE, PK_NONE, PK_NONE},             /*        PRE */
+     PK_NONE, PK_NONE, PK_NONE, PK_NONE},
 };
 static const uint8_t SYN_PK[NPK] = {
     PK_OSC, PK_DETUNE, PK_MIX, PK_NOISE,             /* SYNTH: WAVE DTUN MIX NOIS */
@@ -1034,6 +1034,7 @@ static const uint8_t CH_PK[NCH] = {PK_SHELF_LO, PK_SHELF_HI, PK_FILTER, PK_PAN};
 static const uint8_t MS_PK[NMS] = {PK_KNOB, PK_ATTACK, PK_RELEASE, PK_MIX};   /* the master compressor */
 static const uint8_t ARP_PK[NARP] = {   /* the arpeggiator: MODE ORDR RNGE RATE, GATE SWNG */
     PK_TOGGLE, PK_DIR, PK_VOICES, PK_CLOCK, PK_GATE, PK_SWING, PK_NONE, PK_NONE};
+static const uint8_t RM_PK[4] = {PK_ROOM, PK_DECAY, PK_FILTER, PK_TOGGLE};   /* a room: SIZE DEC TONE QUAL */
 static const uint8_t SET_PK[NSET] = {PK_TOGGLE, PK_KNOB, PK_CLOCK, PK_STEPS};   /* SETUP: KEYS KNOB HOLD LEDS */
 static const uint8_t ME_PK[NME][NPK] = {   /* (in stored order: param.c's PLAYOUT places them on the pages) */
     {PK_KNOB, PK_SHAPE, PK_SKEW, PK_FOLD,            /* LFO: RATE SHPE SKEW FOLD */

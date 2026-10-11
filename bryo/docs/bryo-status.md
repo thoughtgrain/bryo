@@ -40,13 +40,14 @@ The rest of the hardware checkpoint (`docs/hardware-checkpoint.md`) is under way
    TAPE | SYNTH | POLY | DRUM   (stereo from GRAIN on)                                     │
      ▲ REC IN: what REC prints onto the tape (the others, one track, itself)               ▼
      └──────────────────────────────────────────── sum ─► master compressor ─► MASTER ─► out
+ SPACE's send (VERB x the track's level) ─► room A or B (shared; ROOM picks) ─► the sum
  four modulator slots per track: LFO | ADSR | SEQ | FOLLOW, each with a depth to any knob
 ```
 
 - **Pages and knobs.** KNOB 1 to 4 always edit the four values on screen. HOME is the source (its pages: TAPE 3,
   SYNTH 5, POLY 4, DRUM 4, each ending with LVL); EDIT is GRAIN then RESONATOR; FX is COLOR then SPACE; LFO ENV SEQ are
   the modulators (LFO: M1-M3, picked with OP1-OP3 while it's held; ENV: M2; SEQ: M4) and ARP the arpeggiator; GLO is
-  the mixer (EDIT there: the channel, MASTER, SETUP); ALGORITHM turned is REC IN. A pad held +
+  the mixer (EDIT there: the channel, MASTER, the two shared rooms' pages, SETUP); ALGORITHM turned is REC IN. A pad held +
   SELECT picks that pad's thing (HOME: the source; a slot: its engine; GLO: TRACKS). Every control in every
   context is in `docs/controls.tsv`, checked by `tests/controls_check.py`. GRAIN, RESONATOR and COLOR have ROUT:
   INS (WET crossfades) or SEND (the dry at full, the device added).
@@ -169,22 +170,23 @@ sound of grains that ran off the buffer's end: the dense grain runs 7 to 11 % mo
 7 a sample. Run 25's 3,299 here was out of date: the build before these two read 3,079; then six pages a
 device (NPK 24, GRAIN's GRNS): the modulators copy wider arrays, 29 a sample on run 25, 6 on run 24, 1 to 2 elsewhere; then the step keys' lights, 1 to 4; then the devices resting on silence and muted tracks' devices hearing
 silence: run 29, stopped, 1,717 to 798, run 30, three tracks muted, 3,200 to 2,618, the playing runs within -125 to
-+17):
++17; then the two shared rooms in place of a room a track: run 14 1,879 to 1,678, run 15 5,072 to 4,871, the
+one-room runs 12 to 31 more):
 
 | Run | What | Cost |
 | --- | --- | ---: |
-| 1 | four reels, nothing on | 992 |
-| 19 | a realistic four-track groove | 1,680 |
-| 24 | the groove, modulated the way I'd play it | 1,911 (115 of it the modulators) |
-| 21 | the groove's busiest moment | 2,494 |
-| 23 | GRAIN at its densest on one track | 2,860 |
-| 25 | every slot on every track, 128 depths | 3,094 |
-| 26 | DRUM busy alone (FUNK, VARY 100, FILL 100, long decays), the others plain reels | 1,332 |
-| 27 | the groove with a DRUM track in place of its drum reel | 1,905 |
-| 28 | four DRUM tracks at once, every voice (20) | 2,433 |
-| 15 | everything on, all four tracks | 5,061 |
-| 29 | the busiest groove's devices all on, the transport stopped (what "nothing playing" costs) | 798 |
-| 30 | one track heard (dense grains, strings with RES ARP, a room), the other three muted | 2,618 |
+| 1 | four reels, nothing on | 996 |
+| 19 | a realistic four-track groove | 1,699 |
+| 24 | the groove, modulated the way I'd play it | 1,929 (115 of it the modulators) |
+| 21 | the groove's busiest moment | 2,516 |
+| 23 | GRAIN at its densest on one track | 2,863 |
+| 25 | every slot on every track, 128 depths | 2,969 |
+| 26 | DRUM busy alone (FUNK, VARY 100, FILL 100, long decays), the others plain reels | 1,337 |
+| 27 | the groove with a DRUM track in place of its drum reel | 1,924 |
+| 28 | four DRUM tracks at once, every voice (20) | 2,438 |
+| 15 | everything on, all four tracks | 4,871 |
+| 29 | the busiest groove's devices all on, the transport stopped (what "nothing playing" costs) | 808 |
+| 30 | one track heard (dense grains, strings with RES ARP, a room), the other three muted | 2,635 |
 
 My target for a realistic four-track scene is 2,000. The first device reading (run 1, 2026-10-10: 25 %, in 5 % steps)
 puts the ratio at about 37.6 host instructions a sample per percent, if the load scales with the host's count: the
@@ -227,6 +229,14 @@ number.
   four), split by what each track's settings ask for when it runs short; what's left over is everyone's (since
   2026-10-11: a track alone has all 40, not just what RATE and SIZE ask). GRAIN 6's GRNS can hold a number for a
   track instead (1-40, taken from the AUTO tracks first, kept whatever the others do).
+- **2026-10-11: two shared rooms in place of a room a track.** One LFO on a drum's level put the factory scene over
+  80 % with crackles; the depth costs half a percent, the scene had crept to 3,046 a sample (81 %), and SPACE's
+  three rooms were its biggest part. Now every track's SPACE sends (VERB x its level) to room A or B, set on the
+  mixer's ROOMS pages with a QUAL each (HI 22.05 kHz, LO 11.025 kHz: half the work, a darker tail); a room costs the
+  same however many tracks send to it, and takes memory only while one does. The scene's rooms are both LO: 2,821,
+  75 %. Projects went to version 8 (older ones become the two rooms from their tracks). The 1,547 below, for
+  2026-10-10, was measured another way; by today's measure (5 s of the scene after a second's warm-up) it was 2,886.
+  See "The shared rooms, as built".
 - **2026-10-11: colour says where you are and what's alive.** White on black stays the look; five colour-blind-safe
   accents (blue and purple for the pads' families, orange for activity, red for recording, yellow for state), never
   the only cue. The canvas went to 4 bits a dot (16 colours a strip). No per-track colours.
@@ -337,8 +347,8 @@ number.
 2. **Phase 10, tools and docs:** the manual is drafted (`docs/manual/`, checked on hardware as the checkpoint
    goes); the installer's text.
 3. **DRUM by ear:** listen to the kit and the rhythms, tune `DRM_KIT` and `DRM_PRESET`.
-4. Decisions waiting: p-locks, SPRD on PAN, and whether shared aux buses (one reverb all tracks send to) are worth
-   a chain rework (ROUT's per-track sends are in).
+4. Decisions waiting: p-locks, SPRD on PAN. (Shared reverb buses are in: the two rooms. A shared delay the same
+   way is the next lever if the device needs one.)
 
 ## Where the details are
 

@@ -158,7 +158,7 @@ Why:
 | Shared sound memory | 270,336 pool + 50,688 main RAM | 152 chunks of tape-format sound (28.2 s in all), handed out by usage: tapes as long as what's on them, GRAIN's live buffers while GRAIN is on, RESONATOR's strings and SPACE's lines while they're on. See "Memory by usage" |
 | RESONATOR | 4 chunks a track, while on | 4 strings × 1,056 samples × 2 B (lowest string F1, 43.7 Hz), from the shared memory while WET is up |
 | SPACE delay | 8 chunks a track, while DLY is up | 8,192 samples × 2 B at 22.05 kHz (TIME's 370 ms); 4 chunks at 8 bits when memory is short |
-| SPACE reverb | 10 chunks a track, while VERB is up | the room (a comb a chunk, the allpasses in a fifth) and the pre-delay's line (5 chunks; 3 at 8 bits) |
+| SPACE rooms | 10 chunks a room (two: A and B), while a track sends to it | the room (a comb a chunk, the allpasses in a fifth) and the pre-delay's line (5 chunks; 3 at 8 bits); see "The shared rooms, as built" |
 | COLOR | 0 | 64 B of state a track |
 | Screen canvas | 5,460 (main RAM) | 2 bits a dot (1.6 KB) and two 4-row line buffers (3.8 KB); see "The screen as dots" |
 | GRAIN | 9,728 pool + 2,900 main RAM | 32 grain slots × 304 B (a 128-sample decoded window each), and each track's buffer bookkeeping; the buffers themselves are shared memory |
@@ -1045,7 +1045,8 @@ the sound, which is the height the picture draws. SPRD moves the right echo up t
 (40 % to 100 % of 38..46 ms); DEC the time the tail takes to fall 60 dB (0.2..4.2 s, each comb's gain from
 RESONATOR's `rs_gain`); TONE the combs' damping, or a high-pass in front above 0; PRE the pre-delay, up to 200 ms.
 For stereo, the right side runs its own pair of allpasses fed the combs with alternating signs, and SPRD blends it in
-(0 is mono).
+(0 is mono). (Since 2026-10-11 the rooms are two the tracks share, on the mixer, always stereo; SPRD is the delay's
+alone: see "The shared rooms, as built".)
 
 **Memory by usage.** DLY and VERB now default to 0, like GRAIN's and RESONATOR's WET: a device that's off takes
 nothing. With DLY up the delay takes 8 chunks (8,192 samples); with VERB up the room takes 5 and its pre-delay 5. A
@@ -1089,6 +1090,91 @@ checkpoint's question now, more than before. If the FM-1 can't carry run 15, the
 strings) would need a step for SPACE as well (the room at a quarter rate, say), and that's a decision for when I have
 the device's number. The stress run cuts the interrupts in while RESONATOR and SPACE take and give back memory as
 knobs turn, and the books balance (RESONATOR's strings and SPACE's lines are in the check now too).
+
+## The shared rooms, as built (2026-10-11)
+
+**Why.** Playing the factory scene with one LFO on a drum's LVL put the FM-1 over 80 % and it crackled. The depth
+itself costs about 19 host instructions a sample, half a percent; the scene was the problem. Measured 5 s into it
+after a second's warm-up, it had crept from 2,886 to 3,046 a sample over the day's features (about 81 % on the
+device's scale of 37.6 a percent), and SPACE was its biggest part, about 620: a whole room for each of the three
+tracks with VERB up, and two delays. A room is Freeverb's four combs and four allpasses at 22.05 kHz whichever
+track it's on, so three rooms cost three times one, and three similar rooms on a small speaker don't sound like
+three rooms anyway. The middle way that was asked for: two rooms the tracks share, and a quality setting for each.
+
+**What it is now.**
+
+- Two rooms, **A** and **B** (`room[]` in `space.c`), each with SIZE, DEC, TONE, QUAL and PRE (`rmp[]`, `RM_P` in
+  `param.c`). They're the mix's, like the master compressor: one pair for the instrument, on the mixer's ROOMS
+  pages (EDIT past MASTER: A, B, then both pre-delays), saved with the project, and not modulation targets (no
+  track's slot owns them, and a room's lengths are what the main loop sizes its memory for).
+- Each track's SPACE keeps its delay (TIME FDBK DLY TONE SPRD) and sends to one room: **ROOM** (A or B) on SPACE 2,
+  **VERB** the amount on page 1, next to DLY. Tracks 1-2 start on A, 3-4 on B. ROOM is `nomod` (it picks the memory).
+- The send is a bus. `space_block` adds the track's mono at half rate, times VERB times the track's level (Q12: so
+  the fader and mute take the track's share out of the room, as a post-fader send does), ramped across the block,
+  into the room's input `R->in[]`. `chain_block` runs `space_rooms` once after the tracks, before the master
+  compressor: each room on what it was sent, its tail added to the mix, its input cleared.
+- **QUAL**: HI runs a room at 22.05 kHz as before; LO at 11.025 kHz. The sends are averaged in pairs first (so a high
+  sound doesn't fold down into the room: tested with 10 kHz against 1 kHz), the combs' and allpasses' lengths
+  halve (`sp_room`: the same times), the comb gains are worked out for the same DEC (`rs_gain` counts samples at
+  44.1 kHz, so each sample counts four), TONE's high-pass coefficient doubles, and the tail steps back up to 44.1 kHz
+  a quarter of the way at a time (unrolled: no multiply by j). Half the work and a darker, softer tail: it suits a
+  big ambient room more than a tight one. A QUAL change restarts the room from silence, since its lengths then mean
+  other times.
+- The room is always stereo now: the right side's own allpass pair on a sign-alternating mix of the combs, as
+  before, but not blended by SPRD any more; SPRD is the delay's (the right echo ahead).
+
+**Memory.** A room's lines (its combs and allpasses, 5 chunks, and the pre-delay, 5 or 3 at 8 bits) belong to
+`MEM_ROOM + r` and are taken while any track in use sends to it (VERB up, or modulated up, and its ROOM that room)
+and given back when none does. So run 14 (SPACE on all four) holds 52 chunks where it held 72. The mixer's memory
+ribbon draws the rooms after the tracks, dim, under an R where it fits.
+
+**Resting, and a limit cycle it uncovered.** A room rests like a track's SPACE did: silence in and |wet| <= 16 out
+for longer than its pre-delay plus its longest comb and allpasses (at its rate). The first run of the resting test
+never rested: room A sat at -24 for good. The old room's output was scaled by VERB after it, which had hidden its
+integer limit cycle under the threshold; with the send scaled before it, the raw cycle showed. Its source was the
+combs' damping filter, the one `>> 15` left in the loop (it floors). With it rounding toward zero (`sp_mul`, as the
+comb gains and the allpasses already did), the loop with nothing in it falls to 0 and the room rests.
+
+**Old projects and presets.** Projects are version 8: the rooms are stored after the depths (a count, then each
+room's knobs). A version 7 project had a room a track, SIZE and DEC at SPACE's knobs 2-3 and PRE at 8: those are
+read raw (`pj_old_sp`), and `pj_rooms7` makes room A from the first of tracks 1-2 with VERB up (its SIZE, DEC, TONE
+and PRE), room B from tracks 3-4, a pair with no VERB up keeping the defaults. Tracks 1-2 send to A and 3-4 to B,
+TIME FDBK DLY VERB TONE SPRD stay as they were, and depths on SIZE, DEC or PRE are dropped (`mod_tdesc`: ROOM isn't
+a target and the others are empty knobs). A track preset doesn't hold the rooms, and the room a track sends to stays
+the track's when one loads (the rooms are the mix's), so an older preset's SIZE in that place means nothing.
+
+**The factory scene** sets the rooms: A small (SIZE 45: T1's kit, T2's bells), B large and long (SIZE 80, DEC 65:
+T3's strings), both at QUAL LO. That last part is a choice made for the number: at HI the scene is 2,949 a sample
+(78 %), at LO 2,821 (75 %), inside the 65 to 75 % the device read before. A new project starts at HI.
+
+**What it costs.** Host instructions a sample, same harness before and after:
+
+| | Before | Now |
+| --- | ---: | ---: |
+| the factory scene (3 rooms, now 2 at LO) | 3,046 | 2,821 |
+| run 14: SPACE on all four (4 rooms, now 2) | 1,879 | 1,678 |
+| run 15: everything on all four | 5,072 | 4,871 |
+| run 16: TRACKS 3 with SPACE | 2,363 | 2,291 |
+| run 20: the ambient pad (2 rooms, now 1) | 1,864 | 1,753 |
+| run 18: one track in a room | 1,779 | 1,810 |
+| run 21: the busiest groove (one room) | 2,498 | 2,516 |
+| run 30: one track heard, a room | 2,623 | 2,635 |
+
+A room costs about 157 a sample at HI and 95 at LO. Where only one track had a room it costs a little more than
+before (12 to 31): the room always runs both sides now, the damping rounds toward zero, and every track with VERB
+up runs its send. Where several did, it's one room's cost however many send.
+
+**Tests.** `test_space`: VERB up takes room A's lines (5 + 5 at 16 bits) and nothing for B or the track; DEC 100
+against 0; the room's sides decorrelate; PRE 100 ms; QUAL LO's tail as long as HI's and stepped back up smoothly, a
+10 kHz send not folded down, HI's image at 18 kHz 21 dB under what it mirrors; two tracks in one room share its
+memory, each alone gives the same tail, both together the sum; the send at level 0 sends nothing and at half level
+half; a track moved to B makes B take its lines and A keep its own, and VERB 0 gives them back; every knob at its
+top, both QUALs, bounded. `test_resting`: the room rests and stands still. `test_projects`: a version 7 project
+becomes the rooms as above, a version 8 one keeps rooms and ROOM, a track preset keeps the track's ROOM; the
+biggest project still fits (3,748 of 3,840 bytes). Mutations each caught: the send ignoring the level, the room
+never resting, the damping's floor shift back, the migration ignoring VERB, ROOM not kept by a preset, every track
+on A, LO without the pair average, HI without its halfway step. The checkpoint's stress run turns ROOM and a room's
+knobs (QUAL among them) while the interrupts cut in, and its books check the rooms' chunks.
 
 ## Phase 9: the strip shows modulation, as built (2026-10-09)
 
@@ -1232,12 +1318,12 @@ steps the view's pages, as it steps the mixer's):
 
 | # | Name | Source | What it is |
 |---|---|---|---|
-| 1 | DRIFT | TAPE | the tape through soft grains (WET 40, 220 ms), warmed (TILT -25), a long room and a short echo; an LFO sways the grains' spray over a bar |
+| 1 | DRIFT | TAPE | the tape through soft grains (WET 40, 220 ms), warmed (TILT -25), into its room and a short echo; an LFO sways the grains' spray over a bar |
 | 2 | RINGS | TAPE | the tape ringing RESONATOR's strings tuned to a major chord (WET 45); a SEQ steps their root on semitones |
 | 3 | BASS | SYNTH | one saw voice, a low filter (217 Hz) its envelope opens, a short glide, drive, an octave down |
-| 4 | PAD | SYNTH | detuned saws, a 1 s attack and 2 s release, the cutoff breathing over four bars, a big room |
-| 5 | KEYS | POLY | a plucked envelope, the filter a little closed and following it, a small room |
-| 6 | SWELL | POLY | notes that fade in and hang, through grains and a large room, the cutoff drifting |
+| 4 | PAD | SYNTH | detuned saws, a 1 s attack and 2 s release, the cutoff breathing over four bars, well into its room |
+| 5 | KEYS | POLY | a plucked envelope, the filter a little closed and following it, a little of its room |
+| 6 | SWELL | POLY | notes that fade in and hang, through grains and well into its room, the cutoff drifting |
 | 7 | TIGHT | DRUM | short, bright drums with a little drive and more accent |
 | 8 | DUB | DRUM | longer, darker drums that vary (SEED 7, VARY 50) into a feedback delay whose feedback swells |
 
@@ -1456,7 +1542,7 @@ so WET sets it with them, and the 2x up costs it nothing more).
   with the grains' degrees over it as before, so BODY always lands on the strings. Measured at the strings' note
   (C3) with RESONATOR at WET 100: a sine on ROOT A2 rings it at 41, on RES at 6,842. A projects' or preset's ROOT is
   24 or more, so nothing stored changes. The knob's picture marks no key on RES (the root is another device's).
-- Projects are version 7: an older one stored 0s there (NOTE held to C1, TONE 30 Hz), so it gets the defaults. A track
+- Projects were version 7 for this (8 since the shared rooms): an older one stored 0s there (NOTE held to C1, TONE 30 Hz), so it gets the defaults. A track
   preset has no version: BODY, MODE and TONE all 0 means one from before, and gets them too (BODY stays off either
   way).
 
@@ -1825,7 +1911,7 @@ the last page of everything. Only the `PLAYOUT` rows moved: stored order is the 
 modulation targets and the DSP are untouched. The rest close up behind: GRAIN SIZE RATE ROUT WET / PTCH SPRD SPRY
 CONT / REV PATN SCAL PRND / SCAN WARP OFST FDBK / BODY MODE ROOT TONE / GRNS; RESONATOR PTCH DEC ROUT WET / CUT
 RES TYPE SCAL / TONE; COLOR DRV CRSH ROUT WET / NOIS TILT NDEC NTON / CMOD . . LVL; SPACE TIME FDBK DLY VERB /
-SIZE DEC TONE SPRD / PRE. The layout lint (`test_mod`) checks the rule: an effect's page 1 ends ROUT WET (SPACE DLY
+SIZE DEC TONE SPRD / PRE (since the shared rooms: TIME FDBK DLY VERB / ROOM TONE SPRD). The layout lint (`test_mod`) checks the rule: an effect's page 1 ends ROUT WET (SPACE DLY
 VERB), a source's (and COLOR's) last page ends LVL, a modulator's AMT OFS. The other rule ("ROUT KNOB 4 of the last
 page") is gone with it. The pictures in the visualizations don't care which page they're on (they follow the knob
 turned), so nothing else changed but the tests and the manual. Reading one, an empty knob past what was
@@ -2176,7 +2262,7 @@ The black keys' shortcuts are off then, all of them (a key can't be a sharp and 
 where OP1-OP3 still pick. TAPE's slices, DRUM's kit, GRAIN's cursor and RESONATOR's root keep the white keys as
 they were.
 
-**SETUP**, the mixer's fourth page: KEYS, KNOB, HOLD and LEDS, the instrument's, not a project's. HOLD and LEDS were
+**SETUP**, the mixer's fourth page (its last, after the ROOMS pages since 2026-10-11): KEYS, KNOB, HOLD and LEDS, the instrument's, not a project's. HOLD and LEDS were
 Felucca's MENU settings (kept in its fields all along); KEYS and KNOB are a byte of their own in the settings record:
 favorites.factory[15][0], an engine Felucca never had, so going back to Felucca reads nothing from it. KNOB is how
 far a detent moves a value with more than 32 steps: 1X, 2X, 4X, or ACC, Felucca's acceleration (#52: the time

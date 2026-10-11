@@ -567,17 +567,22 @@ static void viz_color(const int16_t *v, uint32_t f)
 /* the window is 2 s: the dry hit at 0, echoes TIME ms apart falling by FDBK, the tail rising over SIZE (10..90 ms)
  * and falling over DECAY (0.2..4.2 s). DLY or VERB at 0 is off (space.c: no memory taken): its part is drawn dim,
  * as it would be at 100, so TIME, FDBK, SIZE and DEC still show what they set */
-/* SPACE on track t is sounding now: running, and not resting (space.c: its wet past -66 dB within 0.1 s) */
+/* SPACE on track t is sounding now: its delay, or the room it sends to, running and not resting (space.c: the wet
+ * past -66 dB within 0.1 s) */
 static int space_sounding(uint32_t t)
 {
-    return (space[t].dlive || space[t].rlive) && space[t].quiet < 2205u;
+    const room_t *R = &room[clamp(tp[t].dev[DEV_SPACE][SP_ROOM], 0, 1)];
+    return (space[t].dlive && space[t].quiet < 2205u) ||
+           ((R->users >> t & 1u) && R->live && R->quiet < (R->qual ? 1103u : 2205u));
 }
 
 static void viz_space(const int16_t *v, uint32_t f)
 {
-    /* page 2: DLY scales the echoes, VERB the tail; TONE (- low-pass, + high-pass on the feedback) makes each echo
-     * lose a little more; page 3: PRE holds the tail back (ms) */
-    int32_t t, x, py = DY1, rise = 10 + v[2] * 80 / 100, len = 200 + v[3] * 40, g = 32767, first = -1, pre = v[8];
+    /* DLY scales the echoes, VERB the tail; TONE (- low-pass, + high-pass on the feedback) makes each echo lose a
+     * little more. The tail is the room's ROOM picks (its SIZE, DEC and PRE: the mixer's ROOMS pages) */
+    const int16_t *q = rmp[clamp(v[2], 0, 1)];
+    int32_t t, x, py = DY1, rise = 10 + q[RM_SIZE] * 80 / 100, len = 200 + q[RM_DEC] * 40, g = 32767, first = -1;
+    int32_t pre = q[RM_PRE];
     int32_t tl = 100 - (v[6] < 0 ? -v[6] : v[6]) / 5;                  /* TONE: what each pass keeps, % */
     int32_t dly = v[4] ? v[4] : 100, verb = v[5] ? v[5] : 100;
     int live = space_sounding(sys.sel);                                /* (sounding now: the echoes and the tail in
@@ -591,7 +596,7 @@ static void viz_space(const int16_t *v, uint32_t f)
             continue;
         }
         e = ms < rise ? ms * 1000 / rise : 1000 - (ms - rise) * 1000 / len;
-        if (e <= 0)
+        if (e <= 0 && ms >= rise)                       /* (the end of the tail; at its first instant it is 0 too) */
             break;
         e = e * e / 1000 * verb / 100;
         y = DY1 - e * DH / 1000;
@@ -614,12 +619,12 @@ static void viz_space(const int16_t *v, uint32_t f)
         else
             px_dot(x, DY1 - h, px_dim);
     }
-    if (f >= 4u && f < 9u)
+    if (f >= 4u && f <= 7u)
         vz_ktag(118, DY0 - 1, &DEV_P[DEV_SPACE][f], v[f]);
     px_text(DX0, DLBL, PXF_3, "DRY", px_ink);
     if (first >= DX0 + 20 && first < DX1 - 20)
         vz_label(first + 2, f == 1u ? "FDBK" : "ECHO", f <= 1u || f == 4u);
-    vz_label(DX1 - 10, f == 2u ? "SIZE" : f == 3u ? "DEC" : "TAIL", (f >= 2u && f <= 3u) || f == 5u || f == 8u);
+    vz_label(DX1 - 14, v[2] ? "ROOM B" : "ROOM A", f == 2u || f == 5u);
 }
 
 /* ------------------------------------------------------------- MODS --- */
@@ -1338,7 +1343,7 @@ static void viz_arp(const int16_t *v, uint32_t f)
     }
 }
 
-/* SETUP (the mixer's fourth page): what each preference does, in words */
+/* SETUP (the mixer's last page): what each preference does, in words */
 static void viz_setup(void)
 {
     static const char *const KN[4] = {"KNOBS: A STEP A DETENT", "KNOBS: 2 STEPS A DETENT", "KNOBS: 4 STEPS A DETENT",
@@ -1432,6 +1437,73 @@ static void viz_master(uint32_t f)
         vz_ktag(92, DY0 - 1, &MS_P[f], mst[f]);
 }
 
+/* ------------------------------------------------------------- ROOMS --- */
+/* A room's tail over 2 s from column x0 to the plot's right, along rows y1 - h .. y1, as SPACE draws it: held back
+ * by PRE, rising over SIZE (10..90 ms), falling over DEC (0.2..4.2 s) */
+static void vz_tail(const int16_t *q, int32_t x0, int32_t y1, int32_t h, uint16_t ink)
+{
+    int32_t x, py = y1, rise = 10 + q[RM_SIZE] * 80 / 100, len = 200 + q[RM_DEC] * 40;
+    for (x = x0; x <= DX1; x++) {
+        int32_t ms = (x - x0) * 2000 / (DX1 - x0) - q[RM_PRE], e, y;
+        if (ms < 0) {
+            py = y1;
+            continue;
+        }
+        e = ms < rise ? ms * 1000 / rise : 1000 - (ms - rise) * 1000 / len;
+        if (e <= 0 && ms >= rise)                       /* (the end of the tail; at its first instant it is 0 too) */
+            break;
+        e = e * e / 1000;
+        y = y1 - e * h / 1000;
+        if (x > x0)
+            px_line(x - 1, py, x, y, ink, 1);
+        py = y;
+    }
+}
+
+/* room r is sounding now: a track sends to it, and it's running and not resting (space.c: within 0.1 s) */
+static int room_sounding(uint32_t r)
+{
+    return room[r].users && room[r].live && room[r].quiet < (room[r].qual ? 1103u : 2205u);
+}
+
+/* The ROOMS pages (the mixer, EDIT past MASTER): room r's tail (orange while it sounds, white while it rests, dim
+ * with nothing sent to it), the tracks sending to it tagged on the label row, QUAL at the right. The third page
+ * (r NROOM): both pre-delays, A's tail over B's. */
+static void viz_room(uint32_t r, uint32_t f)
+{
+    uint32_t t, k;
+    int32_t x = 1;
+    if (r >= NROOM) {
+        for (k = 0; k < NROOM; k++) {
+            int32_t y1 = k ? DY1 : DMID - 2;
+            px_line(DX0, y1 + 1, DX1, y1 + 1, px_dim, 2);
+            px_text(DX0, y1 - 5, PXF_3, k ? "B" : "A", px_ink);
+            vz_tail(rmp[k], DX0 + 6, y1, DH / 2 - 3, room_sounding(k) ? px_live : room[k].users ? px_ink : px_dim);
+        }
+        vz_label(DX0 + 30, "PRE A", f == 0u);
+        vz_label(DX0 + 80, "PRE B", f == 1u);
+        if (f < NROOM)
+            vz_ktag(118, DY0 - 1, &RMP_P[f], rmp[f][RM_PRE]);
+        return;
+    }
+    px_line(DX0, DY1 + 1, DX1, DY1 + 1, px_dim, 2);
+    px_line(DX0 + 1, DY1, DX0 + 1, DY0 + 1, px_ink, 1);   /* the sound sent, at 0 */
+    vz_node(DX0 + 1, DY0 + 1, 1);
+    vz_tail(rmp[r], DX0, DY1, DH, room_sounding(r) ? px_live : room[r].users ? px_ink : px_dim);
+    for (t = 0; t < NTRK; t++)                          /* who sends to it */
+        if (room[r].users >> t & 1u) {
+            char n[3] = {'T', (char)('1' + t), 0};
+            px_tag(x, DLBL - 1, PXF_3, n, px_ink, px_bg);
+            x += 11;
+        }
+    if (x == 1)
+        px_text(1, DLBL, PXF_3, "NO SENDS", px_dim);
+    vz_label(78, "TAIL", f <= 2u);
+    vz_label(110, rmp[r][RM_QUAL] ? "LO" : "HI", f == 3u);
+    if (f < 4u)
+        vz_ktag(118, DY0 - 1, &RM_P[f], rmp[r][f]);
+}
+
 /* tenths of a second as "4.2" (the unit goes apart: an S after digits reads as a 5 in these faces) */
 static void vz_secs(char *b, int32_t tenths)
 {
@@ -1445,8 +1517,9 @@ static int32_t vz_chunk_tenths(uint32_t n) { return (int32_t)(n * TAPE_CHS * 10u
 
 /* The mixer's levels page: what each track holds of the shared memory, under its fader: its tape's seconds and,
  * when GRAIN is on, its live buffer's (GR); a parked track says OFF, its tape (kept, taken first) dim. Then the
- * memory as one ribbon (each track's tape solid, its GRAIN buffer and strings dim, what's free dotted), and under it TRACKS and
- * the time still free. SELECT sets TRACKS here. */
+ * memory as one ribbon (each track's tape solid, its GRAIN buffer, strings and delay dim, then the shared rooms dim
+ * under an R where it fits, what's free dotted), and under it TRACKS and the time still free. SELECT sets TRACKS
+ * here. */
 static void viz_memory(void)
 {
     char b[20];
@@ -1493,6 +1566,14 @@ static void viz_memory(void)
         }
         if (x0 > w0)
             x0++;                                       /* (a gap between tracks) */
+    }
+    c = mem_count(MEM_ROOM) + mem_count(MEM_ROOM + 1u);   /* the rooms A and B (no track's: the mix's) */
+    if (c) {
+        uint32_t w = c * (uint32_t)DW / MEM_NC + 1u;
+        px_box((int32_t)x0, 25, (int32_t)w, 5, px_dim);
+        if (w >= 6u)
+            px_text_c((int32_t)x0, (int32_t)w, 31, PXF_3, "R", px_ink);
+        x0 += w + 1u;
     }
     c = mem_count(MEM_IMPORT);
     if (c)
@@ -2041,6 +2122,12 @@ static uint32_t viz_sig(void)
         if (ui.chan == CHAN_MASTER)                                    /* the compressor's knobs and what it takes off */
             for (k = 0; k < NMS; k++)
                 h = (h ^ (uint32_t)(mst[k] + 32768)) * 16777619u;
+        if (ui.chan >= CHAN_ROOMA && ui.chan <= CHAN_ROOMP) {          /* the rooms: their knobs, who sends, alive */
+            for (k = 0; k < (int32_t)(NROOM * NRM); k++)
+                h = (h ^ (uint32_t)(rmp[k / NRM][k % NRM] + 32768)) * 16777619u;
+            for (k = 0; k < (int32_t)NROOM; k++)
+                h = (h ^ (room[k].users | (uint32_t)room_sounding((uint32_t)k) << 8) << (k * 12)) * 16777619u;
+        }
         if (ui.chan == CHAN_SETUP)                                     /* the preferences */
             return h + 0x5E7u + bryo_prefs * 31u + settings_hold * 977u + settings_leds * 7919u;
         return h + ui.chan * 977u + sys.ntrk * 5381u + (ui.chan ? 0u : sys.cpu_q8 * 100u / 256u / 5u * 7919u) +
@@ -2115,8 +2202,11 @@ static uint32_t viz_sig(void)
             if (gr_on((uint32_t)k) && gslot[k].trk == sys.sel)
                 h = (h ^ (uint32_t)(gslot[k].pos >> 18) ^ k << 24) * 16777619u;
     }
-    if (ui.kind == FOCUS_DEV && ui.dev == DEV_SPACE)                   /* SPACE: sounding or resting */
+    if (ui.kind == FOCUS_DEV && ui.dev == DEV_SPACE) {                 /* SPACE: sounding or resting; its room's tail */
+        const int16_t *q = rmp[clamp(tp[sys.sel].dev[DEV_SPACE][SP_ROOM], 0, 1)];
         h = (h ^ (uint32_t)space_sounding(sys.sel) * 0x9E37u) * 16777619u;
+        h = (h ^ (uint32_t)(q[RM_SIZE] | q[RM_DEC] << 8 | q[RM_PRE] << 16)) * 16777619u;
+    }
     if (ui.kind == FOCUS_DEV && ui.dev == DEV_RESO) {                  /* RESONATOR: a key's root, the strings ringing */
         uint32_t ring = 0;
         for (k = 0; k < (int32_t)RS_N; k++)
@@ -2149,6 +2239,8 @@ static void draw_viz(void)
             viz_setup();
         else if (ui.chan == CHAN_MASTER)
             viz_master(f);
+        else if (ui.chan >= CHAN_ROOMA && ui.chan <= CHAN_ROOMP)
+            viz_room(ui.chan - CHAN_ROOMA, ui.last < 4u ? ui.last : 0xFFu);
         else if (ui.chan)
             viz_channel(f);
         else

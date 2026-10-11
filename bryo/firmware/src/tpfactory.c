@@ -37,14 +37,14 @@ typedef struct {
 static const tpf_set_t TPF_DRIFT_S[] = {
     {DEV_GRAIN, GP_WET, 40}, {DEV_GRAIN, GP_SIZE, 220}, {DEV_GRAIN, GP_RATE, 30}, {DEV_GRAIN, GP_SPRD, 60},
     {DEV_GRAIN, GP_SPRY, 50}, {DEV_GRAIN, GP_CONT, 80}, {DEV_COLOR, CP_TILT, -25},
-    {DEV_SPACE, SP_VERB, 35}, {DEV_SPACE, SP_SIZE, 75}, {DEV_SPACE, SP_DLY, 20}, {DEV_SPACE, SP_TIME, 330},
+    {DEV_SPACE, SP_VERB, 35}, {DEV_SPACE, SP_DLY, 20}, {DEV_SPACE, SP_TIME, 330},
     {DEV_SPACE, SP_FDBK, 35}, {DEV_SRC, TK_LVL, 3}, {TPF_S(0), 0, 48}};   /* (LFO RATE 48: a bar a cycle) */
 static const tpf_dep_t TPF_DRIFT_D[] = {{0, DEV_GRAIN, GP_SPRY, 30}};
 
 /* 2 RINGS: the tape rings strings tuned to a major chord; slot 3's SEQ steps their root (on semitones) */
 static const tpf_set_t TPF_RINGS_S[] = {
     {DEV_RESO, RP_WET, 45}, {DEV_RESO, RP_PTCH, 45}, {DEV_RESO, RP_DEC, 85}, {DEV_RESO, RP_TONE, 70},
-    {DEV_RESO, RP_SCAL, 1}, {DEV_RESO, RP_RES, 20}, {DEV_SPACE, SP_VERB, 30}, {DEV_SPACE, SP_SIZE, 60}};
+    {DEV_RESO, RP_SCAL, 1}, {DEV_RESO, RP_RES, 20}, {DEV_SPACE, SP_VERB, 30}};
 static const tpf_dep_t TPF_RINGS_D[] = {{2, DEV_RESO, RP_PTCH, 25}};
 
 /* 3 BASS: one saw voice, a low filter its envelope opens, a short glide, drive, an octave down */
@@ -54,24 +54,24 @@ static const tpf_set_t TPF_BASS_S[] = {
     {MA_SYN, SY_VOIC, 1}, {MA_SYN, SY_GLID, 50}, {MA_SYN, SY_DRV, 25}, {MA_SYN, SY_TUNE, -12},
     {MA_SYN, SY_LVL, -6}, {DEV_COLOR, CP_DRIV, 15}};
 
-/* 4 PAD: detuned saws, a slow swell and a long release, the cutoff breathing over four bars, a big room */
+/* 4 PAD: detuned saws, a slow swell and a long release, the cutoff breathing over four bars, well into its room */
 static const tpf_set_t TPF_PAD_S[] = {
     {MA_SYN, SY_WAVE, 3}, {MA_SYN, SY_DTUN, 22}, {MA_SYN, SY_MIX, 50}, {MA_SYN, SY_NOIS, 5}, {MA_SYN, SY_CUT, 80},
     {MA_SYN, SY_RES, 15}, {MA_SYN, SY_ENV, 20}, {MA_SYN, SY_ATK, 96}, {MA_SYN, SY_DEC, 100}, {MA_SYN, SY_SUS, 80},
-    {MA_SYN, SY_REL, 104}, {DEV_SPACE, SP_VERB, 55}, {DEV_SPACE, SP_SIZE, 85}, {DEV_SPACE, SP_DEC, 70},
-    {DEV_SPACE, SP_DLY, 15}, {TPF_S(0), 0, 16}, {TPF_S(0), 1, 1}};   /* (LFO: four bars, a triangle) */
+    {MA_SYN, SY_REL, 104}, {DEV_SPACE, SP_VERB, 55}, {DEV_SPACE, SP_DLY, 15}, {MA_SYN, SY_LVL, -1},
+    {TPF_S(0), 0, 16}, {TPF_S(0), 1, 1}};   /* (LFO: four bars, a triangle) */
 static const tpf_dep_t TPF_PAD_D[] = {{0, MA_SYN, SY_CUT, 15}};
 
-/* 5 KEYS: a plucked envelope, the filter a little closed and following it, a small room */
+/* 5 KEYS: a plucked envelope, the filter a little closed and following it, a little of its room */
 static const tpf_set_t TPF_KEYS_S[] = {
     {MA_POL, PL_ATK, 0}, {MA_POL, PL_DEC, 72}, {MA_POL, PL_SUS, 40}, {MA_POL, PL_REL, 64}, {MA_POL, PL_CUT, 100},
-    {MA_POL, PL_RES, 10}, {MA_POL, PL_ENV, 30}, {DEV_SPACE, SP_VERB, 25}, {DEV_SPACE, SP_SIZE, 50}};
+    {MA_POL, PL_RES, 10}, {MA_POL, PL_ENV, 30}, {DEV_SPACE, SP_VERB, 25}};
 
-/* 6 SWELL: notes that fade in and hang, through grains and a large room, the cutoff drifting over four bars */
+/* 6 SWELL: notes that fade in and hang, through grains and well into its room, the cutoff drifting over four bars */
 static const tpf_set_t TPF_SWELL_S[] = {
     {MA_POL, PL_ATK, 100}, {MA_POL, PL_DEC, 100}, {MA_POL, PL_SUS, 90}, {MA_POL, PL_REL, 108}, {MA_POL, PL_CUT, 70},
     {MA_POL, PL_RES, 25}, {MA_POL, PL_ENV, 40}, {DEV_GRAIN, GP_WET, 30}, {DEV_GRAIN, GP_SIZE, 300},
-    {DEV_GRAIN, GP_SPRY, 40}, {DEV_SPACE, SP_VERB, 60}, {DEV_SPACE, SP_SIZE, 90}, {DEV_SPACE, SP_DEC, 80},
+    {DEV_GRAIN, GP_SPRY, 40}, {DEV_SPACE, SP_VERB, 60},
     {MA_POL, PL_LVL, 4},
     {TPF_S(0), 0, 16}, {TPF_S(0), 1, 1}};
 static const tpf_dep_t TPF_SWELL_D[] = {{0, MA_POL, PL_CUT, 10}};
@@ -122,9 +122,11 @@ static void tpf_apply(uint32_t t, const tpf_t *F)
 {
     track_params_t *P = &tp[t];
     uint32_t d, k, s, i;
+    int16_t room = P->dev[DEV_SPACE][SP_ROOM];          /* (the room it sends to stays: the rooms are the mix's) */
     for (d = 1; d < NDEV; d++)                           /* the sound from its defaults: the devices, the channel */
         for (k = 0; k < NPK; k++)
             P->dev[d][k] = pdesc_empty(&DEV_P[d][k]) ? 0 : DEV_P[d][k].def;
+    P->dev[DEV_SPACE][SP_ROOM] = room;
     for (k = 0; k < NCH; k++)
         P->ch[k] = CH_P[k].def;
     for (k = 0; k < NPK; k++) {                          /* .. the preset's source (the others: as they are) */
@@ -202,7 +204,7 @@ static int tpf_load(uint32_t f, uint32_t t)
  *   T2 POLY   BELL, struck by its arpeggiator: Am7 latched, at random over two octaves, eighths; M4 moves the
  *             chord a bar at a time, Am7 Dm7 Em7 Am7 (TUNE +0 +5 +7 +0); M3 drifts the filter; a few grains, an echo
  *   T3 TAPE   DRON through strings M4 walks from A (A C D E G, a bar a step) and a shimmer of grains, each pitched
- *             at random within A minor (PRND 12, SCAL MIN); a large room
+ *             at random within A minor (PRND 12, SCAL MIN); room B, the large one
  *   T4 POLY   FOLD, plucked by its arpeggiator: A minor pentatonic up and down, swung sixteenths, moving with T2's
  *             chords (its M4 the same steps); M3 drifts the filter; a delay whose feedback M1 breathes over four bars
  * The arpeggiators' notes wait for PLAY (arp.c). M4 is the SEQ (slot 2), M3 the random LFO (slot 3), M1 the LFO
@@ -212,7 +214,7 @@ static int tpf_load(uint32_t f, uint32_t t)
 #define TPS_FOLD_NOTE 45             /* FOLD's first pluck */
 static const tpf_set_t TPS_T1_S[] = {
     {MA_DRM, DM_SEED, 5}, {MA_DRM, DM_VARY, 70}, {MA_DRM, DM_FILL, 50}, {MA_DRM, DM_EVOL, 2}, {MA_DRM, DM_LVL, 2},
-    {DEV_SPACE, SP_VERB, 15}, {DEV_SPACE, SP_SIZE, 45},
+    {DEV_SPACE, SP_VERB, 15},
     {TPF_S(3), 0, 32}, {TPF_S(3), 6, 40},              /* M3: RND, two bars a step, drifting */
     {TPF_S(2), 0, 8}, {TPF_S(2), 1, 1}};               /* M4: 8 steps, half a bar each */
 static const tpf_dep_t TPS_T1_D[] = {{3, MA_DRM, DM_SEED, 45}, {2, MA_DRM, DM_TUNE, 20}};
@@ -229,7 +231,7 @@ static const tpf_set_t TPS_T3_S[] = {
     {DEV_RESO, RP_WET, 45}, {DEV_RESO, RP_PTCH, 45}, {DEV_RESO, RP_DEC, 85}, {DEV_RESO, RP_TONE, 65},
     {DEV_GRAIN, GP_WET, 40}, {DEV_GRAIN, GP_SIZE, 280}, {DEV_GRAIN, GP_RATE, 22}, {DEV_GRAIN, GP_SCAL, 3},
     {DEV_GRAIN, GP_PRND, 12}, {DEV_GRAIN, GP_REV, 40}, {DEV_GRAIN, GP_SPRY, 60}, {DEV_GRAIN, GP_SPRD, 80},
-    {DEV_SPACE, SP_VERB, 45}, {DEV_SPACE, SP_SIZE, 80}, {DEV_SPACE, SP_DEC, 65},
+    {DEV_SPACE, SP_VERB, 45}, {DEV_SPACE, SP_ROOM, 1},
     {TPF_S(2), 0, 8}, {TPF_S(2), 1, 0},                 /* M4: 8 steps, a bar each */
     {TPF_S(3), 0, 32}};
 static const tpf_dep_t TPS_T3_D[] = {{2, DEV_RESO, RP_PTCH, 25}, {3, DEV_GRAIN, GP_SIZE, 20}};
@@ -263,6 +265,11 @@ static const uint8_t TPS_ARPC[NTRK] = {0, 4, 0, 5};
 static void tpf_scene(void)
 {
     uint32_t t, k;
+    rmp[0][RM_SIZE] = 45;                                /* the rooms: A a small one (T1's kit, T2's bells), B a */
+    rmp[1][RM_SIZE] = 80;                                /* .. large, long one (T3's strings); both QUAL LO, half */
+    rmp[1][RM_DEC] = 65;                                 /* .. the work (the scene at ~75 % on the FM-1, not ~78) */
+    rmp[0][RM_QUAL] = RQ_LO;
+    rmp[1][RM_QUAL] = RQ_LO;
     for (t = 0; t < NTRK; t++) {
         int16_t reel = tp[t].dev[DEV_SRC][TK_REEL], preel = tp[t].pol[PL_REEL];
         tpf_apply(t, &TPS[t]);

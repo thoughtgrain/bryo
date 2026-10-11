@@ -29,14 +29,16 @@
 
 #define PJ_N 6u                      /* project slots */
 #define PJ_MAGIC 0x50595242u         /* "BRYP" */
-#define PJ_VERSION 7u                   /* 2: SEQ's slots have SPRD AMT OFS (a version 1 project's SEQ gets their
+#define PJ_VERSION 8u                   /* 2: SEQ's slots have SPRD AMT OFS (a version 1 project's SEQ gets their
                                          * defaults, not the 0s it stored there). 3: each track's arpeggiator after
                                          * its drum kit (older: the arpeggiator off, its defaults). 4: then the notes
                                          * it holds (a latched chord, an ADD pile), put back waiting for PLAY. 5:
                                          * TAPE's slice envelope (ATK DEC SUS REL; older: its defaults, not the 0s
                                          * stored where it now is). 6: RESONATOR's arpeggio (MODE ORDR RNGE RATE;
                                          * older: off, its defaults). 7: GRAIN's BODY (BODY MODE NOTE TONE; older:
-                                         * off, its defaults: not TONE at 30 Hz and NOTE at C1) */
+                                         * off, its defaults: not TONE at 30 Hz and NOTE at C1). 8: the two shared
+                                         * rooms after the depths, each track's SPACE choosing one (older: each
+                                         * track had a room of its own, SIZE DEC at 2-3 and PRE at 8; pj_rooms7) */
 static uint8_t pj_arpn[NTRK][ARP_MAXN];  /* the notes a project being read holds, until pj_load hands them over */
 static uint8_t pj_arpc[NTRK];
 
@@ -329,6 +331,8 @@ static uint32_t pj_hash(void)
     }
     for (i = 0; i < NMS; i++)
         h = (h ^ (uint32_t)(uint16_t)mst[i]) * 16777619u;
+    for (i = 0; i < NROOM * NRM; i++)
+        h = (h ^ (uint32_t)(uint16_t)rmp[i / NRM][i % NRM]) * 16777619u;
     return (h ^ (sys.bpm | (uint32_t)sys.ntrk << 16)) * 16777619u;
 }
 
@@ -390,6 +394,29 @@ static void pj_write_state(void)
             pw_byte((uint8_t)a);
             pw_byte((uint8_t)k);
             pw_byte((uint8_t)mdl[t].e[i].d);
+        }
+    pw_byte(NROOM);                                      /* the rooms (8) */
+    for (i = 0; i < NROOM; i++)
+        pw_a16(rmp[i], NRM);
+}
+
+/* A version 7 (or older) project's SPACE: each track had a room of its own, its SIZE and DEC at knobs 2-3, PRE at 8
+ * (TONE on the tail too). Read raw (pj_read_state), they become the shared rooms: A from the first of tracks 1-2
+ * with VERB up, B from tracks 3-4 (none up: the room's defaults); each track sends to its pair's room. */
+static int16_t pj_old_sp[NTRK][NPK];
+static void pj_rooms7(uint32_t nt)
+{
+    uint32_t r, t;
+    for (r = 0; r < NROOM; r++)
+        for (t = 2u * r; t < 2u * r + 2u && t < nt; t++) {
+            const int16_t *o = pj_old_sp[t];
+            if (o[5] > 0) {                              /* (VERB up) */
+                rmp[r][RM_SIZE] = (int16_t)clamp(o[2], 0, 100);
+                rmp[r][RM_DEC] = (int16_t)clamp(o[3], 0, 100);
+                rmp[r][RM_TONE] = (int16_t)clamp(o[6], -100, 100);
+                rmp[r][RM_PRE] = (int16_t)clamp(o[8], 0, 200);
+                break;
+            }
         }
 }
 
@@ -459,7 +486,16 @@ static int pj_read_state(void)
         nd = pr_u16();
         for (s = 0; s < nd && !pr.bad; s++) {
             int16_t junk[NPK];
-            if (s < NDEV)
+            if (s == DEV_SPACE && pj_ver < 8u) {         /* (its own room's knobs, read raw: pj_rooms7) */
+                static const int16_t OLD[9] = {250, 30, 50, 40, 0, 0, 0, 100, 20};
+                for (i = 0; i < NPK; i++)
+                    pj_old_sp[t][i] = i < 9u ? OLD[i] : 0;
+                pr_a16(pj_old_sp[t], NPK, 0);
+                for (i = 0; i < NPK; i++)                /* (TIME FDBK DLY VERB TONE SPRD stay where they were) */
+                    if (i != SP_ROOM && !pdesc_empty(&DEV_P[DEV_SPACE][i]))
+                        P->dev[DEV_SPACE][i] = (int16_t)clamp(pj_old_sp[t][i], DEV_P[DEV_SPACE][i].min,
+                                                              DEV_P[DEV_SPACE][i].max);
+            } else if (s < NDEV)
                 pr_a16(P->dev[s], NPK, DEV_P[s]);
             else
                 pr_a16(junk, 0, 0);
@@ -525,6 +561,14 @@ static int pj_read_state(void)
         if (tt < NTRK && ss < NSLOT && g < MOD_NTGT && mod_tdesc(g))
             mod_dep_set(tt, ss, g, clamp(dp, -100, 100));   /* (past MOD_MAX a track: dropped) */
     }
+    if (pj_ver >= 8u) {                                  /* the rooms */
+        n = pr_byte();
+        for (i = 0; i < n && !pr.bad; i++) {
+            int16_t junk[NRM];
+            pr_a16(i < NROOM ? rmp[i] : junk, i < NROOM ? NRM : 0u, RM_P);
+        }
+    } else
+        pj_rooms7(nt);
     return 0;
 }
 

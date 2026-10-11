@@ -19,7 +19,7 @@ typedef struct {
 #define PREF_SERIAL_OFF 64u          /* MENU > USB SERIAL OFF: no serial console, audio + MIDI only */
 #define PREFS_AT (15u * 32u + 30u)
 static uint8_t ui_prefs;
-/* Bryo's own preferences (SETUP, the mixer's fourth page): favorites.factory[15][0], a byte of an engine Felucca never
+/* Bryo's own preferences (SETUP, the mixer's last page): favorites.factory[15][0], a byte of an engine Felucca never
  * had (it has fourteen; it keeps [15][29..31] for itself), so going back to Felucca reads nothing from it. Bit 0:
  * KEYS NOTE; bits 1-2: KNOB (KNOB_*). 0 is the default of each, as in a record from before them. */
 #define BPREFS_AT (15u * 32u)

@@ -619,6 +619,25 @@ static void test_input(void)
     check("..KNOB 1 sets the master compressor's AMT (0 -> 20), one for all tracks", mst[MS_AMT] == 20);
     mst[MS_AMT] = 0;
     tap(B_EDIT);
+    check("..tapped again: ROOMS, room A's page (latched): ROOMS A in the header", ui.chan == CHAN_ROOMA &&
+          ui.chan_latched && ui.view == VIEW_MIXER);
+    host_enc[panel.enc[EN_K1]] = 6;                      /* (SIZE 50 -> 56) */
+    ui_input();
+    check("..KNOB 1 sets room A's SIZE (one for every track sending to it)", rmp[0][RM_SIZE] == 56);
+    rmp[0][RM_SIZE] = RM_P[RM_SIZE].def;
+    tap(B_EDIT);
+    host_enc[panel.enc[EN_K4]] = 1;
+    ui_input();
+    check("..tapped again: room B's page; KNOB 4 sets its QUAL to LO", ui.chan == CHAN_ROOMB &&
+          rmp[1][RM_QUAL] == RQ_LO && rmp[0][RM_QUAL] == RQ_HI);
+    rmp[1][RM_QUAL] = RQ_HI;
+    tap(B_EDIT);
+    host_enc[panel.enc[EN_K2]] = 10;
+    ui_input();
+    check("..tapped again: the pre-delays' page; KNOB 2 is room B's PRE", ui.chan == CHAN_ROOMP &&
+          rmp[1][RM_PRE] > RM_P[RM_PRE].def && rmp[0][RM_PRE] == RM_P[RM_PRE].def);
+    rmp[1][RM_PRE] = RM_P[RM_PRE].def;
+    tap(B_EDIT);
     check("..tapped again: SETUP, the panel's preferences (latched)", ui.chan == CHAN_SETUP && ui.chan_latched &&
           ui.view == VIEW_MIXER);
     tap(B_EDIT);
@@ -928,13 +947,10 @@ static void screens_in(const char *pal)
     turn(2, 50);
     turn(3, 30);
     shot(pal, "space_long");
-    press(B_FX);                                         /* SPACE 2: DECAY 80, TONE -40 */
-    turn(1, 40);
-    turn(2, -40);
+    press(B_FX);                                         /* SPACE 2: ROOM B, TONE -40 */
+    turn(0, 1);
+    turn(1, -40);
     shot(pal, "space2");
-    press(B_FX);                                         /* SPACE 3: PRE 120 ms */
-    turn(0, 100);
-    shot(pal, "space3");
     for (s = 0; s < NSLOT; s++) {                        /* (by slot: mod3 is the SEQ, M4; mod4 slot 3, M3) */
         static const uint8_t B[NSLOT] = {B_LFO, B_LFO, B_SEQ, B_LFO};
         char nm[8] = {'m', 'o', 'd', (char)('1' + s), 0};
@@ -1087,6 +1103,22 @@ static void screens_in(const char *pal)
     comp.gr_q8 = 0;
     for (s = 0; s < NMS; s++)
         mst[s] = MS_P[s].def;
+    tp[1].dev[DEV_SPACE][SP_VERB] = 40;                  /* (T2 sends to room B too, with T1) */
+    tp[1].dev[DEV_SPACE][SP_ROOM] = 1;
+    chain_poll();
+    tap(B_EDIT);                                         /* ROOMS: room A, nothing sent to it (dim) */
+    shot(pal, "mixer_room_a");
+    tap(B_EDIT);                                         /* room B: SIZE 80, DEC 70, QUAL LO; T1 and T2 send to it */
+    turn(0, 30);
+    turn(1, 30);
+    turn(3, 1);
+    shot(pal, "mixer_rooms");
+    tap(B_EDIT);                                         /* the pre-delays: A 20 ms, B 90 */
+    turn(1, 14);
+    shot(pal, "mixer_predelay");
+    for (s = 0; s < NROOM * NRM; s++)
+        rmp[s / NRM][s % NRM] = RM_P[s % NRM].def;
+    tp[1].dev[DEV_SPACE][SP_VERB] = 0;
     tap(B_EDIT);
     tap(B_GLO);
     hold(B_GLO);
@@ -2442,13 +2474,14 @@ static void test_resting(void)
     pk = peak_of(buf, 200 * CTL);
     check("stopped 8 s: SPACE, the strings, COLOR and the channel all rest, and the track's out is exactly 0 (the "
           "room's and FILT's integer residue gone with them)",
-          space[0].quiet > sp_len(&space[0].dly) + sp_len(&space[0].pre) + 2037u && reso[0].quiet > RS_LEN + CTL &&
+          space[0].quiet > sp_len(&space[0].dly) && room[0].quiet > (uint32_t)rmp[0][RM_PRE] * 2205u / 100u + 2037u &&
+          reso[0].quiet > RS_LEN + CTL &&
           !chan[0].f1[0] && !chan[0].f2[1] && !chan[0].lo[0] && !color[0].tlo[0] && pk == 0 && !track_rt[0].last[7]);
     {
-        uint32_t dw = space[0].dw, pw = space[0].pw, rw = reso[0].w;
+        uint32_t dw = space[0].dw, pw = room[0].pw, ci = room[0].ci[0], rw = reso[0].w;
         render(20, 0);
-        check("..resting is none of the work: SPACE's lines and the strings' stand still (their write points as they "
-              "were)", space[0].dw == dw && space[0].pw == pw && reso[0].w == rw);
+        check("..resting is none of the work: SPACE's lines, its room's and the strings' stand still (their write "
+              "points as they were)", space[0].dw == dw && room[0].pw == pw && room[0].ci[0] == ci && reso[0].w == rw);
     }
     sys.playing = 1;
     for (b = 0, pk = 0; b < 40u; b++) {
@@ -3215,6 +3248,43 @@ static void dev_run(void (*f)(uint32_t, int32_t *, int32_t *, uint32_t), int32_t
         f(0, l + b, r + b, CTL);
 }
 
+/* 3 s of silence through tracks 1 and 2's SPACE at levels g0 and g1 (the rooms' tails out, the sends settled at
+ * those levels), the buffers left at 0 */
+static void sp_quiet2(int32_t *l, int32_t *r, int32_t *l2, int32_t *r2, int32_t g0, int32_t g1)
+{
+    uint32_t i, n = 3u * 44100u / CTL * CTL;
+    memset(l, 0, n / 3u * sizeof l[0]);
+    memset(r, 0, n / 3u * sizeof r[0]);
+    memset(l2, 0, n / 3u * sizeof l2[0]);
+    memset(r2, 0, n / 3u * sizeof r2[0]);
+    for (i = 0; i < n; i += CTL) {
+        int32_t z[CTL] = {0}, zr[CTL] = {0}, z2[CTL] = {0}, zr2[CTL] = {0};
+        space_block(0, z, zr, CTL, g0);
+        space_block(1, z2, zr2, CTL, g1);
+        space_rooms(z, zr, CTL);
+    }
+}
+
+/* the power of x[from..to) at hz (Goertzel), per sample */
+static double goertzel(const int32_t *x, uint32_t from, uint32_t to, double hz)
+{
+    double c = 2 * cos(2 * M_PI * hz / 44100.0), s0, s1 = 0, s2 = 0;
+    uint32_t i;
+    for (i = from; i < to; i++) {
+        s0 = x[i] + c * s1 - s2;
+        s2 = s1;
+        s1 = s0;
+    }
+    return (s1 * s1 + s2 * s2 - c * s1 * s2) / ((double)(to - from) * (to - from));
+}
+
+/* track 1's SPACE at full level, and the rooms after it (as chain_block runs them: the room's tail added in) */
+static void sp_run(uint32_t t, int32_t *l, int32_t *r, uint32_t n)
+{
+    space_block(t, l, r, n, 4096);
+    space_rooms(l, r, n);
+}
+
 static void sine_fill(int32_t *l, int32_t *r, uint32_t n, double hz, double amp)
 {
     uint32_t i;
@@ -3399,7 +3469,7 @@ static void test_space(void)
     check("SPACE at DLY 0, VERB 0 (the defaults): no memory taken", !mem_count(MEM_SPACE) && !space[0].dly.nch);
     sine_fill(l, r, N, 441, 20000);
     memcpy(r, l, sizeof r);
-    dev_run(space_block, l, r, N);
+    dev_run(sp_run, l, r, N);
     check("..and the sound untouched", !memcmp(l, r, sizeof r) && l[100] == (int32_t)lrint(20000 * sin(2 * M_PI * 441 * 100 / 44100.0)));
 
     p[SP_DLY] = 100;
@@ -3412,7 +3482,7 @@ static void test_space(void)
     memset(l, 0, sizeof l);
     memset(r, 0, sizeof r);
     l[0] = r[0] = l[1] = r[1] = 20000;
-    dev_run(space_block, l, r, N / 2);
+    dev_run(sp_run, l, r, N / 2);
     a1 = peak_at(l, 100, N / 2);
     snprintf(b, sizeof b, "TIME 100, FDBK 0: one echo at %.1f ms (100) of %d (0.8 of the hit), none after", a1 / 44.1,
              l[a1]);
@@ -3422,7 +3492,7 @@ static void test_space(void)
     memset(l, 0, sizeof l);
     memset(r, 0, sizeof r);
     l[0] = r[0] = l[1] = r[1] = 20000;
-    dev_run(space_block, l, r, N / 2);
+    dev_run(sp_run, l, r, N / 2);
     a1 = peak_at(l, 100, 6000);
     a2 = peak_at(l, 6000, 11000);
     e1 = l[a2] / (double)l[a1];
@@ -3432,13 +3502,13 @@ static void test_space(void)
     memset(l, 0, sizeof l);
     memset(r, 0, sizeof r);
     l[0] = r[0] = l[1] = r[1] = 20000;
-    dev_run(space_block, l, r, N / 2);
+    dev_run(sp_run, l, r, N / 2);
     e2 = l[peak_at(l, 6000, 11000)] / (double)l[peak_at(l, 100, 6000)];
     p[SP_TONE] = 100;
     memset(l, 0, sizeof l);
     memset(r, 0, sizeof r);
     l[0] = r[0] = l[1] = r[1] = 20000;
-    dev_run(space_block, l, r, N / 2);
+    dev_run(sp_run, l, r, N / 2);
     x = abs(l[peak_at(l, 6000, 11000)]) / (double)l[peak_at(l, 100, 6000)];
     snprintf(b, sizeof b, "TONE -100 and +100: each pass loses more (the second echo %.2f, %.2f of the first; 0: %.2f)",
              e2, x, e1);
@@ -3449,7 +3519,7 @@ static void test_space(void)
     memset(l, 0, sizeof l);
     memset(r, 0, sizeof r);
     l[0] = r[0] = l[1] = r[1] = 20000;
-    dev_run(space_block, l, r, N / 2);
+    dev_run(sp_run, l, r, N / 2);
     a1 = peak_at(l, 100, N / 2);
     a2 = peak_at(r, 100, N / 2);
     snprintf(b, sizeof b, "SPRD 100: the right echo %.1f ms ahead of the left (10)", (a1 - (double)a2) / 44.1);
@@ -3459,10 +3529,10 @@ static void test_space(void)
     p[SP_TIME] = 100;                                    /* TIME turned while it sounds: a glide, no jump */
     sine_fill(l, r, N, 200, 10000);
     for (i = 0; i < N / 2; i += CTL)
-        space_block(0, l + i, r + i, CTL);
+        sp_run(0, l + i, r + i, CTL);
     p[SP_TIME] = 300;
     for (; i + CTL <= N; i += CTL)
-        space_block(0, l + i, r + i, CTL);
+        sp_run(0, l + i, r + i, CTL);
     for (i = 5000, a1 = 0; i < N - N % CTL; i++)
         a1 = abs(l[i] - l[i - 1]) > (int32_t)a1 ? (uint32_t)abs(l[i] - l[i - 1]) : a1;
     snprintf(b, sizeof b, "TIME turned 100 -> 300 ms while echoing: it glides (largest step %u; a 200 Hz sine's: 285 "
@@ -3484,7 +3554,7 @@ static void test_space(void)
     memset(l, 0, sizeof l);
     memset(r, 0, sizeof r);
     l[0] = r[0] = l[1] = r[1] = 20000;
-    dev_run(space_block, l, r, N / 2);
+    dev_run(sp_run, l, r, N / 2);
     a1 = peak_at(l, 100, N / 2);
     snprintf(b, sizeof b, "..its echo where 16 bits put it: %.1f ms, %d", a1 / 44.1, l[a1]);
     check(b, fabs(a1 / 44.1 - 100) < 0.5 && l[a1] > 13500 && l[a1] < 17000);
@@ -3493,7 +3563,7 @@ static void test_space(void)
         sine_fill(l, r, N / 4, 300, 3000);
         memset(l + N / 4, 0, (N - N / 4) * sizeof l[0]);
         memset(r + N / 4, 0, (N - N / 4) * sizeof r[0]);
-        dev_run(space_block, l, r, N / 2);
+        dev_run(sp_run, l, r, N / 2);
         memcpy(s8, l, sizeof s8);
         p[SP_DLY] = 0;
         chain_poll();
@@ -3505,7 +3575,7 @@ static void test_space(void)
         sine_fill(l, r, N / 4, 300, 3000);
         memset(l + N / 4, 0, (N - N / 4) * sizeof l[0]);
         memset(r + N / 4, 0, (N - N / 4) * sizeof r[0]);
-        dev_run(space_block, l, r, N / 2);
+        dev_run(sp_run, l, r, N / 2);
         memcpy(s16, l, sizeof s16);
         for (i = 6000, x = y = 0; i < N / 4; i++) {
             x += (double)(s8[i] - s16[i]) * (s8[i] - s16[i]);
@@ -3534,87 +3604,210 @@ static void test_space(void)
         tape_free(t);
     tape_poll();
 
-    p[SP_VERB] = 100;                                    /* the room */
-    p[SP_PRE] = 0;
-    p[SP_DEC] = 100;
+    p[SP_VERB] = 100;                                    /* the room: track 1 sends to A */
+    rmp[0][RM_PRE] = 0;
+    rmp[0][RM_DEC] = 100;
     chain_poll();
-    check("VERB up: the room (5 chunks) and its pre-delay (5, 16-bit)", space[0].rev.ready && space[0].pre.ready &&
-          !space[0].pre.bits8 && mem_count(MEM_SPACE) == SP_REV + SP_PRE16);
+    check("VERB up: room A takes its lines (5 chunks, the pre-delay 5 at 16 bits), B and the track nothing",
+          room[0].rev.ready && room[0].pre.ready && !room[0].pre.bits8 && mem_count(MEM_ROOM) == SP_REV + SP_PRE16 &&
+          !mem_count(MEM_ROOM + 1) && !mem_count(MEM_SPACE) && room[0].users == 1u && !room[1].users);
     memset(l, 0, sizeof l);
     memset(r, 0, sizeof r);
     for (i = 0; i < 64; i++)
         l[i] = r[i] = 20000;
-    dev_run(space_block, l, r, N);
+    dev_run(sp_run, l, r, N);
     e1 = rms_of(l, N / 2, N);
     x = rms_of(l, 2000, 6000);
-    p[SP_DEC] = 0;
+    rmp[0][RM_DEC] = 0;
     memset(l, 0, sizeof l);
     memset(r, 0, sizeof r);
-    dev_run(space_block, l, r, N);                       /* (the long tail out) */
+    dev_run(sp_run, l, r, N);                            /* (the long tail out) */
     for (i = 0; i < 64; i++)
         l[i] = r[i] = 20000;
-    dev_run(space_block, l, r, N);
+    dev_run(sp_run, l, r, N);
     e2 = rms_of(l, N / 2, N);
     snprintf(b, sizeof b, "DEC 100 against 0: the tail at 0.5-1 s %.0f against %.1f (the early tail %.0f)", e1, e2, x);
     check(b, e1 > 30 && e2 < e1 / 30 && x > 100);
-    p[SP_DEC] = 40;
-    p[SP_SPRD] = 100;
+    rmp[0][RM_DEC] = 40;
     memset(l, 0, sizeof l);
     memset(r, 0, sizeof r);
-    dev_run(space_block, l, r, N / 4);
+    dev_run(sp_run, l, r, N / 4);
     for (i = 0; i < 64; i++)
         l[i] = r[i] = 20000;
-    dev_run(space_block, l, r, N / 2);
+    dev_run(sp_run, l, r, N / 2);
     for (i = 3000, x = y = e1 = 0; i < N / 2; i++) {
         x += (double)l[i] * r[i];
         y += (double)l[i] * l[i];
         e1 += (double)r[i] * r[i];
     }
-    snprintf(b, sizeof b, "SPRD 100: the room's sides differ (correlation %.2f)", x / sqrt(y * e1));
+    snprintf(b, sizeof b, "a room is stereo: its sides differ (correlation %.2f)", x / sqrt(y * e1));
     check(b, x / sqrt(y * e1) < 0.5);
-    p[SP_SPRD] = 0;
-    memset(l, 0, sizeof l);
-    memset(r, 0, sizeof r);
-    for (i = 0; i < 64; i++)
-        l[i] = r[i] = 20000;
-    dev_run(space_block, l, r, N / 2);
-    check("SPRD 0: mono", !memcmp(l + 2, r + 2, (N / 2 - 2) * sizeof l[0]));
-    p[SP_PRE] = 100;
-    memset(l, 0, sizeof l);
-    memset(r, 0, sizeof r);
+    rmp[0][RM_PRE] = 100;
     for (i = 0; i < 3; i++) {                            /* (the last tail out) */
         memset(l, 0, sizeof l);
         memset(r, 0, sizeof r);
-        dev_run(space_block, l, r, N);
+        dev_run(sp_run, l, r, N);
     }
     memset(l, 0, sizeof l);
     memset(r, 0, sizeof r);
     for (i = 0; i < 64; i++)
         l[i] = r[i] = 20000;
-    dev_run(space_block, l, r, N / 2);
+    dev_run(sp_run, l, r, N / 2);
     snprintf(b, sizeof b, "PRE 100 ms: nothing from the room before it (peak %d), the room after (%.0f)",
              peak_of(l + 100, 4300), rms_of(l, 4500, 9000));
     check(b, peak_of(l + 100, 4300) < 20 && rms_of(l, 4500, 9000) > 100);
+    rmp[0][RM_PRE] = 20;
 
-    for (i = 0; i < 9; i++)                              /* the corners: everything up, noise in, then quiet */
-        p[i] = DEV_P[DEV_SPACE][i].max;
-    for (t = 0; t < 3; t++) {
+    {                                                    /* QUAL LO: half the rate, the same room */
+        static int32_t hi[N];
+        double ehi, elo;
+        for (t = 0; t < 2; t++) {
+            rmp[0][RM_QUAL] = (int16_t)t;
+            for (i = 0; i < 3; i++) {
+                memset(l, 0, sizeof l);
+                memset(r, 0, sizeof r);
+                dev_run(sp_run, l, r, N);
+            }
+            memset(l, 0, sizeof l);
+            memset(r, 0, sizeof r);
+            for (i = 0; i < 64; i++)
+                l[i] = r[i] = 20000;
+            dev_run(sp_run, l, r, N);
+            if (!t)
+                memcpy(hi, l, sizeof hi);
+        }
+        ehi = rms_of(hi, N / 4, N / 2);
+        elo = rms_of(l, N / 4, N / 2);
+        for (i = 100, a1 = 0; i < N; i++)
+            a1 = abs(l[i] - l[i - 1]) > (int32_t)a1 ? (uint32_t)abs(l[i] - l[i - 1]) : a1;
+        snprintf(b, sizeof b, "QUAL LO (11.025 kHz): the tail as long (0.25-0.5 s: %.0f against HI's %.0f), stepped "
+                 "back up smoothly (largest step %u), darker", elo, ehi, a1);
+        check(b, elo > ehi / 2 && elo < ehi * 2 && a1 < 2000 && room[0].qual == 1u);
+        {                                                /* what goes in at LO: averaged in pairs first, so a high */
+            double e10, e1k;                             /* .. sound doesn't fold down into the room (aliasing) */
+            for (t = 0; t < 2; t++) {
+                for (i = 0; i < 3; i++) {
+                    memset(l, 0, sizeof l);
+                    memset(r, 0, sizeof r);
+                    dev_run(sp_run, l, r, N);
+                }
+                sine_fill(l, r, N / 4, t ? 1000 : 10000, 10000);
+                memset(l + N / 4, 0, (N - N / 4) * sizeof l[0]);
+                memset(r + N / 4, 0, (N - N / 4) * sizeof r[0]);
+                dev_run(sp_run, l, r, N / 2);
+                if (!t)
+                    e10 = rms_of(l, N / 4 + 2000, N / 2);
+                else
+                    e1k = rms_of(l, N / 4 + 2000, N / 2);
+            }
+            snprintf(b, sizeof b, "..a 10 kHz sound sent at LO: its tail %.0f against a 1 kHz one's %.0f (averaged in "
+                     "pairs: not folded down to 1 kHz)", e10, e1k);
+            check(b, e10 < e1k * 0.3);
+        }
+        rmp[0][RM_QUAL] = RQ_HI;
+        {                                                /* HI: back up to 44.1 kHz halfway, then the sample: the */
+            double hi18, lo4;                            /* .. images above 16 kHz held down */
+            for (i = 0; i < 3; i++) {
+                memset(l, 0, sizeof l);
+                memset(r, 0, sizeof r);
+                dev_run(sp_run, l, r, N);
+            }
+            rmp[0][RM_TONE] = 100;                       /* (bright: plenty at 4 kHz to image) */
+            memset(l, 0, sizeof l);
+            memset(r, 0, sizeof r);
+            for (i = 0; i < 2048; i++)
+                l[i] = r[i] = (int32_t)(rand() % 20001) - 10000;
+            dev_run(sp_run, l, r, N / 2);
+            rmp[0][RM_TONE] = 0;
+            hi18 = goertzel(l, 4000, 12000, 18000);
+            lo4 = goertzel(l, 4000, 12000, 22050 - 18000);
+            snprintf(b, sizeof b, "..HI's tail stepped back up to 44.1 kHz: its image at 18 kHz %.0f dB under what it "
+                     "mirrors at 4.05 kHz", 10 * log10(lo4 / hi18));
+            check(b, 10 * log10(lo4 / hi18) > 16);
+        }
+    }
+
+    {                                                    /* two tracks in one room, and the send at their level */
+        static int32_t one[N], l2[N], r2[N];
+        uint32_t j;
+        tp[1].dev[DEV_SPACE][SP_VERB] = 100;
+        tp[1].dev[DEV_SPACE][SP_ROOM] = 0;
+        chain_poll();
+        check("track 2 sends to room A too: still one room's memory (A's lines shared, B none)",
+              room[0].users == 3u && mem_count(MEM_ROOM) == SP_REV + SP_PRE16 && !mem_count(MEM_ROOM + 1));
+        for (j = 0; j < 3; j++) {
+            int32_t g0 = j == 1 ? 0 : 4096, g1 = j == 0 ? 0 : 4096;
+            sp_quiet2(l, r, l2, r2, g0, g1);
+            for (i = 0; i < 64; i++)                     /* (8,000: the two together inside the room's 16 bits) */
+                l[i] = r[i] = l2[i] = r2[i] = 8000;
+            for (i = 0; i + CTL <= N / 4; i += CTL) {
+                space_block(0, l + i, r + i, CTL, g0);
+                space_block(1, l2 + i, r2 + i, CTL, g1);
+                space_rooms(l + i, r + i, CTL);
+            }
+            if (j == 0)
+                memcpy(one, l, sizeof one);
+            else if (j == 1) {
+                x = 0;
+                for (i = 2000; i < N / 4; i++)
+                    x += fabs((double)l[i] - one[i]);
+                check("..track 2 alone at the same level: the same tail as track 1's", x / (N / 4 - 2000) < 2);
+            }
+        }
+        x = rms_of(l, 2000, N / 4) / rms_of(one, 2000, N / 4);
+        snprintf(b, sizeof b, "..both at once: one tail, the sum of theirs (%.2f x one)", x);
+        check(b, x > 1.9 && x < 2.1);
+        for (j = 0; j < 2; j++) {
+            sp_quiet2(l, r, l2, r2, j ? 2048 : 0, 0);
+            for (i = 0; i < 64; i++)
+                l[i] = r[i] = 8000;
+            for (i = 0; i + CTL <= N / 4; i += CTL) {
+                space_block(0, l + i, r + i, CTL, j ? 2048 : 0);
+                space_rooms(l + i, r + i, CTL);
+            }
+            if (!j)
+                check("..the send follows the track's level: at 0 (or muted: chain_block hands it 0) nothing reaches "
+                      "the room", peak_of(l + 100, N / 4 - 100) == 0);
+        }
+        x = rms_of(l, 2000, N / 4) / rms_of(one, 2000, N / 4);
+        snprintf(b, sizeof b, "..at half its level, half the tail (%.2f)", x);
+        check(b, x > 0.45 && x < 0.55);
+        tp[1].dev[DEV_SPACE][SP_ROOM] = 1;
+        chain_poll();
+        check("track 2 to room B: B takes its own lines (A keeps track 1's)", room[1].rev.ready && room[1].pre.ready &&
+              room[0].users == 1u && room[1].users == 2u && mem_count(MEM_ROOM + 1) == SP_REV + SP_PRE16);
+        tp[1].dev[DEV_SPACE][SP_VERB] = 0;
+        chain_poll();
+        check("..its VERB 0: B gives its lines back", !room[1].users && !mem_count(MEM_ROOM + 1) && !room[1].rev.nch);
+    }
+
+    for (i = 0; i < NPK; i++)                            /* the corners: everything up, noise in, then quiet */
+        if (!pdesc_empty(&DEV_P[DEV_SPACE][i]))
+            p[i] = DEV_P[DEV_SPACE][i].max;
+    for (i = 0; i < NRM; i++)
+        rmp[1][i] = RM_P[i].max;
+    for (t = 0; t < 4; t++) {
         p[SP_TONE] = (int16_t)(t == 0 ? -100 : t == 1 ? 100 : 0);
-        p[SP_SIZE] = (int16_t)(t * 50);
+        rmp[1][RM_TONE] = p[SP_TONE];
+        rmp[1][RM_SIZE] = (int16_t)(t * 50 > 100 ? 100 : t * 50);
+        rmp[1][RM_QUAL] = (int16_t)(t == 3);
         chain_poll();
         for (i = 0; i < N; i++)
             l[i] = r[i] = (int32_t)(rand() % 65535) - 32767;
-        dev_run(space_block, l, r, N);
+        dev_run(sp_run, l, r, N);
         e1 = peak_of(l, N);
         memset(l, 0, sizeof l);
         memset(r, 0, sizeof r);
-        dev_run(space_block, l, r, N);
-        snprintf(b, sizeof b, "the corners (TONE %d, SIZE %d, all else up): bounded (peak %.0f), %.0f after 1 s of "
-                 "quiet", p[SP_TONE], p[SP_SIZE], e1, (double)peak_of(l + N / 2, N / 2));
+        dev_run(sp_run, l, r, N);
+        snprintf(b, sizeof b, "the corners (room B, TONE %d, SIZE %d, QUAL %s, all else up): bounded (peak %.0f), "
+                 "%.0f after 1 s of quiet", p[SP_TONE], rmp[1][RM_SIZE], t == 3 ? "LO" : "HI", e1,
+                 (double)peak_of(l + N / 2, N / 2));
         check(b, e1 < 4 * 32767 && peak_of(l, N) < 3 * 32767);
     }
-    for (i = 0; i < 9; i++)
-        p[i] = DEV_P[DEV_SPACE][i].def;
+    for (i = 0; i < NRM; i++)
+        rmp[1][i] = RM_P[i].def;
+    for (i = 0; i < NPK; i++)
+        p[i] = pdesc_empty(&DEV_P[DEV_SPACE][i]) ? 0 : DEV_P[DEV_SPACE][i].def;
     p[SP_DLY] = p[SP_VERB] = 100;
     chain_poll();
     chain_tracks(1);
@@ -3628,7 +3821,7 @@ static void test_space(void)
     p[SP_DLY] = p[SP_VERB] = 0;
     chain_poll();
     check("DLY and VERB 0: every chunk back to the pool", !mem_count(MEM_SPACE) && !mem_count(MEM_SPACE + 1) &&
-          !space[0].rev.nch && !space[0].pre.nch);
+          !mem_count(MEM_ROOM) && !mem_count(MEM_ROOM + 1) && !room[0].rev.nch && !room[0].pre.nch);
 }
 
 /* the computer playing into the FM-1 (what usb.c's uaco_service hands usbrec.c from each 1 ms packet): frames of a
@@ -5929,6 +6122,7 @@ static void test_project_worst(void)
 {
     static track_params_t want[NTRK];
     static mod_deps_t wdep[NTRK];
+    static int16_t wrm[NROOM][NRM];
     uint32_t t, s, k, g, n;
     pj_hdr_t h;
     int rc;
@@ -5968,12 +6162,15 @@ static void test_project_worst(void)
         for (k = 0; k < NARP; k++)
             P->arp[k] = wr_val(&ARP_P[k]);
         P->src = (uint8_t)(t % NSRC);
+        for (k = 0; k < NRM && t < NROOM; k++)           /* (the rooms) */
+            rmp[t][k] = wr_val(&RM_P[k]);
         for (g = 0, n = 0; g < MOD_NTGT && n < MOD_MAX; g += 5u)
             if (mod_tdesc(g) && mod_nudge(t, g % NSLOT, g, (int32_t)((wr_rnd = wr_rnd * 1103515245u + 12345u) >> 16) % 199 - 99) != -128)
                 n++;
     }
     memcpy(want, tp, sizeof tp);
     memcpy(wdep, mdl, sizeof mdl);
+    memcpy(wrm, rmp, sizeof rmp);
     rc = pj_save(2);
     memset(&h, 0, sizeof h);
     pj_current(2, &h);
@@ -5981,7 +6178,8 @@ static void test_project_worst(void)
     rc |= pj_load(2);
     snprintf(m, sizeof m, "the biggest project there can be (every knob random): it fits (%u bytes "
              "packed, %u unpacked, a sector holds %u) and comes back as it was", h.len, h.raw, PJ_PAYLOAD_MAX);
-    check(m, rc == 0 && mod_count(0) == MOD_MAX && !memcmp(tp, want, sizeof tp) && !memcmp(mdl, wdep, sizeof mdl));
+    check(m, rc == 0 && mod_count(0) == MOD_MAX && !memcmp(tp, want, sizeof tp) && !memcmp(mdl, wdep, sizeof mdl) &&
+          !memcmp(rmp, wrm, sizeof rmp));
     pj_wipe();
     power_on();
 }
@@ -6307,6 +6505,55 @@ static void test_projects(void)
         check("a track preset from before BODY: its defaults (ROOT A2, TONE 200 Hz), BODY off", rc == 0 &&
               tp[0].dev[DEV_GRAIN][GP_BODY] == 0 && tp[0].dev[DEV_GRAIN][GP_ROOT] == 45 &&
               tp[0].dev[DEV_GRAIN][GP_BTON] == DEV_P[DEV_GRAIN][GP_BTON].def);
+    }
+    {   /* a version 7 project: each track had a room of its own (SIZE DEC at SPACE's knobs 2-3, TONE on its tail) */
+        int16_t *a;
+        power_on();
+        tp[0].dev[DEV_SPACE][2] = 90;                    /* T1: a big room, but VERB 0 (not sent to) */
+        tp[0].dev[DEV_SPACE][3] = 90;
+        a = tp[1].dev[DEV_SPACE];                        /* T2: VERB 40 in a room of SIZE 70, DEC 25, TONE -30 */
+        a[SP_VERB] = 40;
+        a[2] = 70;
+        a[3] = 25;
+        a[SP_TONE] = -30;
+        a[SP_TIME] = 200;
+        a = tp[2].dev[DEV_SPACE];                        /* T3: VERB 60, SIZE 20, DEC 95 */
+        a[SP_VERB] = 60;
+        a[2] = 20;
+        a[3] = 95;
+        a = tp[3].dev[DEV_SPACE];                        /* T4: VERB 10, its own room (B's goes to T3's) */
+        a[SP_VERB] = 10;
+        a[2] = 0;
+        a[3] = 0;
+        rmp[0][RM_SIZE] = 5;                             /* (and rooms a version 7 project can't have) */
+        pj_wver = 7;
+        rc = pj_save(0);
+        pj_wver = PJ_VERSION;
+        power_on();
+        rc |= pj_load(0);
+        check("a version 7 project: room A from T2 (the first of T1-T2 sending: SIZE 70, DEC 25, TONE -30), B from T3 "
+              "(SIZE 20, DEC 95); T1-T2 send to A, T3-T4 to B; the old DEC knob empty; the rest as saved",
+              rc == 0 && rmp[0][RM_SIZE] == 70 && rmp[0][RM_DEC] == 25 && rmp[0][RM_TONE] == -30 &&
+              rmp[1][RM_SIZE] == 20 && rmp[1][RM_DEC] == 95 && rmp[1][RM_QUAL] == RQ_HI &&
+              rmp[0][RM_PRE] == RM_P[RM_PRE].def && tp[0].dev[DEV_SPACE][SP_ROOM] == 0 &&
+              tp[1].dev[DEV_SPACE][SP_ROOM] == 0 && tp[2].dev[DEV_SPACE][SP_ROOM] == 1 &&
+              tp[3].dev[DEV_SPACE][SP_ROOM] == 1 && !tp[1].dev[DEV_SPACE][3] && tp[1].dev[DEV_SPACE][SP_VERB] == 40 &&
+              tp[1].dev[DEV_SPACE][SP_TIME] == 200 && tp[1].dev[DEV_SPACE][SP_TONE] == -30);
+        rmp[1][RM_QUAL] = RQ_LO;                         /* this version keeps the rooms as saved */
+        rmp[0][RM_PRE] = 150;
+        tp[0].dev[DEV_SPACE][SP_ROOM] = 1;
+        rc = pj_save(0);
+        power_on();
+        rc |= pj_load(0);
+        check("..a version 8 one keeps the rooms (B's QUAL LO, A's PRE 150) and each track's ROOM as saved", rc == 0 &&
+              rmp[1][RM_QUAL] == RQ_LO && rmp[0][RM_PRE] == 150 && rmp[0][RM_SIZE] == 70 &&
+              tp[0].dev[DEV_SPACE][SP_ROOM] == 1);
+        tp[1].dev[DEV_SPACE][SP_ROOM] = 1;               /* a track preset: the room it sends to stays the track's */
+        rc = tpr_save(0, 1);
+        tp[1].dev[DEV_SPACE][SP_ROOM] = 0;
+        rc |= tpr_load(0, 1);
+        check("..a track preset loaded keeps the track's ROOM (the rooms are the mix's)", rc == 0 &&
+              tp[1].dev[DEV_SPACE][SP_ROOM] == 0 && tp[1].dev[DEV_SPACE][SP_VERB] == 40);
     }
     pj_wipe();
     power_on();
@@ -7753,12 +8000,16 @@ static void test_arp_keys(void)
     let_go(B_LFO);
     focus_dev(DEV_COLOR, 0);
 
-    /* SETUP: the mixer's fourth page; KNOB's steps */
+    /* SETUP: the mixer's last page; KNOB's steps */
     tap(B_GLO);
     tap(B_EDIT);
     tap(B_EDIT);
     tap(B_EDIT);
-    check("SETUP: the mixer's fourth page (GLO, EDIT x3)", ui.view == VIEW_MIXER && ui.chan == CHAN_SETUP);
+    tap(B_EDIT);
+    tap(B_EDIT);
+    tap(B_EDIT);
+    check("SETUP: the mixer's last page (GLO, EDIT x6: CHANNEL MASTER ROOMS x3 SETUP)", ui.view == VIEW_MIXER &&
+          ui.chan == CHAN_SETUP);
     turn(1, 2);                                          /* KNOB: 1X -> 4X */
     check("..KNOB 2 sets KNOB: 4X", ((bryo_prefs >> 1) & 3u) == KNOB_4X);
     ui.msg_t = 0;                                        /* (the picture under the message) */

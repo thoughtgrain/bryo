@@ -17,7 +17,7 @@ should hear. Do them in order the first time; after that, jump to what you need.
 0. [Before you start](#0-before-you-start): the panel, reading the screen, how pages work
 1. [First sounds](#1-first-sounds): power on, play, tempo, volume, mutes, picking a track
 2. [Playing with a tape](#2-playing-with-a-tape): slices, the loop, speed, reels
-3. [The mixer](#3-the-mixer): levels, tone and pan, the compressor, SETUP, the CPU meter
+3. [The mixer](#3-the-mixer): levels, tone and pan, the compressor, the rooms, SETUP, the CPU meter
 4. [Recording](#4-recording): clear a track, record onto it, overdub, undo
 5. [Other sources](#5-other-sources): SYNTH, POLY and DRUM; the arpeggiator; the black keys as notes
 6. [The effects](#6-the-effects): GRAIN, RESONATOR, COLOR, SPACE
@@ -84,11 +84,11 @@ Every pad opens a page, and **pressing the same pad again goes to its next page*
 | --- | --- |
 | HOME | the source's pages (TAPE has 4; SYNTH 5; POLY 4; DRUM 4) |
 | EDIT | GRAIN 1-6, then RESONATOR 1-3 |
-| FX | COLOR 1-3, then SPACE 1-3 |
+| FX | COLOR 1-3, then SPACE 1-2 |
 | ENV | the source's envelope: SYNTH's AMP, POLY's ENV, TAPE's slice envelope (each the second page), DRUM's KIT |
 | LFO, SEQ | a modulator's pages (LFO: M1, M2 or M3; SEQ: M4) |
 | ARP | the arpeggiator: 2 pages, then RES ARP (RESONATOR's own arpeggio) |
-| GLO | the mixer (EDIT then steps CHANNEL, MASTER, SETUP) |
+| GLO | the mixer (EDIT then steps CHANNEL, MASTER, the three ROOMS pages, SETUP) |
 
 KNOB 1 to 4 always change the four values you see. There's nothing hidden.
 
@@ -273,11 +273,28 @@ page pad, to leave.
 
 1. In the mixer, **tap EDIT twice**: the **MASTER** page.
 2. **AMT** is how much it squeezes, **ATK** and **REL** how fast, **MIX** how much of it you hear.
-3. Tap EDIT once more to get back to the levels.
+3. Tap EDIT again for the rooms (next).
 
 <img src="img/mixer_master.png" width="240" alt="MASTER: AMT ATK REL MIX">
 
-### 3.5 Fewer tracks, more memory
+### 3.5 The rooms
+
+Bryo has two reverb rooms, **A** and **B**, and every track's SPACE sends to one of them (its **ROOM** knob,
+[6.7](#67-space-echoes-and-a-room)). Tracks 1-2 start on A, 3-4 on B. Two tracks in one room share it: it costs the
+same whether one track or four send to it, so a room per pair is the cheap way to put everything in a space.
+
+1. In the mixer, **tap EDIT three times** (CHANNEL, MASTER, ROOMS): room **A**. **SIZE** and **DEC** shape it,
+   **TONE** makes it darker or brighter, and **QUAL** is its quality: **HI** (the full 22 kHz) or **LO** (half the
+   rate: half the CPU, and a darker, softer tail that suits a big ambient room).
+2. Tap EDIT again for room **B**, and again for the **pre-delays**: **PREA** and **PREB**, the gap before each room
+   starts.
+
+The picture shows the room's tail, orange while it sounds, and the tracks sending to it under it (NO SENDS: nothing
+is, and it takes no memory or CPU). The rooms are saved with the project; a track preset leaves them alone.
+
+<img src="img/mixer_rooms.png" width="240" alt="ROOMS B: SIZE DEC TONE QUAL, T1 and T2 sending"> <img src="img/mixer_predelay.png" width="240" alt="ROOMS: PREA PREB, both rooms' tails">
+
+### 3.6 Fewer tracks, more memory
 
 The four tracks share one memory (28 seconds of sound in all). You can switch tracks off to give the others more:
 
@@ -286,12 +303,12 @@ The four tracks share one memory (28 seconds of sound in all). You can switch tr
 
 <img src="img/mixer_tracks3.png" width="240" alt="TRACKS 3: track 4 off">
 
-### 3.6 SETUP: how the panel behaves
+### 3.7 SETUP: how the panel behaves
 
-The mixer has a fourth page with your preferences. They belong to the FM-1, not to a project, and they're kept when
+The mixer's last page holds your preferences. They belong to the FM-1, not to a project, and they're kept when
 you turn it off.
 
-1. Tap **GLO**, then tap **EDIT three times** (CHANNEL, MASTER, SETUP).
+1. Tap **GLO**, then tap **EDIT six times** (CHANNEL, MASTER, the three ROOMS pages, SETUP).
 2. **KEYS**: **SHRT** (the black keys are the shortcuts: mutes, reverse, clears, freeze) or **NOTE** (the black keys
    play notes: see [5.9](#59-play-the-black-keys-as-notes)).
 3. **KNOB**: how far a knob moves a value per click. **1X**, **2X**, **4X**, or **ACC** (turn slowly for fine
@@ -300,7 +317,7 @@ you turn it off.
 
 <img src="img/setup.png" width="240" alt="SETUP: KEYS KNOB HOLD LEDS">
 
-### 3.7 The CPU meter
+### 3.8 The CPU meter
 
 On the mixer, bottom right: **CPU**, how hard Bryo is working, in 5 % steps. It turns bright at 85 %. Past that,
 Bryo thins out grains and strings to keep the sound clean.
@@ -510,7 +527,7 @@ semitones in a row. You can make it a real keyboard instead:
 While the black keys are notes, **hold GLO** to use their shortcuts (mutes, reverse, clears, freeze): with GLO held
 they're shortcuts again, and the OP keys light up for the muted tracks. Holding LFO and tapping
 OP1–OP3 still works ([7.4](#74-choose-which-modulator-the-lfo-pad-controls)). The setting is also on the SETUP page
-([3.6](#36-setup-how-the-panel-behaves)) and is kept when you turn the FM-1 off.
+([3.7](#37-setup-how-the-panel-behaves)) and is kept when you turn the FM-1 off.
 
 ---
 
@@ -648,11 +665,15 @@ The track rings four tuned strings, like a sitar's sympathetic strings.
 ### 6.7 SPACE: echoes and a room
 
 1. Press **FX four times**: **SPACE**. **TIME** is the echo's time, **FDBK** how many echoes; turn up **DLY** (the
-   echoes) and **VERB** (the room), its two sends.
-2. Press **FX** again for **SPACE 2**: **SIZE** and **DEC** shape the room, **TONE** darkens or brightens both.
-3. **SPACE 3**: **PRE**, a short gap before the room starts.
+   echoes) and **VERB** (how much goes to the room), its two sends. VERB follows the track's level: turn the track
+   down or mute it and its share of the room goes with it.
+2. Press **FX** again for **SPACE 2**: **ROOM** picks which room the track sends to, **A** or **B**; **TONE** darkens
+   or brightens the echoes and **SPRD** spreads them across the stereo field.
 
-<img src="img/space_long.png" width="240" alt="SPACE: TIME FDBK DLY VERB"> <img src="img/space2.png" width="240" alt="SPACE 2: SIZE DEC TONE SPRD">
+The room itself (its size, length, tone, quality and pre-delay) is on the mixer's ROOMS pages
+([3.5](#35-the-rooms)), shared by every track that sends to it. The picture draws the room the track is on.
+
+<img src="img/space_long.png" width="240" alt="SPACE: TIME FDBK DLY VERB"> <img src="img/space2.png" width="240" alt="SPACE 2: ROOM TONE SPRD">
 
 ### 6.8 Insert or send
 
@@ -903,7 +924,7 @@ M-VAVE's updater puts the stock firmware back. Bryo's projects and tapes can't b
 | **GLO** held + white key 1-4 | pick a track |
 | **GLO** held + KNOB 1-4 | track levels |
 | **GLO** held + SELECT | how many tracks are on |
-| **GLO** tapped, then **EDIT** | CHANNEL, then MASTER |
+| **GLO** tapped, then **EDIT** | CHANNEL, MASTER, ROOMS A, B and PRE, SETUP |
 | **OP1-OP4** | mute tracks |
 | **OP5 / OP6** | the tape backwards / half speed |
 | **HOME** | the source's pages |

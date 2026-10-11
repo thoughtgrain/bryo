@@ -4,10 +4,10 @@
  * A track preset is one track's sound: its source and that source's knobs (DRUM's: with each instrument's own), the
  * four devices, the channel strip, the four modulator slots (engines, knobs, a SEQ's steps) and its depths. The
  * sources it isn't on are left out (the track it's loaded into keeps its own values there), which roughly halves a
- * preset. Not the music or the
- * mix: the DRUM pattern (and the PATTERN page's PATN and LEN, which belong to it), the level, mute, octave and REC IN
- * stay with the track it's loaded into. A tape can't fit, so a preset names the reel the track played; one that
- * played its own tape names nothing, and the track it's loaded into keeps the reel it's on.
+ * preset. Not the music or the mix: the DRUM pattern (and the PATTERN page's PATN and LEN, which belong to it), the
+ * level, mute, octave, REC IN and the room SPACE sends to (A or B: the rooms belong to the mix) stay with the track
+ * it's loaded into. A tape can't fit, so a preset names the reel the track played; one that played its own tape
+ * names nothing, and the track it's loaded into keeps the reel it's on.
  *
  * Where: the eight presets (A..H) are one bank, a byte stream in the project format (project.c's packed writer and
  * reader, its commit record and A/B copies: a save writes the other copy and commits it last, so a power cut leaves
@@ -72,7 +72,7 @@ static void tpr_read_rec(uint32_t t)
     track_params_t *P = &tp[t];
     uint32_t s, n, i;
     int16_t reel = P->dev[DEV_SRC][TK_REEL], preel = P->pol[PL_REEL], patn = P->drm[DM_PATN], len = P->drm[DM_LEN];
-    int16_t inst = P->drm[DM_INST], bar = P->drm[DM_BAR], mode = P->drm[DM_MODE];
+    int16_t inst = P->drm[DM_INST], bar = P->drm[DM_BAR], mode = P->drm[DM_MODE], room = P->dev[DEV_SPACE][SP_ROOM];
     uint8_t src = pr_byte();
     for (s = 0; s < NSLOT + 1u; s++)                     /* (the summary: the engines and the depth count) */
         (void)pr_byte();
@@ -134,6 +134,8 @@ static void tpr_read_rec(uint32_t t)
     P->drm[DM_INST] = inst;
     P->drm[DM_BAR] = bar;
     P->drm[DM_MODE] = mode;
+    P->dev[DEV_SPACE][SP_ROOM] = room;                   /* (the room it sends to is the mix's: an older preset's
+                                                          * SIZE there, and its DEC and PRE, mean nothing now) */
     P->src = (uint8_t)(src < NSRC ? src : SRC_TAPE);     /* (last: the new source's knobs are in place first) */
     mod_rebuild(t);
 }
