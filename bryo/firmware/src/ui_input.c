@@ -1121,15 +1121,11 @@ static void on_knob(uint32_t c, int32_t d)
     }
     if (pdesc_empty(p))                                 /* an unused knob on a page */
         return;
-    if (zoom_fine(p) && ui.home_held && ((fm1_in.buttons >> panel.btn[B_HOME]) & 1u)) {
+    if (zoom_edge(p) && ui.home_held && ((fm1_in.buttons >> panel.btn[B_HOME]) & 1u)) {
         /* HOME held + a loop's edge (TAPE STRT LEN, POLY STRT END): the zoom. A detent moves it a hundredth of a
-         * percent (the knob and its hidden hundredths as one number; a fast turn goes further, as KNOB says), the
-         * picture zooms to the decoded sound around the edge */
-        int16_t *fn = zoom_fine(p);
-        int32_t tot = *vp * 100 + *fn + knob_steps(c, d, 1000);
-        tot = clamp(tot, p->min * 100, p->max * 100);
-        *vp = (int16_t)(tot / 100);
-        *fn = (int16_t)(tot % 100);
+         * percent instead of a whole one (a fast turn goes further, as KNOB says), the picture zooms to the decoded
+         * sound around the edge */
+        *vp = (int16_t)clamp(*vp + knob_steps(c, d, 1000), p->min, p->max);
         ui.home_used = 1;
         ui.zoom = (uint8_t)(c + 1u);
         ui.hot = (uint8_t)c;

@@ -172,7 +172,7 @@ static void viz_tape(const int16_t *v, uint32_t f)
      * (ROTA's point; the end when reversed); REC armed tagged at the top right. SPD's direction and speed are the
      * strip's pictogram above, so the sound gets the rows they took here. */
     int32_t r0 = 6, r1 = 114, rw = r1 - r0, top = 10, bot = 35, mid = 23, amp = 12, k, x;
-    int32_t x0 = r0 + v[0] * rw / 100, x1 = x0 + v[1] * rw / 100;
+    int32_t x0 = r0 + v[0] * rw / 10000, x1 = x0 + v[1] * rw / 10000;   /* (hundredths of a percent) */
     int32_t sp = v[2] * (v[5] ? -1 : 1) / (v[6] ? 2 : 1), gain = db_x1000(v[7]) * db_x1000(v[TK_LVL]) / 1000;   /* REV,
                                                                                 * HALF; GAIN, LVL */
     int32_t fw = 1 + v[4] * 8 / 100;                   /* XFAD (drawn wider than to scale, so it shows) */
@@ -1051,17 +1051,15 @@ static void viz_poly(const int16_t *v, uint32_t f)
         tape_view_t vw;
         tape_view_of(sys.sel, (uint32_t)clamp(v[PL_REEL], 0, (int32_t)(NREEL + USLOT_N)), &vw);
         if (vw.len) {
-            int32_t e = f == PL_STRT ? (int32_t)(vw.len * (uint32_t)v[PL_STRT] / 100u +
-                                                 vw.len * (uint32_t)v[PL_SFIN] / 10000u)
-                                     : (int32_t)pol_end(sys.sel, vw.len);
+            int32_t e = f == PL_STRT ? pct100_of(vw.len, v[PL_STRT]) : (int32_t)pol_end(sys.sel, vw.len);
             vz_zoom(&vw, e, f == PL_STRT, f == PL_STRT ? "STRT" : "END");
             return;
         }
     }
     if (bp == 0u) {
         tape_view_t vw;
-        int32_t sx = DX0 + (v[PL_STRT] * 100 + v[PL_SFIN]) * DW / 10000, mid = 11, lo, hi, nv = v[PL_VOIC];
-        int32_t ex = DX0 + (v[PL_END] * 100 + v[PL_EFIN]) * DW / 10000;
+        int32_t sx = DX0 + v[PL_STRT] * DW / 10000, mid = 11, lo, hi, nv = v[PL_VOIC];
+        int32_t ex = DX0 + v[PL_END] * DW / 10000;
         char b[24];
         tape_view_of(sys.sel, (uint32_t)clamp(v[PL_REEL], 0, (int32_t)(NREEL + USLOT_N)), &vw);
         for (x = DX0; x <= DX1; x++) {                                 /* the sound */

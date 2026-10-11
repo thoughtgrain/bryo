@@ -235,14 +235,15 @@ number.
   rotates the loop you hear while it plays. User reels can be deleted (the project view's REELS page). REC held +
   SELECT records exactly 1-8 bars from the downbeat, and a tape has an exact end now so such a loop doesn't drift.
   HOME held + a loop's edge zooms (hundredths of a percent, the decoded sound drawn); POLY has END. TAPE, GRAIN's
-  RATE and SPACE's TIME can follow the tempo (SYNC), locked to the beat clock. See "From playing it on the FM-1,
+  RATE and SPACE's TIME can follow the tempo (SYNC), locked to the beat clock. Old project and preset formats are no
+  longer read (projects had barely started): only the current version, with no fix-ups. See "From playing it on the FM-1,
   round 3" in the architecture doc.
 - **2026-10-11: two shared rooms in place of a room a track.** One LFO on a drum's level put the factory scene over
   80 % with crackles; the depth costs half a percent, the scene had crept to 3,046 a sample (81 %), and SPACE's
   three rooms were its biggest part. Now every track's SPACE sends (VERB x its level) to room A or B, whose knobs
   are on SPACE's pages 2-3 (shared: turning them changes the room for every track on it), with a QUAL each (HI 22.05 kHz, LO 11.025 kHz: half the work, a darker tail); a room costs the
   same however many tracks send to it, and takes memory only while one does. The scene's rooms are both LO: 2,821,
-  75 %. Projects went to version 8 (older ones become the two rooms from their tracks). The 1,547 below, for
+  75 %. Projects went to version 8 (version 9 since: old formats dropped). The 1,547 below, for
   2026-10-10, was measured another way; by today's measure (5 s of the scene after a second's warm-up) it was 2,886.
   See "The shared rooms, as built".
 - **2026-10-11: colour says where you are and what's alive.** White on black stays the look; five colour-blind-safe
@@ -270,7 +271,8 @@ number.
 - **2026-10-09: the modulation depths are a sorted list per track, not a dense table** (and storage.c streams a
   page at a time): 6.2 KiB of main RAM back as stack headroom. `mod_dep()` / `mod_dep_set()` read and set them.
 - **2026-10-09: projects are a field-by-field stream, packed, never a struct dump** (versioned, counted arrays,
-  clamped on load, depths by array and knob): a newer Bryo reads older projects. Six slots, A/B, Bryo's own magic so
+  clamped on load, depths by array and knob). Since 2026-10-11 only the current version is read (old formats
+  dropped while projects had barely started). Six slots, A/B, Bryo's own magic so
   Felucca never misreads one. A take on a track's own tape goes into a user reel named after the project and track.
 - **2026-10-09: GRAIN, RESONATOR and COLOR can be sends** (ROUT: INS or SEND, per device, per track): the dry at
   full, the device added at WET. Per track rather than shared aux buses: no new memory or CPU, every track keeps

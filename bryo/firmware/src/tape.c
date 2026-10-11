@@ -48,8 +48,8 @@
 #define TAPE_DECLICK 88              /* the shortest fade (a jump, start and stop): 2 ms at 44.1 kHz */
 
 /* the knobs (param.c DEV_P[DEV_SRC]) */
-enum { TK_STRT, TK_LEN, TK_SPD, TK_DUB, TK_FADE, TK_REV, TK_HALF, TK_GAIN, TK_REEL, TK_ROTA, TK_LVL, TK_SFIN, TK_ATK,
-       TK_DEC, TK_SUS, TK_REL, TK_LFIN, TK_SYNC };
+enum { TK_STRT, TK_LEN, TK_SPD, TK_DUB, TK_FADE, TK_REV, TK_HALF, TK_GAIN, TK_REEL, TK_ROTA, TK_LVL, TK_SYNC, TK_ATK,
+       TK_DEC, TK_SUS, TK_REL };
 
 typedef struct {                     /* a reel in flash (bryo_reels.h REELS_INIT) */
     const char *name;
@@ -268,15 +268,20 @@ static void tape_view_of(uint32_t t, uint32_t s, tape_view_t *v)
 
 static void tape_view(uint32_t t, tape_view_t *v) { tape_view_of(t, tape_src(t), v); }
 
+/* v hundredths of a percent of len (in two parts: the whole product would pass 32 bits on a long tape) */
+static int32_t pct100_of(uint32_t len, int32_t v)
+{
+    uint32_t u = (uint32_t)clamp(v, 0, 10000);
+    return (int32_t)(len / 10000u * u + len % 10000u * u / 10000u);
+}
+
 /* the loop window in samples: from STRT, LEN long, both in % of what the track plays; past the tape's end it's
  * trimmed there (so STRT always cuts the start away: before 2026-10-11 the window slid back instead, and at LEN
  * 100 STRT did nothing), at least one block long */
 static void tape_window(uint32_t t, uint32_t len, int32_t *ls, int32_t *ll)
 {
     const int16_t *k = TPD(t, DEV_SRC);
-    int32_t s = (int32_t)len * k[TK_STRT] / 100 + (int32_t)len * k[TK_SFIN] / 10000;   /* (in two parts: the whole
-                                                         * product would pass 32 bits on a long tape) */
-    int32_t l = (int32_t)len * k[TK_LEN] / 100 + (int32_t)len * k[TK_LFIN] / 10000;
+    int32_t s = pct100_of(len, k[TK_STRT]), l = pct100_of(len, k[TK_LEN]);
     if (s + l > (int32_t)len)
         l = (int32_t)len - s;
     if (l < (int32_t)TAPE_BLK)
@@ -560,16 +565,21 @@ static void tape_block(uint32_t t, uint32_t keys, const int32_t *rec_in, int32_t
     } else {
         wlen = (int32_t)v.len;
         tape_window(t, v.len ? v.len : TAPE_LEN, &ls, &ll);
-        if (v.len && rt->running && ((rt->pos >> 12) < ls || (rt->pos >> 12) >= ls + ll)) {
+        int32_t hp = rt->pos >> 12, tol = ll / 16;     /* (a head just short of the window's start, as STRT moves
+                                                         * past it, plays on into it: no jump; backwards, past its
+                                                         * end the same) */
+        if (v.len && rt->running && (inc >= 0 ? hp < ls - tol || hp >= ls + ll : hp < ls || hp >= ls + ll + tol)) {
             int32_t o = ((rt->pos >> 12) - ls) % ll;  /* (the tape got shorter under the head: back inside) */
             tape_jump(t, (ls + (o < 0 ? o + ll : o)) << 12);
             rt->wlast = -1;
         }
-        if (TPD(t, DEV_SRC)[TK_ROTA] != rt->rota) {    /* ROTATE turned: the loop turns under the head (it plays
+        if (tp[t].dev[DEV_SRC][TK_ROTA] != rt->rota) { /* ROTATE turned: the loop turns under the head (it plays
                                                          * on from where the new rotation puts it: the same moment
-                                                         * of the bar now hears another part of the tape) */
-            int32_t d = TPD(t, DEV_SRC)[TK_ROTA] - rt->rota, o;
-            rt->rota = TPD(t, DEV_SRC)[TK_ROTA];
+                                                         * of the bar now hears another part of the tape). The knob,
+                                                         * not its modulation: a modulated ROTA moves where PLAY and
+                                                         * the slices start (and SYNC's lock), as it always did */
+            int32_t d = tp[t].dev[DEV_SRC][TK_ROTA] - rt->rota, o;
+            rt->rota = tp[t].dev[DEV_SRC][TK_ROTA];
             if (v.len && rt->running && playing && rt->stop_left == 0) {
                 o = ((rt->pos >> 12) - ls + ll * d / 100) % ll;
                 tape_jump(t, ((ls + (o < 0 ? o + ll : o)) << 12) | (rt->pos & 4095));

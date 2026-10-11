@@ -292,8 +292,8 @@ static void test_tape(void)
 
     {   /* the loop wraps: STRT 50, LEN 10 on track 1, 1 s of play stays inside [50 %, 60 %) */
         int32_t lo, hi, len = (int32_t)(REELS[0].nblk * TAPE_BLK), inside = 1;
-        tp[0].dev[DEV_SRC][TK_STRT] = 50;
-        tp[0].dev[DEV_SRC][TK_LEN] = 10;
+        tp[0].dev[DEV_SRC][TK_STRT] = 5000;
+        tp[0].dev[DEV_SRC][TK_LEN] = 1000;
         lo = len * 50 / 100;
         hi = lo + len * 10 / 100;
         sys.playing = 1;
@@ -311,7 +311,7 @@ static void test_tape(void)
         }
         tp[0].dev[DEV_SRC][TK_REV] = 0;
         tp[0].dev[DEV_SRC][TK_STRT] = 0;
-        tp[0].dev[DEV_SRC][TK_LEN] = 100;
+        tp[0].dev[DEV_SRC][TK_LEN] = 10000;
         sys.playing = 0;
         render(NB / 4, 0);
     }
@@ -440,7 +440,7 @@ static void test_input(void)
     host_enc[panel.enc[EN_K2]] = 3;                      /* KNOB 2 on TAPE: LENGTH 100 -> clamps at 100 */
     host_enc[panel.enc[EN_K3]] = -10;                    /* KNOB 3: SPEED 100 % -> 100 - 10 * 4 = 60 % */
     ui_input();
-    check("KNOB 2 clamps at the range's top (LENGTH 100)", tp[0].dev[DEV_SRC][1] == 100);
+    check("KNOB 2 clamps at the range's top (LENGTH 100)", tp[0].dev[DEV_SRC][1] == 10000);
     check("KNOB 3 steps a wide range by ~1 % per detent (SPEED 100 -> 60)", tp[0].dev[DEV_SRC][2] == 60);
     check("..and lights that dial (hot)", ui.hot == 2u && ui.hot_t > 0u);
 
@@ -1877,7 +1877,7 @@ static void test_poly(void)
     render(NB * 2, 0);
     p[PL_VOIC] = POL_NV;
 
-    p[PL_STRT] = 50;                                     /* STRT 50: every note from half way */
+    p[PL_STRT] = 5000;                                     /* STRT 50: every note from half way */
     fm1_in.notes = note_bit_of_white(0);
     render(1, 0);
     check("STRT 50: a note starts half way through the sound",
@@ -2534,17 +2534,15 @@ static void test_zoom(void)
     hold(B_HOME);
     turn(0, 7);
     tape_window(0, v.len, &ls, &ll);
-    check("HOME held + STRT 7 detents: 0.07 % (STRT 0, its hundredths 7), the loop starts there to the sample",
-          tp[0].dev[DEV_SRC][TK_STRT] == 0 && tp[0].dev[DEV_SRC][TK_SFIN] == 7 && ls == (int32_t)v.len * 7 / 10000 &&
-          ui.zoom == 1u);
+    check("HOME held + STRT 7 detents: 0.07 % (STRT 7 hundredths), the loop starts there to the sample",
+          tp[0].dev[DEV_SRC][TK_STRT] == 7 && ls == (int32_t)v.len * 7 / 10000 && ui.zoom == 1u);
     ui.msg_t = 0;
     ui_draw();
     shot_screen("BRYO", "tape_zoom");
     turn(1, -3);
     tape_window(0, v.len, &ls, &ll);
-    check("..LEN 3 detents back from 100: 99.97 % (LEN 99 and 97 hundredths; from 0.07 % that's past the end, so the "
-          "loop runs to it)", tp[0].dev[DEV_SRC][TK_LEN] == 99 && tp[0].dev[DEV_SRC][TK_LFIN] == 97 &&
-          ls + ll == (int32_t)v.len);
+    check("..LEN 3 detents back from 100: 99.97 % (from 0.07 % that's past the end, so the loop runs to it)",
+          tp[0].dev[DEV_SRC][TK_LEN] == 9997 && ls + ll == (int32_t)v.len);
     turn(0, -7);
     tape_window(0, v.len, &ls, &ll);
     check("..STRT back to 0: the loop is 99.97 % long, to the sample", ls == 0 &&
@@ -2554,12 +2552,11 @@ static void test_zoom(void)
     check("..HOME let go: the zoom ends, and the page stays (it was held for the zoom)", ui.zoom == 0u &&
           ui.view == VIEW_PAGE && ui.page == 0u && ui.dev == DEV_SRC);
     turn(0, 2);
-    check("..STRT turned alone: whole percents, its hundredths kept (2.07 %)", tp[0].dev[DEV_SRC][TK_STRT] == 2 &&
-          tp[0].dev[DEV_SRC][TK_SFIN] == 7);
+    check("..STRT turned alone: whole percents, its hundredths kept (2.07 %)", tp[0].dev[DEV_SRC][TK_STRT] == 207);
     hold(B_HOME);
     turn(0, -300);
     let_go(B_HOME);
-    check("..zoomed back past 0: held at 0.00", tp[0].dev[DEV_SRC][TK_STRT] == 0 && tp[0].dev[DEV_SRC][TK_SFIN] == 0);
+    check("..zoomed back past 0: held at 0.00", tp[0].dev[DEV_SRC][TK_STRT] == 0);
     (void)lsb;
     (void)llb;
 
@@ -2569,7 +2566,7 @@ static void test_zoom(void)
     tp[0].pol[PL_REEL] = (int16_t)(NREEL + 1u);
     tp[0].pol[PL_ATK] = 0;
     tp[0].pol[PL_SUS] = 100;
-    tp[0].pol[PL_END] = 25;                              /* a quarter of 2.3 s: 0.58 s at the sound's pitch */
+    tp[0].pol[PL_END] = 2500;                              /* a quarter of 2.3 s: 0.58 s at the sound's pitch */
     focus_dev(DEV_SRC, 0);
     check("POLY's first page: REEL STRT END TUNE", !strcmp(POL_P[pdesc_at(POL_P, 2u)].label, "END") &&
           !strcmp(POL_P[pdesc_at(POL_P, 3u)].label, "TUNE") && !strcmp(POL_P[pdesc_at(POL_P, 12u)].label, "VOIC"));
@@ -2581,21 +2578,21 @@ static void test_zoom(void)
     render(4, 0);
     {
         char b[120];
-        double t = i * CTL / 44100.0;
+        double t = i * CTL / 44100.0 - POL_ENDF * CTL / 44100.0;   /* (its fade after END) */
         snprintf(b, sizeof b, "END 25: a held note stops by itself at a quarter of the sound (%.3f s, 0.580)", t);
         check(b, fabs(t - 0.580) < 0.01);
     }
     hold(B_HOME);
     turn(2, -10);                                        /* (page 1 KNOB 3: END) */
     let_go(B_HOME);
-    check("..HOME held + END: hundredths (24.90 %)", tp[0].pol[PL_END] == 24 && tp[0].pol[PL_EFIN] == 90);
+    check("..HOME held + END: hundredths (24.90 %)", tp[0].pol[PL_END] == 2490);
     hold(B_HOME);
     turn(1, 5);
     ui.msg_t = 0;
     ui_draw();
     shot_screen("BRYO", "poly_zoom");
     let_go(B_HOME);
-    check("..and STRT: 0.05 %", tp[0].pol[PL_STRT] == 0 && tp[0].pol[PL_SFIN] == 5);
+    check("..and STRT: 0.05 %", tp[0].pol[PL_STRT] == 5);
     power_on();
 }
 
@@ -4592,14 +4589,14 @@ static void test_tape_edges(void)
     tape_ctl[2].empty = 0;
 
     len = REELS[0].nblk * TAPE_BLK;
-    tp[0].dev[DEV_SRC][TK_STRT] = 100;                   /* STRT at the end, LEN 1 %: one block, the last */
-    tp[0].dev[DEV_SRC][TK_LEN] = 1;
+    tp[0].dev[DEV_SRC][TK_STRT] = 10000;                   /* STRT at the end, LEN 1 %: one block, the last */
+    tp[0].dev[DEV_SRC][TK_LEN] = 100;
     tape_window(0, 10000, &ls, &ll);                     /* (1 % of 10,000 samples: 100, under a block) */
     check("LEN under a block is a block; STRT at the end keeps the window on the tape",
           ll == (int32_t)TAPE_BLK && ls == 10000 - (int32_t)TAPE_BLK);
     tp[0].dev[DEV_SRC][TK_REV] = 1;                      /* backwards over a short loop: the seam every 12 ms */
-    tp[0].dev[DEV_SRC][TK_STRT] = 30;
-    tp[0].dev[DEV_SRC][TK_LEN] = 2;
+    tp[0].dev[DEV_SRC][TK_STRT] = 3000;
+    tp[0].dev[DEV_SRC][TK_LEN] = 200;
     tape_window(0, len, &lo, &ll);
     hi = lo + ll;
     sys.playing = 1;
@@ -4613,7 +4610,7 @@ static void test_tape_edges(void)
     render(400, 0);
     tp[0].dev[DEV_SRC][TK_REV] = 0;
     tp[0].dev[DEV_SRC][TK_STRT] = 0;
-    tp[0].dev[DEV_SRC][TK_LEN] = 100;
+    tp[0].dev[DEV_SRC][TK_LEN] = 10000;
     tp[2].dev[DEV_SRC][TK_REEL] = 3;
 
     tp[0].dev[DEV_SRC][TK_ROTA] = 50;                    /* ROTATE: playing starts half way round the loop */
@@ -4635,19 +4632,19 @@ static void test_tape_edges(void)
     }
     tp[0].dev[DEV_SRC][TK_ROTA] = 0;
 
-    tp[0].dev[DEV_SRC][TK_STRT] = 40;                    /* STRT cuts the start away, LEN 100: the rest of the tape */
+    tp[0].dev[DEV_SRC][TK_STRT] = 4000;                    /* STRT cuts the start away, LEN 100: the rest of the tape */
     tape_window(0, len, &ls, &ll);
     check("STRT 40 at LEN 100: the loop is 40 % to the end (it used to slide back to 0)",
           ls == (int32_t)len * 40 / 100 && ls + ll == (int32_t)len);
-    tp[0].dev[DEV_SRC][TK_LEN] = 30;
+    tp[0].dev[DEV_SRC][TK_LEN] = 3000;
     tape_window(0, len, &ls, &ll);
     check("..LEN 30 from there: 40 % to 70 %", ls == (int32_t)len * 40 / 100 && ll == (int32_t)len * 30 / 100);
-    tp[0].dev[DEV_SRC][TK_STRT] = 90;
+    tp[0].dev[DEV_SRC][TK_STRT] = 9000;
     tape_window(0, len, &ls, &ll);
     check("..STRT 90, LEN 30: trimmed at the end (90 % to the end), not slid back", ls == (int32_t)len * 90 / 100 &&
           ls + ll == (int32_t)len);
     tp[0].dev[DEV_SRC][TK_STRT] = 0;
-    tp[0].dev[DEV_SRC][TK_LEN] = 100;
+    tp[0].dev[DEV_SRC][TK_LEN] = 10000;
     sys.playing = 1;                                     /* ROTATE turned while it plays: the loop turns under it */
     render(200, 0);
     {
@@ -4662,6 +4659,17 @@ static void test_tape_edges(void)
         p0 = tape_rt[0].pos >> 12;
         render(1, 0);
         check("..and then plays on from there", abs((tape_rt[0].pos >> 12) - p0 - CTL / 2) <= 1);
+        render(30, 0);                                   /* (ROTA's crossfade done) */
+        p0 = tape_rt[0].pos >> 12;                       /* STRT moved just past the head (as an LFO would): it plays */
+        tp[0].dev[DEV_SRC][TK_STRT] = (int16_t)((p0 + 200) * 10000 / (int32_t)len);   /* .. on into the loop */
+        render(1, 0);
+        check("..STRT moved a little past the head: no jump, it plays on into the loop (modulated STRT doesn't step)",
+              tape_rt[0].xf == 0 && abs((tape_rt[0].pos >> 12) - p0 - CTL / 2) <= 1);
+        tp[0].dev[DEV_SRC][TK_STRT] = (int16_t)((p0 + (int32_t)len / 8) * 10000 / (int32_t)len);
+        render(1, 0);
+        check("..moved far past it: the head jumps into the loop (crossfaded)", tape_rt[0].xf > 0 &&
+              (tape_rt[0].pos >> 12) >= p0 + (int32_t)len / 8 - 2);
+        tp[0].dev[DEV_SRC][TK_STRT] = 0;
     }
     sys.playing = 0;
     render(400, 0);
@@ -5707,8 +5715,7 @@ static void test_mod(void)
     {
         static const struct { const pdesc_t *p; const char *a, *b; uint32_t away; const char *f3, *f4; } R[] = {
             /* (a b: KNOB 3-4 of the last page; f3 f4: of the first; away: knobs another pad's page shows) */
-            {DEV_P[DEV_SRC], 0, "LVL", 0x10800u}, {SYN_P, 0, "LVL"}, {POL_P, 0, "LVL", 0xC000u},   /* (the zoom's
-                                                         * hundredths, on no page: TAPE 11 16, POLY 14 15) */
+            {DEV_P[DEV_SRC], 0, "LVL"}, {SYN_P, 0, "LVL"}, {POL_P, 0, "LVL"},
             {DRM_P, 0, "LVL"},
             {DEV_P[DEV_COLOR], 0, "LVL", 0, "ROUT", "WET"}, {DEV_P[DEV_GRAIN], 0, 0, 0, "ROUT", "WET"},
             {DEV_P[DEV_RESO], 0, 0, 0xF000u, "ROUT", "WET"},   /* (12-15: RES ARP, the ARP pad's page 3) */
@@ -6773,108 +6780,20 @@ static void test_projects(void)
     tap(B_SAVE);
     check("SAVE tapped on a page: into the current project (P3)", pj_cur == 2 && pj_sum[2].used && pj_sum[2].bpm == 101);
 
-    /* a version 1 project (before SEQ had SPRD AMT OFS): its SEQ slots load with those knobs' defaults */
-    pj_wipe();
-    power_on();
-    tp[0].mod[2][9] = 37;                                /* (slot 3, SEQ: an AMT a version 1 project can't have) */
-    tp[0].mod[2][0] = 5;                                 /* LEN */
-    pj_wver = 1;
-    rc = pj_save(0);
-    pj_wver = PJ_VERSION;
-    power_on();
-    rc |= pj_load(0);
-    check("a version 1 project loads; its SEQ slot gets AMT 100 (the default), its other knobs as saved",
-          rc == 0 && tp[0].engine[2] == ME_SEQ && tp[0].mod[2][9] == 100 && tp[0].mod[2][0] == 5);
-    tp[0].mod[2][9] = 37;
-    rc = pj_save(0);
-    power_on();
-    rc |= pj_load(0);
-    check("..a version 2 one keeps SEQ's AMT as saved", rc == 0 && tp[0].mod[2][9] == 37);
-    tp[0].dev[DEV_SRC][TK_ATK] = 0;                      /* a version 4 project: TAPE's envelope wasn't there (0s) */
-    tp[0].dev[DEV_SRC][TK_DEC] = 0;
-    tp[0].dev[DEV_SRC][TK_SUS] = 0;
-    tp[0].dev[DEV_SRC][TK_REL] = 0;
-    pj_wver = 4;
-    rc = pj_save(0);
-    pj_wver = PJ_VERSION;
-    power_on();
-    rc |= pj_load(0);
-    check("a version 4 project: TAPE's envelope gets its defaults (SUS 100, REL long), not the 0s",
-          rc == 0 && tp[0].dev[DEV_SRC][TK_SUS] == 100 && tp[0].dev[DEV_SRC][TK_REL] == DEV_P[DEV_SRC][TK_REL].def);
-    {
-        uint32_t k;
-        for (k = GP_BODY; k <= GP_BTON; k++)             /* a version 6 project: GRAIN's BODY wasn't there (0s) */
-            tp[0].dev[DEV_GRAIN][k] = 0;
-        pj_wver = 6;
-        rc = pj_save(0);
-        pj_wver = PJ_VERSION;
+    {   /* the rooms and each track's ROOM are saved with the project; a track preset keeps the track's ROOM */
+        pj_wipe();
         power_on();
-        rc |= pj_load(0);
-        check("a version 6 project: GRAIN's BODY gets its defaults (off, A2, 200 Hz), not ROOT C1 and TONE 30 Hz",
-              rc == 0 && tp[0].dev[DEV_GRAIN][GP_BODY] == 0 && tp[0].dev[DEV_GRAIN][GP_ROOT] == 45 &&
-              tp[0].dev[DEV_GRAIN][GP_BTON] == DEV_P[DEV_GRAIN][GP_BTON].def);
-        tp[0].dev[DEV_GRAIN][GP_BODY] = 60;              /* and this version keeps it as saved */
-        tp[0].dev[DEV_GRAIN][GP_BMOD] = BODY_TRI;
-        tp[0].dev[DEV_GRAIN][GP_ROOT] = 38;
-        tp[0].dev[DEV_GRAIN][GP_BTON] = 70;
-        rc = pj_save(0);
-        power_on();
-        rc |= pj_load(0);
-        check("..a version 7 one keeps BODY as saved (60, TRI, D2, TONE 70)", rc == 0 &&
-              tp[0].dev[DEV_GRAIN][GP_BODY] == 60 && tp[0].dev[DEV_GRAIN][GP_BMOD] == BODY_TRI &&
-              tp[0].dev[DEV_GRAIN][GP_ROOT] == 38 && tp[0].dev[DEV_GRAIN][GP_BTON] == 70);
-        for (k = GP_BODY; k <= GP_BTON; k++)             /* a track preset from before BODY: 0s there */
-            tp[0].dev[DEV_GRAIN][k] = 0;
-        rc = tpr_save(0, 0);
-        power_on();
-        rc |= tpr_load(0, 0);
-        check("a track preset from before BODY: its defaults (ROOT A2, TONE 200 Hz), BODY off", rc == 0 &&
-              tp[0].dev[DEV_GRAIN][GP_BODY] == 0 && tp[0].dev[DEV_GRAIN][GP_ROOT] == 45 &&
-              tp[0].dev[DEV_GRAIN][GP_BTON] == DEV_P[DEV_GRAIN][GP_BTON].def);
-    }
-    {   /* a version 7 project: each track had a room of its own (SIZE DEC at SPACE's knobs 2-3, TONE on its tail) */
-        int16_t *a;
-        power_on();
-        tp[0].dev[DEV_SPACE][2] = 90;                    /* T1: a big room, but VERB 0 (not sent to) */
-        tp[0].dev[DEV_SPACE][3] = 90;
-        a = tp[1].dev[DEV_SPACE];                        /* T2: VERB 40 in a room of SIZE 70, DEC 25, TONE -30 */
-        a[SP_VERB] = 40;
-        a[2] = 70;
-        a[3] = 25;
-        a[SP_TONE] = -30;
-        a[SP_TIME] = 200;
-        a[8] = 20;                                       /* (PRE, where a version 7 file kept it: 20 ms) */
-        a = tp[2].dev[DEV_SPACE];                        /* T3: VERB 60, SIZE 20, DEC 95 */
-        a[SP_VERB] = 60;
-        a[2] = 20;
-        a[3] = 95;
-        a = tp[3].dev[DEV_SPACE];                        /* T4: VERB 10, its own room (B's goes to T3's) */
-        a[SP_VERB] = 10;
-        a[2] = 0;
-        a[3] = 0;
-        rmp[0][RM_SIZE] = 5;                             /* (and rooms a version 7 project can't have) */
-        pj_wver = 7;
-        rc = pj_save(0);
-        pj_wver = PJ_VERSION;
-        power_on();
-        rc |= pj_load(0);
-        check("a version 7 project: room A from T2 (the first of T1-T2 sending: SIZE 70, DEC 25, TONE -30), B from T3 "
-              "(SIZE 20, DEC 95); T1-T2 send to A, T3-T4 to B; the old DEC not kept as the track's; the rest as saved",
-              rc == 0 && rmp[0][RM_SIZE] == 70 && rmp[0][RM_DEC] == 25 && rmp[0][RM_TONE] == -30 &&
-              rmp[1][RM_SIZE] == 20 && rmp[1][RM_DEC] == 95 && rmp[1][RM_QUAL] == RQ_HI &&
-              rmp[0][RM_PRE] == RM_P[RM_PRE].def && tp[0].dev[DEV_SPACE][SP_ROOM] == 0 &&
-              tp[1].dev[DEV_SPACE][SP_ROOM] == 0 && tp[2].dev[DEV_SPACE][SP_ROOM] == 1 &&
-              tp[3].dev[DEV_SPACE][SP_ROOM] == 1 && tp[1].dev[DEV_SPACE][3] == 0 && tp[1].dev[DEV_SPACE][SP_VERB] == 40 &&
-              tp[1].dev[DEV_SPACE][SP_TIME] == 200 && tp[1].dev[DEV_SPACE][SP_TONE] == -30);
-        rmp[1][RM_QUAL] = RQ_LO;                         /* this version keeps the rooms as saved */
+        rmp[0][RM_SIZE] = 70;
         rmp[0][RM_PRE] = 150;
+        rmp[1][RM_QUAL] = RQ_LO;
         tp[0].dev[DEV_SPACE][SP_ROOM] = 1;
+        tp[1].dev[DEV_SPACE][SP_VERB] = 40;
         rc = pj_save(0);
         power_on();
         rc |= pj_load(0);
-        check("..a version 8 one keeps the rooms (B's QUAL LO, A's PRE 150) and each track's ROOM as saved", rc == 0 &&
-              rmp[1][RM_QUAL] == RQ_LO && rmp[0][RM_PRE] == 150 && rmp[0][RM_SIZE] == 70 &&
-              tp[0].dev[DEV_SPACE][SP_ROOM] == 1);
+        check("the rooms and each track's ROOM come back as saved (A: SIZE 70, PRE 150; B: QUAL LO; T1 on B)",
+              rc == 0 && rmp[0][RM_SIZE] == 70 && rmp[0][RM_PRE] == 150 && rmp[1][RM_QUAL] == RQ_LO &&
+              tp[0].dev[DEV_SPACE][SP_ROOM] == 1 && tp[1].dev[DEV_SPACE][SP_ROOM] == 0);
         tp[1].dev[DEV_SPACE][SP_ROOM] = 1;               /* a track preset: the room it sends to stays the track's */
         rc = tpr_save(0, 1);
         tp[1].dev[DEV_SPACE][SP_ROOM] = 0;
@@ -8133,7 +8052,7 @@ static void test_arp_sources(void)
     power_on();
     sys.bpm = 120;
     tp[0].src = SRC_TAPE;
-    tp[0].dev[DEV_SRC][TK_LEN] = 25;                     /* (slices: the keys as on the TAPE page) */
+    tp[0].dev[DEV_SRC][TK_LEN] = 2500;                     /* (slices: the keys as on the TAPE page) */
     tp[0].arp[AR_MODE] = ARM_KEY;
     focus_dev(DEV_SRC, 0);
     fm1_in.notes = w1 | w5;
@@ -8192,7 +8111,7 @@ static void test_arp_sources(void)
     power_on();                                          /* RESONATOR's arpeggio on a TAPE track */
     sys.bpm = 120;
     tp[0].src = SRC_TAPE;
-    tp[0].dev[DEV_SRC][TK_LEN] = 25;                     /* (slices: a key would start one, but not here) */
+    tp[0].dev[DEV_SRC][TK_LEN] = 2500;                     /* (slices: a key would start one, but not here) */
     tp[0].dev[DEV_RESO][RP_WET] = 100;
     tp[0].dev[DEV_RESO][RP_AMODE] = ARM_KEY;
     hold(B_ARP);                                         /* ARP held + key 3: RES ARP */

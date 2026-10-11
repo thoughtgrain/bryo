@@ -84,7 +84,7 @@ static void setup(uint32_t g)
         v[k] = 100;
     {                                                /* where the knob has something to act on */
         if (g == MOD_TSRC + TK_STRT)
-            tp[0].dev[DEV_SRC][TK_LEN] = 40;
+            tp[0].dev[DEV_SRC][TK_LEN] = 4000;
         if (g == MOD_TG(DEV_GRAIN, GP_OFST))
             tp[0].dev[DEV_GRAIN][GP_SCAN] = SCAN_POS;
         if (g == MOD_TG(DEV_GRAIN, GP_SCAL))

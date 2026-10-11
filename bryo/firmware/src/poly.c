@@ -7,9 +7,9 @@
  *
  * A voice: its head starts at STRT and runs at the key's pitch against the sound's own (white key 1 at OCT 3, plus
  * TUNE, is the sound as it was recorded: 22.05 kHz read at 0.5 a sample, like TAPE at 100 %); its ADSR shapes the
- * level and, by ENV, the cutoff of its state-variable filter (TYPE: low-, band- or high-pass). At the sound's end it
- * fades over one block and frees itself. Voices are taken as SYNTH's are: a silent one, the quietest releasing one,
- * else the oldest (which keeps its filter state and ramps from its level, so a steal doesn't click).
+ * level and, by ENV, the cutoff of its state-variable filter (TYPE: low-, band- or high-pass). At END (or the
+ * sound's end) it fades over six blocks and frees itself. Voices are taken as SYNTH's are: a silent one, the quietest
+ * releasing one, else the oldest (which keeps its filter state and ramps from its level, so a steal doesn't click).
  *
  * Audio ISR only, like synth.c: the main loop writes tp[t].pol and the octave. */
 
@@ -21,7 +21,9 @@ typedef struct {
     uint32_t age;
     uint8_t key, stage;          /* 0 silent, 1 attack, 2 decay and sustain, 3 release */
     uint8_t note;                /* the key's note at its octave when it went down (TUNE is added as it plays) */
+    uint8_t endf;                /* END passed: blocks of its fade left (POL_ENDF..1; 0: not ending) */
 } pol_voice_t;
+#define POL_ENDF 6u              /* END's fade, blocks (4.4 ms: one block, 0.7 ms, stepped when END was modulated) */
 
 typedef struct {
     pol_voice_t v[POL_NV];
@@ -39,12 +41,10 @@ static int32_t pol_inc(uint32_t t, uint32_t note)
     return (int32_t)(pitch_inc((uint32_t)n16) / (pitch_inc(48u * 16u) >> 11));   /* (C3: the sound's own) */
 }
 
-/* where a note stops in a sound len samples long: END and its hundredths, never past the sound */
+/* where a note stops in a sound len samples long: END, never past the sound */
 static uint32_t pol_end(uint32_t t, uint32_t len)
 {
-    const int16_t *p = TPD(t, MA_POL);
-    uint32_t e = len * (uint32_t)clamp(p[PL_END], 1, 100) / 100u + len * (uint32_t)clamp(p[PL_EFIN], 0, 99) / 10000u;
-    return e < len ? e : len;
+    return (uint32_t)pct100_of(len, TPD(t, MA_POL)[PL_END]);
 }
 
 static void pol_start(uint32_t t, uint32_t k, uint32_t nv, uint32_t len)
@@ -71,12 +71,12 @@ static void pol_start(uint32_t t, uint32_t k, uint32_t nv, uint32_t len)
         v->ic1 = v->ic2 = 0;
         v->env = 0;
     }
-    v->pos = (int32_t)(len * (uint32_t)TPD(t, MA_POL)[PL_STRT] / 100u +   /* (STRT, and its hundredths: the zoom's) */
-                       len * (uint32_t)TPD(t, MA_POL)[PL_SFIN] / 10000u) << 12;
+    v->pos = pct100_of(len, TPD(t, MA_POL)[PL_STRT]) << 12;
     v->note = (uint8_t)clamp((int32_t)key_base[t] + (int32_t)k, 0, 127);
     v->inc = pol_inc(t, v->note);
     v->key = (uint8_t)k;
     v->stage = 1;
+    v->endf = 0;
     v->age = ++s->age;
     pol_rd[t][v - s->v].ok = 0;
 }
@@ -112,11 +112,16 @@ static void pol_voice(uint32_t t, pol_voice_t *v, tape_rd_t *rd, const tape_view
     e15 = v->env >> 9;
     a1 = e15;
     v->inc = pol_inc(t, v->note);                           /* (TUNE as it is now) */
-    if ((uint32_t)((pos + v->inc * (int32_t)n) >> 12) >= pol_end(t, vw->len)) {   /* END (or the sound's): fade out,
-                                                                                   * done */
-        a1 = 0;
-        v->stage = 0;
-        v->env = 0;
+    if (!v->endf && (uint32_t)((pos + v->inc * (int32_t)n) >> 12) >= pol_end(t, vw->len))
+        v->endf = POL_ENDF;                                 /* END passed: a short fade from here, then done */
+    if (v->endf) {                                          /* (reading on a little past END: the sound's end itself
+                                                             * reads as silence) */
+        a1 = e15 * (int32_t)(v->endf - 1u) / (int32_t)POL_ENDF;
+        if (--v->endf == 0u) {
+            a1 = 0;
+            v->stage = 0;
+            v->env = 0;
+        }
     }
     c8 = mod_fine8(t, FN_PCUT, p[PL_CUT]);                  /* (CUT finer than its semitones when modulated: mod.c) */
     tsvf_coef(&flt, c8 + p[PL_ENV] * 96 * (e15 >> 7) / 100, p[PL_RES] * 127 / 100);

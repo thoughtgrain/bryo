@@ -11,7 +11,9 @@
 #           edges count as clicks, and a pitch or a filter that moves smears the harmonics into the buzz bands, so
 #           both rise on a moving synth that steps nowhere (I learned that the hard way).
 #   cost    with cost/ (mod_audit.sh --cost): host instructions a sample, the extra over the same setup unmodulated
-# STEPS flags an edge that rises by more than 1 dB. Needs numpy.
+# STEPS flags an edge that rises by more than 1 dB, unless the modulated sound is next to silence (-60 dBFS RMS): there
+# the edge measures noise, not the sound (POLY's END modulated below a held note's head ends the note, as END
+# should), and the row says SILENT instead. Needs numpy.
 #   tests/mod_audit.py DIR
 import csv, glob, os, re, sys
 import numpy as np
@@ -85,7 +87,9 @@ def main():
             flags = []
             if ch < -60:
                 flags.append('no change' + (' (at the next note)' if p == '1' else ''))
-            if em - eb > 1.0:
+            if np.sqrt((m ** 2).mean()) < 32.767:       # (-60 dBFS: nothing for the edge to measure)
+                flags.append('SILENT')
+            elif em - eb > 1.0:
                 flags.append('STEPS')
             c = cg.get('mod_%s_%s' % (g, p), 0) - cg.get('base_%s_%s' % (g, p), 0) if cg else None
             flagged += 'STEPS' in flags

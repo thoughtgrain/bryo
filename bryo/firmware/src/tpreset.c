@@ -17,11 +17,12 @@
  *
  * The stream: 'B' 'K', the version, the count, then each preset as its length (0: empty) and its record. A record
  * starts with what the view shows (source, the four engines, the depth count), then the arrays as projects store
- * them (each its count and values, so a newer Bryo with more knobs still reads an older bank). */
+ * them (each its count and values). */
 
 #define TPR_N 8u                     /* presets A..H */
 #define TPR_BANK PJ_N                /* the bank's sector pair (pj_sector) */
-#define TPR_VERSION 1u
+#define TPR_VERSION 2u                 /* one format: a bank of another version reads as empty (nothing older is kept
+                                       * up with: presets started with this one) */
 
 typedef struct {                     /* what the view shows of a preset without loading it */
     uint8_t used, src, ndep;
@@ -115,16 +116,6 @@ static void tpr_read_rec(uint32_t t)
         if (ss < NSLOT && g < MOD_NTGT && mod_tdesc(g))
             mod_dep_set(t, ss, g, clamp(dp, -100, 100));
     }
-    if (!P->dev[DEV_SRC][TK_ATK] && !P->dev[DEV_SRC][TK_DEC] && !P->dev[DEV_SRC][TK_SUS] && !P->dev[DEV_SRC][TK_REL])
-        for (s = TK_ATK; s <= TK_REL; s++)               /* (a preset from before TAPE had an envelope: all 0s there,
-                                                          * which would silence every slice; its defaults instead.
-                                                          * Records are copied forward unparsed, so there's no
-                                                          * version to ask) */
-            P->dev[DEV_SRC][s] = DEV_P[DEV_SRC][s].def;
-    if (!P->dev[DEV_GRAIN][GP_BODY] && !P->dev[DEV_GRAIN][GP_BMOD] && !P->dev[DEV_GRAIN][GP_BTON])
-        for (s = GP_BODY; s <= GP_BTON; s++)             /* (a preset from before GRAIN's BODY: 0s there, NOTE held
-                                                          * to C1 and TONE at 30 Hz; with BODY off, its defaults) */
-            P->dev[DEV_GRAIN][s] = DEV_P[DEV_GRAIN][s].def;
     if (P->dev[DEV_SRC][TK_REEL] == 0)                   /* (its own tape: nothing named, the reel it's on stays) */
         P->dev[DEV_SRC][TK_REEL] = reel;
     if (P->pol[PL_REEL] == 0)
@@ -134,8 +125,7 @@ static void tpr_read_rec(uint32_t t)
     P->drm[DM_INST] = inst;
     P->drm[DM_BAR] = bar;
     P->drm[DM_MODE] = mode;
-    P->dev[DEV_SPACE][SP_ROOM] = room;                   /* (the room it sends to is the mix's: an older preset's
-                                                          * SIZE there, and its DEC and PRE, mean nothing now) */
+    P->dev[DEV_SPACE][SP_ROOM] = room;                   /* (the room it sends to is the mix's) */
     P->src = (uint8_t)(src < NSRC ? src : SRC_TAPE);     /* (last: the new source's knobs are in place first) */
     mod_rebuild(t);
 }

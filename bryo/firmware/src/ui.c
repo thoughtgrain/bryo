@@ -193,20 +193,10 @@ static const pdesc_t *ui_page(uint32_t k, int16_t **vp)
     return &dev_p(sys.sel, ui.dev)[k];
 }
 
-/* the zoom (HOME held + STRT or LEN on TAPE, STRT or END on POLY): the hundredths of a percent knob p's turn moves,
- * or 0 when p isn't a loop's edge */
-static int16_t *zoom_fine(const pdesc_t *p)
+/* knob p is a loop's edge (TAPE STRT LEN, POLY STRT END: hundredths of a percent), which HOME held zooms */
+static int zoom_edge(const pdesc_t *p)
 {
-    track_params_t *P = &tp[sys.sel];
-    if (p == &DEV_P[DEV_SRC][TK_STRT])
-        return &P->dev[DEV_SRC][TK_SFIN];
-    if (p == &DEV_P[DEV_SRC][TK_LEN])
-        return &P->dev[DEV_SRC][TK_LFIN];
-    if (p == &POL_P[PL_STRT])
-        return &P->pol[PL_SFIN];
-    if (p == &POL_P[PL_END])
-        return &P->pol[PL_EFIN];
-    return 0;
+    return p == &DEV_P[DEV_SRC][TK_STRT] || p == &DEV_P[DEV_SRC][TK_LEN] || p == &POL_P[PL_STRT] || p == &POL_P[PL_END];
 }
 
 static uint32_t hash_str(uint32_t h, const char *s)
@@ -492,12 +482,6 @@ static void draw_strip(void)
                                     (ui.slot_held < NSLOT ? (mod_dep(sys.sel, ui.slot_held, page_target(k)) + 256) << 1 : 0))) * 16777619u;
     }
     sig += ui.slot_held * 2909u + ui.drm_inst * 6151u + ui.zoom * 50331653u;
-    for (k = 0; ui.zoom && k < 4u; k++) {               /* (zooming: the hundredths) */
-        int16_t *vp;
-        const pdesc_t *d = ui_page(k, &vp);
-        if (zoom_fine(d))
-            sig = (sig ^ (uint32_t)*zoom_fine(d)) * 16777619u;
-    }
     sig += (ui.last < 4u ? ui.last + 1u : 0u) * 7919u + sys.ntrk * 15485863u + sys.sel * 104729u + ui.view * 31u + ui.page * 263u + ui.chan * 5u + ui.kind * 131u +
            ui.dev * 1031u + (ui.kind == FOCUS_SLOT ? tp[sys.sel].engine[ui.slot] * 65537u : tp[sys.sel].src * 3571u);
     if (!ui.force && sig == ui.sig_strip)
@@ -567,10 +551,9 @@ static void draw_strip(void)
             static const char *const GN[GR_NSDIV] = {"1BR", "1/2", "1/4", "1/8", "8T", "1/16", "16T", "1/32", "32T",
                                                      "1/64"};
             str_cpy(val, GN[(uint32_t)clamp(v, 0, 100) * GR_NSDIV / 101u], sizeof val);
-        } else if (ui.zoom == k + 1u && zoom_fine(d) && v < 100) {   /* the zoom: to the hundredth, "12.34" */
-            int16_t fn = *zoom_fine(d);
-            char h[3] = {(char)('0' + fn / 10), (char)('0' + fn % 10), 0};
-            fmt_int(val, v);
+        } else if (ui.zoom == k + 1u && zoom_edge(d) && v < 10000) {   /* the zoom: to the hundredth, "12.34" */
+            char h[3] = {(char)('0' + v % 100 / 10), (char)('0' + v % 10), 0};
+            fmt_int(val, v / 100);
             str_cpy(val + str_len(val), ".", 2);
             str_cpy(val + str_len(val), h, 3);
         } else {

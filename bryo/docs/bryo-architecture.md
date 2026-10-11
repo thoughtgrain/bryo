@@ -1136,13 +1136,10 @@ integer limit cycle under the threshold; with the send scaled before it, the raw
 combs' damping filter, the one `>> 15` left in the loop (it floors). With it rounding toward zero (`sp_mul`, as the
 comb gains and the allpasses already did), the loop with nothing in it falls to 0 and the room rests.
 
-**Old projects and presets.** Projects are version 8: the rooms are stored after the depths (a count, then each
-room's knobs). A version 7 project had a room a track, SIZE and DEC at SPACE's knobs 2-3 and PRE at 8: those are
-read raw (`pj_old_sp`), and `pj_rooms7` makes room A from the first of tracks 1-2 with VERB up (its SIZE, DEC, TONE
-and PRE), room B from tracks 3-4, a pair with no VERB up keeping the defaults. Tracks 1-2 send to A and 3-4 to B,
-TIME FDBK DLY VERB TONE SPRD stay as they were, and depths on SIZE, DEC or PRE are dropped (`mod_tdesc`: ROOM isn't
-a target and the others are empty knobs). A track preset doesn't hold the rooms, and the room a track sends to stays
-the track's when one loads (the rooms are the mix's), so an older preset's SIZE in that place means nothing.
+**Projects and presets.** The rooms are stored after the depths (a count, then each room's knobs). A track preset
+doesn't hold the rooms, and the room a track sends to stays the track's when one loads (the rooms are the mix's).
+(I first wrote a conversion that made the two rooms from a version 7 project's room-per-track; it went the same day
+with the rest of the old-format reading: see "Round 3" below.)
 
 **The factory scene** sets the rooms: A small (SIZE 45: T1's kit, T2's bells), B large and long (SIZE 80, DEC 65:
 T3's strings), both at QUAL LO. That last part is a choice made for the number: at HI the scene is 2,949 a sample
@@ -1154,8 +1151,7 @@ SIZE DEC RTON QUAL PRE are descriptors in SPACE's table (stored places 3 and 8-1
 the room's knobs: `sp_knob()` hands the page (and the picture's tag) the value of the room the track's ROOM picks,
 so turning one changes that room for every track on it; the track's own values in those places are never read
 (the DSP reads `rmp`). The picture's label names the room, or the room and every track on it when another track
-shares it ("B: T1 T2"). LFO held on one says THE ROOM IS SHARED: NO DEPTHS. A version 7 project's raw knobs at 3 and
-8 still go to `pj_rooms7`, never to the track. Tested: a track's SIZE turns its room's and not the other's, ROOM
+shares it ("B: T1 T2"). LFO held on one says THE ROOM IS SHARED: NO DEPTHS. Tested: a track's SIZE turns its room's and not the other's, ROOM
 moves which room the page edits, QUAL is the room's, no depth on a room knob.
 
 **What it costs.** Host instructions a sample, same harness before and after:
@@ -1180,8 +1176,7 @@ against 0; the room's sides decorrelate; PRE 100 ms; QUAL LO's tail as long as H
 10 kHz send not folded down, HI's image at 18 kHz 21 dB under what it mirrors; two tracks in one room share its
 memory, each alone gives the same tail, both together the sum; the send at level 0 sends nothing and at half level
 half; a track moved to B makes B take its lines and A keep its own, and VERB 0 gives them back; every knob at its
-top, both QUALs, bounded. `test_resting`: the room rests and stands still. `test_projects`: a version 7 project
-becomes the rooms as above, a version 8 one keeps rooms and ROOM, a track preset keeps the track's ROOM; the
+top, both QUALs, bounded. `test_resting`: the room rests and stands still. `test_projects`: the rooms and each track's ROOM come back as saved, a track preset keeps the track's ROOM; the
 biggest project still fits (3,748 of 3,840 bytes). Mutations each caught: the send ignoring the level, the room
 never resting, the damping's floor shift back, the migration ignoring VERB, ROOM not kept by a preset, every track
 on A, LO without the pair average, HI without its halfway step. The checkpoint's stress run turns ROOM and a room's
@@ -1258,8 +1253,9 @@ in a slot's sector: it reads as empty).
 
 **The format:** a byte stream written and read field by field, never a struct dump, so RAM layouts can change
 freely. A version byte, then every array as its count and its values; reading takes as many values as were saved and
-fit, defaults the rest, and clamps each one to its knob's range. A newer Bryo that adds knobs reads older projects;
-a project with more tracks than the FM-1 has is refused before anything changes. The depths are stored sparsely and
+fit, defaults the rest, and clamps each one to its knob's range. A project with more tracks than the FM-1 has is
+refused before anything changes. (Since 2026-10-11 only the current version is read: projects had barely started,
+so the fix-ups for each older version went; see "Round 3".) The depths are stored sparsely and
 by (array, knob), not by target number, because target numbers moved when DRUM arrived and will move again. The
 stream is packed with PackBits (a run of a byte, or bytes as they are), a byte at a time, straight to and from the
 flash: no RAM holds a whole project, just a 256-byte page on the way out. The test scene packs to 1,945 bytes
@@ -1770,32 +1766,36 @@ lets go by itself and the take loops once every 4 s; saved into a reel it's stil
 playing at 130 it waits for the downbeat, then one bar is 40,707 samples. Each fails its mutant (no trim, no wait for
 the downbeat, the reel dropping the trim, REC never letting go).
 
-**The zoom on a loop's edges, and POLY's END.** STRT and LEN are whole percents, which on a 20 s tape is 200 ms a
-step: no way to set a loop's start on a hit. Changing their units would have broken every saved preset (track
-presets carry no version, and their records are copied forward unparsed), so each edge gets its hundredths in a
-knob of its own on no page: TAPE's SFIN at stored place 11 (empty until now) and LFIN at 16, POLY's SFIN and EFIN at
-14-15, `nomod`, 0 in every older file (as it was). `tape_window` and POLY's start and `pol_end` add them, in two
-parts (len x % / 100 + len x hundredths / 10,000: the whole product would pass 32 bits on a long tape).
+**The zoom on a loop's edges, and POLY's END.** STRT and LEN were whole percents, which on a 20 s tape is 200 ms a
+step: no way to set a loop's start on a hit. They're hundredths of a percent now (0-10,000, `F_PCT100`: the strip
+shows whole percents, and `param_step` makes a click 100 of them, a whole percent, as before), and so are POLY's STRT
+and END. `pct100_of` (tape.c) takes a share of a length in two parts (len / 10,000 x v + len % 10,000 x v / 10,000:
+the whole product would pass 32 bits on a long tape). (The first version kept whole percents and put the
+hundredths in hidden knobs, so saved presets would still read; with compatibility dropped the same day, the knobs
+just got finer.)
 
-HOME held + STRT or LEN (POLY: STRT or END) is the zoom (`zoom_fine`, ui.c; `ui.zoom`): the knob and its hundredths
-turn as one number, a hundredth a click (a fast turn further, as KNOB says), the strip shows "12.34" in orange, and
+HOME held + STRT or LEN (POLY: STRT or END) is the zoom (`zoom_edge`, ui.c; `ui.zoom`): a click moves the edge a
+hundredth instead of a hundred (a fast turn further, as KNOB says), the strip shows "12.34" in orange, and
 the picture (`vz_zoom`) is the sound itself around the edge, decoded (each column the lowest and highest sample
 under it), half a percent either way (23 to 370 ms), what plays bright and the rest dim, the edge's time under it.
 HOME's let-go doesn't turn the page after a zoom; turning without HOME moves whole percents and keeps the
-hundredths. The footer says KEYS:PAGES KNOB:ZOOM while HOME is held there.
+hundredths.
 
-POLY had no end: **END** (1-100 %, default 100) joins page 1 after STRT, and VOIC moves to the last page beside LVL
-(layout only: stored places unchanged but for the new ones). A note stops at END as at the sound's end, with the
-same fade. The picture lights the sound from STRT to END.
+Finer edges made modulation step where it hadn't: an LFO on STRT moved the window's start every block, and every
+time it passed the head the head jumped. A head just short of the window's start (within a sixteenth of the loop)
+now plays on into it; only one far outside jumps. POLY's END cut a note in one block (0.7 ms); it fades over six (4.4
+ms) now (`POL_ENDF`). The footer says KEYS:PAGES KNOB:ZOOM while HOME is held there.
 
-The cost is project space: the biggest project there can be went from 3,748 to 3,816 bytes of the sector's 3,840
-(the hundredths are stored per track; POLY's END too). There are 24 bytes left; the next knobs that grow a track's
-arrays need room found first.
+POLY had no end: **END** (default 100 %) joins page 1 after STRT, and VOIC moves to the last page beside LVL. A note
+stops at END as at the sound's end, with the same fade. The picture lights the sound from STRT to END.
+
+Project space: with the hundredths in the knobs themselves, and SPACE's room-knob places stored as 0, the biggest
+project there can be is 3,772 bytes of the sector's 3,840, with SYNC in.
 
 Tested: 7 clicks with HOME held put the loop's start at 0.07 % to the sample; LEN 99.97 %; HOME's let-go ends the
-zoom without turning the page; whole-percent turns keep the hundredths; zoomed past 0 holds at 0.00; END 25 stops a
-held note at 0.580 s of a 2.32 s sound; POLY's zoom on END and STRT. Each fails its mutant (the window without the
-hundredths, END ignored, no zoom).
+zoom without turning the page; whole-percent turns keep the hundredths; zoomed past 0 holds at 0.00; END at 25 %
+stops a held note at 0.580 s of a 2.32 s sound (then its fade); POLY's zoom on END and STRT; STRT moved a little past
+the head doesn't jump it, far past does. Each fails its mutant (END ignored, no zoom, no tolerance).
 
 **What follows the tempo.** Asked why the tempo didn't seem to move the LFOs, grains and arpeggiator, I measured it
 first: at 60, 120 and 180 BPM (and turned while playing) the arpeggiator, DRUM, the SEQ and the LFOs on SYNC BPM (the
@@ -1826,6 +1826,16 @@ Project room: the three new knobs would have run the biggest project past its se
 places of SPACE's room knobs (the track's own, never read) as 0, which packs to almost nothing, and they're 0 in
 memory too: the biggest project is 3,804 bytes with the new knobs. The default project costs 10 a sample more
 (2,831: the SYNC checks a block).
+
+**Compatibility dropped.** Projects had barely started, so old formats aren't kept up with any more: a project is
+read only at the current version (9; anything else reads as one this Bryo can't), the track presets' bank only at
+its version (2; another reads as empty), and the fix-ups for each older version are gone (SEQ's SPRD AMT OFS,
+TAPE's envelope, RESONATOR's arpeggio, GRAIN's BODY, the rooms from a room per track, and the old-preset guesses).
+What stayed is the format itself: counted arrays, clamped values, depths by array and knob. ROTA: only the knob
+itself rotates the loop live now; a modulated ROTA moves where PLAY and the slices start (and SYNC's lock), as it
+did before, because the live jump made it step under an LFO (the modulation audit found it; I hadn't run it after
+the ROTA change). The audit also marks a row SILENT now instead of STEPS when the modulated sound is next to nothing
+(-60 dBFS): there its edge measure is noise (POLY's END modulated below a held note ends it, as it should).
 
 ## Sends: ROUT, as built (2026-10-09)
 
