@@ -183,6 +183,32 @@ static int32_t uslot_free_run(uint32_t k)
     return -1;
 }
 
+/* main loop: delete the reel that starts in slot s (a long one frees the slots it covers with it). The audio stops
+ * reading it first (its slot reads empty from the next block: tape_view asks uslot_valid every block), then the
+ * header's sector is erased, which is all that makes it a reel. A track or project that names it plays nothing
+ * there, as for any empty slot. 0, or -1: nothing starts in s, or the flash refused (it reads as before) */
+static int uslot_delete(uint32_t s)
+{
+    int rc;
+    if (!uslot_valid(s))
+        return -1;
+    uslot_ok[s] = 0;
+    RING_PUBLISH();
+    rc = rf_erase(USLOT_BASE + s * USLOT_SIZE);
+    uslot_names();
+    return rc ? -1 : 0;
+}
+
+/* the reel that covers slot s (s itself when it starts one), or -1 */
+static int32_t uslot_owner(uint32_t s)
+{
+    uint32_t r;
+    for (r = 0; r <= s && s < USLOT_N; r++)
+        if (uslot_valid(r) && r + (uslot_hdr(r)->span ? uslot_hdr(r)->span : 1u) > s)
+            return (int32_t)r;
+    return -1;
+}
+
 /* the first free slot, or -1 */
 static int32_t uslot_free(void) { return uslot_free_run(1); }
 

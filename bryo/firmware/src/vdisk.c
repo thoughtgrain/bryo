@@ -26,7 +26,7 @@
  *     stays consistent until you eject; other small writes (a folder, macOS's ._ files) are kept in a 16-sector
  *     cache. What's new shows up as files after you eject and plug the FM-1 back in.
  * What doesn't work, by design for now: deleting a file in the computer's file manager doesn't delete the sound
- * (clear it on the FM-1), and a WAV split into scattered pieces (an old, full volume) can arrive garbled.
+ * (delete it on the FM-1: the project view's REELS page), and a WAV split into scattered pieces (an old, full volume) can arrive garbled.
  *
  * Main loop only: usb.c calls vdisk_read / vdisk_write from usb_poll, and vdisk_poll commits a finished capture.
  * Integer only. */
@@ -170,7 +170,8 @@ static const char VD_README[] =
     "free memory holds; a user reel up to 21 seconds, taking the reels after it.\r\n"
     "Copy one file at a time, onto an empty part of the drive, and eject before\r\n"
     "unplugging. New sounds show up as files after you plug the FM-1 back in.\r\n"
-    "Deleting a file here doesn't delete the sound: clear it on the FM-1.\r\n";
+    "Deleting a file here doesn't delete the sound: on the FM-1 turn PRESETS,\r\n"
+    "press EDIT twice (REELS) and hold POLY on the reel.\r\n";
 
 /* the view a file shows (0: README) */
 static int vd_view(const vfile_t *f, tape_view_t *v)

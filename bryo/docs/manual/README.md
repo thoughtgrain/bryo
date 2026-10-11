@@ -847,6 +847,19 @@ Past H come eight factory presets, two for each source: **DRIFT** and **RINGS** 
 
 <img src="img/presets_factory.png" width="240" alt="Factory presets">
 
+### 9.7 Your reels: see and delete them
+
+Your six user reels (U1 to U6) hold the takes your projects saved and the WAVs you copied in. A project saved with a
+take keeps pointing at its reel, so deleting a project leaves its reels; delete them here.
+
+1. Turn **PRESETS**, then press **EDIT twice**: the **REELS** page.
+2. Turn **PRESETS** to a reel. The strip shows its name, its length, and which tracks play it right now. A reel longer
+   than 3.3 seconds runs on into the slots after it, shown as (CONT.).
+3. **Hold POLY** half a second to delete it (from any of its slots). A track playing it goes silent; a project that
+   names it plays nothing there. There's no undo.
+
+<img src="img/reels.png" width="240" alt="REELS: U1 to U6, LONG pointed at, played by track 2's POLY">
+
 ---
 
 ## 10. With a computer
@@ -858,7 +871,8 @@ Plugged into a computer, the FM-1 shows up as a small drive called **BRYO**.
 - **Copy a track off:** `TAPE1.WAV` to `TAPE4.WAV` are what each track plays.
 - **Replace a track's tape:** copy a WAV on, named `TAPE2.WAV` for track 2 (and so on).
 - **Add a reel:** a WAV with any other name becomes one of six user reels (up to 21.5 s). Pick it with REEL
-  ([2.5](#25-play-a-different-reel)).
+  ([2.5](#25-play-a-different-reel)). Deleting the file on the computer doesn't delete the reel: do that on the
+  REELS page ([9.7](#97-your-reels-see-and-delete-them)).
 - **Eject the drive and plug it back in** to see new files.
 
 ### 10.2 Record what the computer plays
@@ -941,7 +955,7 @@ M-VAVE's updater puts the stock firmware back. Bryo's projects and tapes can't b
 | **SCL** held + the lit pad | the page to its defaults |
 | **SAVE** | save the project |
 | **SAVE** held | undo the last clear, reset or load |
-| **PRESETS** | projects; then EDIT for track presets |
+| **PRESETS** | projects; then EDIT for track presets, EDIT again for your reels |
 | **PRESETS**, an empty slot, **OCT+** | a new, blank project |
 | **PRESETS** past P6 (FACTORY), **OCT+** | the factory scene back |
 | **OCT− / OCT+** | octave (DRUM's pages: the bar) |

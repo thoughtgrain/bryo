@@ -7101,6 +7101,80 @@ static void test_tpresets(void)
         ui_input();
         check("POLY held on the presets' page: B deleted", !tpr_sum[1].used && !strcmp(ui.msg, "PRESET B DELETED"));
     }
+    {   /* REELS, the third page: your reels; POLY held deletes the one pointed at */
+        uint32_t pn = black_note(BK_POLY), r, lg = 0;
+        tape_view_t v;
+        for (r = 1; r < NREEL; r++)                      /* (the longest factory reel: it spans slots) */
+            if (REELS[r].nblk > REELS[lg].nblk)
+                lg = r;
+        uslot_save(0, REELS[0].data, REELS[0].pred, REELS[0].idx, REELS[0].peak, REELS[0].nblk, "KICK");
+        {                                                /* LONG: 1.3 slots (a reel repeated), so it spans two */
+            static uint8_t d[(TAPE_NBLK + 100u) * (TAPE_BLK / 2u)], ix[TAPE_NBLK + 100u], pk[TAPE_NBLK + 100u];
+            static int16_t pr[TAPE_NBLK + 100u];
+            uint32_t b, nb = TAPE_NBLK + 100u;
+            for (b = 0; b < nb; b++) {
+                uint32_t q = b % REELS[lg].nblk;
+                memcpy(d + b * (TAPE_BLK / 2u), REELS[lg].data + q * (TAPE_BLK / 2u), TAPE_BLK / 2u);
+                pr[b] = REELS[lg].pred[q];
+                ix[b] = REELS[lg].idx[q];
+                pk[b] = REELS[lg].peak[q];
+            }
+            uslot_save(2, d, pr, ix, pk, nb, "LONG");
+        }
+        tp[0].dev[DEV_SRC][TK_REEL] = (int16_t)(NREEL + 1u);   /* T1's TAPE plays U1, T2's POLY U3 */
+        tp[0].src = SRC_TAPE;
+        tp[1].src = SRC_POLY;
+        tp[1].pol[PL_REEL] = (int16_t)(NREEL + 3u);
+        press(B_EDIT);
+        check("EDIT again: REELS, your reels' page (U1 pointed at)", ui.view == VIEW_PROJECT && ui.pj_page == 2u &&
+              ui.reel_sel == 0u);
+        host_enc[panel.enc[EN_PRESET]] = 2;
+        ui_input();
+        ui.msg_t = 0;
+        shot("BRYO", "reels");
+        check("..PRESETS turns through U1..U6 (to U3); a long reel's slots read as one (U3 starts it)",
+              ui.reel_sel == 2u && uslot_owner(2) == 2 && uslot_hdr(2)->span == 2u && uslot_owner(3) == 2);
+        host_enc[panel.enc[EN_PRESET]] = 1;              /* (U4: a slot it runs into; deleting there deletes it) */
+        ui_input();
+        fm1_ms = 61000;
+        fm1_in.notes |= 1u << pn;
+        key_edge(pn);
+        fm1_ms = 61510;
+        ui_input();
+        fm1_in.notes &= ~(1u << pn);
+        ui_input();
+        tape_view_of(1, NREEL + 3u, &v);
+        check("..POLY held: LONG deleted (from any slot it covers), its slots free, POLY on T2 now plays nothing there",
+              !uslot_valid(2) && uslot_owner(3) < 0 && !strcmp(ui.msg, "LONG DELETED") && v.len == 0u &&
+              uslot_valid(0) && uslot_free_run(2) >= 0);
+        host_enc[panel.enc[EN_PRESET]] = -6;
+        ui_input();
+        sys.playing = 1;
+        render(10, 0);
+        check("..U1 still plays on T1 (another reel untouched)", ui.reel_sel == 0u && peak_of(track_rt[0].last, CTL) > 0);
+        fm1_ms = 62000;
+        fm1_in.notes |= 1u << pn;
+        key_edge(pn);
+        fm1_ms = 62510;
+        ui_input();
+        fm1_in.notes &= ~(1u << pn);
+        ui_input();
+        render(10, 0);
+        check("..deleted while T1 plays it: T1 goes silent at once, its REEL still names the slot (now U1, empty)",
+              !uslot_valid(0) && peak_of(track_rt[0].last, CTL) == 0 && tp[0].dev[DEV_SRC][TK_REEL] == (int16_t)(NREEL + 1u) &&
+              !strcmp(uslot_name[0], "U1"));
+        sys.playing = 0;
+        render(10, 0);
+        fm1_ms = 63000;
+        fm1_in.notes |= 1u << pn;
+        key_edge(pn);
+        fm1_ms = 63510;
+        ui_input();
+        fm1_in.notes &= ~(1u << pn);
+        ui_input();
+        check("..POLY held on an empty slot: it says so", !strcmp(ui.msg, "U1 IS EMPTY"));
+        tp[1].src = SRC_TAPE;
+    }
     press(B_EDIT);
     check("EDIT again: back to PROJECTS", ui.view == VIEW_PROJECT && ui.pj_page == 0u);
     press(B_OCTDN);

@@ -423,6 +423,8 @@ static void pj_turn(int32_t d)
         ui.chan_latched = 0;
         ui.glo_latched = 0;
         ui.pj_sel = pj_cur;
+    } else if (ui.pj_page == 2u) {                      /* (your reels: U1..U6) */
+        ui.reel_sel = (uint8_t)clamp((int32_t)ui.reel_sel + d, 0, (int32_t)USLOT_N - 1);
     } else if (ui.pj_page) {                            /* (the track presets' page: A..H) */
         ui.tpr_sel = (uint8_t)clamp((int32_t)ui.tpr_sel + d, 0, (int32_t)(TPR_N + TPF_N) - 1);   /* A..H, 1..8 */
     } else {
@@ -480,6 +482,10 @@ static void tpr_save_tap(void);
 static void pj_save_tap(void)
 {
     uint32_t s = ui.view == VIEW_PROJECT ? ui.pj_sel : pj_cur;
+    if (ui.view == VIEW_PROJECT && ui.pj_page == 2u) {
+        ui_message("REELS ARE SAVED WITH A PROJECT, OR COPIED IN OVER USB");
+        return;
+    }
     if (ui.view == VIEW_PROJECT && ui.pj_page) {
         tpr_save_tap();
         return;
@@ -692,9 +698,9 @@ static void on_button(uint32_t b)
         ui.pg_used = 0;
         break;
     case B_EDIT:                                        /* GRAIN's pages, RESONATOR's; on the mixer: the channel */
-        if (ui.view == VIEW_PROJECT) {                  /* the project view's pages: PROJECTS, PRESETS (as EDIT
-                                                         * steps the mixer's) */
-            ui.pj_page = (uint8_t)!ui.pj_page;
+        if (ui.view == VIEW_PROJECT) {                  /* the project view's pages: PROJECTS, PRESETS, REELS (as
+                                                         * EDIT steps the mixer's) */
+            ui.pj_page = (uint8_t)((ui.pj_page + 1u) % 3u);
             ui.pj_ask = PJ_ASK_NONE;
             break;
         }
@@ -755,7 +761,9 @@ static void on_button(uint32_t b)
             ui.glo_used = 1;
         } else if (ui.view == VIEW_PROJECT) {                  /* the project view: OCT+ loads, OCT- goes back */
             if (b == B_OCTUP) {
-                if (ui.pj_page)
+                if (ui.pj_page == 2u)
+                    ui_message("A REEL PLAYS FROM TAPE'S REEL KNOB");
+                else if (ui.pj_page)
                     tpr_load_press();
                 else
                     pj_load_press();
@@ -850,6 +858,20 @@ static void hold_keys(void)
         if (!((fm1_in.notes >> k) & 1u)) {
             ui.poly_held = 0;
             ui.msg_t = 1;                               /* (the message ends next frame) */
+        } else if ((uint32_t)(fm1_ms - ui.poly_t0) >= 500u && ui.view == VIEW_PROJECT && ui.pj_page == 2u) {
+            char m[40];                                 /* a reel of yours, deleted */
+            int32_t r = uslot_owner(ui.reel_sel);
+            ui.poly_held = 0;
+            if (r < 0) {
+                str_cpy(m, "U", sizeof m);
+                m[1] = (char)('1' + ui.reel_sel);
+                m[2] = 0;
+                str_cpy(m + 2, " IS EMPTY", 10);
+            } else {
+                str_cpy(m, uslot_name[r], 8);
+                str_cpy(m + str_len(m), uslot_delete((uint32_t)r) == 0 ? " DELETED" : " NOT DELETED: FLASH", 22);
+            }
+            ui_message(m);
         } else if ((uint32_t)(fm1_ms - ui.poly_t0) >= 500u && ui.view == VIEW_PROJECT && ui.pj_page) {   /* a preset */
             char m[40];
             ui.poly_held = 0;

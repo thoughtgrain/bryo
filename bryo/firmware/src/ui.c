@@ -58,7 +58,9 @@ static struct {
                                       * a white key or SELECT was used meanwhile) */
     uint8_t drm_inst;                /* a DRUM page: the white key held (+1; 0: none): KNOB 1..4 are its own knobs */
     uint8_t pj_sel;                  /* the project view: the slot PRESETS points at */
-    uint8_t pj_page;                 /* .. its page: PROJECTS (0) or the track PRESETS (1), EDIT tapped steps them */
+    uint8_t pj_page;                 /* .. its page: PROJECTS (0), the track PRESETS (1), your REELS (2); EDIT tapped
+                                      * steps them */
+    uint8_t reel_sel;                /* .. the user reel PRESETS points at on REELS (U1..U6) */
     uint8_t tpr_sel;                 /* .. the track preset PRESETS points at (A..H) */
     uint8_t pg_pad, pg_used;         /* a page's pad down (HOME EDIT FX ENV LFO SEQ ARP; NB: none): the white keys
                                       * show and pick its pages (ui_input.c pad_page); used: a key was, so the let-go
@@ -206,12 +208,16 @@ static void draw_head(void)
     char ti[16], box[4] = {'T', (char)('1' + sys.sel), 0, 0}, bpm[8];
     uint32_t sig;
     int slot = ui.kind == FOCUS_SLOT && ui.view == VIEW_PAGE, arp = ui.kind == FOCUS_ARP && ui.view == VIEW_PAGE;
-    uint32_t pages = ui.view == VIEW_PROJECT ? 2u : ui.view != VIEW_PAGE ? 1u
+    uint32_t pages = ui.view == VIEW_PROJECT ? 3u : ui.view != VIEW_PAGE ? 1u
                    : pdesc_pages(slot ? ME_P[tp[sys.sel].engine[ui.slot]] : arp ? ARP_P : dev_p(sys.sel, ui.dev));
     uint32_t page = ui.view == VIEW_PROJECT ? ui.pj_page : ui.page;
     if (ui.view == VIEW_USBREC) {
         str_cpy(ti, "USB RECORD", sizeof ti);
         str_cpy(box, "IN", sizeof box);
+    } else if (ui.view == VIEW_PROJECT && ui.pj_page == 2u) {   /* your reels: the box is the slot */
+        str_cpy(ti, "REELS", sizeof ti);
+        box[0] = 'U';
+        box[1] = (char)('1' + ui.reel_sel % USLOT_N);
     } else if (ui.view == VIEW_PROJECT && ui.pj_page) {   /* the track presets: the box is the track they go to */
         str_cpy(ti, "PRESETS", sizeof ti);
     } else if (ui.view == VIEW_PROJECT) {
@@ -426,7 +432,16 @@ static void draw_strip(void)
         const tpr_sum_t *q = &tpr_sum[ui.tpr_sel % TPR_N];
         sig += ui.pj_sel * 7u + m->used * 131u + m->bpm * 1031u + m->src[0] + m->src[1] * 4u + m->src[2] * 16u +
                m->src[3] * 64u + pj_cur * 104729u + (uint32_t)pj_changed() * 524287u + ui.pj_ask * 15485863u;
-        if (ui.pj_page)                                 /* (the track presets' page) */
+        if (ui.pj_page == 2u) {                         /* (the reels' page: the slots, which tracks play them) */
+            uint32_t r, t;
+            for (r = 0; r < USLOT_N; r++)
+                sig = (sig ^ (uslot_ok[r] | (uint32_t)uslot_name[r][0] << 8 | (uint32_t)uslot_name[r][1] << 16)) *
+                      16777619u;
+            for (t = 0; t < NTRK; t++)
+                sig = (sig ^ (uint32_t)(tp[t].dev[DEV_SRC][TK_REEL] | tp[t].pol[PL_REEL] << 8 | tp[t].src << 16)) *
+                      16777619u;
+            sig += ui.reel_sel * 977u + 0x4EE1u;
+        } else if (ui.pj_page)                          /* (the track presets' page) */
             sig = sig * 31u + 0x7A11u + ui.tpr_sel * 3u + q->used * 17u + q->src * 257u + q->ndep * 4099u +
                   (q->eng[0] | q->eng[1] << 2 | q->eng[2] << 4 | (uint32_t)q->eng[3] << 6) * 65537u + sys.sel * 7u;
         if (!ui.force && sig == ui.sig_strip)
@@ -531,7 +546,7 @@ static void draw_foot(void)
         str_cpy(a, ur.state == UR_RECORDING || ur.state == UR_CHOOSE ? (ur.state == UR_CHOOSE ? "REC:KEEP HOME:THROW AWAY"
                    : "REC:STOP HOME:THROW AWAY") : "REC:START HOME:LEAVE", sizeof a);
     else if (ui.view == VIEW_PROJECT)                 /* the project view: what the buttons do there */
-        str_cpy(a, "OCT+:LOAD SAVE OCT-:BACK", sizeof a);
+        str_cpy(a, ui.pj_page == 2u ? "POLY HELD:DELETE OCT-:BACK" : "OCT+:LOAD SAVE OCT-:BACK", sizeof a);
     else if (ui.scl_held)                             /* SCL held: what a knob and the page's pad do */
         str_cpy(a, "KNOB:DEFAULT PAD:PAGE", sizeof a);
     else if (ui.pg_pad < NB && ((fm1_in.buttons >> panel.btn[ui.pg_pad]) & 1u) && ui.slot_held >= NSLOT)

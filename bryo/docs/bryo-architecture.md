@@ -1736,6 +1736,19 @@ declick), so the same moment of the bar plays another part of the tape, and it p
 what the head last went by; a change while stopped only moves where PLAY starts). Under modulation it jumps when the
 whole percent changes. Tested: ROTA 0 to 25 while playing moves the head a quarter of the loop on, then it runs on.
 
+**Deleting a reel.** There was no way to: deleting a project left its reels, POLY held on a track playing one only
+sent the track back to its tape, and deleting the file on the drive does nothing (the drive's README said "clear
+it on the FM-1", which you couldn't). The project view has a third page, **REELS** (EDIT steps PROJECTS, PRESETS,
+REELS): the six slots, each reel's name and length (a long reel's other slots read (CONT.)), and on the strip which
+tracks play the one pointed at, by TAPE's REEL or POLY's. POLY held deletes it (`uslot_delete`, reel.c), from any
+slot it covers (`uslot_owner`). The audio stops reading it first: `uslot_ok` goes to 0 and tape_view asks it every
+block, so the next block reads the slot as empty, before the header's sector is erased (the erase holds the
+interrupts, and after it nothing reads the slot). The header is all that makes a reel, so one erase frees every slot
+a long one spanned. A track or project that names it plays nothing there and its REEL shows the slot's U number,
+as for any empty slot. No undo: the flash is erased. Tested: a 1.3-slot reel deleted from its second slot frees both
+and silences the POLY track on it, another reel plays on, deleting one a track plays silences that track at once,
+an empty slot says so; checked against a delete that only clears the flag.
+
 ## Sends: ROUT, as built (2026-10-09)
 
 GRAIN, RESONATOR and COLOR each have a WET, and until now it was always a crossfade: turning WET up turned the dry
