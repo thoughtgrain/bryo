@@ -746,6 +746,7 @@ static void on_button(uint32_t b)
                                                          * instead: the USB record mode) */
         ui.rec_held = 1;
         ui.rec_said = 0;
+        ui.rec_turned = 0;
         ui.rec_t0 = fm1_ms;
         if (sys.playing)
             rec_arm();
@@ -979,10 +980,11 @@ static void hold_keys(void)
         uint32_t ms = (uint32_t)(fm1_ms - ui.rec_t0);
         if (!held) {
             ui.rec_held = 0;
-            if (!sys.playing && ms < 1000u)
+            if (!sys.playing && ms < 1000u && !ui.rec_turned)
                 rec_arm();
-            if (ui.rec_said)
+            if (ui.rec_said && !ui.rec_turned)
                 ui.msg_t = 1;                           /* (the hint ends next frame) */
+        } else if (ui.rec_turned) {                     /* (setting the bars: not the USB record mode) */
         } else if (ms >= 1000u) {
             ui.rec_held = 0;
             if (sys.playing)
@@ -1186,6 +1188,24 @@ static void usbrec_input(uint32_t pressed, uint32_t notes)
     }
 }
 
+/* a take of set bars just ended (tape_poll): say so */
+static void bars_said(void)
+{
+    uint32_t t;
+    char m[40];
+    for (t = 0; t < NTRK; t++)
+        if ((tape_bars_done >> t) & 1u) {
+            tape_bars_done &= (uint8_t)~(1u << t);
+            str_cpy(m, "T", sizeof m);
+            m[1] = (char)('1' + t);
+            m[2] = 0;
+            str_cpy(m + 2, ": THE TAKE IS IN, ", 20);
+            vz_secs(m + str_len(m), tape_ms(t) / 100);
+            str_cpy(m + str_len(m), " SEC", 5);
+            ui_message(m);
+        }
+}
+
 static void ui_input(void)
 {
     uint32_t released = 0, pressed = fm1_input_edges(&released), notes = fm1_input_note_edges(), id, k;
@@ -1215,6 +1235,8 @@ static void ui_input(void)
         }
     }
     hold_keys();
+    if (tape_bars_done)
+        bars_said();
     if (ui.scl_held && !((fm1_in.buttons >> panel.btn[B_SCL]) & 1u))
         ui.scl_held = 0;                                /* (SCL let go) */
     if (ui.glo_held && (((released >> panel.btn[B_GLO]) & 1u) || !((fm1_in.buttons >> panel.btn[B_GLO]) & 1u)))
@@ -1320,6 +1342,28 @@ static void ui_input(void)
             tp[sys.sel].src = (uint8_t)(((int32_t)tp[sys.sel].src + d % (int32_t)NSRC + (int32_t)NSRC) % (int32_t)NSRC);
             focus_dev(DEV_SRC, 0);
             ui.home_used = 1;
+        } else if (ui.rec_held && ((fm1_in.buttons >> panel.btn[B_REC]) & 1u)) {
+            /* REC held + SELECT: the bars a take records (FREE, 1, 2, 4, 8): armed, it starts on the downbeat and
+             * stops by itself, exactly that long (tape.c). The REC press this turn came with does nothing else (its
+             * arm, playing, is taken back) */
+            static const uint8_t BARS[5] = {0, 1, 2, 4, 8};
+            uint32_t i;
+            char m[40];
+            for (i = 0; i < 4u && BARS[i] != sys.rec_bars; i++)
+                ;
+            i = (uint32_t)clamp((int32_t)i + (d > 0 ? 1 : -1), 0, 4);
+            sys.rec_bars = BARS[i];
+            if (!ui.rec_turned && sys.playing)
+                rec_arm();
+            ui.rec_turned = 1;
+            if (sys.rec_bars) {
+                str_cpy(m, "REC: ", sizeof m);
+                fmt_int(m + 5, sys.rec_bars);
+                str_cpy(m + str_len(m), sys.rec_bars == 1u ? " BAR FROM THE DOWNBEAT" : " BARS FROM THE DOWNBEAT", 26);
+            } else {
+                str_cpy(m, "REC: FREE (UNTIL REC AGAIN)", sizeof m);
+            }
+            ui_message(m);
         } else if (ui.glo_held) {                       /* GLO held + SELECT: TRACKS (how many are in use), as a pad
                                                          * held + SELECT picks that pad's thing elsewhere */
             chain_tracks((int32_t)sys.ntrk + d);

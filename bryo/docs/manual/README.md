@@ -313,14 +313,14 @@ Bryo thins out grains and strings to keep the sound clean.
 ## 4. Recording
 
 REC records onto **the track you're on**. On a TAPE track it records **the other tracks** playing (you can change
-that: [4.5](#45-choose-what-rec-records)).
+that: [4.6](#46-choose-what-rec-records)).
 
 ### 4.1 Clear a track's tape
 
 1. Pick track 2 (hold GLO + white key 2).
 2. **Hold black key POLY for half a second.** Track 2 is now an empty tape.
 
-(Changed your mind? **Hold SAVE**: it comes back. See [4.4](#44-undo-a-clear).)
+(Changed your mind? **Hold SAVE**: it comes back. See [4.5](#45-undo-a-clear).)
 
 ### 4.2 Record the others onto it
 
@@ -332,7 +332,20 @@ that: [4.5](#45-choose-what-rec-records)).
 
 **You'll hear:** track 2 now loops what the other three played: a new loop, as long as you recorded.
 
-### 4.3 Record over a loop (overdub)
+### 4.3 Record exactly some bars (for drum loops)
+
+1. **Hold REC and turn SELECT**: **FREE**, **1**, **2**, **4** or **8 BARS**. Let go: nothing is armed yet.
+2. On a cleared track, tap **REC**. The header shows ● with the number of bars in front of it.
+3. Press **PLAY**. Recording starts on the downbeat, and stops by itself after exactly that many bars. REC lets go,
+   the screen says how long the take is, and the track loops it, in time with the tempo.
+
+Armed while it's already playing, it waits for the next bar's downbeat. While it records, the number counts down
+the bars left. Stop the transport early and you keep what it has. Turn SELECT back to FREE with REC held for the
+usual way (REC again to stop). The take keeps its exact length when a project saves it into a reel.
+
+<img src="img/rec_bars.png" width="240" alt="REC armed for 2 bars: the 2 before the REC dot">
+
+### 4.4 Record over a loop (overdub)
 
 **DUB** on the TAPE page (KNOB 4) sets how much of the old recording stays when you record over it: 0 replaces it,
 higher keeps more of it under the new sound.
@@ -340,12 +353,12 @@ higher keeps more of it under the new sound.
 1. On a track with a recording, set **DUB** to about +60 %.
 2. Press **REC** while it plays, and **REC** again to stop.
 
-### 4.4 Undo a clear
+### 4.5 Undo a clear
 
 **Hold SAVE.** The last clear comes back: a tape, a track's modulation, or a drum pattern, whichever you cleared
 last. (It only works while nothing has been recorded over it.)
 
-### 4.5 Choose what REC records
+### 4.6 Choose what REC records
 
 1. Turn **ALGORITHM**. The **REC IN** page opens.
 2. **KNOB 1 to 4** set what tracks 1 to 4 record:

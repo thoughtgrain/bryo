@@ -26,6 +26,8 @@ typedef struct {
     uint32_t master_q12;         /* the MASTER pot, squared: 0 .. ~4096 (main.c) */
     int32_t batt_raw;            /* smoothed ADC ch3 (battery divider), 0 = not read yet */
     uint16_t bpm;                /* global tempo, 40..240 */
+    uint8_t rec_bars;            /* REC held + SELECT: 0 (REC records until it's pressed again), or 1 2 4 8: armed,
+                                  * a take starts on the downbeat and is exactly that many bars (tape.c) */
     uint8_t playing;             /* PLAY/STOP */
     uint8_t sel;                 /* the focused track 0..NTRK-1 */
     uint8_t keys_live;           /* 1: the white keys play the focused track (0 while SEL picks a track) */

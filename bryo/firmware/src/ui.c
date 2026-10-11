@@ -85,6 +85,7 @@ static struct {
     uint32_t catch_t;
     uint16_t steps_held;             /* a SEQ page: the white keys held, the steps KNOB 1 sets */
     uint8_t zero_held;               /* the 0 key down: let go before HOLD, a tap (the freeze latches or lets go) */
+    uint8_t rec_turned;              /* .. SELECT turned while REC was down (a take's bars: no arm, no USB mode) */
     uint8_t rec_held, rec_said;      /* REC down (stopped: its arm waits for the let-go; held a second: USB record),
                                       * and the hint shown */
     uint32_t rec_t0;
@@ -205,7 +206,7 @@ static const char *const PX_UNSAVED[5] = {"..#..", "#.#.#", ".###.", "#.#.#", ".
 
 static void draw_head(void)
 {
-    char ti[16], box[4] = {'T', (char)('1' + sys.sel), 0, 0}, bpm[8];
+    char ti[16], box[4] = {'T', (char)('1' + sys.sel), 0, 0}, bpm[8], bars[2] = {0, 0};
     uint32_t sig;
     int slot = ui.kind == FOCUS_SLOT && ui.view == VIEW_PAGE, arp = ui.kind == FOCUS_ARP && ui.view == VIEW_PAGE;
     uint32_t pages = ui.view == VIEW_PROJECT ? 3u : ui.view != VIEW_PAGE ? 1u
@@ -244,8 +245,15 @@ static void draw_head(void)
         box[1] = (char)('0' + SLOT_NUM[ui.slot_held % NSLOT]);
     }
     fmt_int(bpm, sys.bpm);
+    if (sys.rec_bars && ((sys.rec >> sys.sel) & 1u) && ui.view != VIEW_USBREC) {   /* a take of set bars: how many
+                                                         * (counting down the bars left while it records) */
+        const tape_rt_t *rt = &tape_rt[sys.sel];
+        int32_t bl = (int32_t)(10584000u / (uint32_t)clamp(sys.bpm, 40, 240));
+        int32_t n = rt->rbar == TB_REC ? (rt->rec_left + bl - 1) / bl : sys.rec_bars;
+        bars[0] = (char)('0' + clamp(n, 0, 9));
+    }
     sig = hash_str(hash_str(hash_str(2166136261u, ti), bpm), box) + pages * 977u + page * 61u + sys.playing * 7u + ((sys.rec >> sys.sel) & 1u) * 131u +
-          ux.theme * 3u + (ur.state == UR_RECORDING) * 524287u + ui.unsaved * 8191u;
+          ux.theme * 3u + (ur.state == UR_RECORDING) * 524287u + ui.unsaved * 8191u + (uint32_t)bars[0] * 15485863u;
     sig += (uint32_t)focus_btn() * 104729u;
     if (!ui.force && sig == ui.sig_head)
         return;
@@ -302,6 +310,8 @@ static void draw_head(void)
             x -= 7;
             px_box(x + 1, 4, 3, 5, px_bg);
             px_box(x, 5, 5, 3, px_bg);
+            if (bars[0])                                   /* .. a take of set bars: how many (left), before it */
+                px_text(x -= 5, 4, PXF_3, bars, px_bg);
         }
     }
     px_blit(0);

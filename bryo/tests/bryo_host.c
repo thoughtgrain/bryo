@@ -2425,6 +2425,101 @@ static void st_reso(void) { tp[0].dev[DEV_RESO][RP_WET] = 60; tp[0].dev[DEV_RESO
 static void st_reso_res(void) { st_reso(); tp[0].dev[DEV_RESO][RP_CUT] = 40; tp[0].dev[DEV_RESO][RP_RES] = 90; }
 static void st_body_src(void) { tp[0].src = SRC_SYNTH; st_reso(); tp[0].dev[DEV_GRAIN][GP_WET] = 80; tp[0].dev[DEV_GRAIN][GP_BODY] = 100; }
 static void st_body_tri(void) { tp[0].dev[DEV_GRAIN][GP_WET] = 80; tp[0].dev[DEV_GRAIN][GP_BODY] = 100; tp[0].dev[DEV_GRAIN][GP_BMOD] = BODY_TRI; }
+static void pj_wipe(void);
+/* blocks of audio with the main loop's polls between (a growing tape takes its chunks there) */
+static void play_polled(uint32_t blocks)
+{
+    uint32_t b;
+    for (b = 0; b < blocks; b++) {
+        chain_block(out, CTL);
+        if (b % 8u == 0u) {
+            tape_poll();
+            chain_poll();
+        }
+    }
+    tape_poll();
+}
+
+/* a take of set bars (REC held + SELECT): from the downbeat, exactly that long, then REC lets go by itself */
+static void test_bar_record(void)
+{
+    tape_view_t v;
+    char b[160];
+    int32_t len;
+    power_on();
+    sys.sel = 1;                                         /* T2 on its own blank tape, recording the others (AUTO) */
+    tp[1].dev[DEV_SRC][TK_REEL] = 0;
+    hold(B_REC);
+    host_enc[panel.enc[EN_SELECT]] = 1;
+    ui_input();
+    host_enc[panel.enc[EN_SELECT]] = 1;
+    ui_input();
+    fm1_ms += 1500;                                      /* (held past the USB record mode's second) */
+    ui_input();
+    let_go(B_REC);
+    check("REC held + SELECT twice: 2 BARS; nothing armed, no USB record mode", sys.rec_bars == 2u && !sys.rec &&
+          ui.view != VIEW_USBREC && !strncmp(ui.msg, "REC: 2 BARS", 11));
+    tap(B_REC);
+    check("..REC tapped (stopped): armed, waiting for PLAY's downbeat", (sys.rec >> 1) & 1u);
+    ui.msg_t = 0;
+    focus_dev(DEV_SRC, 0);
+    shot("BRYO", "rec_bars");                            /* (the header: REC's dot, the 2 bars before it) */
+    sys.playing = 1;
+    play_polled(1378u * 2u);
+    check("..PLAY at 120: 2 s in it's still recording (the take is 4 s)", tape_rt[1].rbar == TB_REC &&
+          ((sys.rec >> 1) & 1u) && tape_ctl[1].grow);
+    play_polled(1378u * 2u + 100u);
+    ui_input();
+    tape_view(1, &v);
+    snprintf(b, sizeof b, "..then it stops by itself: the take is exactly 2 bars (%u tape samples, 88,200 at 120 BPM), REC "
+             "let go, and it says so", v.len);
+    check(b, v.len == 88200u && !((sys.rec >> 1) & 1u) && !tape_ctl[1].grow && !strncmp(ui.msg, "T2: THE TAKE IS IN", 18));
+    {
+        int32_t p0, k;
+        uint32_t wraps = 0;
+        int32_t last = tape_rt[1].pos >> 12;
+        for (k = 0; k < 1378 * 4; k++) {                 /* it loops at its length: once every 4 s */
+            render(1, 0);
+            p0 = tape_rt[1].pos >> 12;
+            wraps += p0 < last;
+            last = p0;
+        }
+        check("..and loops at that length (once in 4 s of play), with sound on it",
+              wraps == 1u && tape_peak_at(1, 500) > 0);
+    }
+    pj_wipe();
+    pj_save(0);
+    tape_view(1, &v);
+    check("..saved with a project into a reel: still exactly 88,200 samples (the reel keeps the exact end)",
+          tp[1].dev[DEV_SRC][TK_REEL] > (int16_t)NREEL && v.len == 88200u);
+    sys.playing = 0;
+    render(20, 0);
+
+    power_on();                                          /* 130 BPM, 1 bar, armed while playing: the next downbeat */
+    pj_wipe();
+    sys.sel = 2;
+    tp[2].dev[DEV_SRC][TK_REEL] = 0;
+    sys.rec_bars = 1;
+    sys.bpm = 130;
+    sys.playing = 1;
+    play_polled(1378u * 1u);                             /* 1 s in: the first bar ends at 1.846 s */
+    tap(B_REC);
+    play_polled(500u);
+    check("..armed while playing (1.4 s in): it waits for the next downbeat, nothing recorded yet",
+          tape_rt[2].rbar == TB_WAIT && tape_ctl[2].nblk == 0u);
+    play_polled(1378u * 3u);
+    tape_view(2, &v);
+    len = (int32_t)(10584000u / 130u) / 2;
+    snprintf(b, sizeof b, "..from the downbeat, one bar at 130 BPM: %u tape samples (%d)", v.len, len);
+    check(b, abs((int32_t)v.len - len) <= 1 && !((sys.rec >> 2) & 1u));
+    sys.playing = 0;
+    render(20, 0);
+    sys.rec_bars = 0;
+    sys.bpm = 120;
+    pj_wipe();
+    power_on();
+}
+
 /* resting: a device whose input is digital silence and whose tail has gone does none of its work, and wakes on the
  * next sound as it was. From playing it (2026-10-11): half the CPU with nothing playing, and muting tracks saved
  * nothing. Also, in integers SPACE's room and the channel's FILT cycled at -66 and -55 dB for good: that's gone */
@@ -8312,6 +8407,7 @@ int main(int argc, char **argv)
     test_grain_body();
     test_settle();
     test_resting();
+    test_bar_record();
     test_grain_clicks();
     test_reso();
     test_color();

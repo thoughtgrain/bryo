@@ -733,7 +733,7 @@ static int pj_keep_tape(uint32_t s, uint32_t t)
     if (!pj_own_tape(t))
         return 0;
     tape_view_of(t, 0, &v);
-    nblk = v.len / TAPE_BLK;
+    nblk = (v.len + TAPE_BLK - 1u) / TAPE_BLK;          /* (a take of exact bars: its last block too, trimmed) */
     if (!nblk)
         return 0;
     need = uslot_span(nblk);

@@ -28,7 +28,8 @@
 
 typedef struct {
     uint32_t magic, seq;
-    char name[8];                          /* up to 4 letters shown, 0-terminated */
+    char name[8];                          /* up to 4 letters shown, 0-terminated; name[7]: samples the last block holds
+                                            * past the sound's end (a take of exact bars; 0 in reels before it) */
     uint16_t nblk, span;                   /* blocks; slots it covers (0, as reels saved before spans: 1) */
     uint32_t crc;                          /* over the header from name on (magic, seq, crc as 0) and the data */
 } uslot_hdr_t;                             /* then int16_t pred[n], uint8_t idx[n], uint8_t peak[n]: n = uslot_n() */
@@ -141,7 +142,7 @@ static int uslot_view(uint32_t s, tape_view_t *v)
     v->pred = (const int16_t *)rf_ptr(off + USLOT_FIX);
     v->idx = rf_ptr(off + USLOT_FIX + 2u * n);
     v->peak = rf_ptr(off + USLOT_FIX + 3u * n);
-    v->len = h->nblk * TAPE_BLK;
+    v->len = h->nblk * TAPE_BLK - (uint8_t)h->name[7];
     v->ram = 0;
     v->map = 0;
     return 1;
@@ -251,6 +252,8 @@ static int32_t uslot_save_view(uint32_t s, const tape_view_t *v, uint32_t nblk, 
     }
     h.nblk = (uint16_t)nblk;
     h.span = (uint16_t)span;
+    if (nblk * TAPE_BLK > v->len && nblk * TAPE_BLK - v->len < TAPE_BLK)
+        h.name[7] = (char)(nblk * TAPE_BLK - v->len);  /* (its exact length: a take of exact bars) */
     for (i = 0; i < span * USLOT_SIZE && !rc; i += 4096u)
         rc = rf_erase(off + i);
     for (b = 0; b < nblk && !rc; b++)                  /* the data first */

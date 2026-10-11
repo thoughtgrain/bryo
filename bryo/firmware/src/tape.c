@@ -67,6 +67,7 @@ typedef struct {                     /* main loop writes the list, ISR reads it 
     volatile uint8_t grow;           /* a blank tape being recorded: it grows behind the head (the ISR ends it) */
     volatile uint8_t nch;            /* chunks in the list */
     volatile uint16_t nblk;          /* the RAM tape's length in blocks (0: never used); the ISR's while growing */
+    volatile uint8_t trim;           /* samples the last block holds past the tape's end (a take of exact bars) */
     volatile uint8_t gen;            /* bumped when the list is let go or replaced: a block staged before is dropped */
     uint8_t map[MEM_NC];             /* the chunks, in order */
 } tape_ctl_t;
@@ -121,7 +122,14 @@ typedef struct {                     /* ISR only */
     int32_t env;                     /* .. its level at the last block's end, Q15 (32767: as it is) */
     uint32_t keys_prev;
     int16_t rota;                    /* ROTATE as the head last went by it (turned while running: the head moves) */
+    uint8_t rbar;                    /* a take of set bars (sys.rec_bars): TB_* */
+    uint32_t bar;                    /* the transport's bar last block (its downbeats) */
+    int32_t rec_left;                /* .. output samples it has left */
 } tape_rt_t;
+enum { TB_IDLE, TB_WAIT, TB_REC, TB_DONE };   /* not armed for bars; armed, waiting for a downbeat; recording; done
+                                               * (the main loop lets REC go: tape_poll) */
+/* main loop: tracks whose take of set bars just ended (tape_poll; the screen says so) */
+static uint8_t tape_bars_done;
 enum { TE_IDLE, TE_JUMP, TE_ATK, TE_DEC, TE_SUS, TE_REL };
 static tape_rt_t tape_rt[NTRK] __attribute__((section(".pool")));
 
@@ -249,6 +257,8 @@ static void tape_view_of(uint32_t t, uint32_t s, tape_view_t *v)
     v->peak = 0;
     v->map = tape_ctl[t].map;
     v->len = tape_ctl[t].empty ? 0u : tape_ctl[t].nblk * TAPE_BLK;
+    if (v->len > tape_ctl[t].trim)                     /* (a take of exact bars: its last block's tail unplayed) */
+        v->len -= tape_ctl[t].trim;
     if (v->len > (uint32_t)tape_ctl[t].nch * TAPE_CHS)   /* (a tape its chunks were taken from: what's left) */
         v->len = (uint32_t)tape_ctl[t].nch * TAPE_CHS;
     v->ram = 1;
@@ -482,7 +492,26 @@ static void tape_block(uint32_t t, uint32_t keys, const int32_t *rec_in, int32_t
     int32_t ls, ll, inc = tape_inc(t), i, keep, inl, gain = db_q10(TPD(t, DEV_SRC)[TK_GAIN]), wlen, xk, e0, e1;
     uint32_t k, press = keys & ~rt->keys_prev, playing = sys.playing;
     int rec = rec_in && c->rec_ok && tape_src(t) == 0u, grow;
-    if (c->grow && !rec) {                             /* REC let go of a growing tape: its length is what it has */
+    uint32_t bar = mclk.beat >> 18;                    /* (4 beats a bar) */
+    if (!rec || !sys.rec_bars) {                       /* a take of set bars: armed, it waits for a downbeat (PLAY,
+                                                         * or the next bar when armed while playing), runs exactly
+                                                         * that long, then stops recording */
+        rt->rbar = TB_IDLE;
+    } else {
+        if (rt->rbar == TB_IDLE)
+            rt->rbar = TB_WAIT;
+        if (rt->rbar == TB_WAIT && playing && (mclk.started || bar != rt->bar)) {
+            rt->rbar = TB_REC;
+            rt->rec_left = (int32_t)sys.rec_bars * (int32_t)(10584000u / clamp(sys.bpm, 40, 240));   /* (4 x 60 x
+                                                         * 44,100 a bar at 1 BPM) */
+        }
+        if (rt->rbar == TB_REC && !playing)            /* stopped in the middle: the take is what it has */
+            rt->rbar = TB_DONE;
+        if (rt->rbar != TB_REC)
+            rec = 0;
+    }
+    rt->bar = bar;
+    if (c->grow && !rec && rt->rbar != TB_WAIT) {      /* REC let go of a growing tape: its length is what it has */
         c->grow = 0;
         rt->grew = 0;
     }
@@ -493,7 +522,11 @@ static void tape_block(uint32_t t, uint32_t keys, const int32_t *rec_in, int32_t
         ls = 0;
         ll = wlen;
         inc = inc < 0 ? -inc : inc;
-        if (!rt->grew && playing) {
+        if (rt->rbar == TB_WAIT) {                     /* (waiting for the downbeat: the head parked at the start) */
+            rt->running = 0;
+            rt->pos = 0;
+            rt->grew = 0;
+        } else if (!rt->grew && playing) {
             rt->grew = 1;
             rt->pos = 0;
             rt->xf = 0;
@@ -593,6 +626,20 @@ static void tape_block(uint32_t t, uint32_t keys, const int32_t *rec_in, int32_t
             rt->wlast = a;
             if (grow && a >= 0 && a < wlen && (uint32_t)a / TAPE_BLK >= c->nblk)
                 c->nblk = (uint16_t)((uint32_t)a / TAPE_BLK + 1u);   /* the tape is as long as the head has gone */
+            if (rt->rbar == TB_REC && --rt->rec_left <= 0) {   /* the bars are in: the take ends here, exactly */
+                rt->rbar = TB_DONE;
+                rec = 0;
+                if (grow) {                            /* a blank tape: as long as the bars, to the sample */
+                    int32_t len = (rt->pos + inc) >> 12;
+                    c->nblk = (uint16_t)((len + (int32_t)TAPE_BLK - 1) / (int32_t)TAPE_BLK);
+                    c->trim = (uint8_t)((int32_t)c->nblk * (int32_t)TAPE_BLK - len);
+                    c->grow = 0;
+                    rt->grew = 0;
+                    grow = 0;
+                    ls = 0;                            /* (it loops from here: the head wraps at the take's end) */
+                    ll = len;
+                }
+            }
         } else {
             rt->wlast = -1;
         }
@@ -642,8 +689,10 @@ static void tape_drop_chunk(uint32_t t)
     uint32_t n = c->nch;
     if (!n)
         return;
-    if (c->nblk > (n - 1u) * MEM_CB)
+    if (c->nblk > (n - 1u) * MEM_CB) {
         c->nblk = (uint16_t)((n - 1u) * MEM_CB);
+        c->trim = 0;
+    }
     c->nch = (uint8_t)(n - 1u);
     mem_free(c->map[n - 1u]);
     if (tape_undo.valid && tape_undo.trk == t)       /* (a cleared take that lost a chunk can't come back) */
@@ -732,7 +781,7 @@ static int tape_prepare(uint32_t t)
         if (c->nblk && !c->empty)
             return 0;
         tape_view(t, &v);
-        nb = v.len / TAPE_BLK;
+        nb = (v.len + TAPE_BLK - 1u) / TAPE_BLK;       /* (a take of exact bars: its last block too, trimmed) */
         if (!nb)                                       /* an empty user slot: record onto a blank tape */
             goto blank;
         c->empty = 1;                                  /* (silent while it's copied) */
@@ -748,6 +797,7 @@ static int tape_prepare(uint32_t t)
             m->idx[b % MEM_CB] = (uint8_t)tv_idx(&v, b);
             m->peak[b % MEM_CB] = (uint8_t)tv_peak(&v, b);
         }
+        c->trim = (uint8_t)(nb * TAPE_BLK > v.len ? nb * TAPE_BLK - v.len : 0u);
         c->nblk = (uint16_t)nb;
         c->empty = 0;
         tp[t].dev[DEV_SRC][TK_REEL] = 0;               /* the track plays its tape (the same sound) */
@@ -759,6 +809,7 @@ static int tape_prepare(uint32_t t)
             return -1;
         tp[t].dev[DEV_SRC][TK_REEL] = 0;
         c->nblk = 0;
+        c->trim = 0;
         tape_rt[t].grew = 0;
         c->grow = 1;
         c->empty = 0;
@@ -780,6 +831,11 @@ static void tape_poll(void)
     uint32_t t;
     for (t = 0; t < NTRK; t++) {
         tape_ctl_t *c = &tape_ctl[t];
+        if (tape_rt[t].rbar == TB_DONE && ((sys.rec >> t) & 1u)) {   /* a take of set bars is in: REC lets go */
+            sys.rec &= (uint8_t)~(1u << t);
+            tape_unprepare(t);
+            tape_bars_done |= (uint8_t)(1u << t);
+        }
         if (c->grow) {
             if ((uint32_t)c->nch * MEM_CB < c->nblk + 2u * MEM_CB)   /* (two chunks, 372 ms, ready ahead) */
                 tape_reserve(t, c->nch + 1u, 1);
@@ -808,6 +864,7 @@ static void tape_replace(uint32_t t, const uint8_t *map, uint32_t n, uint32_t nb
     RING_PUBLISH();
     c->nch = (uint8_t)n;
     c->nblk = (uint16_t)nblk;
+    c->trim = 0;
     tp[t].dev[DEV_SRC][TK_REEL] = 0;
     sys.rec &= (uint8_t)~(1u << t);
     if (tape_undo.valid && tape_undo.trk == t)

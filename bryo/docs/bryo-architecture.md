@@ -1749,6 +1749,27 @@ as for any empty slot. No undo: the flash is erased. Tested: a 1.3-slot reel del
 and silences the POLY track on it, another reel plays on, deleting one a track plays silences that track at once,
 an empty slot says so; checked against a delete that only clears the flag.
 
+**Recording exactly some bars.** For drum loops: REC held + SELECT sets FREE, 1, 2, 4 or 8 bars (`sys.rec_bars`;
+the header puts the number before REC's dot). Armed with bars, a take waits for a downbeat (`TB_WAIT`): PLAY's, or
+the next bar's when it's armed while playing (`mclk.beat >> 18`, four beats a bar, read at the block's start). It
+then counts the bars in output samples (`rec_left`, 10,584,000 / BPM a bar: one divide when it starts) and, on the
+sample it runs out, ends the take (`TB_DONE`). The main loop lets REC go (`tape_poll`) and the screen says how long
+the take is. A blank tape waiting has its head parked at 0 (it was running from before and would have filled its
+first chunks).
+
+The catch was the length. A tape is whole 256-sample blocks (11.6 ms), so a take ended on a block would drift
+against the tempo every time round. The tape now has an exact end: `tape_ctl.trim`, the samples the last block holds
+past it (the view's length is the blocks minus that), set where the take ends, cleared wherever a tape is replaced
+and when a steal shortens it. A reel keeps it in its header's `name[7]` (names are four letters and their 0, so the
+byte was always 0: old reels read as before), so a project saving the take keeps it exact, and a reel copied onto a
+tape for REC keeps it too. At 120 BPM 2 bars are 88,200 tape samples, exactly; at 130 one bar is 40,707 (the
+40,707.7 rounded down: under a sample a time round). Stopping the transport mid-take keeps what it has.
+
+Tested: setting the bars doesn't arm or open the USB record mode; 2 bars at 120 from PLAY are 88,200 samples, REC
+lets go by itself and the take loops once every 4 s; saved into a reel it's still 88,200; armed at 1.4 s while
+playing at 130 it waits for the downbeat, then one bar is 40,707 samples. Each fails its mutant (no trim, no wait for
+the downbeat, the reel dropping the trim, REC never letting go).
+
 ## Sends: ROUT, as built (2026-10-09)
 
 GRAIN, RESONATOR and COLOR each have a WET, and until now it was always a crossfade: turning WET up turned the dry
