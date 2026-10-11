@@ -136,6 +136,7 @@ typedef struct {
     int16_t bst;                     /* .. the wave's pitch there now (gliding to bto) */
     int32_t blp;                     /* .. TONE's low-pass */
     int32_t bg;                      /* .. its level last block, Q15 (each block ramps from it) */
+    int32_t benv;                    /* .. TRI SIN: the gate, Q15: open while grains sound, closing after them */
     uint8_t bmode;                   /* .. the MODE it's sounding (a new one: down to 0 a block, then the new) */
     uint8_t hq;                      /* 1: they're 0 (nothing to carry into the next block) */
 } grain_trk_t;
@@ -599,15 +600,22 @@ static int32_t gr_pace(const gr_buf_t *B, int32_t len)
  * side's): the source low-passed (SRC), or a wave (TRI SIN, -12 dBFS at 100) playing the grains' notes, through TONE's
  * one-pole low-pass, its level ramped across the block. The wave follows the pitch of the last grain started (PTCH,
  * PRND, SCAL's note) in the octave over ROOT: the grains' sound at its own pitch is ROOT, a fifth up is ROOT's fifth,
- * so it plays their scale, folded low enough to stay a floor. It glides there (1/16 of the way a block, about 12 ms):
+ * so it plays their scale, folded low enough to stay a floor. The wave sounds while the grains do (sounding: any of
+ * the track's grains this block): with none, stopped or silent, it closes in about 0.3 s (it droned on its own with
+ * the transport stopped, 2026-10-11). SRC needs no gate: it is the source, silent with it. It glides there (1/16 of the way a block, about 12 ms):
  * a fast RATE blurs into a moving line, not a buzz of steps. Before any grain, ROOT itself; coming on from 0, straight
  * to the note. A new MODE: the old one down to 0 this block, the new from 0 the next (a 0.7 ms dip, no step). Returns 1 when it added something. Out of line: off (the default), grain_block's loops compile as
  * they did without it */
 static __attribute__((noinline)) uint32_t gr_body(grain_trk_t *G, const int16_t *p, const int32_t *dry, int32_t *xl,
-                                                  int32_t *xr, uint32_t h2)
+                                                  int32_t *xr, uint32_t h2, uint32_t sounding)
 {
     uint32_t mode = (uint32_t)clamp(p[GP_BMOD], 0, 2), k;
-    int32_t g1 = clamp(p[GP_BODY], 0, 100) * 32767 / 100, g0 = G->bg;
+    int32_t g1 = clamp(p[GP_BODY], 0, 100) * 32767 / 100, g0 = G->bg, ev = G->benv;
+    ev = sounding ? ev + ((32767 - ev) >> 3) : ev - (ev >> 6);   /* (TRI SIN's gate: open in about 6 ms while the
+                                                                  * grains sound, -60 dB about 0.3 s after them) */
+    G->benv = ev = ev < 64 ? 0 : ev;
+    if (mode != BODY_SRC)
+        g1 = (int32_t)(((uint32_t)g1 * (uint32_t)ev) >> 15);
     if (!g0 && !g1 && mode == G->bmode)
         return 0;
     if (mode != G->bmode) {
@@ -643,7 +651,11 @@ static __attribute__((noinline)) uint32_t gr_body(grain_trk_t *G, const int16_t 
                     x = sine_i(ph) >> 2;
                 }
             }
-            lp += ((x - lp) * kq) >> 15;
+            x = (x - lp) * kq;                          /* (TONE's new value toward 0, as RESONATOR's strings: a
+                                                         * shift alone left a small offset for good after the sound
+                                                         * stopped, and DEC 100's strings rang it up: reso.c rs_settle) */
+            lp += x >> 15;
+            lp += (lp >> 31) & (int32_t)((uint32_t)-(x & 32767) >> 31);
             gk += dg;
             y = (lp * (gk >> 3)) >> 12;
             xl[k] += y;
@@ -909,7 +921,7 @@ static void grain_block(uint32_t t, const int32_t *dry, uint32_t keys, int froze
             if (!g->left)
                 gr_clr(k);
         }
-        any |= gr_body(G, p, dry, xl + 3, xr + 3, h2);   /* BODY: a floor under the grains (out of line) */
+        any |= gr_body(G, p, dry, xl + 3, xr + 3, h2, any);   /* BODY: a floor under the grains (out of line) */
         {                                               /* WET on the track's grains together, ramped across the block
                                                          * from last block's (no step when it's turned or modulated;
                                                          * turned to 0, they fade out over this block, then stop) */

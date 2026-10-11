@@ -579,6 +579,7 @@ floor back under them:
   - **TRI**: a triangle wave that plays the grains' notes. It's heard on the FM-1's own speaker too.
   - **SIN**: a sine that plays the grains' notes: the purest, best on headphones (the speaker barely plays it when
     it's low).
+- The wave (TRI and SIN) sounds while the grains do: stop the transport, and it fades with them.
 - **ROOT**: where the wave sits (TRI and SIN), C1 to C5. Set it to the key you're in. The wave follows each grain's
   note, so when **PTCH** (GRAIN 2), **PRND** and **SCAL** (GRAIN 3) send the grains around a scale, the wave walks the same
   scale over ROOT, gliding from note to note. It always stays in the octave above ROOT, so it's a floor however high

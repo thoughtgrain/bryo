@@ -922,6 +922,28 @@ SCAL MAJ puts the strings on the third and fifth; turning PTCH takes the root ba
 takes a string and gives it back; a parked track holds no strings; WET 0 gives the chunks back. And
 `tests/checkpoint_sim.sh` renders and measures RESONATOR on all four tracks (runs 11 and 12).
 
+**Silence is silent (2026-10-11, from playing it: "a background noise when everything is turned off ... noise stays
+even when play is paused").** I traced it on the host by playing a reel through each device in turn, stopping, and
+looking 20 s later at COLOR's NOIS envelope (NOIS follows its input's level, so any residue holds it open: it's the
+most sensitive detector there is). Three integer residues and one oscillator:
+- **The strings** (`rs_settle`): a right shift rounds down, so near g = 1 (DEC high) a string a little below 0
+  never shrank: `(lp * g) >> 15` gave lp back for |lp| under about 32768 / (32768 - g). Four strings stuck that way
+  left an offset of about 740 (-33 dB). The master's DC filter hid it from the output, but COLOR's noise opened on
+  it: the steady hiss. On a silent block the loop now rounds toward 0, its gain and its damping's new value (not the
+  step: a step of -0.9 rounded toward 0 is none, and a string above 0 stalls instead). Under sound the round-down is
+  lost in the signal, and the toward-0 loop costs about 8 more a string a sample, so it runs only on silent blocks:
+  +14 to +18 a sample on runs 11 and 12, where everywhere was +185.
+- **The filter in front** at RES 80-90 held a residue of a few dozen for good; DEC 100's strings rang that up to
+  -16 dB with nothing playing. On a silent block with the state under 256 it's let go to 0.
+- **GRAIN's BODY TONE low-pass** had the same round-down (an offset of 12, rung up to 935 by the strings): its new
+  value rounds toward 0 now (once a block per sample at the half rate, a few instructions, only when BODY is on).
+- **BODY's TRI and SIN** droned on with the transport stopped: an oscillator with nothing gating it. It has a gate
+  now, open while the track's grains sound (`any` in grain_block), shut about 0.3 s after them. SRC needs none.
+Tested (`test_settle`): each case, 20 s after the sound stops, has every string, the filter and BODY's low-pass at
+exactly 0 and COLOR's noise closed; BODY TRI's gate and level at 0. Each fix fails its mutant (the old rounding, the
+filter kept, the low-pass floor, no gate, the settling loop never chosen). SPACE at FDBK 100 still repeats forever,
+as a delay at full feedback should; at 90 it dies away to 0.
+
 ## COLOR, as built (2026-10-08)
 
 COLOR is the S-4's DEFORM after RESONATOR (`firmware/src/color.c`). It takes no memory, only a few numbers a track,

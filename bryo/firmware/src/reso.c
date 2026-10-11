@@ -130,11 +130,18 @@ static uint32_t reso_arp_block(uint32_t t, uint32_t keys, uint32_t base, uint32_
 /* audio ISR: track t's RESONATOR on its stereo block, in place. keys: the white keys on the RESONATOR page (0
  * otherwise); pluck: they pluck (a TAPE track) or only retune (a SYNTH or POLY track, the keys playing the source) */
 static uint8_t reso_arp_on[NTRK];   /* ISR: the arpeggio's note sounding last block (a new step: a pluck) */
+/* Why a string's damping and its loop gain round toward 0 on a silent block (rs_settle): a right shift rounds down, so with g near 1
+ * (DEC high) a string a little below 0 never got smaller, (lp x g) >> 15 giving lp back: below about
+ * 32768 / (32768 - g) it stuck there for good. The damping's new value rounds toward 0 too (its step can't: a step of
+ * -0.9 rounded toward 0 is none, and a string a little above 0 stalls instead). Four strings stuck that way left a constant offset of about 740 (-33 dB) in the track after it went quiet.
+ * Unheard itself (the master takes DC away), but COLOR's NOIS follows its input's level, so it held the noise open:
+ * a steady hiss with the transport stopped (2026-10-11, from playing it). Rounding toward 0 makes every string's
+ * level shrink each time round, to 0. */
 static void reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t keys, int pluck, int32_t anote, uint32_t n)
 {
     reso_t *R = &reso[t];
     const int16_t *p = TPD(t, DEV_RESO);
-    int32_t wet1 = clamp(p[RP_WET], 0, 100), wet0 = R->wet, e[CTL], acc_e[CTL], acc_o[CTL];
+    int32_t wet1 = clamp(p[RP_WET], 0, 100), wet0 = R->wet, e[CTL], acc_e[CTL], acc_o[CTL], heard = 0;
     int32_t a = 32767 * (15 + 85 * clamp(p[RP_TONE], 0, 100) / 100) / 100, sc = clamp(p[RP_SCAL], 0, 3), root16;
     uint32_t k, i, press = keys & ~R->keys, nstr = R->nch < reso_cap ? R->nch : reso_cap, t60 = rs_t60(p[RP_DEC]);
     R->keys = keys;
@@ -177,9 +184,14 @@ static void reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t keys, int pl
             tsvf_coef(&flt, c8, p[RP_RES] * 127 / 100);
         for (i = 0; i < n; i++) {
             int32_t x = (l[i] + r[i]) >> 1;
+            heard |= x;
             e[i] = filt ? tsvf_mode(&flt, x >> 1, &R->ic1, &R->ic2, (uint32_t)mode) << 1 : x;
             acc_e[i] = acc_o[i] = 0;
         }
+        if (!heard && R->ic1 > -256 && R->ic1 < 256 && R->ic2 > -256 && R->ic2 < 256)
+            R->ic1 = R->ic2 = 0;                        /* (silence in: the filter's integer residue let go. With RES
+                                                         * up it held a few dozen for good, and DEC 100's strings rang
+                                                         * it up to -16 dB with nothing playing: rs_settle) */
     }
     {   /* the input's share, by the root string's ring: less as the ring gets longer, so a long DEC rings louder but
          * not without bound (the loop clamps besides) */
@@ -214,12 +226,31 @@ static void reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t keys, int pl
                 if (++w == RS_LEN)
                     w = 0;
             }
-        } else {
+        } else if (heard) {
             for (i = 0; i < n; i++) {
                 uint32_t rp = rd ? rd - 1u : RS_LEN - 1u;
                 int32_t x = d[rd] + (((d[rp] - d[rd]) * (int32_t)df) >> 8), y, z;
                 lp += (a * (x - lp)) >> 15;
                 y = (lp * g) >> 15;
+                z = y + e[i];
+                d[w] = (int16_t)(z > 32767 ? 32767 : z < -32767 ? -32767 : z);
+                acc[i] += y;
+                if (++w == RS_LEN)
+                    w = 0;
+                if (++rd == RS_LEN)
+                    rd = 0;
+            }
+        } else {                                        /* silence in: the same, rounding toward 0 (rs_settle), so
+                                                         * the strings die away to 0 and not to an offset (a block of
+                                                         * sound hides the round-down; this costs about 8 more a string
+                                                         * a sample, so only here) */
+            for (i = 0; i < n; i++) {
+                uint32_t rp = rd ? rd - 1u : RS_LEN - 1u;
+                int32_t x = d[rd] + (((d[rp] - d[rd]) * (int32_t)df) >> 8), y, z;
+                z = a * (x - lp);
+                lp += z >> 15;
+                lp += (lp >> 31) & (int32_t)((uint32_t)-(z & 32767) >> 31);
+                y = (lp * g + ((lp >> 31) & 32767)) >> 15;
                 z = y + e[i];
                 d[w] = (int16_t)(z > 32767 ? 32767 : z < -32767 ? -32767 : z);
                 acc[i] += y;

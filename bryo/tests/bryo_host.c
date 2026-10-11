@@ -2376,6 +2376,61 @@ static int32_t body_jump(void)                            /* the difference's la
     }
     return m;
 }
+/* nothing left running once the sound stops: every device's integer state settles to 0, so COLOR's NOIS (which
+ * follows its input's level) closes, and BODY's wave stops with the grains. From playing it (2026-10-11): a steady
+ * hiss with the transport stopped, a RESONATOR at DEC 100 holding an offset of about 740 for good */
+static int32_t settle_env(void (*setup)(void), int32_t *lp_max, int32_t *ic_max)
+{
+    uint32_t b, k;
+    int32_t mx = 0;
+    power_on();
+    tp[0].dev[DEV_COLOR][CP_NOIS] = 60;
+    setup();
+    chain_poll();
+    sys.playing = 1;
+    if (tp[0].src == SRC_SYNTH)
+        fm1_in.notes = note_bit_of_white(0) | note_bit_of_white(4);
+    render(1378 * 3, 0);
+    fm1_in.notes = 0;
+    sys.playing = 0;
+    render(1378 * 20, 0);
+    for (b = 0; b < 1378u; b++) {
+        render(1, 0);
+        mx = color[0].env > mx ? color[0].env : mx;
+    }
+    *lp_max = *ic_max = 0;
+    for (k = 0; k < RS_N; k++)
+        *lp_max = abs(reso[0].lp[k]) > *lp_max ? abs(reso[0].lp[k]) : *lp_max;
+    *ic_max = abs(reso[0].ic1) > abs(reso[0].ic2) ? abs(reso[0].ic1) : abs(reso[0].ic2);
+    return mx >> 12;
+}
+static void st_reso(void) { tp[0].dev[DEV_RESO][RP_WET] = 60; tp[0].dev[DEV_RESO][RP_DEC] = 100; }
+static void st_reso_res(void) { st_reso(); tp[0].dev[DEV_RESO][RP_CUT] = 40; tp[0].dev[DEV_RESO][RP_RES] = 90; }
+static void st_body_src(void) { tp[0].src = SRC_SYNTH; st_reso(); tp[0].dev[DEV_GRAIN][GP_WET] = 80; tp[0].dev[DEV_GRAIN][GP_BODY] = 100; }
+static void st_body_tri(void) { tp[0].dev[DEV_GRAIN][GP_WET] = 80; tp[0].dev[DEV_GRAIN][GP_BODY] = 100; tp[0].dev[DEV_GRAIN][GP_BMOD] = BODY_TRI; }
+static void test_settle(void)
+{
+    int32_t e, lp, ic;
+    char m[200];
+    e = settle_env(st_reso, &lp, &ic);
+    snprintf(m, sizeof m, "RESONATOR DEC 100, 20 s after the sound stopped: every string at 0 (largest %d), so COLOR's "
+             "NOIS is closed (its envelope %d, was 733: a steady hiss)", lp, e);
+    check(m, lp == 0 && e == 0);
+    e = settle_env(st_reso_res, &lp, &ic);
+    snprintf(m, sizeof m, "..its filter in front at RES 90: let go to 0 on silence (%d), the strings don't ring a residue "
+             "up (NOIS %d, was 4931)", ic, e);
+    check(m, ic == 0 && lp == 0 && e == 0);
+    e = settle_env(st_body_src, &lp, &ic);
+    snprintf(m, sizeof m, "GRAIN BODY SRC into it on a SYNTH track: TONE's low-pass settles to 0 too (%d, its residue "
+             "rang up to 935)", grain[0].blp);
+    check(m, grain[0].blp == 0 && lp == 0 && e == 0);
+    e = settle_env(st_body_tri, &lp, &ic);
+    snprintf(m, sizeof m, "BODY TRI, the transport stopped: the wave stops with the grains (its gate %d, level %d; it "
+             "droned on its own)", grain[0].benv, grain[0].bg);
+    check(m, grain[0].benv == 0 && grain[0].bg == 0 && e == 0);
+    power_on();
+}
+
 static void test_grain_body(void)
 {
     double lo, hi, hi2;
@@ -7787,6 +7842,7 @@ int main(int argc, char **argv)
     test_grain_shares();
     test_grain_silence();
     test_grain_body();
+    test_settle();
     test_grain_clicks();
     test_reso();
     test_color();
