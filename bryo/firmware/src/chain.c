@@ -117,7 +117,7 @@ static void chain_block(int32_t *out, uint32_t n)
     gr_plan();                                         /* the grains each track may sound this block (grain.c) */
     for (u = 0; u < 27u; u++)                          /* the 0 black key held, or tapped (latched): GRAIN frozen */
         if (KEY_BLACK[u] == BK_ZERO)
-            zero = ((fm1_in.notes >> u) & 1u) | (sys.freeze != 0);
+            zero = (((fm1_in.notes >> u) & 1u) & sys.black_short) | (sys.freeze != 0);   /* (KEYS NOTE: a note) */
     for (t = 0; t < NTRK; t++)                         /* what each track's REC hears (REC IN), last block */
         if ((sys.rec >> t) & 1u) {
             uint32_t from = tp[t].recin;
@@ -154,14 +154,15 @@ static void chain_block(int32_t *out, uint32_t n)
             k = 0;
         }
         if (t == sel && white && sys.keys_reso) {       /* the RESONATOR page: the white keys set its root; on a TAPE
-                                                         * track they pluck it, on SYNTH or POLY they still play it */
+                                                         * or DRUM track they pluck it alone (no slice, no drum), on
+                                                         * SYNTH or POLY they still play the source too */
             rk = white;
-            if (tp[t].src == SRC_TAPE)
+            if (tp[t].src == SRC_TAPE || tp[t].src == SRC_DRUM)
                 k = 0;
         }
         chain_source(t, k, (sys.rec >> t) & 1u ? rin[t] : 0, s, n);
         grain_block(t, s, gk, (int)zero, gl, gr, n);    /* from here the track is stereo */
-        reso_block(t, gl, gr, rk, tp[t].src == SRC_TAPE, n);
+        reso_block(t, gl, gr, rk, tp[t].src == SRC_TAPE || tp[t].src == SRC_DRUM, n);
         color_block(t, gl, gr, n);
         space_block(t, gl, gr, n);
         if (a0 != 32767 || a1 != 32767)                  /* switching on or off: the 2 ms ramp */

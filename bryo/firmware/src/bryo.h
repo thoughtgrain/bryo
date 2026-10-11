@@ -39,6 +39,8 @@ typedef struct {
     uint8_t keys_notes;          /* SETUP KEYS NOTE: the 27 keys are a keyboard, F to G (the black keys play the
                                   * sharps on SYNTH and POLY, and aren't shortcuts); 0: the white keys 16 semitones
                                   * from C, the black keys the shortcuts */
+    volatile uint8_t black_short; /* the black keys are shortcuts now (not KEYS NOTE, or GLO held in it): the 0 key's
+                                  * freeze reads it (ui_input.c sets it each frame) */
 } sys_t;
 static sys_t sys;
 

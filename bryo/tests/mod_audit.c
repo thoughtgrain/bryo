@@ -59,6 +59,7 @@ static void setup(uint32_t g)
     sys.playing = 1;
     sys.bpm = 120;
     sys.keys_live = 1;
+    sys.black_short = 1;
     sys.sel = 0;
     tp[0].dev[DEV_SRC][TK_REEL] = 2;                 /* KEYS: tonal and rhythmic */
     tp[0].src = a == MA_SYN ? SRC_SYNTH : a == MA_POL ? SRC_POLY : a == MA_DRM ? SRC_DRUM : SRC_TAPE;

@@ -96,6 +96,7 @@ static void play_phrase(uint32_t t, double s)
     uint32_t k, n = (uint32_t)(s * 4);
     sys.sel = (uint8_t)t;
     sys.keys_live = 1;
+    sys.black_short = 1;
     for (k = 0; k < n; k++) {
         fm1_in.notes = note_bit_of_white(NOTES[k % 8u]) | (k % 4u == 0u ? note_bit_of_white(NOTES[k % 8u] + 4u) : 0u);
         play(0.25);

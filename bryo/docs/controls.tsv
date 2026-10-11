@@ -73,9 +73,9 @@ page:drum	WHITE_1-16	press	PATTERN, VARY, KIT: the kit, key n left to right BD S
 page:drum	WHITE_1-16	hold	PATTERN, VARY, KIT: KNOB 1..4 are that instrument's own TUNE DEC LVL TONE while held (the header's box names it)	now	-	change
 page:drum	ENC_K1-4	turn	PATTERN: PATN writes its rhythm over the pattern (an edited one kept for SAVE), LEN 2-4 bars, SWNG, ACNT. VARY: SEED (0: as written; each other value a version that varies the pattern the way a player would), VARY, FILL, EVOL. KIT: TUNE DEC TONE DRV over every instrument. STEP: INST BAR MODE LVL	now	-	change
 page:drum	BTN_OCTDN	press	(DRUM's own pages; the track's device pages: the octave, as on every track) the bar STEP shows, down	now	-	change
-page:drum	BTN_OCTUP	press	(DRUM's own pages) the bar STEP shows, up, within LEN	now	-	change
+page:drum	BTN_OCTUP	press	(DRUM's own pages) the bar STEP shows, up, within LEN. STEP keeps showing that bar while playing (the keys write there; the playhead shows when it's in it); the other DRUM pages follow the playhead	now	-	change
 page:drum	BLACK_POLY	hold	held 0.5 s: clear the DRUM pattern (its tape stays); SAVE held undoes	now	-	change
-page:resonator	WHITE_1-16	press	the strings' root, a semitone a key from C of OCT (until PTCH is turned): on a TAPE track the key plucks them too; on SYNTH or POLY the keys still play the source and the strings follow its notes	now	-	PRD 2.3
+page:resonator	WHITE_1-16	press	the strings' root, a semitone a key from C of OCT (until PTCH is turned): on a TAPE or DRUM track the key plucks them alone (no slice, no drum); on SYNTH or POLY the keys still play the source and the strings follow its notes	now	-	PRD 2.3
 page:slot	WHITE_1-16	hold	on a SEQ slot's page: pick steps 1-16 (held keys are framed on screen); the keys don't play the track here	now	-	PRD 2.3
 page:slot	ENC_K1	combo	on a SEQ slot's page with white keys held: the held steps' values (0-100 %), instead of LEN	now	-	PRD 2.3
 mixer	ENC_K1	turn	track 1 level (the fader's notches; its fill is the live meter)	now	-	change
@@ -90,6 +90,7 @@ glo-held	WHITE_1-4	press	focus track 1..4 (the white keys don't play while GLO i
 glo-held	ENC_K1-4	turn	the four track levels; letting go of GLO returns to the page	now	-	change
 glo-held	ENC_SELECT	turn	TRACKS 1-4: the tracks in use; the ones above it park (silent, not rendered, their tapes taken first when memory runs short). A pad held + SELECT picks that pad's thing, as HOME + SELECT (the source) and a slot + SELECT (its engine); plain SELECT stays the tempo on every view	now	-	change
 glo-held	BTN_GLO	release	back to the page if something was done or it was held past HOLD; else the mixer stays up	now	-	change
+glo-held	BLACK_OP1	press	(and every black key) KEYS NOTE (the black keys are notes): held GLO makes them the shortcuts again: OP1-4 mute (their LEDs lit while GLO is held), OP5 OP6 the tape's REV HALF, MONO and POLY held clear, 0 freezes (as a note it doesn't)	now	-	change
 glo-held	BTN_OCTUP	press	SETUP's KEYS flipped: the black keys as the shortcuts, or as notes (the 27 keys a keyboard from F on SYNTH and POLY)	now	-	change
 slot-held	ENC_K1-4	hold-turn	the depth (-100..100 %) from this slot to that knob on the page shown: a device, the source (each source its own depths), the channel strip. The strip shows the slot's depths while it's held; a modulated knob gets a mark. Not the reel choices; at most 32 depths a track. Turned back to 0 it catches there (gone): a turn that keeps going stays at 0 until the knob rests 250 ms, then goes on into the other sign. Let go: the page stays	now	-	PRD 4.2
 slot-held	BLACK_MONO	hold	held 0.5 s with the pad: clear that slot's depths on the page shown (other slots', other pages' stay); the pad let go first calls it off. SAVE held undoes	now	-	change

@@ -176,6 +176,7 @@ static void power_on(void)
     sys.ntrk = NTRK;
     sys.master_q12 = 2048;
     sys.keys_live = 1;
+    sys.black_short = 1;
 }
 
 /* block b of track t's RAM tape: its peak, its data */
@@ -4739,6 +4740,68 @@ static void drum_count(uint32_t t, uint32_t *n)
                 n[i] += (tp[t].dpat[b][s] >> i) & 1u;
 }
 
+/* hardware notes, 2026-10-11: DRUM's STEP keeps the bar OCT picked while playing; a DRUM track's RESONATOR keys pluck
+ * the strings alone */
+static void test_drum_play_fixes(void)
+{
+    uint32_t b, k5 = note_bit_of_white(4);
+    int32_t pk;
+    power_on();
+    tp[0].src = SRC_DRUM;
+    track[1].mute = track[2].mute = track[3].mute = 1;
+    focus_dev(DEV_SRC, 3);                               /* STEP */
+    press(B_OCTUP);
+    check("STEP, OCT+: bar 2", tp[0].drm[DM_BAR] == 2);
+    sys.bpm = 120;
+    sys.playing = 1;
+    render(200, 0);                                      /* (bar 1 playing) */
+    check("..playing in bar 1, STEP still shows bar 2 (the one the keys write)", vz_drm_bar(tp[0].drm) == 1u &&
+                                                                                (drm_now[0] >> 4) == 0u);
+    {
+        uint16_t was = tp[0].dpat[1][4], was1 = tp[0].dpat[0][4];
+        fm1_in.notes = k5;
+        key_edge(note_of_white(4));
+        fm1_in.notes = 0;
+        ui_input();
+        check("..a key while playing writes step 5 of bar 2 (what's shown), not bar 1",
+              tp[0].dpat[1][4] != was && tp[0].dpat[0][4] == was1);
+    }
+    focus_dev(DEV_SRC, 0);
+    check("..PATTERN follows the playhead (bar 1)", vz_drm_bar(tp[0].drm) == 0u);
+    sys.playing = 0;
+    render(4, 0);
+
+    /* the RESONATOR page: the keys pluck the strings, the drums stay quiet (WET 0: what comes out is the dry) */
+    power_on();
+    tp[0].src = SRC_DRUM;
+    track[1].mute = track[2].mute = track[3].mute = 1;
+    memset(tp[0].dpat, 0, sizeof tp[0].dpat);
+    tp[0].dev[DEV_RESO][RP_WET] = 0;
+    focus_dev(DEV_RESO, 0);
+    ui_input();
+    fm1_in.notes = k5;
+    key_edge(note_of_white(4));
+    for (b = 0, pk = 0; b < 200u; b++) {
+        render(1, 0);
+        pk = peak_of(track_rt[0].last, CTL) > pk ? peak_of(track_rt[0].last, CTL) : pk;
+    }
+    fm1_in.notes = 0;
+    ui_input();
+    render(400, 0);
+    check("a DRUM track's RESONATOR page: a key doesn't strike the kit (WET 0: silence)", pk == 0);
+    focus_dev(DEV_SRC, 0);
+    ui_input();
+    fm1_in.notes = k5;
+    key_edge(note_of_white(4));
+    for (b = 0, pk = 0; b < 200u; b++) {
+        render(1, 0);
+        pk = peak_of(track_rt[0].last, CTL) > pk ? peak_of(track_rt[0].last, CTL) : pk;
+    }
+    fm1_in.notes = 0;
+    ui_input();
+    check("..on its own page the same key plays the drum", pk > 1000);
+}
+
 static void test_drum(void)
 {
     uint32_t want[16], i, b, s, v, ok, same, kept, foreign, differs;
@@ -6210,6 +6273,29 @@ static void test_arp_keys(void)
     check("..white key 1 plays F3", syn_plays(0, 53 * 16));
     fm1_in.notes = 0;
     render(4, 0);
+    hold(B_GLO);                                         /* GLO held: the black keys are the shortcuts again */
+    key_edge(black_note(BK_OP2));
+    check("..GLO held + OP2: track 2 muted (the shortcuts come back under GLO)", track[1].mute == 1u);
+    ui_leds();
+    led_on(fm1_led, 14u + black_note(BK_OP2));
+    check("..and its LED shows it while GLO is held", led_lit == 1u && sys.black_short == 1u);
+    let_go(B_GLO);
+    ui_leds();
+    led_on(fm1_led, 14u + black_note(BK_OP2));
+    check("..GLO let go: the OP keys are keys again (no mute lit), the 0 key won't freeze", led_lit == 0u &&
+          sys.black_short == 0u);
+    {
+        uint32_t z = black_note(BK_ZERO);
+        fm1_in.notes = 1u << z;
+        render(2, 0);
+        check("..the 0 key held as a note: GRAIN isn't frozen", !grain_frozen);
+        fm1_in.notes = 0;
+        render(2, 0);
+    }
+    hold(B_GLO);
+    key_edge(black_note(BK_OP2));
+    let_go(B_GLO);
+    check("..GLO + OP2 again: unmuted", track[1].mute == 0u);
     hold(B_LFO);                                         /* the LFO pad's picks still work */
     key_edge(black_note(BK_OP2));
     let_go(B_LFO);
@@ -6448,6 +6534,7 @@ int main(int argc, char **argv)
     test_source_level();
     test_drum_voices();
     test_drum();
+    test_drum_play_fixes();
     test_sends();
     test_projects();
     test_tpresets();

@@ -375,7 +375,8 @@ claves, cowbell, maracas, tambourine, guiro, hi-hat, open hat, metal beat, cymba
 1. Press **HOME** until the **STEP** page (the fourth).
 2. **Hold HOME and press a white key** to choose the instrument (or turn **KNOB 1, INST**).
 3. Make sure **MODE** (KNOB 3) says **HITS**.
-4. Now **white key n switches step n** of the bar on or off. **OCT− / OCT+** pick the bar.
+4. Now **white key n switches step n** of the bar on or off. **OCT− / OCT+** pick the bar, and the page stays on
+   that bar while the pattern plays, so you can write into it as it goes round.
 
 <img src="img/drum_step.png" width="240" alt="DRUM: STEP">
 
@@ -439,7 +440,8 @@ semitones in a row. You can make it a real keyboard instead:
    piano. **OCT− / OCT+** still move it.
 3. **Hold GLO and press OCT+** again to get the shortcuts back.
 
-While the black keys are notes, their shortcuts (mutes, reverse, clears, freeze) are off. Holding LFO and tapping
+While the black keys are notes, **hold GLO** to use their shortcuts (mutes, reverse, clears, freeze): with GLO held
+they're shortcuts again, and the OP keys light up for the muted tracks. Holding LFO and tapping
 OP1–OP3 still works ([7.4](#74-choose-which-modulator-the-lfo-pad-controls)). The setting is also on the SETUP page
 ([3.6](#36-setup-how-the-panel-behaves)) and is kept when you turn the FM-1 off.
 
@@ -506,7 +508,8 @@ The track rings four tuned strings, like a sitar's sympathetic strings.
 
 1. Press **EDIT five times** for **RESONATOR**.
 2. Turn **KNOB 4 (WET)** up.
-3. **The white keys set the strings' root note** (on a TAPE track they pluck them too). **PTCH** does the same with
+3. **The white keys set the strings' root note** (on a TAPE or DRUM track they pluck the strings alone, without
+   playing a slice or a drum). **PTCH** does the same with
    a knob. **DEC** is how long they ring; **TONE** how bright.
 4. **RESONATOR 2**: a filter (CUT, RES, TYPE) and **SCAL**, the chord the four strings make (HARM, MAJ, MIN, PEN).
 

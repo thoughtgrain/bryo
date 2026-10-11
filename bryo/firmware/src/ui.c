@@ -517,6 +517,8 @@ static void draw_foot(void)
                    : "EDIT: CHANNEL", sizeof a);
     else if (ui.view == VIEW_ROUTE)
         str_cpy(a, "KNOBS: REC IN", sizeof a);
+    else if (tp[sys.sel].src == SRC_DRUM && ui.kind == FOCUS_DEV && ui.dev == DEV_RESO)   /* (the strings alone) */
+        str_cpy(a, "KEYS: PLUCK STRINGS", sizeof a);
     else if (tp[sys.sel].src == SRC_DRUM && ui.kind == FOCUS_DEV && ui.dev == DEV_SRC) {   /* DRUM: what a key does */
         static const char *const STEP[4] = {"KEYS: STEPS", "KEYS: ACCENTS", "KEYS: PLAY+WRITE", "HOLD KEY: ERASE"};
         uint32_t m = (uint32_t)clamp(tp[sys.sel].drm[DM_MODE], 0, 3);

@@ -115,7 +115,8 @@ static void ui_leds(void)
     led_put(nl, panel.btn[B_OCTUP], track[sys.sel].octave > 3u);
     for (k = 0; k < 27u; k++) {
         uint32_t b = KEY_BLACK[k];
-        led_put(nl, 14u + k, (b <= BK_OP4 && track[b].mute) || (b == BK_ZERO && sys.freeze));   /* (0 lit: latched) */
+        led_put(nl, 14u + k, (!sys.keys_notes || ui.glo_held) &&   /* (KEYS NOTE: GLO held shows the shortcuts) */
+                             ((b <= BK_OP4 && track[b].mute) || (b == BK_ZERO && sys.freeze)));   /* (0 lit: latched) */
         led_put(nd, 14u + k, 1);
     }
     for (k = 0; k < NB; k++)
@@ -650,7 +651,8 @@ static void on_black(uint32_t k)
         lfo_pick(k);
         return;
     }
-    if (sys.keys_notes)                                 /* KEYS NOTE: the black keys play (chain.c), no shortcuts */
+    if (sys.keys_notes && !ui.glo_held)                 /* KEYS NOTE: the black keys play (chain.c); GLO held, they're
+                                                         * the shortcuts again (GLO's mixer shows what they toggle) */
         return;
     if (k <= BK_OP4) {
         track[k].mute = (uint8_t)!track[k].mute;
@@ -1053,6 +1055,7 @@ static void ui_input(void)
             ui.drm_inst = 0;
         }
     }
+    sys.black_short = (uint8_t)(!sys.keys_notes || ui.glo_held);   /* (the 0 key's freeze: chain.c) */
     sys.keys_live = (uint8_t)(!ui.glo_held && !seq_page() && !(ui.home_held && drm_page()) &&
                               !(drm_step_page() && sys.drum_mode == DMODE_HITS));   /* under GLO the white keys pick
                                                                 * the track, on a SEQ page the steps, on DRUM's STEP

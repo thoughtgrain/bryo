@@ -953,11 +953,13 @@ static const char *const DRM_LONG[DRM_NINST] = {"BASS DRUM", "SNARE", "CLAP", "R
                                                 "HIGH BONGO", "CLAVES", "COWBELL", "MARACAS", "TAMBOURINE", "GUIRO",
                                                 "HI-HAT", "OPEN HAT", "METAL BEAT", "CYMBAL"};
 
-/* the bar a DRUM page shows: the one playing, else the one STEP shows */
+/* the bar a DRUM page shows: STEP always the one OCT picked (the keys write there, playing or not: the playhead
+ * shows only while it's in that bar); the other pages the one playing, else that one */
 static uint32_t vz_drm_bar(const int16_t *v)
 {
     uint32_t len = (uint32_t)clamp(v[DM_LEN], 2, (int32_t)DRM_NBAR), now = drm_now[sys.sel];
-    return sys.playing && now != 0xFFu ? (now >> 4) % len : (uint32_t)clamp(v[DM_BAR] - 1, 0, (int32_t)len - 1);
+    return sys.playing && now != 0xFFu && ui.page != 3u ? (now >> 4) % len
+                                                        : (uint32_t)clamp(v[DM_BAR] - 1, 0, (int32_t)len - 1);
 }
 
 /* PATTERN, VARY, STEP in LIVE or ERAS: the bar as a grid, a row per instrument the pattern uses (up to five, left
