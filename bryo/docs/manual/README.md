@@ -63,6 +63,19 @@ should hear. Do them in order the first time; after that, jump to what you need.
 6. **What the white keys do** on this page (here: play slices).
 7. **The track again, and the octave** of the white keys.
 
+**Colour.** The screen is white on black, and colour only ever says two things: where you are, and what's alive.
+Everything it says is also said by a shape or a word, so you never need to tell the colours apart.
+
+| Colour | Means |
+| --- | --- |
+| **Blue** page name | a page of the blue pads (HOME, EDIT, FX, GLO) |
+| **Purple** page name | a modulator's page (LFO, SEQ, ENV, ARP); a knob a modulator moves (its corner mark and the rail under it), and its depths while you hold a modulator's pad |
+| **Orange** | sound happening now: grains playing, strings ringing, the room or echoes sounding, the note or step playing, the tape's playhead running, the mixer's meters |
+| **Red** | recording (the tempo bar, the REC tag); the CPU reading near its limit |
+| **Yellow** | something to know: not saved (the ✱), FROZEN, grains HELD |
+
+<img src="img/space_live.png" width="240" alt="SPACE sounding: its tail and echoes in orange"> <img src="img/reso_live.png" width="240" alt="RESONATOR: the strings ringing, orange stems on their notes">
+
 ### 0.3 How pages work
 
 Every pad opens a page, and **pressing the same pad again goes to its next page**. Then it goes round to the first.

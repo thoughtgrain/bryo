@@ -944,6 +944,31 @@ exactly 0 and COLOR's noise closed; BODY TRI's gate and level at 0. Each fix fai
 filter kept, the low-pass floor, no gate, the settling loop never chosen). SPACE at FDBK 100 still repeats forever,
 as a delay at full feedback should; at 90 it dies away to 0.
 
+**Colour on the screens (2026-10-11, from a conversation about delight: "throw in color for extra state info, and as
+delight in grains, resonator, reverb, arp ... show it for activity ... and a color to show modulator in their
+bars").** The screens stay white on black, the OLED look; colour says where you are and what's alive, and nothing
+else (no per-track colours: they'd compete with the page's). Five accents (`ui_px.c`), all from Okabe and Ito's
+colour-blind-safe set, all 4.5:1 or more on black so they work as text:
+- sky blue #56B4E9 (9.1:1), the blue pads' pages: the title and its page dots (`focus_btn`);
+- reddish purple #CC79A7 (6.9:1), the purple pads' (LFO SEQ ENV ARP) pages, and modulation wherever it shows: a
+  knob's corner mark, its rail's reach and live block, the depths while a slot pad is held;
+- orange #E69F00 (9.3:1), alive: a grain's played stretch, a ringing string's stem and node, SPACE's tail and echoes
+  while it sounds (`space_sounding`: not resting, |wet| past -66 dB within 0.1 s), the ARP note and the SEQ and DRUM
+  step playing, TAPE's running playhead, the mixer's meters;
+- vermillion #D55E00 (5.4:1, black on it the same), recording: the tempo bar turns red (the dot stays in it) and
+  TAPE's REC tag; the CPU reading at 85 % or more;
+- yellow #F0E442 (15.9:1), something to know: the unsaved ✱ (moved out of the white tempo bar, where yellow can't
+  be read, to just before it), FROZEN, "HELD".
+None of them is the only cue: the dot says recording, the ✱ is a shape, a played grain is solid where the rest is
+dim, a ringing string gets a stem, the step playing is the filled one (and its key lights), a modulated knob has its
+rail. To have the colours at all the canvas went from 2 bits a dot to 4 (`pxc`, 16 colours a strip, given out as
+drawn; a 17th would fall back to ink): the header alone needs three. 1.6 KB more RAM, the same work a pixel to send.
+RESONATOR keeps a level a string for the picture (`lvl`: a block's last loop sample held, falling an eighth a block;
++5 to +14 a sample on runs 11, 12 and 30). The screens' signatures carry what's coloured (the focus pad, the strings
+ringing, SPACE sounding, the SEQ step), so a change redraws. Tested: the canvas test for 4 bits and the 17th colour,
+`test_resting` for what the screen reads as sounding and resting (and two pictures, `space_live` and `reso_live`), the
+goldens for every screen.
+
 **Resting, and what shedding gives back (2026-10-11, from playing it: "CPU is sitting at 50 % with nothing playing";
 "when I mute other tracks ... the cpu actually seems to go up to 85 % and audio crackles").** I rebuilt both on the
 host (runs 29 and 30) and measured where the time went. Three causes:

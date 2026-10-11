@@ -2458,6 +2458,12 @@ static void test_resting(void)
     check("..PLAY again: they wake on the sound at once (no block of silence first)", pk > 1000 && !space[0].quiet &&
           !reso[0].quiet);
     render(1378, 0);
+    focus_dev(DEV_SPACE, 0);                             /* the pictures while it sounds: orange where it's alive */
+    shot("BRYO", "space_live");
+    focus_dev(DEV_RESO, 0);
+    shot("BRYO", "reso_live");
+    check("..the screen knows it: SPACE sounding, a string ringing (orange in their pictures)",
+          space_sounding(0) && (reso[0].lvl[0] > RV_RING || reso[0].lvl[1] > RV_RING || reso[0].lvl[2] > RV_RING));
     track[0].mute = 1;                                   /* muted: its devices hear silence and rest too */
     render(1378 * 6, 0);
     check("muted (the transport playing): RESONATOR, SPACE and the channel ring down and rest (they cost nothing)",
@@ -2465,6 +2471,11 @@ static void test_resting(void)
     track[0].mute = 0;
     render(4, 0);
     check("..unmuted: awake again on the track's sound", !space[0].quiet && !reso[0].quiet);
+    track[0].mute = 1;
+    render(1378 * 6, 0);
+    check("..resting, the screen knows that too: SPACE not sounding, no string ringing",
+          !space_sounding(0) && !reso[0].lvl[0] && !reso[0].lvl[1] && !reso[0].lvl[2] && !reso[0].lvl[3]);
+    track[0].mute = 0;
     power_on();
 }
 
@@ -4402,8 +4413,21 @@ static void test_canvas(void)
     px_box(118, 2, 9, 9, px_dim);                        /* right edge: (118..119, 2..3) */
     px_dot(0, 4, px_ink);                                /* below the strip: dropped */
     px_dot(60, 1, 0x07E0u);                              /* a fourth colour */
-    check("the canvas clips at its edges and keeps 2 bits a dot", pxc_h == 4 && px_code(px_ink) == 2u &&
-          ((pxc[1][0] & 15u) == 10u) && ((pxc[3][29] >> 4) == 5u) && pxc_pal[3] == 0x07E0u);
+    check("the canvas clips at its edges and keeps 4 bits a dot", pxc_h == 4 && px_code(px_ink) == 2u &&
+          pxc[1][0] == 0x22u && pxc[3][59] == 0x11u && (pxc[1][30] & 15u) == 3u && pxc_pal[3] == 0x07E0u);
+    {
+        uint32_t k, ok16 = 1;
+        for (k = 0; k < 12u; k++)                        /* 12 more: 16 in all, each its own */
+            px_dot((int32_t)k, 3, (uint16_t)(0x1000u + k));
+        for (k = 0; k < 12u; k++)
+            ok16 &= px_code((uint16_t)(0x1000u + k)) == 4u + k;
+        check("..16 colours a strip, each its own code; a 17th falls back to ink",
+              ok16 && pxc_n == 16u && px_code(0xBEEFu) == 2u && px_code(0x07E0u) == 3u);
+        px_begin(8);
+        px_box(-5, -5, 7, 7, px_ink);
+        px_box(118, 2, 9, 9, px_dim);
+        px_dot(60, 1, 0x07E0u);
+    }
     lcd_fill(0, 0, 240, 240, 0);
     px_blit(100);
     for (y = 0; y < 8u; y++)

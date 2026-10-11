@@ -155,16 +155,16 @@ static void viz_tape(const int16_t *v, uint32_t f)
         int32_t xr, hd = tape_head(sys.sel), px;
         xr = x0 + (x1 - x0) * v[9] / 100;              /* ROTATE: where playing starts in the window */
         px = hd >= 0 ? r0 + hd * rw / 1000 : sp < 0 ? (v[9] ? xr - 1 : x1 - 3) : (v[9] ? xr : x0 + 3);
-        for (k = 0; k < 3; k++)
-            px_box(px - 2 + k, top - 5 + k, 5 - 2 * k, 1, px_ink);
+        for (k = 0; k < 3; k++)                        /* (running: orange, alive) */
+            px_box(px - 2 + k, top - 5 + k, 5 - 2 * k, 1, hd >= 0 ? px_live : px_ink);
         if (hd >= 0) {                                 /* running: a cut through the sound, and its edges */
             px_box(px - 1, top + 1, 3, bot - top - 1, px_bg);
-            px_line(px, top + 1, px, bot - 1, px_ink, 2);
+            px_line(px, top + 1, px, bot - 1, px_live, 2);
         }
     }
     px_text(1, 0, PXF_3, tape_name(sys.sel), px_ink);                /* what it plays */
     if ((sys.rec >> sys.sel) & 1u)
-        px_tag(105, 0, PXF_3, "REC", px_ink, px_bg);
+        px_tag(105, 0, PXF_3, "REC", px_rec, px_bg);   /* (recording: red, as the header's bar) */
     vz_label(x0, "IN", f == 0u);
     if (x1 - x0 >= 22 || f == 1u)
         vz_label(x1, "OUT", f == 1u);
@@ -226,7 +226,7 @@ static void viz_grain(const int16_t *v, uint32_t f)
     gr_buf_t *B = &gbuf[sys.sel];
     tape_view_t tv;
     uint32_t scan = (uint32_t)clamp(v[GP_SCAN], 0, 3), buf = scan != SCAN_TAPE;
-    int32_t ls, ll, i, k, x, cx, yc0 = buf ? 16 : 19, n = 0, sp, reach, gspan, fw, cur;
+    int32_t ls, ll, i, k, x, cx, yc0 = buf ? 16 : 19, n = 0, sp, reach, gspan, fw, cur, held = 0;
     char b[24];
     if (buf) {
         gr_buf_view(sys.sel, &tv);
@@ -310,7 +310,7 @@ static void viz_grain(const int16_t *v, uint32_t f)
             else if (1000 - at < fr)
                 e = GR_RAMP[(1000 - at) * 128 / (fr ? fr : 1)];
             h = (2 + clamp((int32_t)tv_peak(&tv, blk) * 3, 0, 255) * (buf ? 3 : 5) / 255) * e / 32767;   /* (quiet stretches: still a shape) */
-            px_box(x, yc - h, 1, 2 * h + 1, on ? px_ink : px_dim);
+            px_box(x, yc - h, 1, 2 * h + 1, on ? px_live : px_dim);   /* (what it's played: orange, alive) */
         }
         if (ph >= DX0 && ph <= DX1) {                                  /* the playhead, an arrow its way */
             int32_t d = g->rev ? -1 : 1;
@@ -349,7 +349,7 @@ static void viz_grain(const int16_t *v, uint32_t f)
         if (cx >= DX0 && cx <= DX1)
             px_box(cx - 2 + i, i, 5 - 2 * i, 1, px_ink);
     if (grain_frozen)
-        px_tag(118 - px_text_w(PXF_3, "FROZEN") - 1, 0, PXF_3, "FROZEN", px_ink, px_bg);
+        px_tag(118 - px_text_w(PXF_3, "FROZEN") - 1, 0, PXF_3, "FROZEN", px_note, px_bg);
 #undef GX
 #undef GY
 labels:
@@ -369,12 +369,13 @@ labels:
             str_cpy(b + str_len(b), " OF ", 5);                        /* 12 HELD": GRNS 12, kept whatever else */
             fmt_int(b + str_len(b), sh[sys.sel]);
             str_cpy(b + str_len(b), v[GP_GRNS] > 0 ? " HELD" : " GRAINS", 8);
+            held = v[GP_GRNS] > 0;
         }
     }
     if (f == 1u || f == 4u)
-        px_tag(1, DLBL - 1, PXF_3, b, px_ink, px_bg);
+        px_tag(1, DLBL - 1, PXF_3, b, held ? px_note : px_ink, px_bg);
     else
-        px_text(2, DLBL, PXF_3, b, px_ink);
+        px_text(2, DLBL, PXF_3, b, held ? px_note : px_ink);   /* (GRNS holding: "HELD", in yellow) */
     if (f >= 5u && f < 16u && !pdesc_empty(&DEV_P[DEV_GRAIN][f]))
         vz_ktag(118, DLBL - 1, &DEV_P[DEV_GRAIN][f], v[f]);
     else if (buf) {                                                    /* the buffer: its bars ("STR 2 BARS") */
@@ -438,6 +439,7 @@ static int32_t reso_at(const int16_t *v, int32_t x)
     return (best * v[3] + 350 * (100 - v[3])) / 100;
 }
 
+#define RV_RING 192                   /* a string ringing, for the picture: its level (reso.c lvl) above about -45 dB */
 static void viz_reso(const int16_t *v, uint32_t f)
 {
     int32_t x, k, py = 0, top = DY0 + 6, base = DY1 + 2, sc = clamp(v[7], 0, 3);
@@ -457,7 +459,12 @@ static void viz_reso(const int16_t *v, uint32_t f)
         if (hx > DX1 - 1 || 1000 - k * (100 - v[2]) * 9 <= 0 ||
             (k && hx - (DX0 + (v[0] * 16 + PART_16[sc][k - 1] - 28 * 16) * DW / (96 * 16)) < 3))
             break;                                                     /* (closer than 3 dots: the rest are a blur) */
-        vz_node(hx, base - reso_at(v, hx) * (base - top) / 1000, k == 0);
+        if (k < (int32_t)RS_N && reso[sys.sel].lvl[k] > RV_RING) {   /* a string ringing now: a stem up to its
+                                                                        * node, both orange (the sound, alive) */
+            px_line(hx, base, hx, base - reso_at(v, hx) * (base - top) / 1000, px_live, 1);
+            px_box(hx - 1, base - reso_at(v, hx) * (base - top) / 1000 - 1, 3, 3, px_live);
+        } else
+            vz_node(hx, base - reso_at(v, hx) * (base - top) / 1000, k == 0);
     }
     {   /* PTCH: its note over its node */
         int32_t rx = DX0 + (v[0] * 16 - 28 * 16) * DW / (96 * 16);
@@ -560,6 +567,12 @@ static void viz_color(const int16_t *v, uint32_t f)
 /* the window is 2 s: the dry hit at 0, echoes TIME ms apart falling by FDBK, the tail rising over SIZE (10..90 ms)
  * and falling over DECAY (0.2..4.2 s). DLY or VERB at 0 is off (space.c: no memory taken): its part is drawn dim,
  * as it would be at 100, so TIME, FDBK, SIZE and DEC still show what they set */
+/* SPACE on track t is sounding now: running, and not resting (space.c: its wet past -66 dB within 0.1 s) */
+static int space_sounding(uint32_t t)
+{
+    return (space[t].dlive || space[t].rlive) && space[t].quiet < 2205u;
+}
+
 static void viz_space(const int16_t *v, uint32_t f)
 {
     /* page 2: DLY scales the echoes, VERB the tail; TONE (- low-pass, + high-pass on the feedback) makes each echo
@@ -567,7 +580,9 @@ static void viz_space(const int16_t *v, uint32_t f)
     int32_t t, x, py = DY1, rise = 10 + v[2] * 80 / 100, len = 200 + v[3] * 40, g = 32767, first = -1, pre = v[8];
     int32_t tl = 100 - (v[6] < 0 ? -v[6] : v[6]) / 5;                  /* TONE: what each pass keeps, % */
     int32_t dly = v[4] ? v[4] : 100, verb = v[5] ? v[5] : 100;
-    uint16_t dink = v[4] ? px_ink : px_dim, vink = v[5] ? px_ink : px_dim;
+    int live = space_sounding(sys.sel);                                /* (sounding now: the echoes and the tail in
+                                                                        * orange; resting, white) */
+    uint16_t dink = v[4] ? (live ? px_live : px_ink) : px_dim, vink = v[5] ? (live ? px_live : px_ink) : px_dim;
     px_line(DX0, DY1 + 1, DX1, DY1 + 1, px_dim, 2);
     for (x = DX0; x <= DX1; x++) {                                     /* the tail: its edge alone, no fill */
         int32_t ms = (x - DX0) * 2000 / DW - pre, e, y;
@@ -1015,8 +1030,8 @@ static uint32_t vz_drm_grid(const int16_t *v, uint32_t bar)
         int32_t x = 12 + (int32_t)s * 6 + (int32_t)(s / 4u);
         if (h[s].acc)
             px_box(x, DY0, 4, 2, px_ink);
-        if (sys.playing && now != 0xFFu && now == bar * 16u + s)      /* the playhead, under them */
-            px_box(x - 1, DY1 + 1, 6, 2, px_ink);
+        if (sys.playing && now != 0xFFu && now == bar * 16u + s)      /* the playhead, under them (orange) */
+            px_box(x - 1, DY1 + 1, 6, 2, px_live);
     }
     for (i = 0; i < DRM_NINST; i++) {
         int32_t y = DY0 + 4 + (int32_t)row * pitch;
@@ -1129,7 +1144,7 @@ static void viz_drum(const int16_t *v, uint32_t f)
             else
                 px_frame(x, DY0 + 6, 5, 20, px_dim, 2);
             if (sys.playing && now == bar * 16u + s)
-                px_box(x - 1, DY0 + 28, 7, 2, px_ink);
+                px_box(x - 1, DY0 + 28, 7, 2, px_live);           /* (the step playing: orange) */
             if (!(s & 3u)) {
                 char n[4];
                 fmt_int(n, (int32_t)s + 1);
@@ -1213,13 +1228,15 @@ static void viz_seq(const int16_t *v, uint32_t f)
     for (k = 0; k < 16; k++) {
         int32_t x = DX0 + 3 + k * (bw + gap) + (k / 4) * gg + ((k & 1) ? sw : 0), on = k < v[0];
         int32_t y = floor - st[k] * h / 100;
+        uint16_t c = sys.playing && mod_seq_now(sys.sel, ui.slot) == k ? px_live : px_ink;   /* (the step playing:
+                                                                        * orange; its white key lights too) */
         if (on) {
             px_frame(x, top, bw, h + 1, px_dim, 2);                    /* the step's range, dotted */
             if ((k * 37 + 11) % 100 < v[6])                            /* its value (PROB: the steps that won't */
-                px_box(x + 1, y, bw - 2, floor - y + 1, px_ink);       /* play this time are hollow) */
+                px_box(x + 1, y, bw - 2, floor - y + 1, c);            /* play this time are hollow) */
             else
-                px_frame(x + 1, y, bw - 2, floor - y + 1, px_ink, 1);
-            px_box(x, y, bw, 1, px_ink);                               /* a cap as wide as the step */
+                px_frame(x + 1, y, bw - 2, floor - y + 1, c, 1);
+            px_box(x, y, bw, 1, c);                                    /* a cap as wide as the step */
             if (k + 1 == v[7]) {                                       /* STRT: a triangle over the first step */
                 px_box(x, top - 2, bw, 1, px_ink);
                 px_box(x + 1, top - 1, bw - 2, 1, px_ink);
@@ -1298,8 +1315,8 @@ static void viz_arp(const int16_t *v, uint32_t f)
             int playing = ord == ARO_RND ? (uint32_t)m == r->cur && r->on : i == now && r->pos;
             if (bw < 1)
                 bw = 1;
-            if (playing)
-                px_box(x, y, bw, floor - y + 1, px_ink);
+            if (playing)                                               /* (the note playing: filled, orange) */
+                px_box(x, y, bw, floor - y + 1, px_live);
             else
                 px_frame(x, y, bw, floor - y + 1, px_ink, bw > 2 ? 1 : 2);
         }
@@ -1492,7 +1509,8 @@ static void viz_memory(void)
                                                         * (where shedding starts) */
     fmt_int(b + 4, (int32_t)(sys.cpu_q8 * 100u / 256u / 5u * 5u));
     str_cpy(b + str_len(b), "%", 2);
-    px_text(118 - px_text_w(PXF_3, b), DLBL, PXF_3, b, sys.cpu_q8 * 100u / 256u >= 85u ? px_ink : px_dim);
+    px_text(118 - px_text_w(PXF_3, b), DLBL, PXF_3, b, sys.cpu_q8 * 100u / 256u >= 85u ? px_rec : px_dim);   /* (near
+                                                                        * its limit: red, as recording's warning) */
 }
 
 /* The routing view (ALGORITHM): what each track's REC records. The tracks are boxes under their knobs (filled while
@@ -2060,7 +2078,10 @@ static uint32_t viz_sig(void)
         h = (h ^ (uint32_t)(v[k] + 32768)) * 16777619u;
     }
     h += ui.page * 389u;
-    if (ui.kind == FOCUS_SLOT && tp[sys.sel].engine[ui.slot] == ME_SEQ)   /* SEQ draws its step values */
+    if (ui.kind == FOCUS_SLOT && tp[sys.sel].engine[ui.slot] == ME_SEQ)   /* SEQ draws its step values (and the one
+                                                                         * playing) */
+        h = (h ^ (uint32_t)(sys.playing ? mod_seq_now(sys.sel, ui.slot) + 2 : 0)) * 16777619u;
+    if (ui.kind == FOCUS_SLOT && tp[sys.sel].engine[ui.slot] == ME_SEQ)
         for (k = 0; k < 16u; k++)
             h = (h ^ (uint32_t)(uint8_t)tp[sys.sel].steps[ui.slot][k]) * 16777619u + ui.steps_held * 7u;
     if (ui.kind == FOCUS_DEV && ui.dev == DEV_SRC)                     /* the source; the keys' range: the octave */
@@ -2094,8 +2115,14 @@ static uint32_t viz_sig(void)
             if (gr_on((uint32_t)k) && gslot[k].trk == sys.sel)
                 h = (h ^ (uint32_t)(gslot[k].pos >> 18) ^ k << 24) * 16777619u;
     }
-    if (ui.kind == FOCUS_DEV && ui.dev == DEV_RESO)                    /* RESONATOR: a key's root */
-        h = (h ^ (uint32_t)reso_root16(sys.sel)) * 16777619u;
+    if (ui.kind == FOCUS_DEV && ui.dev == DEV_SPACE)                   /* SPACE: sounding or resting */
+        h = (h ^ (uint32_t)space_sounding(sys.sel) * 0x9E37u) * 16777619u;
+    if (ui.kind == FOCUS_DEV && ui.dev == DEV_RESO) {                  /* RESONATOR: a key's root, the strings ringing */
+        uint32_t ring = 0;
+        for (k = 0; k < (int32_t)RS_N; k++)
+            ring |= (uint32_t)(reso[sys.sel].lvl[k] > RV_RING) << k;
+        h = (h ^ (uint32_t)reso_root16(sys.sel) ^ ring << 24) * 16777619u;
+    }
     if (ui.kind == FOCUS_DEV && ui.dev == DEV_GRAIN)                   /* GRAIN draws TAPE's loop window too */
         h = (h ^ (uint32_t)(tp[sys.sel].dev[DEV_SRC][0] << 8 | tp[sys.sel].dev[DEV_SRC][1])) * 16777619u;
     return h + (ui.kind == FOCUS_SLOT ? tp[sys.sel].engine[ui.slot] * 65537u : 0u);

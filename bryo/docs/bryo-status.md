@@ -88,7 +88,7 @@ One core, no RTOS. Three contexts, and the rules between them are most of the ar
 **Memory.** Sound lives in one pool of 152 chunks (28 s of tape-format sound: `mem.c`) handed out by use: tapes as
 long as what's on them, GRAIN's live buffers, RESONATOR's strings and SPACE's lines while they're on. Nothing is
 set aside per track. When it runs short: a cleared tape's chunks first, then a parked track's tape, then the end of
-the longest tape. Main RAM holds 83.5 of 96 KiB (.bss; 50.7 of it sound on purpose, the rest of the 96 the stack's), the pool 329.6 of 336 KiB (2026-10-11, 40 grain slots and NPK 24, the last by arithmetic: 384 and 416 B more; 32-bit
+the longest tape. Main RAM holds 85.1 of 96 KiB (.bss; 50.7 of it sound on purpose, the rest of the 96 the stack's), the pool 329.6 of 336 KiB (2026-10-11, 40 grain slots and NPK 24, the last two by arithmetic: 384 and 416 B more, and the canvas's 1,620; 32-bit
 build: the firmware preprocessed, its inline assembly taken out, compiled `-m32 -Os`, `size -A`).
 
 **Parameters.** `param.c` holds every knob as an integer in its own range (`tp[t]`), with a descriptor (name,
@@ -227,6 +227,9 @@ number.
   four), split by what each track's settings ask for when it runs short; what's left over is everyone's (since
   2026-10-11: a track alone has all 40, not just what RATE and SIZE ask). GRAIN 6's GRNS can hold a number for a
   track instead (1-40, taken from the AUTO tracks first, kept whatever the others do).
+- **2026-10-11: colour says where you are and what's alive.** White on black stays the look; five colour-blind-safe
+  accents (blue and purple for the pads' families, orange for activity, red for recording, yellow for state), never
+  the only cue. The canvas went to 4 bits a dot (16 colours a strip). No per-track colours.
 - **2026-10-11: devices rest on silence; a muted track's devices hear silence; shedding gives back only with
   room.** Stopped, everything ran on digital zeros (about half the CPU with nothing playing); muting saved nothing
   and handed the remaining track a bigger grain pool; shedding gave back blindly, a crackle a second near the edge.

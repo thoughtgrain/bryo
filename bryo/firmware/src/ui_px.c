@@ -15,6 +15,22 @@
 
 static uint16_t px_ink, px_dim, px_bg;
 
+/* The accents (2026-10-11): the screens stay white on black, the way a groovebox's OLED reads, and colour says two
+ * things only, where you are and what's alive. Each is from Okabe and Ito's colour-blind-safe set, and each reads at
+ * 4.5:1 or more on black (as text too); none is ever the only cue (a shape, a word or a fill says it as well):
+ *   px_page  sky blue #56B4E9 (9.1:1): the page pads' pages (HOME EDIT FX GLO), the page's name and dots, as the
+ *            panel's blue pads
+ *   px_mod   reddish purple #CC79A7 (6.9:1): the modulators (LFO SEQ ENV ARP's pages, and a modulated knob's rail
+ *            and mark, its depths), as the panel's purple pads
+ *   px_live  orange #E69F00 (9.3:1): sound happening now: grains playing, strings ringing, a room or echoes
+ *            sounding, the step or note playing, the meters
+ *   px_rec   vermillion #D55E00 (5.4:1, black on it the same): recording (the tempo bar), the CPU near its limit
+ *   px_note  yellow #F0E442 (15.9:1): something to know: not saved, frozen, grains held */
+#define PX_RGB(r, g, b) ((uint16_t)(((r) >> 3) << 11 | ((g) >> 2) << 5 | (b) >> 3))
+static const uint16_t px_page = PX_RGB(0x56, 0xB4, 0xE9), px_mod = PX_RGB(0xCC, 0x79, 0xA7);
+static const uint16_t px_live = PX_RGB(0xE6, 0x9F, 0x00), px_rec = PX_RGB(0xD5, 0x5E, 0x00);
+static const uint16_t px_note = PX_RGB(0xF0, 0xE4, 0x42);
+
 static void px_colors(void)
 {
     px_ink = 0xFFFFu;
@@ -23,28 +39,36 @@ static void px_colors(void)
 }
 
 /* ---------------------------------------------------------- the canvas --- */
-/* A strip of the screen is drawn here as dots, 2 bits each (0 the background, 1 dim, 2 ink, 3 a fourth colour: the
- * last other one drawn), and turned into the LCD's pixels only as it's sent: two dot rows at a time into one of two
- * small line buffers, each sent while the other fills. A full-colour canvas of the tallest strip would be 51 KB
- * (Felucca's gfx.c canvas, 59.5 KB, which Bryo no longer uses); this is 1.6 KB of dots and 3.8 KB of lines, and
- * what reaches the LCD is the same, pixel for pixel. */
+/* A strip of the screen is drawn here as dots, 4 bits each: a palette of up to 16 colours a strip (0 the background,
+ * 1 dim, 2 ink, the rest given out as they're first drawn), turned into the LCD's pixels only as it's sent: two dot
+ * rows at a time into one of two small line buffers, each sent while the other fills. It was 2 bits a dot (one
+ * colour besides the three) until the screens took colour for state and activity (2026-10-11): the header alone
+ * needs three. 3.2 KB of dots and 3.8 KB of lines; a full-colour canvas of the tallest strip would be 51 KB. */
 #define PXC_ROWS 54u                  /* dot rows: the tallest strip, UPDATE MODE's lower 108 px */
-static uint8_t pxc[PXC_ROWS][30];     /* 120 dots a row, 4 a byte, the leftmost in the low bits */
+#define PXC_NPAL 16u                  /* colours a strip */
+static uint8_t pxc[PXC_ROWS][60];     /* 120 dots a row, 2 a byte, the left one in the low half */
 static uint32_t pxc_h;                /* the strip's rows */
-static uint16_t pxc_pal[4];
+static uint16_t pxc_pal[PXC_NPAL];
+static uint32_t pxc_n;                /* colours in it so far */
 static uint16_t pxc_line[2][4u * 240u];   /* 2 dot rows = 4 pixel rows, byte-swapped as the LCD takes them */
 static uint32_t pxc_b;                /* the buffer to fill next (the other may still be on its way to the LCD) */
 
 static uint32_t px_code(uint16_t c)
 {
+    uint32_t k;
     if (c == pxc_pal[2])
         return 2u;
     if (c == pxc_pal[0])
         return 0u;
     if (c == pxc_pal[1])
         return 1u;
-    pxc_pal[3] = c;
-    return 3u;
+    for (k = 3u; k < pxc_n; k++)
+        if (pxc_pal[k] == c)
+            return k;
+    if (pxc_n >= PXC_NPAL)
+        return 2u;                    /* (a 17th colour in one strip: ink. None of the screens draws that many) */
+    pxc_pal[pxc_n] = c;
+    return pxc_n++;
 }
 
 /* a strip h pixels tall (even: every strip starts and ends on the dot grid), cleared to the background */
@@ -55,9 +79,9 @@ static void px_begin(uint32_t h)
     pxc_pal[0] = px_bg;
     pxc_pal[1] = px_dim;
     pxc_pal[2] = px_ink;
-    pxc_pal[3] = px_ink;
+    pxc_n = 3u;
     for (r = 0; r < pxc_h; r++)
-        for (i = 0; i < 30u; i++)
+        for (i = 0; i < 60u; i++)
             pxc[r][i] = 0;
 }
 
@@ -67,9 +91,9 @@ static inline void px_set(int32_t x, int32_t y, uint32_t k)
     uint32_t sh;
     if ((uint32_t)x >= 120u || (uint32_t)y >= pxc_h)
         return;
-    b = &pxc[y][(uint32_t)x >> 2];
-    sh = ((uint32_t)x & 3u) * 2u;
-    *b = (uint8_t)((*b & ~(3u << sh)) | (k << sh));
+    b = &pxc[y][(uint32_t)x >> 1];
+    sh = ((uint32_t)x & 1u) * 4u;
+    *b = (uint8_t)((*b & ~(15u << sh)) | (k << sh));
 }
 
 static void px_dot(int32_t x, int32_t y, uint16_t c) { px_set(x, y, px_code(c)); }
@@ -97,9 +121,9 @@ static void px_box(int32_t x, int32_t y, int32_t w, int32_t h, uint16_t c)
 /* the strip to the screen at pixel row y (full width) */
 static void px_blit(uint32_t y)
 {
-    uint16_t pal[4];
+    uint16_t pal[PXC_NPAL];
     uint32_t r, j, x, k;
-    for (k = 0; k < 4u; k++)
+    for (k = 0; k < pxc_n; k++)
         pal[k] = (uint16_t)((pxc_pal[k] >> 8) | (pxc_pal[k] << 8));
     for (r = 0; r < pxc_h; r += 2u) {
         uint16_t *o = pxc_line[pxc_b];
@@ -108,7 +132,7 @@ static void px_blit(uint32_t y)
             const uint8_t *s = pxc[r + j];
             uint16_t *l = o + j * 480u;
             for (x = 0; x < 120u; x++) {
-                uint16_t c = pal[(s[x >> 2] >> ((x & 3u) * 2u)) & 3u];
+                uint16_t c = pal[(s[x >> 1] >> ((x & 1u) * 4u)) & 15u];
                 l[2u * x] = c;
                 l[2u * x + 1u] = c;
             }
@@ -335,8 +359,8 @@ static void px_meter_fader(int32_t x, int32_t y, int32_t ratio, int32_t m, uint1
         px_dot(x + 4, y + i, px_dim);
         px_dot(x + 17, y + i, px_dim);
     }
-    if (m > 0)
-        px_box(x + 10, y + 20 - m, 2, m, c);
+    if (m > 0)                                           /* (the meter: live, in orange, where the fader's on) */
+        px_box(x + 10, y + 20 - m, 2, m, c == px_ink ? px_live : c);
     for (i = 0; i < 3; i++) {                            /* the notches: little arrowheads, 3 dots deep */
         px_line(x + 5 + i, ly - (2 - i), x + 5 + i, ly + (2 - i), c, 1);
         px_line(x + 16 - i, ly - (2 - i), x + 16 - i, ly + (2 - i), c, 1);

@@ -104,6 +104,7 @@ enum { PJ_ASK_NONE, PJ_ASK_LOAD, PJ_ASK_SAVE };
 static void draw_viz(void);           /* ui_viz.c */
 static void viz_project_strip(void);  /* ui_viz.c: the project view's selected slot */
 static uint32_t page_target(uint32_t c);   /* ui_input.c: knob c's modulation target (MOD_NTGT: none) */
+static uint32_t focus_btn(void);      /* ui_input.c: the pad of the page shown (NB: none) */
 static void viz_usbrec_strip(void);   /* ui_viz.c: the record mode's tracks */
 
 static void ui_message(const char *s)
@@ -238,6 +239,7 @@ static void draw_head(void)
     fmt_int(bpm, sys.bpm);
     sig = hash_str(hash_str(hash_str(2166136261u, ti), bpm), box) + pages * 977u + page * 61u + sys.playing * 7u + ((sys.rec >> sys.sel) & 1u) * 131u +
           ux.theme * 3u + (ur.state == UR_RECORDING) * 524287u + ui.unsaved * 8191u;
+    sig += (uint32_t)focus_btn() * 104729u;
     if (!ui.force && sig == ui.sig_head)
         return;
     ui.sig_head = sig;
@@ -245,9 +247,14 @@ static void draw_head(void)
     px_begin(UI_HEAD_H);
     {
         int32_t bw = px_text_w(PXF_5, box) + 4, x = bw + 2, bar;
+        uint32_t fb = focus_btn();
+        int recording = ui.view == VIEW_USBREC ? ur.state == UR_RECORDING : (int)((sys.rec >> sys.sel) & 1u);
+        uint16_t fam = fb == B_LFO || fb == B_SEQ || fb == B_ENV || fb == B_ARP ? px_mod : fb < NB ? px_page : px_ink;
+        uint16_t barc = recording ? px_rec : px_ink;    /* (the page's pad's colour on its name and dots; recording,
+                                                         * the tempo bar red: the dot in it says so too) */
         px_frame(0, 1, bw, 11, px_ink, 1);
         px_text(2, 3, PXF_5, box, px_ink);
-        x = px_text(x, 3, PXF_5B, ti, px_ink);
+        x = px_text(x, 3, PXF_5B, ti, fam);
         if (pages > 1u) {                                  /* the pages, side by side: the shown one a block, the other a dot
                                                             * (4 dots apart; 2 apart, the shown one a tick, when the tempo
                                                             * bar would have no room left for the tempo, the transport and
@@ -258,19 +265,23 @@ static void draw_head(void)
             int tight = 120 - (x + 2 + 4 * (int32_t)pages) < need;
             for (g = 0; g < pages; g++) {
                 if (tight)
-                    px_box(x + 3 + (int32_t)g * 2, g == page ? 5 : 6, 1, g == page ? 3 : 1, px_ink);
+                    px_box(x + 3 + (int32_t)g * 2, g == page ? 5 : 6, 1, g == page ? 3 : 1, fam);
                 else if (g == page)
-                    px_box(x + 2 + (int32_t)g * 4, 5, 3, 3, px_ink);
+                    px_box(x + 2 + (int32_t)g * 4, 5, 3, 3, fam);
                 else
-                    px_dot(x + 3 + (int32_t)g * 4, 6, px_ink);
+                    px_dot(x + 3 + (int32_t)g * 4, 6, fam);
             }
             x += tight ? 3 + 2 * (int32_t)pages : 2 + 4 * (int32_t)pages;
         }
+        if (ui.unsaved) {                                  /* not saved: the asterisk in yellow, before the bar */
+            px_art(x + 1, 4, PX_UNSAVED, 5, px_note);
+            x += 7;
+        }
         bar = x + 1;
-        px_box(bar, 1, 120 - bar, 11, px_ink);
+        px_box(bar, 1, 120 - bar, 11, barc);
         x = 118 - px_text_w(PXF_5, bpm);
         px_text(x, 3, PXF_5, bpm, px_bg);
-        if (x - 7 - bar >= 13 + (ui.unsaved ? 7 : 0))     /* the metronome, when the title leaves room */
+        if (x - 7 - bar >= 13)                             /* the metronome, when the title leaves room */
             px_art(x -= 7, 3, PX_METRO, 7, px_bg);
         x -= 6;
         if (sys.playing) {                                 /* a triangle playing, a square stopped */
@@ -280,14 +291,11 @@ static void draw_head(void)
         } else {
             px_box(x, 4, 4, 5, px_bg);
         }
-        if (ui.view == VIEW_USBREC ? ur.state == UR_RECORDING : (sys.rec >> sys.sel) & 1u) {   /* REC armed (the record
-                                                                                             * mode: recording): a dot */
+        if (recording) {                                   /* REC armed (the record mode: recording): a dot */
             x -= 7;
             px_box(x + 1, 4, 3, 5, px_bg);
             px_box(x, 5, 5, 3, px_bg);
         }
-        if (ui.unsaved && x - 7 >= bar + 1)                /* changes not saved yet: an asterisk (SAVE clears it) */
-            px_art(x - 7, 4, PX_UNSAVED, 5, px_bg);
     }
     px_blit(0);
 }
@@ -355,9 +363,10 @@ static void rails_draw(int32_t y)
         if (!rail_of(c, &set, &lo, &hi, &now))
             continue;
         px_line(x, y + 2, x + RAIL_W - 1, y + 2, px_dim, 2);
-        px_line(x + lo, y + 2, x + hi, y + 2, px_ink, 1);
+        px_line(x + lo, y + 2, x + hi, y + 2, px_mod, 1);   /* (its reach and where it is now: the modulators'
+                                                            * colour, as their pads) */
         px_line(x + set, y, x + set, y + 4, px_dim, 1);
-        px_box(x + now - 1, y + 1, 3, 3, px_ink);
+        px_box(x + now - 1, y + 1, 3, 3, px_mod);
     }
 }
 
@@ -479,7 +488,7 @@ static void draw_strip(void)
             continue;
         }
         if (page_target(k) < MOD_NTGT && mod_any(sys.sel, page_target(k)))   /* modulated: a mark in the corner */
-            px_box(x + 26, 1, 2, 2, px_ink);
+            px_box(x + 26, 1, 2, 2, px_mod);
         if (ui.slot_held < NSLOT && page_target(k) < MOD_NTGT) {   /* a slot's pad held: its depth to this knob */
             int32_t dp = mod_dep(sys.sel, ui.slot_held, page_target(k));
             if (!mod_tdesc(page_target(k))) {
@@ -493,7 +502,7 @@ static void draw_strip(void)
                 fmt_int(val, dp);
             }
             str_cpy(val + str_len(val), "%", 2);
-            px_text_c(x, 30, 37, PXF_5, val, dp ? px_ink : px_dim);
+            px_text_c(x, 30, 37, PXF_5, val, dp ? px_mod : px_dim);   /* (a depth: a modulator's colour) */
             continue;
         }
         if (ui.kind == FOCUS_SLOT && ui.view == VIEW_PAGE && tp[sys.sel].engine[ui.slot] == ME_WAVE && ui.page == 0u &&

@@ -41,6 +41,8 @@ typedef struct {
     uint32_t w;                      /* the write index, shared by the strings */
     int32_t lp[RS_N];                /* each loop's low-pass */
     uint32_t quiet;                  /* samples in a row of silence in and next to none out (the strings resting) */
+    volatile uint16_t lvl[RS_N];     /* ISR -> the screen: each string's level, a peak of its loop's sample taken once
+                                      * a block, falling an eighth a block (ui_viz.c: a string ringing, in orange) */
     int32_t ic1, ic2;                /* the filter in front */
     int32_t root16;                  /* a key's root, 1/16 semitone (0: none, PTCH's; a key's is F1 at least) */
     int32_t rs16;                    /* the root the strings sound, gliding to the root (0: not yet) */
@@ -168,7 +170,7 @@ static void reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t keys, int pl
         R->dry = 32768;
         R->rs16 = 0;
         for (k = 0; k < RS_N; k++)
-            R->dq[k] = 0;
+            R->dq[k] = R->lvl[k] = 0;
         return;
     }
     root16 = reso_root16(t);
@@ -269,6 +271,11 @@ static void reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t keys, int pl
             }
         }
         R->lp[k] = lp;
+        {                                               /* (its level for the screen: a block's last sample, held) */
+            uint32_t a = (uint32_t)(lp < 0 ? -lp : lp), l0 = R->lvl[k];
+            l0 -= l0 >> 3;
+            R->lvl[k] = (uint16_t)(a > l0 ? (a > 65535u ? 65535u : a) : l0);
+        }
     }
     if (nstr) {
         R->w = (R->w + n) % RS_LEN;
@@ -280,6 +287,9 @@ static void reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t keys, int pl
         else if ((R->quiet += n) > RS_LEN + CTL)
             for (k = 0; k < RS_N; k++)
                 R->lp[k] = 0;
+    } else {
+        for (k = 0; k < RS_N; k++)                      /* (resting, or off: nothing ringing) */
+            R->lvl[k] = 0;
     }
     {   /* WET: the strings against the track, ramped across the block (Q15: no division a sample). INS crossfades;
          * SEND keeps the track at full and adds the strings (ROUT: the track's share ramped when it's switched) */
