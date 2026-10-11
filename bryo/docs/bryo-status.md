@@ -13,9 +13,9 @@ cite its sections as "PRD 2.2" and so on). Each track is a source (TAPE, SYNTH, 
 GRAIN, RESONATOR, COLOR, SPACE, then a channel strip into the mix and a master compressor. Four modulator slots
 per track move any of it: hold a slot's pad, turn a knob.
 
-**Phases 1 to 9 of 10 are built, with one piece open (p-locks), and verified on the host only.** Nothing has run on
-an FM-1 yet. The next real milestone is the hardware checkpoint (`docs/hardware-checkpoint.md`): flash it, read
-the CPU load, listen.
+**Phases 1 to 9 of 10 are built, with one piece open (p-locks).** On 2026-10-10 it ran on an FM-1 for the first
+time: installed over USB-MIDI from stock V15, it boots, plays the four factory reels clean, and run 1 reads 25 % CPU.
+The rest of the hardware checkpoint (`docs/hardware-checkpoint.md`) is under way.
 
 | Phase | State |
 | --- | --- |
@@ -30,7 +30,7 @@ the CPU load, listen.
 | 7b DRUM | done: a fourth source, a CR-78-inspired drum machine of Bryo's own sounds, patterns, rhythms and SEED |
 | 8 Projects | done: six slots in flash (A/B), SAVE, the project view, the last one back at power-on; takes kept in user reels |
 | 9 Screen | done: the dot-grid screens; a rail under each modulated knob (reach, set, a block where it is now) |
-| 10 Tools + docs | not started: reel upload tool, installer text, a manual |
+| 10 Tools + docs | started: the manual (`docs/manual/`); still to do: reel upload tool, installer text |
 
 ## The instrument on one page
 
@@ -44,8 +44,9 @@ the CPU load, listen.
 ```
 
 - **Pages and knobs.** KNOB 1 to 4 always edit the four values on screen. HOME is the source (its pages: TAPE 3,
-  SYNTH 5, POLY 4, DRUM 4, each ending with LVL); EDIT is GRAIN then RESONATOR; FX is COLOR then SPACE; LFO ENV SEQ ARP are
-  the slots; GLO is the mixer (EDIT there: the channel, then MASTER); ALGORITHM turned is REC IN. A pad held +
+  SYNTH 5, POLY 4, DRUM 4, each ending with LVL); EDIT is GRAIN then RESONATOR; FX is COLOR then SPACE; LFO ENV SEQ are
+  the modulators (LFO: M1-M3, picked with OP1-OP3 while it's held; ENV: M2; SEQ: M4) and ARP the arpeggiator; GLO is
+  the mixer (EDIT there: the channel, MASTER, SETUP); ALGORITHM turned is REC IN. A pad held +
   SELECT picks that pad's thing (HOME: the source; a slot: its engine; GLO: TRACKS). Every control in every
   context is in `docs/controls.tsv`, checked by `tests/controls_check.py`. GRAIN, RESONATOR and COLOR have ROUT:
   INS (WET crossfades) or SEND (the dry at full, the device added).
@@ -55,7 +56,10 @@ the CPU load, listen.
 - **The keys.** White keys play slices (TAPE), notes (SYNTH, POLY) or the drum kit (DRUM: on its STEP page they
   write steps, accents, live hits, or wipe), set RESONATOR's root on its page, move GRAIN's cursor on its page, and
   pick SEQ steps on a SEQ page. Black keys: OP1 to OP4 mute, OP5 reverse, OP6 half
-  speed, MONO and POLY clear (held), 0 freezes GRAIN.
+  speed, MONO and POLY clear (held), 0 freezes GRAIN; or, with SETUP's KEYS on NOTE (GLO held + OCT+), the 27 keys
+  are a keyboard from F on SYNTH and POLY, and the black keys play.
+- **ARP.** Per track, on SYNTH and POLY: the keys held go in, one note at a time comes out in time (KEY, LTCH, ADD;
+  UP DOWN UPDN RND PLAY; 1-3 octaves; RATE, GATE, SWNG). `arp.c`.
 - **DRUM.** Sixteen synthesized instruments on the white keys, a pattern of 2 to 4 bars, ten written rhythms
   (PATN), and SEED: any value but 0 plays a version that varies the pattern the way a player would (the backbone
   kept, ghost notes, the hats thinning and filling, fills at the end), the same version every time. OCT- / OCT+ pick
@@ -109,6 +113,7 @@ Felucca's `felucca.c` did); `tests/bryo_host.c` includes the same files for the 
 | `mem.c` | the shared sound memory: chunks and owners |
 | `tape.c` | TAPE: ADPCM tapes, reels, the head, REC and overdub, clear and undo |
 | `synth.c`, `poly.c`, `source.c` | SYNTH, POLY, and the source table |
+| `arp.c` | the arpeggiator: the keys into one note at a time, in time, before SYNTH and POLY |
 | `drum_voice.c`, `drum.c` | DRUM: the one synthesizer every instrument shares; the kit, the rhythms, SEED's versions, the player |
 | `grain.c` | GRAIN: the live buffer, the scheduler, the shared pool of grains |
 | `reso.c`, `color.c`, `space.c` | RESONATOR, COLOR, SPACE |
@@ -133,6 +138,7 @@ Tests and tools:
 | `tests/mod_audit.sh` | every knob a modulator can move: does it change the sound, does it step at the blocks, what it costs (`--cost`) |
 | `tests/controls_check.py`, `coverage.py` | the controls map; line coverage of Bryo's files |
 | `tools/gen_reels.py`, `gen_tables.py` | the factory reels; the generated tables (`build/gen/`) |
+| `tools/gen_manual_shots.py` | the manual's pictures from the screen renders (the suite checks they're current) |
 
 ## Building, testing, measuring
 
@@ -144,30 +150,34 @@ python3 tests/ui_golden.py update tests/bryo_golden.txt build/bryo_ui   # after 
 ./build.sh                               # the device image: needs JieLi's toolchain and SDK (BUILDING.md)
 ```
 
-The type check the suite runs is worth running alone after any firmware change: `clang -fsyntax-only -m32
--ffreestanding -fno-builtin -Wall -Wno-unused-function -Ifirmware/hal -Ifirmware/src -Ibuild/gen
-firmware/src/bryo.c` (no warnings is the bar). For memory-safety, build `tests/bryo_host.c` or
+The type check the suite runs is worth running alone after any firmware change: `clang -fsyntax-only
+--target=i386-unknown-linux-gnu -ffreestanding -fno-builtin -Wall -Wno-unused-function -Ifirmware/hal
+-Ifirmware/src -Ibuild/gen firmware/src/bryo.c` (no warnings is the bar; the explicit 32-bit ELF target, not `-m32`,
+so it means the same on macOS, where clang would otherwise check for Mach-O). For memory-safety, build `tests/bryo_host.c` or
 `tests/checkpoint_sim.c` with `-fsanitize=address,undefined -fno-sanitize=shift`; `CHECKPOINT_SLOW=1` slows the
 stress test's timers for the sanitizer.
 
 **The unit of cost** is host instructions per output sample of `chain_block`, under callgrind, because I can't
-measure the device here. Where it stands (`checkpoint_sim.sh`, 2026-10-10):
+measure the device here. Where it stands (`checkpoint_sim.sh`, 2026-10-10; runs 1, 19, 24 and 15 measured again after the arpeggiator went
+in, about 4 a sample for the four arpeggiators and the new reels; the rest are from before it):
 
 | Run | What | Cost |
 | --- | --- | ---: |
-| 1 | four reels, nothing on | 938 |
-| 19 | a realistic four-track groove | 1,615 |
-| 24 | the groove, modulated the way I'd play it | 1,812 (87 of it the modulators) |
+| 1 | four reels, nothing on | 944 |
+| 19 | a realistic four-track groove | 1,616 |
+| 24 | the groove, modulated the way I'd play it | 1,815 (87 of it the modulators) |
 | 21 | the groove's busiest moment | 2,454 |
 | 23 | GRAIN at its densest on one track | 2,986 |
 | 25 | every slot on every track, 128 depths | 3,161 |
 | 26 | DRUM busy alone (FUNK, VARY 100, FILL 100, long decays), the others plain reels | 1,308 |
 | 27 | the groove with a DRUM track in place of its drum reel | 1,898 |
 | 28 | four DRUM tracks at once, every voice (20) | 2,482 |
-| 15 | everything on, all four tracks | 4,909 |
+| 15 | everything on, all four tracks | 4,908 |
 
-My target for a realistic four-track scene is 2,000; the device's real ratio of host instructions to CPU load is
-the question the hardware checkpoint answers (one reading of run 1 turns all of these into percentages).
+My target for a realistic four-track scene is 2,000. The first device reading (run 1, 2026-10-10: 25 %, in 5 % steps)
+puts the ratio at about 37.6 host instructions a sample per percent, if the load scales with the host's count: the
+groove would be about 43 %, the target 53 %, and everything on (run 15) about 130 %, which sheds. The next runs
+test that it scales.
 
 **Flash:** the image runs in place from 568 KiB. On the same host measure (LLVM, `-Os`, 32-bit), Bryo is now 139 KB
 of code and 159 KB of constants (302 KB; it was 281 on 10-08, before modulation and the LEVEL pages). Allowing the
@@ -240,6 +250,20 @@ number.
   (SEQ's new SPRD AMT OFS made the project format version 2). DRUM's hits trigger the modulators as keys do; HOME
   turns the page as it's let go; OCT moves DRUM's bar only on DRUM's own pages.
 
+- **2026-10-10: ARP is an arpeggiator, the modulators are three swappable and a sequencer.** The ARP pad played a
+  fourth modulator slot; now it's a real arpeggiator (`arp.c`) that sits between the keys and SYNTH or POLY and hands
+  the source one note at a time, always with a silent block between steps, so neither the sources nor the KEY
+  triggers needed anything new. The three swappable modulators (LFO, ADSR, FOLLOW: never SEQ) live on the LFO pad
+  (held + OP1-OP3 picks), ENV keeps M2, SEQ keeps M4. Slots keep their stored numbers (slot 2 the SEQ, slot 3 the old
+  ARP slot, now M3), so projects and depths didn't move; the project format went to 3 for the arpeggiator's knobs.
+  It isn't in track presets: like the pattern, it's the music, not the sound.
+- **2026-10-10: the panel's preferences are the instrument's.** SETUP (the mixer's fourth page): KEYS (shortcuts or
+  a keyboard), KNOB (1X, 2X, 4X, ACC: Felucca's acceleration), HOLD, LEDS. KEYS and KNOB live in a byte of the
+  settings record no Felucca engine uses (settings.c), so going back to Felucca reads nothing from it.
+- **2026-10-10: a blank project.** OCT+ on an EMPTY project slot starts one there: defaults, empty tapes, no reels,
+  no pattern, no depths. The factory reels are rewritten as generative patches (Turing-machine and Euclidean
+  melodies, one bar each); power-on with nothing saved still plays them.
+
 ## Known considerations and open questions
 
 - **P-locks** (a SEQ step's own depth): waiting on a decision. SEQ's step values are in.
@@ -261,9 +285,10 @@ number.
 
 ## What's next
 
-1. **The hardware checkpoint** (`docs/hardware-checkpoint.md`): build, flash, read the CPU on the run sheet,
-   listen. Everything after depends on those numbers.
-2. **Phase 10, tools and docs:** a Bryo manual, the installer's text.
+1. **The hardware checkpoint** (`docs/hardware-checkpoint.md`): run 1 is in (25 %, clean); the rest of the run
+   sheet, then listen. Everything after depends on those numbers.
+2. **Phase 10, tools and docs:** the manual is drafted (`docs/manual/`, checked on hardware as the checkpoint
+   goes); the installer's text.
 3. **DRUM by ear:** listen to the kit and the rhythms, tune `DRM_KIT` and `DRM_PRESET`.
 4. Decisions waiting: p-locks, SPRD on PAN, and whether shared aux buses (one reverb all tracks send to) are worth
    a chain rework (ROUT's per-track sends are in).
@@ -273,6 +298,7 @@ number.
 | Doc | What it holds |
 | --- | --- |
 | `README.md` | what Bryo is, what works on the panel, building and testing |
+| `docs/manual/` | the manual: step by step, with the screens (its pictures: `tools/gen_manual_shots.py`) |
 | `docs/bryo-status.md` | this page |
 | `docs/bryo-architecture.md` | the plan against the hardware, the budgets, and an "as built" section per part: how each one works, what it costs, how it's tested, and what I changed my mind on |
 | `docs/controls.tsv` | every control, in every context, with its status and phase |

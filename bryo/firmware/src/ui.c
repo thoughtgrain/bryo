@@ -21,10 +21,11 @@
 #define UI_FOOT_H 24
 #define UI_MSG_FRAMES 70             /* a message holds the visualization panel ~1 s (~66 frames/s) */
 
-enum { FOCUS_DEV, FOCUS_SLOT };
+enum { FOCUS_DEV, FOCUS_SLOT, FOCUS_ARP };   /* FOCUS_ARP: the arpeggiator's page (the ARP pad) */
 enum { UNDO_TAPE, UNDO_MOD, UNDO_DRUM, UNDO_TRACK };
 #define SLOT_NONE 0xFFu
-enum { CHAN_LEVELS, CHAN_STRIP, CHAN_MASTER };   /* ui.chan: the mixer's page */      /* what the strip shows: a device of the track, or a modulator slot */
+enum { CHAN_LEVELS, CHAN_STRIP, CHAN_MASTER, CHAN_SETUP };   /* ui.chan: the mixer's page (SETUP: the panel's
+                                                                * preferences, settings.c) */      /* what the strip shows: a device of the track, or a modulator slot */
 enum { VIEW_PAGE, VIEW_MIXER, VIEW_ROUTE, VIEW_USBREC, VIEW_PROJECT };   /* VIEW_PROJECT: PRESETS turned, the
                                                                           * project slots (project.c) */   /* VIEW_MIXER: GLO, the four track levels on the knobs,
                                                             * the tracks below; VIEW_ROUTE: ALGORITHM, each track's
@@ -65,6 +66,11 @@ static struct {
     uint32_t pj_ask_t;
     uint8_t slot_held, slot_used;    /* a slot's pad down (SLOT_NONE: none), and a knob or SELECT turned meanwhile: a
                                       * tap opens the slot's page as it's let go, a hold sets depths (mod.c) */
+    uint8_t slot_btn;                /* .. the pad held (B_LFO, B_ENV, B_SEQ): the LFO pad holds any of the three
+                                      * swappable slots */
+    uint8_t lfo_slot;                /* the slot the LFO pad shows: 0, 1 or 3 (M1 M2 M3; LFO held + OP1 OP2 OP3) */
+    uint32_t enc_t[5];               /* KNOB 1-4 and SELECT: when each was last turned, for SETUP's KNOB ACC (ui_input.c
+                                      * knob_steps) */
     uint8_t catch_g, catch_s;        /* a depth turned to 0 (the catch, mod_nudge): its target and slot, and the way
                                       * the turn went (0: no catch); turning on that way stays at 0 until the knob
                                       * rests CATCH_MS */
@@ -120,6 +126,18 @@ static const pdesc_t *ui_page(uint32_t k, int16_t **vp)
     static const pdesc_t LEVEL[NTRK] = {{"T1", 0, 127, 100, F_NUM}, {"T2", 0, 127, 100, F_NUM},
                                         {"T3", 0, 127, 100, F_NUM}, {"T4", 0, 127, 100, F_NUM}};
     static int16_t lv[NTRK];
+    if (ui.view == VIEW_MIXER && ui.chan == CHAN_SETUP) {   /* SETUP: the instrument's preferences (settings.c), as
+                                                          * they are now (ui_input.c setup_set writes them back) */
+        uint32_t i;
+        lv[ST_KEYS] = (int16_t)(bryo_prefs & BPREF_NOTES);
+        lv[ST_KNOB] = (int16_t)((bryo_prefs >> 1) & 3u);
+        lv[ST_HOLD] = (int16_t)(settings_hold % 4u);
+        for (i = 0; i < 4u && LEDS_MENU[i] != settings_leds; i++)
+            ;
+        lv[ST_LEDS] = (int16_t)(i % 4u);
+        *vp = &lv[k];
+        return &SET_P[k];
+    }
     if (ui.view == VIEW_MIXER && ui.chan == CHAN_MASTER) {   /* the master compressor (one for all tracks) */
         *vp = &mst[k];
         return &MS_P[k];
@@ -141,6 +159,11 @@ static const pdesc_t *ui_page(uint32_t k, int16_t **vp)
     if (ui.drm_inst && ui.kind == FOCUS_DEV) {          /* a DRUM instrument held: its own knobs */
         *vp = &p->dins[(ui.drm_inst - 1u) & 15u][k];
         return &DRI_P[k];
+    }
+    if (ui.kind == FOCUS_ARP) {                        /* the arpeggiator */
+        k += 4u * ui.page;
+        *vp = &p->arp[k % NARP];
+        return &ARP_P[k % NARP];
     }
     if (ui.kind == FOCUS_SLOT) {
         k = pdesc_at(ME_P[p->engine[ui.slot]], k + 4u * ui.page);   /* (the page's position: the stored knob) */
@@ -168,9 +191,9 @@ static void draw_head(void)
 {
     char ti[16], box[4] = {'T', (char)('1' + sys.sel), 0, 0}, bpm[8];
     uint32_t sig;
-    int slot = ui.kind == FOCUS_SLOT && ui.view == VIEW_PAGE;
+    int slot = ui.kind == FOCUS_SLOT && ui.view == VIEW_PAGE, arp = ui.kind == FOCUS_ARP && ui.view == VIEW_PAGE;
     uint32_t pages = ui.view == VIEW_PROJECT ? 2u : ui.view != VIEW_PAGE ? 1u
-                   : pdesc_pages(slot ? ME_P[tp[sys.sel].engine[ui.slot]] : dev_p(sys.sel, ui.dev));
+                   : pdesc_pages(slot ? ME_P[tp[sys.sel].engine[ui.slot]] : arp ? ARP_P : dev_p(sys.sel, ui.dev));
     uint32_t page = ui.view == VIEW_PROJECT ? ui.pj_page : ui.page;
     if (ui.view == VIEW_USBREC) {
         str_cpy(ti, "USB RECORD", sizeof ti);
@@ -182,14 +205,14 @@ static void draw_head(void)
         box[0] = 'P';
         box[1] = (char)('1' + ui.pj_sel);
     } else if (ui.view == VIEW_MIXER)
-        str_cpy(ti, ui.chan == CHAN_MASTER ? "MASTER" : ui.chan ? "CHANNEL" : "MIXER", sizeof ti);
+        str_cpy(ti, ui.chan == CHAN_SETUP ? "SETUP" : ui.chan == CHAN_MASTER ? "MASTER" : ui.chan ? "CHANNEL" : "MIXER", sizeof ti);
     else if (ui.view == VIEW_ROUTE)
         str_cpy(ti, "REC IN", sizeof ti);
     else
-        str_cpy(ti, slot ? ME_NAME[tp[sys.sel].engine[ui.slot]] : dev_name(sys.sel, ui.dev), sizeof ti);
-    if (slot) {
+        str_cpy(ti, slot ? ME_NAME[tp[sys.sel].engine[ui.slot]] : arp ? "ARP" : dev_name(sys.sel, ui.dev), sizeof ti);
+    if (slot) {                                         /* (a slot shows as its number: M1 M2 M3, the SEQ M4) */
         box[0] = 'M';
-        box[1] = (char)('1' + ui.slot);
+        box[1] = (char)('0' + SLOT_NUM[ui.slot % NSLOT]);
     }
     if (ui.drm_inst && !slot && ui.view == VIEW_PAGE) {      /* a DRUM instrument held: the box names it */
         box[0] = DRM_KIT[(ui.drm_inst - 1u) & 15u].code[0];
@@ -197,7 +220,7 @@ static void draw_head(void)
     }
     if (ui.slot_held < NSLOT && ui.view != VIEW_USBREC) {   /* a slot's pad held: the box names it (its depths below) */
         box[0] = 'M';
-        box[1] = (char)('1' + ui.slot_held);
+        box[1] = (char)('0' + SLOT_NUM[ui.slot_held % NSLOT]);
     }
     fmt_int(bpm, sys.bpm);
     sig = hash_str(hash_str(hash_str(2166136261u, ti), bpm), box) + pages * 977u + page * 61u + sys.playing * 7u + ((sys.rec >> sys.sel) & 1u) * 131u +
@@ -408,7 +431,9 @@ static void draw_strip(void)
             px_frame(x + 9, 8, 12, 12, px_dim, 2);
             continue;
         }
-        uint32_t pk = ui.view == VIEW_ROUTE ? PK_SRC : ui.view == VIEW_MIXER ? (ui.chan == CHAN_MASTER ? MS_PK[k] : CH_PK[k])
+        uint32_t pk = ui.view == VIEW_ROUTE ? PK_SRC : ui.view == VIEW_MIXER ? (ui.chan == CHAN_SETUP ? SET_PK[k]
+                                                   : ui.chan == CHAN_MASTER ? MS_PK[k] : CH_PK[k])
+                    : ui.kind == FOCUS_ARP ? ARP_PK[(uint32_t)(d - ARP_P) % NARP]
                     : ui.kind == FOCUS_SLOT ? ME_PK[tp[sys.sel].engine[ui.slot]][(uint32_t)(d - ME_P[tp[sys.sel].engine[ui.slot]])]
                     : ui.drm_inst ? DRI_PK[k]
                     : dev_pk(sys.sel, ui.dev)[(uint32_t)(d - dev_p(sys.sel, ui.dev))];   /* (the stored knob's) */
@@ -476,14 +501,20 @@ static void draw_foot(void)
         str_cpy(a, "OCT+:LOAD SAVE OCT-:BACK", sizeof a);
     else if (ui.scl_held)                             /* SCL held: what a knob and the page's pad do */
         str_cpy(a, "KNOB:DEFAULT PAD:PAGE", sizeof a);
-    else if (ui.slot_held < NSLOT)                    /* a slot's pad held: what it does */
-        str_cpy(a, "KNOB:DEPTH SEL:ENGINE", sizeof a);
+    else if (ui.slot_held < NSLOT)                    /* a slot's pad held: what it does (the LFO pad: OP1-3 pick
+                                                       * its slot; the SEQ's engine stays) */
+        str_cpy(a, ui.slot_btn == B_LFO ? "KNOB:DEPTH OP1-3:M1-3" : ui.slot_held == SLOT_SEQ ? "KNOB:DEPTH"
+                   : "KNOB:DEPTH SEL:ENGINE", sizeof a);
+    else if (ui.view == VIEW_PAGE && ui.kind == FOCUS_ARP)   /* the arpeggiator: the keys, and the latched notes' clear */
+        str_cpy(a, tp[sys.sel].src != SRC_SYNTH && tp[sys.sel].src != SRC_POLY ? "SYNTH, POLY ONLY"
+                   : tp[sys.sel].arp[AR_MODE] >= ARM_LTCH ? "POLY HELD: CLEAR" : "KEYS: ARP", sizeof a);
     else if (ui.view == VIEW_PAGE && ui.kind == FOCUS_SLOT && tp[sys.sel].engine[ui.slot] == ME_SEQ)
         str_cpy(a, "KEY+KNOB 1: STEP", sizeof a);
     else if (ui.glo_held)                             /* the white keys pick the track; SELECT sets TRACKS */
         str_cpy(a, "KEYS:TRK SEL:TRACKS", sizeof a);
     else if (ui.view == VIEW_MIXER)
-        str_cpy(a, ui.chan == CHAN_MASTER ? "EDIT: LEVELS" : ui.chan ? "EDIT: MASTER" : "EDIT: CHANNEL", sizeof a);
+        str_cpy(a, ui.chan == CHAN_SETUP ? "EDIT: LEVELS" : ui.chan == CHAN_MASTER ? "EDIT: SETUP" : ui.chan ? "EDIT: MASTER"
+                   : "EDIT: CHANNEL", sizeof a);
     else if (ui.view == VIEW_ROUTE)
         str_cpy(a, "KNOBS: REC IN", sizeof a);
     else if (tp[sys.sel].src == SRC_DRUM && ui.kind == FOCUS_DEV && ui.dev == DEV_SRC) {   /* DRUM: what a key does */

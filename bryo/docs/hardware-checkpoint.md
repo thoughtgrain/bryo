@@ -89,7 +89,7 @@ third of the reels.
    (BUILDING.md has the details).
 2. `./build.sh`. Its last lines print the image size, the RAM and the pool. Note them: I expect the pool at about
    312 KB of 336 and RAM at about 80 KB of 96. The build refuses if the pool's 8 KB of headroom is gone.
-3. Install `build/felucca.fwsc` from the web installer, as always. The update loader is untouched, so going back to
+3. Install `build/bryo.fwsc` from the web installer, as always. The update loader is untouched, so going back to
    stock works the same way it did.
 
 ## Where to read the load
@@ -132,6 +132,31 @@ Write down the CPU reading for each, and anything you hear.
 | 25 | PRESETS: turn to P2, SAVE (empty: saved at once); change the tempo; turn back to P1, OCT+, OCT+ again | P1 loaded after the second press, the tempo it had | does the second-press question read clearly? |
 | 26 | PRESETS, EDIT (the PRESETS page), turn past H to the factory ones; for each, focus a track of its source (TAPE on a reel, a SYNTH, POLY, DRUM track), OCT+, play it; SAVE held after one | each loads with no question and sounds like its name; none much louder or quieter than the last; SAVE held puts the track back | by ear: which to retune (they were level-matched on the host, not listened to) |
 | 27 | On a track: SCL held, turn a knob; SCL held, press the lit pad; SAVE held. Then save the track as preset A, power-cycle, load A into another track | the knob, then the page, to defaults; SAVE held brings them back; A survives the power cycle and loads | that SCL is held (not a tap) |
+
+## What the FM-1 read
+
+First time on the device: 2026-10-10, installed from stock V15 (FM-1_015) with `tools/fm1_install.py`. The
+prediction scales each run's host cost (`checkpoint_sim run N` under callgrind, measured the same day in a linux/amd64
+container) by run 1's reading, 25 % for 940: about 37.6 a sample per percent. If the readings track it, the host's
+count is a fair proxy for the device; where they don't, the run's DSP costs the device more (or less) than the host.
+Run 4's host cost is missing: valgrind crashes on it under emulation, though the run itself is clean (natively, and
+under the address and undefined-behaviour sanitizers).
+
+| # | Host cost | Predicted | Read | Heard |
+| --- | ---: | ---: | ---: | --- |
+| 1 | 940 | (the scale) | 25 % | clean |
+| 2 | 1,621 | 43 % | | |
+| 3 | 2,331 | 62 % | | |
+| 4 | ? | | | |
+| 5 | 1,972 | 52 % | | |
+| 6 | 2,252 | 60 % | | |
+| 11 | 1,893 | 50 % | | |
+| 12 | 3,270 | 87 % (sheds) | | |
+| 13 | 1,693 | 45 % | | |
+| 14 | 1,820 | 48 % | | |
+| 15 | 4,904 | 130 % (sheds) | | |
+| 19 | 1,609 | 43 % | | |
+| 22 | 1,781 | 47 % | | |
 
 ## What I'll do with the numbers
 

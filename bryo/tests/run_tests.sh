@@ -5,7 +5,7 @@
 #   tests/run_tests.sh
 #
 # Without a device build (needs cc, python3 with Pillow + fontTools; clang and node when present):
-#   firmware type check  bryo.c with clang -fsyntax-only -m32 in every build-flag combination (a stand-in for the
+#   firmware type check  bryo.c with clang -fsyntax-only for i386 ELF in every build-flag combination (a stand-in for the
 #                        JieLi compiler's front end: types, declarations, missing symbols); build.py's register rules
 #   hardware layer       storage (A/B, torn writes), the input scan (debounce, encoders, LEDs), the TRS MIDI parser,
 #                        USB audio (descriptors with and without CDC, ring, packets), every USB descriptor layout,
@@ -18,7 +18,7 @@
 #                        tests/controls_check.py: docs/controls.tsv well formed, every physical control in it;
 #                        the factory reels deterministic; tests/coverage.py: line coverage (with gcov)
 #   installer            tools/fm1_install.py against a simulated FM-1; the web installer and its backup code
-# With ./build.sh's build/felucca.fwsc: the M-UPGRADE entry and the update loader against the real package.
+# With ./build.sh's build/bryo.fwsc: the M-UPGRADE entry and the update loader against the real package.
 set -e
 cd "$(dirname "$0")/.."
 OUT=build/host
@@ -42,7 +42,7 @@ fi
 # ---- the firmware, without the JieLi toolchain
 if command -v clang >/dev/null 2>&1; then
     tc() {   # flags...: no diagnostic at all
-        n=$(clang -fsyntax-only -m32 -ffreestanding -Os -fno-builtin -Wall -Wno-unused-function "$@" \
+        n=$(clang -fsyntax-only --target=i386-unknown-linux-gnu -ffreestanding -Os -fno-builtin -Wall -Wno-unused-function "$@" \
             -Ifirmware/hal -Ifirmware/src -I"$GEN" firmware/src/bryo.c 2>&1 | tee "$OUT/typecheck.log" | grep -cE "error|warning" || true)
         [ "$n" = 0 ] || { cat "$OUT/typecheck.log"; return 1; }
     }
@@ -102,9 +102,18 @@ rm -rf build/bryo_ui/ppm && mkdir -p build/bryo_ui/ppm      # (no renders left o
 $CC -I"$GEN" -Itests -o "$OUT/bryo_host" tests/bryo_host.c -lm
 run "Bryo: chain, input mapping, every screen" "$OUT/bryo_host" build/bryo_ui
 run "Bryo screens pixel-identical to tests/bryo_golden.txt" "$PY" tests/ui_golden.py check tests/bryo_golden.txt build/bryo_ui
-$CC -I"$GEN" -Itests -o "$OUT/checkpoint_sim" tests/checkpoint_sim.c -lm -lrt
+$CC -I"$GEN" -Itests -o "$OUT/checkpoint_sim" tests/checkpoint_sim.c -lm $( [ "$(uname -s)" = Linux ] && echo -lrt)
 run "Bryo under real interrupts: the audio and usb_poll cutting into the main loop, the shared memory's books (3 s)" "$OUT/checkpoint_sim" stress 3
 run "controls map (docs/controls.tsv): well formed, every physical control mapped" "$PY" tests/controls_check.py
+manual_shots() {   # the manual's pictures show the screens as they are (tools/gen_manual_shots.py to refresh them)
+    rm -rf "$OUT/manual" && "$PY" tools/gen_manual_shots.py build/bryo_ui/ppm "$OUT/manual" >/dev/null && "$PY" -c "
+import sys, os; from PIL import Image
+d = [f for f in sorted(os.listdir('$OUT/manual')) if not os.path.exists('docs/manual/img/' + f) or
+     Image.open('$OUT/manual/' + f).convert('RGB').tobytes() != Image.open('docs/manual/img/' + f).convert('RGB').tobytes()]
+print('manual: ' + ('stale pictures: ' + ' '.join(d) + ' (run tools/gen_manual_shots.py)' if d else 'every picture current'))
+sys.exit(1 if d else 0)"
+}
+run "the manual's pictures match the screens" manual_shots
 reels_same() { "$PY" tools/gen_reels.py "$OUT/reels_a.h" >/dev/null && "$PY" tools/gen_reels.py "$OUT/reels_b.h" >/dev/null &&
                cmp -s "$OUT/reels_a.h" "$OUT/reels_b.h" && cmp -s "$OUT/reels_a.h" "$GEN/bryo_reels.h"; }
 run "factory reels: tools/gen_reels.py makes the same bytes every time (the screens' fingerprints rely on it)" reels_same
@@ -123,15 +132,15 @@ else
 fi
 
 # ---- with a device build
-if [ -f build/felucca.fwsc ]; then
+if [ -f build/bryo.fwsc ]; then
     $CC -DOWN_PKG=1 -o "$OUT/ota_test" tests/ota_test.c
-    run "M-UPGRADE entry (own loader)" "$OUT/ota_test" build/felucca.fwsc
-    head -c 200000 build/felucca.bin > "$OUT/old_app.bin"
+    run "M-UPGRADE entry (own loader)" "$OUT/ota_test" build/bryo.fwsc
+    head -c 200000 build/bryo.bin > "$OUT/old_app.bin"
     "$PY" tools/fm1pkg_make.py "$OUT/old_app.bin" build/loader/ota.bin "$OUT/old.fwsc" >/dev/null
     $CC -o "$OUT/ldr_test" tests/ldr_test.c
-    run "update loader: other app -> this build" "$OUT/ldr_test" "$OUT/old.fwsc" build/felucca.fwsc
+    run "update loader: other app -> this build" "$OUT/ldr_test" "$OUT/old.fwsc" build/bryo.fwsc
 else
-    echo "== skip the update path tests (run ./build.sh first: they need build/felucca.fwsc)"
+    echo "== skip the update path tests (run ./build.sh first: they need build/bryo.fwsc)"
 fi
 
 [ $fail -eq 0 ] && echo "ALL HOST TESTS PASSED" || { echo "HOST TESTS FAILED"; exit 1; }

@@ -21,6 +21,9 @@
 #include <sys/time.h>                                    /*  libc functions) */
 #include <time.h>
 #include <unistd.h>
+#ifndef __linux__
+#include <pthread.h>                                     /* (TIMER5's ticker where there are no POSIX timers) */
+#endif
 #define main bryo_main
 #include "bryo_host.c"
 #undef main
@@ -473,6 +476,62 @@ static void on_timer5(int sig)                           /* TIMER5's usb_poll: t
 static sigset_t st_both;
 static void st_block(int on) { sigprocmask(on ? SIG_BLOCK : SIG_UNBLOCK, &st_both, 0); }
 
+/* TIMER5's signal, at its own rate beside the audio's setitimer. On Linux a POSIX timer on a real-time signal. macOS
+ * has neither (no timer_create, no SIGRTMIN), so there a thread sleeps the period and signals the main thread: the
+ * same asynchronous cut into the main loop at any instruction, from a second clock. */
+#ifdef __linux__
+#define ST_T5SIG SIGRTMIN
+static timer_t st_t5;
+static void st_t5_start(long ns)
+{
+    struct sigevent ev;
+    struct itimerspec its;
+    memset(&ev, 0, sizeof ev);
+    ev.sigev_notify = SIGEV_SIGNAL;
+    ev.sigev_signo = ST_T5SIG;
+    timer_create(CLOCK_MONOTONIC, &ev, &st_t5);
+    its.it_interval.tv_sec = its.it_value.tv_sec = 0;
+    its.it_interval.tv_nsec = its.it_value.tv_nsec = ns;
+    timer_settime(st_t5, 0, &its, 0);
+}
+static void st_t5_stop(void) { timer_delete(st_t5); }
+#else
+#define ST_T5SIG SIGUSR1
+static pthread_t st_t5_main, st_t5_thr;
+static volatile int st_t5_run;
+static long st_t5_ns;
+static void *st_t5_tick(void *arg)
+{
+    struct timespec p;
+    (void)arg;
+    p.tv_sec = 0;
+    p.tv_nsec = st_t5_ns;
+    while (st_t5_run) {
+        nanosleep(&p, 0);
+        pthread_kill(st_t5_main, ST_T5SIG);
+    }
+    return 0;
+}
+static void st_t5_start(long ns)
+{
+    sigset_t m, old;
+    st_t5_ns = ns;
+    st_t5_run = 1;
+    st_t5_main = pthread_self();
+    sigemptyset(&m);                                     /* the ticker inherits this: both interrupts land on the */
+    sigaddset(&m, SIGALRM);                              /* main loop, never on the ticker */
+    sigaddset(&m, ST_T5SIG);
+    pthread_sigmask(SIG_BLOCK, &m, &old);
+    pthread_create(&st_t5_thr, 0, st_t5_tick, 0);
+    pthread_sigmask(SIG_SETMASK, &old, 0);
+}
+static void st_t5_stop(void)
+{
+    st_t5_run = 0;
+    pthread_join(st_t5_thr, 0);
+}
+#endif
+
 /* the shared memory's books, with both interrupts held off: returns the number of problems (printed) */
 static uint32_t books(void)
 {
@@ -541,9 +600,6 @@ static int stress(double secs)
 {
     struct sigaction sa;
     struct itimerval it;
-    timer_t t5;
-    struct sigevent ev;
-    struct itimerspec its;
     static uint8_t w[6 * 22050 * 2 + 4096];
     uint32_t bad = 0, checks = 0, actions = 0, places = 0, takes = 0;
     double t0;
@@ -556,29 +612,23 @@ static int stress(double secs)
     st_lba = VD_DATA + 3000u * VD_SPC;
     sigemptyset(&st_both);
     sigaddset(&st_both, SIGALRM);
-    sigaddset(&st_both, SIGRTMIN);
+    sigaddset(&st_both, ST_T5SIG);
     memset(&sa, 0, sizeof sa);                           /* the audio: TIMER5's usb_poll can't run inside it */
     sa.sa_handler = on_audio;
     sigemptyset(&sa.sa_mask);
-    sigaddset(&sa.sa_mask, SIGRTMIN);
+    sigaddset(&sa.sa_mask, ST_T5SIG);
     sigaction(SIGALRM, &sa, 0);
     sa.sa_handler = on_timer5;                           /* TIMER5 outranks the audio: nothing cuts into it */
     sigemptyset(&sa.sa_mask);
     sigaddset(&sa.sa_mask, SIGALRM);
-    sigaction(SIGRTMIN, &sa, 0);
-    memset(&ev, 0, sizeof ev);
-    ev.sigev_notify = SIGEV_SIGNAL;
-    ev.sigev_signo = SIGRTMIN;
-    timer_create(CLOCK_MONOTONIC, &ev, &t5);
+    sigaction(ST_T5SIG, &sa, 0);
     sys.playing = 1;
     st_audio_on = st_usb_on = 1;
     it.it_interval.tv_sec = it.it_value.tv_sec = 0;
     it.it_interval.tv_usec = it.it_value.tv_usec = getenv("CHECKPOINT_SLOW") ? 1500 : 150;   /* (faster than the
                                                          * device: more cuts per second; SLOW for a sanitizer build) */
     setitimer(ITIMER_REAL, &it, 0);
-    its.it_interval.tv_sec = its.it_value.tv_sec = 0;
-    its.it_interval.tv_nsec = its.it_value.tv_nsec = getenv("CHECKPOINT_SLOW") ? 2300000 : 230000;
-    timer_settime(t5, 0, &its, 0);
+    st_t5_start(getenv("CHECKPOINT_SLOW") ? 2300000 : 230000);
     clock_gettime(CLOCK_MONOTONIC, &ts);
     t0 = ts.tv_sec + ts.tv_nsec * 1e-9;
     for (;;) {
@@ -701,7 +751,7 @@ static int stress(double secs)
     st_audio_on = st_usb_on = 0;
     it.it_interval.tv_usec = it.it_value.tv_usec = 0;
     setitimer(ITIMER_REAL, &it, 0);
-    timer_delete(t5);
+    st_t5_stop();
     bad += books();
     printf("checkpoint: stress %.0f s: %u audio blocks and %u USB sectors cut into the main loop, %u actions, %u "
            "book checks, %u WAVs placed, %u USB takes put on tracks: %s\n", secs, st_blocks, st_sectors, actions,

@@ -410,6 +410,8 @@ static inline int32_t mod_pitch16(uint32_t t, uint32_t f, int32_t knob)   /* a p
     return (mod_fmask[t] >> f) & 1u ? (mod_f8[t][f] + 8) >> 4 : knob * 16;
 }
 static uint32_t mod_keys_prev[NTRK];
+static uint32_t mod_xkeys[NTRK];         /* ISR (chain.c): the keys a track other than the focused one plays (a
+                                         * latched arpeggio), for the KEY triggers */
 static volatile uint8_t mod_hit;               /* a bit per track: its DRUM pattern struck (drum.c): its notes, as
                                                 * a key going down is (ADSR, TRIG KEY) */
 static volatile uint8_t mod_seam;              /* a bit per track: its loop started (tape.c: the tape's; drum.c: the
@@ -726,7 +728,7 @@ static void mod_tick(uint32_t keys, uint32_t sel, const int32_t *const *last)
     }
     for (t = 0; t < NTRK; t++) {
         const mod_list_t *L;
-        uint32_t k = t == sel ? keys : 0u, press = k & ~mod_keys_prev[t], hit = (hits >> t) & 1u, i, a, arrs;
+        uint32_t k = t == sel ? keys : mod_xkeys[t], press = k & ~mod_keys_prev[t], hit = (hits >> t) & 1u, i, a, arrs;
         int loop;
         mod_keys_prev[t] = k;
         mod_fmask[t] = 0;

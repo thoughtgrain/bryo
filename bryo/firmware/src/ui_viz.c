@@ -1218,6 +1218,72 @@ static void viz_seq(const int16_t *v, uint32_t f)
     }
 }
 
+/* ------------------------------------------------------------- ARP --- */
+/* the arpeggiator (arp.c): the notes it walks, one bar per step of the walk, as tall as its pitch among them, the step
+ * sounding solid and the rest outlined; up to 32 steps (RND: the notes it picks from, low to high, the one sounding
+ * solid). Under it the order and the octaves, or the last-turned knob. No notes: what to do. */
+static void viz_arp(const int16_t *v, uint32_t f)
+{
+    const arp_rt_t *r = &arp_rt[sys.sel];
+    uint8_t s[ARP_MAXN];
+    uint32_t n = arp_notes(sys.sel, r, s), ord = (uint32_t)clamp(v[AR_ORDR], 0, 4), oct = (uint32_t)clamp(v[AR_RNGE], 1, 3);
+    uint32_t len = n * oct, per = n ? (ord == ARO_RND ? len : arp_period(ord, len)) : 0u, show = per < 32u ? per : 32u, i;
+    uint32_t now = r->pos ? (r->pos - 1u) % (per ? per : 1u) : 0u;
+    int32_t lo = 127, hi = 0, top = DY0 + 1, floor = DY1, h = floor - top;
+    char b[24];
+    if (tp[sys.sel].src != SRC_SYNTH && tp[sys.sel].src != SRC_POLY) {
+        px_text_c(0, 120, 12, PXF_3, "THE ARPEGGIATOR PLAYS", px_dim);
+        px_text_c(0, 120, 20, PXF_3, "A SYNTH OR POLY TRACK", px_dim);
+    } else if (v[AR_MODE] == ARM_OFF) {
+        px_text_c(0, 120, 12, PXF_3, "OFF: TURN MODE TO", px_dim);
+        px_text_c(0, 120, 20, PXF_3, "KEY, LTCH OR ADD", px_dim);
+    } else if (!n) {
+        px_text_c(0, 120, 16, PXF_3, "HOLD SOME KEYS", px_dim);
+    } else {
+        for (i = 0; i < len; i++) {                                    /* the walk's range */
+            int32_t m = (int32_t)arp_at(s, n, i);
+            lo = m < lo ? m : lo;
+            hi = m > hi ? m : hi;
+        }
+        px_line(DX0, floor + 1, DX1, floor + 1, px_dim, 2);
+        for (i = 0; i < show; i++) {
+            uint32_t k = ord == ARO_RND ? i : arp_place(ord, len, i, 0);
+            int32_t bw = (int32_t)(DW / show) - 1, x = DX0 + 1 + (int32_t)i * (bw + 1), m = (int32_t)arp_at(s, n, ord == ARO_RND ? k : k);
+            int32_t y = floor - (hi > lo ? (m - lo) * (h - 3) / (hi - lo) + 3 : h / 2);
+            int playing = ord == ARO_RND ? (uint32_t)m == r->cur && r->on : i == now && r->pos;
+            if (bw < 1)
+                bw = 1;
+            if (playing)
+                px_box(x, y, bw, floor - y + 1, px_ink);
+            else
+                px_frame(x, y, bw, floor - y + 1, px_ink, bw > 2 ? 1 : 2);
+        }
+    }
+    if (f < NARP && !pdesc_empty(&ARP_P[f])) {
+        vz_ktag(118, DLBL - 1, &ARP_P[f], v[f]);
+    } else {
+        str_cpy(b, N_ARO[ord], sizeof b);
+        str_cpy(b + str_len(b), oct > 1u ? (oct > 2u ? " 3 OCT" : " 2 OCT") : " 1 OCT", 8);
+        px_text(118 - px_text_w(PXF_3, b), DLBL, PXF_3, b, px_ink);
+    }
+    if (n) {
+        fmt_int(b, (int32_t)n);
+        str_cpy(b + str_len(b), n == 1u ? " NOTE" : " NOTES", 8);
+        px_text(DX0, DLBL, PXF_3, b, px_ink);
+    }
+}
+
+/* SETUP (the mixer's fourth page): what each preference does, in words */
+static void viz_setup(void)
+{
+    static const char *const KN[4] = {"KNOBS: A STEP A DETENT", "KNOBS: 2 STEPS A DETENT", "KNOBS: 4 STEPS A DETENT",
+                                      "KNOBS: FAST TURNS GO FURTHER"};
+    px_text_c(0, 120, 3, PXF_3, sys.keys_notes ? "BLACK KEYS PLAY NOTES: F TO G" : "BLACK KEYS: THE SHORTCUTS", px_ink);
+    px_text_c(0, 120, 11, PXF_3, KN[(bryo_prefs >> 1) & 3u], px_ink);
+    px_text_c(0, 120, 19, PXF_3, "HOLD: HOW LONG A PAD IS HELD", px_dim);
+    px_text_c(0, 120, 27, PXF_3, "GLO HELD + OCT+: BLACK KEYS", px_dim);
+}
+
 /* ------------------------------------------------------------- MIXER --- */
 /* the selected track's channel strip (the mixer, both pages: the levels above, this below): its EQ and filter as
  * one response over 8 octaves (ch_resp, ui_px.c: what mixer.c applies), a node on each shelf's corner and
@@ -1781,12 +1847,12 @@ static void viz_tpr_strip(void)
     px_tag(30, 22, PXF_3, ui.pj_ask ? (ui.pj_ask == PJ_ASK_LOAD ? "OCT+ AGAIN: LOAD" : "SAVE AGAIN: OVER IT")
                                     : q->used ? "OCT+: INTO THE TRACK" : "SAVE: THE TRACK HERE", px_ink, px_bg);
     px_text(116 - px_text_w(PXF_5B, b), 3, PXF_5B, b, px_ink);
-    for (s = 0; s < NSLOT; s++) {                                      /* each slot's engine */
+    for (s = 0; s < NSLOT; s++) {                                      /* each slot's engine, M1..M4 */
         int32_t x = 30 * (int32_t)s;
         char sn[3] = {'M', (char)('1' + s), 0};
         px_line(x + 2, 31, x + 27, 31, px_dim, 2);
         px_text_c(x, 30, 34, PXF_3, sn, px_dim);
-        px_text_c(x, 30, 41, PXF_5, q->used ? ME_NAME[q->eng[s] % NME] : "-", q->used ? px_ink : px_dim);
+        px_text_c(x, 30, 41, PXF_5, q->used ? ME_NAME[q->eng[SLOT_OF_NUM[s]] % NME] : "-", q->used ? px_ink : px_dim);
     }
 }
 
@@ -1812,12 +1878,12 @@ static void viz_tpf_strip(void)
     b[1] = (char)('1' + sys.sel);
     b[2] = 0;
     px_text(116 - px_text_w(PXF_5B, b), 3, PXF_5B, b, px_ink);
-    for (s = 0; s < NSLOT; s++) {
+    for (s = 0; s < NSLOT; s++) {                                      /* (M1..M4) */
         int32_t x = 30 * (int32_t)s;
         char sn[3] = {'M', (char)('1' + s), 0};
         px_line(x + 2, 31, x + 27, 31, px_dim, 2);
         px_text_c(x, 30, 34, PXF_3, sn, px_dim);
-        px_text_c(x, 30, 41, PXF_5, ME_NAME[F->eng[s] % NME], px_ink);
+        px_text_c(x, 30, 41, PXF_5, ME_NAME[F->eng[SLOT_OF_NUM[s]] % NME], px_ink);
     }
 }
 
@@ -1887,6 +1953,8 @@ static uint32_t viz_sig(void)
         if (ui.chan == CHAN_MASTER)                                    /* the compressor's knobs and what it takes off */
             for (k = 0; k < NMS; k++)
                 h = (h ^ (uint32_t)(mst[k] + 32768)) * 16777619u;
+        if (ui.chan == CHAN_SETUP)                                     /* the preferences */
+            return h + 0x5E7u + bryo_prefs * 31u + settings_hold * 977u + settings_leds * 7919u;
         return h + ui.chan * 977u + sys.ntrk * 5381u + (ui.chan ? 0u : sys.cpu_q8 * 100u / 256u / 5u * 7919u) +
                (ui.chan == CHAN_MASTER ? (uint32_t)comp.gr_q8 * 602u / 2560u * 104729u : 0u);
     }
@@ -1905,6 +1973,15 @@ static uint32_t viz_sig(void)
         for (t = 0; t < NTRK; t++)
             h = (h ^ (uint32_t)(tp[t].recin + tp[t].src * 16u)) * 16777619u;
         return h + sys.rec * 977u + sys.ntrk * 5381u + 0x55u;
+    }
+    if (ui.kind == FOCUS_ARP) {                                        /* the arpeggiator: its knobs, its notes, the
+                                                                        * step sounding */
+        const arp_rt_t *r = &arp_rt[sys.sel];
+        for (k = 0; k < NARP; k++)
+            h = (h ^ (uint32_t)(tp[sys.sel].arp[k] + 32768)) * 16777619u;
+        for (k = 0; k < r->n; k++)
+            h = (h ^ r->note[k]) * 16777619u;
+        return h + ui.page * 389u + tp[sys.sel].src * 3571u + r->n * 131u + r->cur * 7u + r->on * 65537u + (r->pos & 63u) * 524287u;
     }
     for (k = 0; k < NPK; k++) {                                        /* both pages: page 2 shows in the picture */
         const int16_t *v = ui.kind == FOCUS_SLOT ? tp[sys.sel].mod[ui.slot] : dev_v(sys.sel, ui.dev);
@@ -1955,8 +2032,10 @@ static uint32_t viz_sig(void)
 static void draw_viz(void)
 {
     uint32_t sig = viz_sig(), f = ui.last < 4u ? pdesc_at(ui.kind == FOCUS_SLOT ? ME_P[tp[sys.sel].engine[ui.slot]]
-                                                          : dev_p(sys.sel, ui.dev), 4u * ui.page + ui.last) : 0xFFu;
-    const int16_t *v = ui.kind == FOCUS_SLOT ? tp[sys.sel].mod[ui.slot] : dev_v(sys.sel, ui.dev);   /* both pages */
+                                                          : ui.kind == FOCUS_ARP ? ARP_P : dev_p(sys.sel, ui.dev),
+                                                          4u * ui.page + ui.last) : 0xFFu;
+    const int16_t *v = ui.kind == FOCUS_SLOT ? tp[sys.sel].mod[ui.slot] : ui.kind == FOCUS_ARP ? tp[sys.sel].arp
+                     : dev_v(sys.sel, ui.dev);   /* both pages */
     if (!ui.force && sig == ui.sig_viz)
         return;
     ui.sig_viz = sig;
@@ -1967,7 +2046,9 @@ static void draw_viz(void)
     } else if (ui.view == VIEW_USBREC) {
         viz_usbrec();
     } else if (ui.view == VIEW_MIXER) {
-        if (ui.chan == CHAN_MASTER)
+        if (ui.chan == CHAN_SETUP)
+            viz_setup();
+        else if (ui.chan == CHAN_MASTER)
             viz_master(f);
         else if (ui.chan)
             viz_channel(f);
@@ -1978,7 +2059,9 @@ static void draw_viz(void)
     } else if (ui.view == VIEW_ROUTE) {
         viz_route(ui.last < 4u ? ui.last : 0xFFu);
     } else {
-        if (ui.kind == FOCUS_SLOT) {
+        if (ui.kind == FOCUS_ARP) {
+            viz_arp(v, f);
+        } else if (ui.kind == FOCUS_SLOT) {
             switch (tp[sys.sel].engine[ui.slot]) {
             case ME_WAVE: viz_wave(v, f); break;
             case ME_ADSR: viz_adsr(v, f); break;

@@ -74,6 +74,7 @@ static void ui_redraw(void);
 #include "../firmware/src/poly.c"
 #include "../firmware/src/drum_voice.c"
 #include "../firmware/src/drum.c"
+#include "../firmware/src/arp.c"
 #include "../firmware/src/source.c"
 #include "../firmware/src/grain.c"
 #include "../firmware/src/reso.c"
@@ -146,6 +147,11 @@ static void power_on(void)
     memset(&tape_undo, 0, sizeof tape_undo);
     memset(syn, 0, sizeof syn);
     memset(pol, 0, sizeof pol);
+    memset(arp_rt, 0, sizeof arp_rt);                    /* (the arpeggiators, the keys' notes) */
+    memset((void *)arp_clear_req, 0, sizeof arp_clear_req);
+    memset(key_base, 0, sizeof key_base);
+    memset(mod_xkeys, 0, sizeof mod_xkeys);
+    bryo_prefs = 0;                                      /* (SETUP's preferences: the defaults) */
     memset(drm_rt, 0, sizeof drm_rt);
     memset(&drm_undo_buf, 0, sizeof drm_undo_buf);
     memset(drm_dirty, 0, sizeof drm_dirty);
@@ -462,25 +468,46 @@ static void test_input(void)
     press(B_LFO);
     check("a slot pad again: the slot's page 2", ui.kind == FOCUS_SLOT && ui.slot == 0u && ui.page == 1u);
     press(B_ARP);
+    check("ARP: the arpeggiator's page (not a modulator)", ui.kind == FOCUS_ARP && ui.page == 0u && focus_btn() == B_ARP);
     press(B_ARP);
+    check("..again: its page 2", ui.kind == FOCUS_ARP && ui.page == 1u);
     press(B_ARP);
-    press(B_ARP);
-    press(B_ARP);
-    check("slot 4 (the random LFO) has four pages, coming round to the first", ui.slot == 3u && ui.page == 0u &&
-          tp[0].engine[3] == ME_WAVE && tp[0].mod[3][1] == LFO_RND);
+    check("..and round to the first", ui.kind == FOCUS_ARP && ui.page == 0u);
+    hold(B_LFO);                                         /* LFO held + OP3: the LFO pad shows M3 */
+    key_edge(black_note(BK_OP3));
+    let_go(B_LFO);
+    check("LFO held + OP3: the LFO pad is M3 (slot 3, the random LFO), its page as the pad is let go, no mute",
+          ui.lfo_slot == 3u && ui.kind == FOCUS_SLOT && ui.slot == 3u && !track[2].mute && tp[0].engine[3] == ME_WAVE &&
+          tp[0].mod[3][1] == LFO_RND);
+    press(B_LFO);
+    press(B_LFO);
+    press(B_LFO);
+    press(B_LFO);
+    check("..M3 has four pages, coming round to the first", ui.slot == 3u && ui.page == 0u);
     {
         uint32_t bpm = sys.bpm;
-        hold(B_ARP);                                     /* slot 4's pad held + SELECT: its engine */
-        host_enc[panel.enc[EN_SELECT]] = 3;
+        hold(B_LFO);                                     /* the LFO pad (M3) held + SELECT: its engine */
+        host_enc[panel.enc[EN_SELECT]] = 2;
         ui_input();
-        let_go(B_ARP);
-        check("a slot's pad held + SELECT: LFO -> FOLLOW, from its defaults, the tempo untouched",
+        let_go(B_LFO);
+        check("a slot's pad held + SELECT: LFO -> FOLLOW (LFO ADSR FOLLOW), from its defaults, the tempo untouched",
               tp[0].engine[3] == ME_FOLLOW && tp[0].mod[3][2] == ME_P[ME_FOLLOW][2].def && sys.bpm == bpm && ui.page == 0u);
-        hold(B_ARP);
-        host_enc[panel.enc[EN_SELECT]] = -3;
+        hold(B_LFO);
+        host_enc[panel.enc[EN_SELECT]] = -2;
         ui_input();
-        let_go(B_ARP);
-        check("..and back (round the four engines: LFO ADSR SEQ FOLLOW)", tp[0].engine[3] == ME_WAVE);
+        let_go(B_LFO);
+        check("..and back (round the three)", tp[0].engine[3] == ME_WAVE);
+        tp[0].mod[3][1] = LFO_RND;                       /* (as it was: the random LFO) */
+        hold(B_SEQ);                                     /* the SEQ pad + SELECT: it stays the sequencer */
+        host_enc[panel.enc[EN_SELECT]] = 1;
+        ui_input();
+        let_go(B_SEQ);
+        check("SEQ held + SELECT: M4 stays the sequencer, and says so", tp[0].engine[SLOT_SEQ] == ME_SEQ &&
+              !strcmp(ui.msg, "M4 IS THE SEQUENCER"));
+        hold(B_LFO);
+        key_edge(black_note(BK_OP1));
+        let_go(B_LFO);
+        check("LFO held + OP1: back to M1", ui.lfo_slot == 0u && ui.slot == 0u);
     }
     press(B_HOME);
 
@@ -567,6 +594,9 @@ static void test_input(void)
     check("..KNOB 1 sets the master compressor's AMT (0 -> 20), one for all tracks", mst[MS_AMT] == 20);
     mst[MS_AMT] = 0;
     tap(B_EDIT);
+    check("..tapped again: SETUP, the panel's preferences (latched)", ui.chan == CHAN_SETUP && ui.chan_latched &&
+          ui.view == VIEW_MIXER);
+    tap(B_EDIT);
     check("..tapped again: the levels", !ui.chan && !ui.chan_latched && ui.view == VIEW_MIXER);
     press(B_FX);
     check("a page pad closes the mixer", ui.view == VIEW_PAGE && ui.dev == DEV_COLOR && !ui.glo_latched);
@@ -600,6 +630,8 @@ static void test_settings(void)
     p.panel.btn[B_REC] = PANEL_DEFAULT.btn[B_PLAY];
     for (i = 0; i < sizeof p.felucca; i++)
         p.felucca[i] = (uint8_t)(i * 7u + 1u);           /* Felucca's favorites and MENU flags: any bytes */
+    p.felucca[BPREFS_AT] = 0;                            /* (but Bryo's own byte, an engine Felucca never had: 0, as
+                                                          * every real record has it) */
     p.felucca[PREFS_AT] = PREF_SERIAL_OFF | PREF_USB_FIXED;
     panel = PANEL_DEFAULT;
     check("a Felucca PER4 record is read as current", settings_import(&p, (int)sizeof p) == 1);
@@ -864,13 +896,23 @@ static void screens_in(const char *pal)
     press(B_FX);                                         /* SPACE 3: PRE 120 ms */
     turn(0, 100);
     shot(pal, "space3");
-    for (s = 0; s < NSLOT; s++) {
-        static const uint8_t B[NSLOT] = {B_LFO, B_ENV, B_SEQ, B_ARP};
+    for (s = 0; s < NSLOT; s++) {                        /* (by slot: mod3 is the SEQ, M4; mod4 slot 3, M3) */
+        static const uint8_t B[NSLOT] = {B_LFO, B_ENV, B_SEQ, B_LFO};
         char nm[8] = {'m', 'o', 'd', (char)('1' + s), 0};
-        press(B[s]);
+        if (s == 3u) {                                   /* M3: LFO held + OP3, let go: its page */
+            hold(B_LFO);
+            key_edge(black_note(BK_OP3));
+            let_go(B_LFO);
+            ui.msg_t = 0;
+        } else {
+            press(B[s]);
+        }
         shot(pal, nm);
     }
-    press(B_LFO);
+    hold(B_LFO);                                         /* the LFO pad back to M1 (its page, as M3's was up) */
+    key_edge(black_note(BK_OP1));
+    let_go(B_LFO);
+    ui.msg_t = 0;                                        /* (the pictures, not the message) */
     turn(1, 1);                                          /* LFO: TRIANGLE, SKEW +40, FOLD 50 */
     turn(2, 40);
     turn(3, 50);
@@ -912,31 +954,38 @@ static void screens_in(const char *pal)
     turn(2, -30);
     turn(3, 4);
     shot(pal, "mod3_p2");
-    press(B_ARP);
-    shot(pal, "mod4_rnd");                               /* slot 4: the LFO on RND, VAR 20 */
-    press(B_ARP);                                        /* LFO 2 on RND: SMTH 40, VAR 60, LEN 12 */
+    hold(B_LFO);                                         /* M3 (LFO held + OP3; let go: its page) */
+    key_edge(black_note(BK_OP3));
+    let_go(B_LFO);
+    ui.msg_t = 0;                                        /* (the pictures, not the message) */
+    shot(pal, "mod4_rnd");                               /* slot 3, M3: the LFO on RND, VAR 20 */
+    press(B_LFO);                                        /* LFO 2 on RND: SMTH 40, VAR 60, LEN 12 */
     turn(1, 40);
     turn(2, 40);
     turn(3, 4);
     shot(pal, "mod4_smooth");
-    press(B_ARP);
-    press(B_ARP);                                        /* LFO 4: PHAS 90, SPRD 40, AMT 80, OFS +20 */
+    press(B_LFO);
+    press(B_LFO);                                        /* LFO 4: PHAS 90, SPRD 40, AMT 80, OFS +20 */
     turn(0, 90);
     turn(1, 40);
     turn(2, -20);
     turn(3, 20);
     shot(pal, "mod4_p4");
-    hold(B_ARP);                                         /* slot 4 runs FOLLOW: RISE 4, FALL 30, GAIN +6 */
+    hold(B_LFO);                                         /* M3 runs FOLLOW: RISE 4, FALL 30, GAIN +6 */
     host_enc[panel.enc[EN_SELECT]] = -1;
     ui_input();
-    let_go(B_ARP);
+    let_go(B_LFO);
     turn(1, 6);
     turn(2, -6);
     turn(3, -20);
     shot(pal, "mod4_follow");
-    press(B_ARP);                                        /* FOLLOW 2: HOLD 1/16 */
+    press(B_LFO);                                        /* FOLLOW 2: HOLD 1/16 */
     turn(0, 2);
     shot(pal, "mod4_follow2");
+    hold(B_LFO);                                         /* (the LFO pad back to M1) */
+    key_edge(black_note(BK_OP1));
+    let_go(B_LFO);
+    ui.msg_t = 0;                                        /* (the pictures, not the message) */
     press(B_SEQ);                                        /* SEQ: white keys 2 and 3 held, KNOB 1 raises those steps */
     fm1_in.notes |= note_bit_of_white(1) | note_bit_of_white(2);
     ui_input();
@@ -4233,7 +4282,8 @@ static void test_mod(void)
         (void)d;
         ui_input();
     }
-    check("slot pad held + SELECT: that slot's engine, the page stays", tp[0].engine[1] == ME_SEQ &&
+    check("slot pad held + SELECT: that slot's engine (ADSR -> FOLLOW: a swappable one skips SEQ), the page stays",
+          tp[0].engine[1] == ME_FOLLOW &&
                                                                         ui.kind == FOCUS_DEV && ui.dev == DEV_SRC);
     turn(2, -10);                                        /* TAPE SPD */
     let_go(B_ENV);
@@ -5135,7 +5185,20 @@ static void test_projects(void)
           (host_enc[panel.enc[EN_PRESET]] = 1, ui_input(), ui.pj_sel == 2u));
     shot("BRYO", "projects");
     press(B_OCTUP);
-    check("..OCT+ on an empty slot: says so", !strcmp(ui.msg, "P3 IS EMPTY"));
+    {
+        uint32_t t, blank = 1, b;
+        for (t = 0; t < NTRK; t++) {
+            blank &= tp[t].dev[DEV_SRC][TK_REEL] == 0 && tp[t].pol[PL_REEL] == 0 && mdl[t].n == 0 && tape_ctl[t].empty &&
+                     track[t].level == 100u && tp[t].arp[AR_MODE] == ARM_OFF;
+            for (b = 0; b < DRM_NBAR; b++)
+                blank &= tp[t].dpat[b][0] == 0 && tp[t].dacc[b] == 0;
+        }
+        check("..OCT+ on an empty slot: a new project there, blank (empty tapes, no reels, no pattern, no depths, 120 BPM)",
+              blank && sys.bpm == 120 && pj_cur == 2 && !pj_sum[2].used && !pj_changed() &&
+              !strncmp(ui.msg, "P3: NEW AND BLANK", 17));
+        shot("BRYO", "project_new");
+    }
+    pj_load(1);                                          /* (back to P2's scene for the steps below) */
     tap(B_SAVE);
     check("..SAVE: P3 saved (an empty slot: no question), now the current one", pj_sum[2].used && pj_cur == 2 &&
           !strncmp(ui.msg, "P3 SAVED", 8));
@@ -6006,6 +6069,222 @@ static void test_mod_engines(void)
     }
 }
 
+/* track t's synth has a voice playing (not releasing) note16 */
+static int syn_plays(uint32_t t, int32_t note16)
+{
+    uint32_t j;
+    for (j = 0; j < SYN_NV; j++)
+        if ((syn[t].v[j].stage == 1u || syn[t].v[j].stage == 2u) && syn[t].v[j].to16 == note16)
+            return 1;
+    return 0;
+}
+
+/* the notes the arpeggiator plays on track t over blocks: each step's note as it starts, into seq (up to max);
+ * how many; and whether every step had a silent block before the next (*gaps) */
+static uint32_t arp_steps(uint32_t t, uint32_t blocks, uint8_t *seq, uint32_t max, int *gaps)
+{
+    uint32_t b, n = 0, was = arp_rt[t].on, quiet = !was;   /* (a step already sounding isn't counted) */
+    *gaps = 1;
+    for (b = 0; b < blocks; b++) {
+        uint32_t on;
+        render(1, 0);
+        on = arp_rt[t].on;
+        if (on && !was) {
+            if (n && !quiet)
+                *gaps = 0;
+            if (n < max)
+                seq[n] = arp_rt[t].cur;
+            n++;
+            quiet = 0;
+        }
+        if (!on)
+            quiet = 1;
+        was = on;
+    }
+    return n;
+}
+
+static void test_arp_keys(void)
+{
+    uint8_t seq[32];
+    uint32_t n, i, c, e3 = note_bit_of_white(4), c3 = note_bit_of_white(0);
+    int gaps, ok;
+    int16_t v;
+    power_on();
+    tp[0].src = SRC_SYNTH;
+    sys.bpm = 120;
+    focus_dev(DEV_SRC, 0);
+    press(B_ARP);
+    turn(0, 1);                                          /* MODE: KEY */
+    check("ARP on a SYNTH track: KNOB 1 turns MODE to KEY", tp[0].arp[AR_MODE] == ARM_KEY && ui.kind == FOCUS_ARP);
+    fm1_in.notes = c3 | e3;                              /* C3 and E3 held */
+    n = arp_steps(0, 900, seq, 32, &gaps);               /* (about 0.65 s: 1/16 at 120 is 172 blocks) */
+    check("KEY, UP, 1/16: C3 E3 C3 E3, a sixteenth each, a silent block between steps",
+          n >= 4u && n <= 6u && seq[0] == 48u && seq[1] == 52u && seq[2] == 48u && seq[3] == 52u && gaps);
+    check("..the synth plays them", syn_sounding(0) > 0);
+    shot("BRYO", "arp");
+    tp[0].arp[AR_RNGE] = 2;
+    tp[0].arp[AR_ORDR] = ARO_UPDN;
+    arp_rt[0].pos = 0;
+    n = arp_steps(0, 172 * 7, seq, 32, &gaps);
+    check("RNGE 2, UPDN: C3 E3 C4 E4 C4 E3, then round", n >= 6u && seq[0] == 48u && seq[1] == 52u && seq[2] == 60u &&
+          seq[3] == 64u && seq[4] == 60u && seq[5] == 52u);
+    tp[0].arp[AR_RNGE] = 1;
+    tp[0].arp[AR_ORDR] = ARO_DOWN;
+    arp_rt[0].pos = 0;
+    n = arp_steps(0, 172 * 3, seq, 32, &gaps);
+    check("DOWN: E3 C3 E3", n >= 3u && seq[0] == 52u && seq[1] == 48u && seq[2] == 52u);
+    fm1_in.notes = 0;
+    render(4, 0);
+    check("KEY: the keys let go, the arpeggio stops", arp_rt[0].n == 0u && !arp_rt[0].on);
+    tp[0].arp[AR_MODE] = ARM_LTCH;
+    tp[0].arp[AR_ORDR] = ARO_UP;
+    fm1_in.notes = c3 | e3;
+    render(4, 0);
+    fm1_in.notes = 0;
+    n = arp_steps(0, 172 * 3, seq, 32, &gaps);
+    check("LTCH: the chord let go goes on playing", arp_rt[0].n == 2u && n >= 2u);
+    fm1_in.notes = note_bit_of_white(7);                 /* G3: a new chord after letting go */
+    render(4, 0);
+    fm1_in.notes = 0;
+    n = arp_steps(0, 172 * 2, seq, 32, &gaps);
+    check("..a key after letting go: a new chord (G3 alone)", arp_rt[0].n == 1u && n >= 1u && seq[0] == 55u);
+    tp[0].arp[AR_MODE] = ARM_ADD;
+    render(1, 0);                                        /* (LTCH -> ADD keeps the notes) */
+    for (i = 0; i < 3u; i++) {                           /* C3, E3, A3, one after the other */
+        fm1_in.notes = note_bit_of_white(i == 0 ? 0u : i == 1u ? 4u : 9u);
+        render(2, 0);
+        fm1_in.notes = 0;
+        render(2, 0);
+    }
+    check("ADD: every key pressed joins, let go or not (G3, then C3 E3 A3)", arp_rt[0].n == 4u);
+    shot("BRYO", "arp_add");
+    fm1_in.notes = 1u << black_note(BK_POLY);
+    key_edge(black_note(BK_POLY));
+    fm1_ms += 600;
+    ui_input();
+    fm1_in.notes = 0;
+    render(2, 0);
+    check("..POLY held on the ARP page: the notes cleared, the tape left alone", arp_rt[0].n == 0u &&
+          !strcmp(ui.msg, "ARP NOTES CLEARED"));
+    tp[0].arp[AR_MODE] = ARM_OFF;
+    fm1_in.notes = c3;
+    render(4, 0);
+    check("MODE OFF: the keys straight through", key_base[0] == 48u && syn_sounding(0) > 0);
+    fm1_in.notes = 0;
+    render(4, 0);
+    tp[0].src = SRC_TAPE;
+    tp[0].arp[AR_MODE] = ARM_KEY;
+    fm1_in.notes = c3;
+    render(4, 0);
+    check("a TAPE track: no arpeggio (the keys play slices)", arp_rt[0].n == 0u);
+    fm1_in.notes = 0;
+    render(2, 0);
+    tp[0].arp[AR_MODE] = ARM_OFF;
+
+    /* the black keys as notes: GLO held + OCT+ */
+    tp[0].src = SRC_SYNTH;
+    focus_dev(DEV_SRC, 0);
+    hold(B_GLO);
+    press(B_OCTUP);
+    let_go(B_GLO);
+    check("GLO held + OCT+: the black keys play notes (kept as a setting), and it says so", sys.keys_notes == 1u &&
+          (bryo_prefs & BPREF_NOTES) && !strcmp(ui.msg, "BLACK KEYS PLAY NOTES") && ui.view == VIEW_PAGE);
+    fm1_in.notes = 1u << black_note(BK_OP1);
+    key_edge(black_note(BK_OP1));
+    render(4, 0);
+    check("..black OP1 doesn't mute: it plays F#3 (the keyboard from F3)", !track[0].mute && key_base[0] == 53u &&
+          syn_plays(0, (53 + (int32_t)black_note(BK_OP1)) * 16) && black_note(BK_OP1) == 1u);
+    fm1_in.notes = 0;
+    render(4, 0);
+    fm1_in.notes = c3;                                   /* white key 1, F3 now */
+    render(4, 0);
+    check("..white key 1 plays F3", syn_plays(0, 53 * 16));
+    fm1_in.notes = 0;
+    render(4, 0);
+    hold(B_LFO);                                         /* the LFO pad's picks still work */
+    key_edge(black_note(BK_OP2));
+    let_go(B_LFO);
+    check("..LFO held + OP2 still picks M2", ui.lfo_slot == 1u && ui.slot == 1u);
+    hold(B_GLO);
+    press(B_OCTUP);
+    let_go(B_GLO);
+    check("GLO held + OCT+ again: the shortcuts back", !sys.keys_notes && !(bryo_prefs & BPREF_NOTES));
+    key_edge(black_note(BK_OP1));
+    check("..OP1 mutes again", track[0].mute == 1u);
+    key_edge(black_note(BK_OP1));
+
+    /* the LFO pad's slot: depths go to the one it shows */
+    hold(B_LFO);
+    key_edge(black_note(BK_OP2));
+    press(B_FX);                                         /* (COLOR, while LFO is held) */
+    let_go(B_LFO);
+    focus_dev(DEV_COLOR, 0);
+    hold(B_LFO);
+    turn(1, 5);
+    let_go(B_LFO);
+    check("LFO pad on M2: a knob turned while it's held sets M2's depth", mod_dep(0, 1, MOD_TG(DEV_COLOR, 1)) == 5 &&
+          mod_dep(0, 0, MOD_TG(DEV_COLOR, 1)) == 0);
+    mod_clear(0);
+    hold(B_LFO);
+    key_edge(black_note(BK_OP1));
+    let_go(B_LFO);
+    focus_dev(DEV_COLOR, 0);
+
+    /* SETUP: the mixer's fourth page; KNOB's steps */
+    tap(B_GLO);
+    tap(B_EDIT);
+    tap(B_EDIT);
+    tap(B_EDIT);
+    check("SETUP: the mixer's fourth page (GLO, EDIT x3)", ui.view == VIEW_MIXER && ui.chan == CHAN_SETUP);
+    turn(1, 2);                                          /* KNOB: 1X -> 4X */
+    check("..KNOB 2 sets KNOB: 4X", ((bryo_prefs >> 1) & 3u) == KNOB_4X);
+    ui.msg_t = 0;                                        /* (the picture under the message) */
+    shot("BRYO", "setup");
+    tap(B_GLO);
+    focus_dev(DEV_COLOR, 0);
+    v = tp[0].dev[DEV_COLOR][0];
+    turn(0, 1);
+    check("..4X: one detent of DRV (0-100) moves it 4", tp[0].dev[DEV_COLOR][0] == v + 4);
+    focus_dev(DEV_COLOR, 1);
+    c = (uint32_t)tp[0].dev[DEV_COLOR][6];
+    turn(2, 1);
+    check("..a choice (CMOD) still moves one a detent", (uint32_t)tp[0].dev[DEV_COLOR][6] == c + 1u);
+    bryo_prefs = (uint8_t)((bryo_prefs & ~6u) | KNOB_ACC << 1);
+    focus_dev(DEV_COLOR, 0);
+    tp[0].dev[DEV_COLOR][0] = 0;
+    for (ok = 1, i = 0; i < 4u; i++) {                  /* a fast turn: a detent every 10 ms */
+        fm1_ms += 10;
+        turn(0, 1);
+    }
+    check("ACC: a fast turn goes further than a detent a step", tp[0].dev[DEV_COLOR][0] > 4);
+    v = tp[0].dev[DEV_COLOR][0];
+    fm1_ms += 500;
+    turn(0, 1);
+    fm1_ms += 500;
+    turn(0, 1);
+    check("..a slow one, a step a detent", tp[0].dev[DEV_COLOR][0] == v + 2);
+    bryo_prefs = 0;
+    bprefs_apply();
+    (void)ok;
+
+    /* projects keep the arpeggiator (version 3) */
+    power_on();
+    pj_wipe();
+    pj_boot();
+    tp[2].src = SRC_POLY;
+    tp[2].arp[AR_MODE] = ARM_LTCH;
+    tp[2].arp[AR_ORDR] = ARO_RND;
+    tp[2].arp[AR_RATE] = 1;
+    tp[2].arp[AR_SWNG] = 30;
+    check("a project saved", pj_save(0) == 0);
+    power_on();
+    pj_boot();
+    check("..loaded: the arpeggiator as it was", tp[2].arp[AR_MODE] == ARM_LTCH && tp[2].arp[AR_ORDR] == ARO_RND &&
+          tp[2].arp[AR_RATE] == 1 && tp[2].arp[AR_SWNG] == 30 && tp[0].arp[AR_MODE] == ARM_OFF);
+    pj_wipe();
+}
+
 int main(int argc, char **argv)
 {
     out_dir = argc > 1 ? argv[1] : "build/bryo_ui";
@@ -6038,6 +6317,7 @@ int main(int argc, char **argv)
     test_projects();
     test_tpresets();
     test_tpfactory();
+    test_arp_keys();
     test_input();
     test_settings();
     palette_set(UI_GREY_INDEX);                          /* (the screens are one ink now, whatever the palette) */

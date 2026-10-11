@@ -5,9 +5,12 @@
  *   HOME           focus the track's source (TAPE); again: its page 2
  *   EDIT           focus GRAIN; again: GRAIN 2, RESONATOR, GRAIN ... (each device's pages, then the next device)
  *   FX             focus COLOR; again: COLOR 2, SPACE, SPACE 2, COLOR ...
- *   LFO ENV SEQ ARP  tapped: modulator slot 1..4's page as the pad is let go; again: its next page. Held: KNOB 1..4
- *                  set that slot's depth to the knobs on the page shown (a device, the source, the channel strip;
- *                  mod.c); held + SELECT: the slot's engine
+ *   LFO ENV SEQ    the modulators (param.c SLOT_*): tapped, a slot's page as the pad is let go; again: its next
+ *                  page. Held: KNOB 1..4 set that slot's depth to the knobs on the page shown (a device, the source,
+ *                  the channel strip; mod.c); held + SELECT: its engine. The LFO pad holds the three swappable ones,
+ *                  M1 M2 M3 (LFO, ADSR or FOLLOW each): held + OP1 OP2 OP3 picks the one it shows. ENV is M2 straight
+ *                  away. SEQ is M4, always the step sequencer
+ *   ARP            the arpeggiator's page (arp.c); again: its page 2. On it, POLY held clears the notes it holds
  *   SEQ slot page  a white key held + KNOB 1: that step's value (the keys pick steps here, they don't play)
  *   MONO held      half a second: clear the focused track's modulation (SAVE held: undo)
  *   GLO held       the mixer while held: white keys 1..4 pick the track, KNOB 1..4 set the levels, SELECT sets
@@ -35,12 +38,15 @@
  *                  VARY and KIT the white keys play the kit, and one held makes KNOB 1..4 its own TUNE DEC LVL
  *                  TONE; on STEP they toggle the bar's steps (HITS, ACC), or play and write (LIVE), or wipe (ERAS).
  *                  POLY held clears the pattern (SAVE held: undo)
- *   KNOB 1..4      the four values on screen; SELECT: the tempo
- *   black OP1..OP4 track mutes
+ *   KNOB 1..4      the four values on screen (SETUP's KNOB: a detent 1, 2 or 4 steps, or more on a fast turn);
+ *                  SELECT: the tempo
+ *   black OP1..OP4 track mutes (SETUP's KEYS on NOTE: the black keys play, and none of their shortcuts are there)
+ *   GLO held + OCT+  KEYS: the black keys as shortcuts or notes (SETUP, the mixer's fourth page, has it too)
  * What the later phases add (p-locks, the views behind PRESETS, the other black keys) slots into the same
  * functions. */
 
-static const uint8_t SLOT_BTN[NSLOT] = {B_LFO, B_ENV, B_SEQ, B_ARP};
+/* the pad a slot's page belongs to (slot 1, M2, shows on ENV; the LFO pad can show it too) */
+static const uint8_t SLOT_BTN[NSLOT] = {B_LFO, B_ENV, B_SEQ, B_LFO};
 
 /* ------------------------------------------------------------ LEDs --- */
 static uint8_t led_pos[41];          /* button 0..13 / key 14..40 -> (column << 3) | row; 0xFF none */
@@ -78,8 +84,10 @@ static uint32_t focus_btn(void)
     if (ui.view == VIEW_ROUTE || ui.view == VIEW_USBREC || ui.view == VIEW_PROJECT)   /* (no pad: ALGORITHM and
                                                                                      * PRESETS are knobs; REC held) */
         return NB;
+    if (ui.kind == FOCUS_ARP)
+        return B_ARP;
     if (ui.kind == FOCUS_SLOT)
-        return SLOT_BTN[ui.slot];
+        return SLOT_BTN[ui.slot % NSLOT];
     return ui.dev == DEV_SRC ? B_HOME : ui.dev <= DEV_RESO ? B_EDIT : B_FX;
 }
 
@@ -97,6 +105,8 @@ static void ui_leds(void)
     }
     if (focus_btn() < NB)
         led_put(nl, panel.btn[focus_btn()], 1);
+    if (ui.view == VIEW_PAGE && ui.kind == FOCUS_SLOT && ui.slot == ui.lfo_slot)   /* (M2 through the LFO pad: both) */
+        led_put(nl, panel.btn[B_LFO], 1);
     led_put(nl, panel.btn[B_REC], ui.view == VIEW_USBREC ? ur.state == UR_RECORDING : (sys.rec >> sys.sel) & 1u);
     if (ui.view == VIEW_USBREC && ur.state == UR_CHOOSE)   /* the keys that pick the take's track */
         for (k = 0; k < 27u; k++)
@@ -168,10 +178,24 @@ static void focus_slot(uint32_t s)
     ui.last = 0xFF;
 }
 
-/* a slot's pad down: nothing yet. Let go without turning anything (slot_up), its page; held, the knobs set its
- * depths (on_knob) and SELECT its engine */
-static void slot_down(uint32_t s)
+/* the ARP pad: the arpeggiator's page; again, its next page */
+static void focus_arp(void)
 {
+    uint32_t again = ui.view == VIEW_PAGE && ui.kind == FOCUS_ARP;
+    ui.view = VIEW_PAGE;
+    ui.chan = 0;
+    ui.chan_latched = 0;
+    ui.glo_latched = 0;
+    ui.kind = FOCUS_ARP;
+    ui.page = again ? (uint8_t)((ui.page + 1u) % pdesc_pages(ARP_P)) : 0u;
+    ui.last = 0xFF;
+}
+
+/* a slot's pad (b) down: nothing yet. Let go without turning anything (slot_up), its page; held, the knobs set its
+ * depths (on_knob) and SELECT its engine */
+static void slot_down(uint32_t s, uint32_t b)
+{
+    ui.slot_btn = (uint8_t)b;
     ui.slot_held = (uint8_t)s;
     ui.slot_used = 0;
     ui.catch_dir = 0;
@@ -329,13 +353,15 @@ static void pj_load_press(void)
     char m[40] = "P";
     m[1] = (char)('1' + s);
     m[2] = 0;
-    if (!pj_sum[s].used) {
-        str_cpy(m + 2, " IS EMPTY", 12);
+    if (pj_changed() && !pj_confirmed(PJ_ASK_LOAD, "CHANGES NOT SAVED: OCT+ AGAIN"))
+        return;
+    if (!pj_sum[s].used) {                              /* an empty slot: a new project there, blank */
+        trk_undo.valid = 0;
+        pj_new(s);
+        str_cpy(m + 2, ": NEW AND BLANK. SAVE KEEPS IT", 32);
         ui_message(m);
         return;
     }
-    if (pj_changed() && !pj_confirmed(PJ_ASK_LOAD, "CHANGES NOT SAVED: OCT+ AGAIN"))
-        return;
     trk_undo.valid = 0;                                 /* (the snapshot belonged to the session before) */
     str_cpy(m + 2, pj_load(s) == 0 ? " LOADED" : " CAN'T BE READ", 16);
     ui_message(m);
@@ -436,6 +462,62 @@ static void usbrec_open(void)
     ui.last = 0xFF;
 }
 
+/* SETUP KEYS: the black keys as notes (1) or the shortcuts (0), kept with the settings */
+static void keys_set(int notes)
+{
+    bryo_prefs = (uint8_t)(notes ? bryo_prefs | BPREF_NOTES : bryo_prefs & ~BPREF_NOTES);
+    bprefs_apply();
+    settings_save();
+    ui_message(notes ? "BLACK KEYS PLAY NOTES" : "BLACK KEYS: SHORTCUTS");
+}
+
+/* SETUP's knob c set to v (ui.c ui_page shows them; settings.c keeps them, saved while stopped) */
+static void setup_set(uint32_t c, int32_t v)
+{
+    switch (c) {
+    case ST_KEYS:
+        if ((v != 0) != (sys.keys_notes != 0))
+            keys_set(v != 0);
+        return;
+    case ST_KNOB:
+        bryo_prefs = (uint8_t)((bryo_prefs & ~6u) | ((uint32_t)v & 3u) << 1);
+        break;
+    case ST_HOLD:
+        settings_hold = (uint8_t)(v & 3);
+        break;
+    default:
+        settings_leds = LEDS_MENU[v & 3];
+        break;
+    }
+    settings_save();
+}
+
+#define ACC_GAP 40u                                     /* KNOB ACC: detents closer than this (ms) are a fast turn */
+#define ACC_RATE 50u
+/* d detents of encoder e (KNOB 1-4, 4 SELECT) on a value of range steps: as many steps as SETUP's KNOB makes them.
+ * Ranges of 32 steps or fewer (and choices: range 0) always move one a detent. ACC is Felucca's (#52): the time
+ * between detents sets a multiplier of 1 to 4, a slow turn stays fine */
+static int32_t knob_steps(uint32_t e, int32_t d, int32_t range)
+{
+    uint32_t mode = (bryo_prefs >> 1) & 3u, now = fm1_ms & 0xFFFFFFu, st, up = d > 0, pi, a, i, m = 1;
+    if (!d || range <= 32)
+        return d;
+    if (mode != KNOB_ACC)
+        return d * (mode == KNOB_4X ? 4 : mode == KNOB_2X ? 2 : 1);
+    st = ui.enc_t[e % 5u];
+    pi = st >> 25;
+    a = (uint32_t)(d < 0 ? -d : d);
+    i = ((now - st) & 0xFFFFFFu) / a;                   /* ms a detent, this read */
+    if (!st || ((st >> 24) & 1u) != up || i >= ACC_GAP) {
+        i = 127u;                                       /* a new turn, or the other way */
+    } else if (pi < ACC_GAP) {
+        m = ACC_RATE / (i > pi ? i : pi ? pi : 1u);
+        m = m < 1u ? 1u : m > 4u ? 4u : m;
+    }
+    ui.enc_t[e % 5u] = now | up << 24 | (i ? i : 1u) << 25;
+    return d * (int32_t)m;
+}
+
 static void on_button(uint32_t b)
 {
     switch (b) {
@@ -456,11 +538,12 @@ static void on_button(uint32_t b)
             break;
         }
         if (ui.view == VIEW_MIXER) {                    /* (held: while held; tapped: latched; tapped again: off) */
-            if (ui.chan == CHAN_MASTER && ui.chan_latched) {   /* LEVELS -> CHANNEL -> MASTER -> LEVELS */
+            if (ui.chan == CHAN_SETUP && ui.chan_latched) {   /* LEVELS -> CHANNEL -> MASTER -> SETUP -> LEVELS */
                 ui.chan = CHAN_LEVELS;
                 ui.chan_latched = 0;
             } else {
-                ui.chan = ui.chan == CHAN_STRIP && ui.chan_latched ? CHAN_MASTER : CHAN_STRIP;
+                ui.chan = !ui.chan_latched ? CHAN_STRIP : ui.chan == CHAN_STRIP ? CHAN_MASTER : ui.chan == CHAN_MASTER
+                        ? CHAN_SETUP : CHAN_STRIP;
                 ui.chan_latched = 0;
                 ui.chan_held = 1;
                 ui.chan_used = 0;
@@ -476,10 +559,10 @@ static void on_button(uint32_t b)
     case B_FX:                                          /* COLOR, COLOR 2, SPACE, SPACE 2 */
         pad_devices(DEV_COLOR, DEV_SPACE);
         break;
-    case B_LFO: slot_down(0); break;
-    case B_ENV: slot_down(1); break;
-    case B_SEQ: slot_down(2); break;
-    case B_ARP: slot_down(3); break;
+    case B_LFO: slot_down(ui.lfo_slot, B_LFO); break;   /* (M1 M2 M3: the one it shows) */
+    case B_ENV: slot_down(1, B_ENV); break;              /* M2 */
+    case B_SEQ: slot_down(SLOT_SEQ, B_SEQ); break;       /* M4, the sequencer */
+    case B_ARP: focus_arp(); break;
     case B_GLO:
         glo_down();
         break;
@@ -500,7 +583,10 @@ static void on_button(uint32_t b)
         break;
     case B_OCTDN:
     case B_OCTUP:
-        if (ui.view == VIEW_PROJECT) {                  /* the project view: OCT+ loads, OCT- goes back */
+        if (ui.glo_held && b == B_OCTUP) {              /* GLO held + OCT+: the black keys, shortcuts or notes */
+            keys_set(!sys.keys_notes);
+            ui.glo_used = 1;
+        } else if (ui.view == VIEW_PROJECT) {                  /* the project view: OCT+ loads, OCT- goes back */
             if (b == B_OCTUP) {
                 if (ui.pj_page)
                     tpr_load_press();
@@ -526,9 +612,36 @@ static void on_button(uint32_t b)
     }
 }
 
+/* LFO held + OP1, OP2 or OP3: the LFO pad's slot is M1, M2 or M3 (a knob turned now sets that one's depth; let go
+ * without one, its page) */
+static void lfo_pick(uint32_t k)
+{
+    static const uint8_t PICK[3] = {0, 1, 3};
+    uint32_t s = PICK[k % 3u];
+    char m[32] = "LFO PAD: M";
+    ui.lfo_slot = (uint8_t)s;
+    ui.slot_held = (uint8_t)s;
+    ui.catch_dir = 0;
+    if (ui.view == VIEW_PAGE && ui.kind == FOCUS_SLOT && ui.slot != SLOT_SEQ && ui.slot != s) {
+        focus_slot(s);                                  /* (an LFO-pad page up: the one picked, and the let-go */
+        ui.slot_used = 1;                               /*  doesn't turn its page) */
+    }
+    m[10] = (char)('0' + SLOT_NUM[s]);
+    m[11] = ' ';
+    m[12] = 0;
+    str_cpy(m + 12, ME_NAME[tp[sys.sel].engine[s] % NME], 8);
+    ui_message(m);
+}
+
 static void on_black(uint32_t k)
 {
     int16_t *tk = tp[sys.sel].dev[DEV_SRC];
+    if (ui.slot_held != SLOT_NONE && ui.slot_btn == B_LFO && k <= BK_OP3) {
+        lfo_pick(k);
+        return;
+    }
+    if (sys.keys_notes)                                 /* KEYS NOTE: the black keys play (chain.c), no shortcuts */
+        return;
     if (k <= BK_OP4) {
         track[k].mute = (uint8_t)!track[k].mute;
     } else if (k == BK_OP5 || k == BK_OP6) {           /* the focused track's tape: reverse, half speed (another
@@ -553,7 +666,8 @@ static void on_black(uint32_t k)
                                                          * pattern) */
         ui.poly_held = 1;
         ui.poly_t0 = fm1_ms;
-        ui_message(ui.view == VIEW_PROJECT ? "KEEP HOLDING POLY TO DELETE IT" : tp[sys.sel].src == SRC_DRUM ?
+        ui_message(ui.view == VIEW_PROJECT ? "KEEP HOLDING POLY TO DELETE IT" : ui.view == VIEW_PAGE && ui.kind == FOCUS_ARP
+                   ? "KEEP HOLDING POLY TO CLEAR THE NOTES" : tp[sys.sel].src == SRC_DRUM ?
                    "KEEP HOLDING POLY TO CLEAR THE PATTERN" : "KEEP HOLDING POLY TO CLEAR THE TAPE");
     }
 }
@@ -586,6 +700,10 @@ static void hold_keys(void)
             str_cpy(m + 2, !pj_sum[ui.pj_sel].used ? " IS EMPTY" : pj_delete(ui.pj_sel) == 0 ? " DELETED (ITS REELS STAY)"
                                                                                            : " NOT DELETED: FLASH", 28);
             ui_message(m);
+        } else if ((uint32_t)(fm1_ms - ui.poly_t0) >= 500u && ui.view == VIEW_PAGE && ui.kind == FOCUS_ARP) {
+            ui.poly_held = 0;                           /* the arpeggiator's notes (a latched or piled-up pattern) */
+            arp_clear(sys.sel);
+            ui_message("ARP NOTES CLEARED");
         } else if ((uint32_t)(fm1_ms - ui.poly_t0) >= 500u && tp[sys.sel].src == SRC_DRUM) {
             ui.poly_held = 0;
             if (drm_clear(sys.sel)) {
@@ -621,7 +739,7 @@ static void hold_keys(void)
             for (c = 0; c < 4u; c++)
                 if (page_target(c) < MOD_NTGT)
                     g[n++] = page_target(c);
-            m[5] = (char)('1' + ui.mono_slot);
+            m[5] = (char)('0' + SLOT_NUM[ui.mono_slot % NSLOT]);
             m[6] = 0;
             if (!n) {
                 str_cpy(m + 6, ": NO DEPTHS ON THIS PAGE", 26);
@@ -706,7 +824,9 @@ static int scl_default(uint32_t c, const pdesc_t *p, int16_t *vp)
         ui.undo = UNDO_TRACK;
         ui.scl_used = 1;
     }
-    if (ui.view == VIEW_MIXER && !ui.chan)
+    if (ui.view == VIEW_MIXER && ui.chan == CHAN_SETUP)
+        setup_set(c, v);
+    else if (ui.view == VIEW_MIXER && !ui.chan)
         track[c].level = (uint8_t)v;
     else if (ui.view == VIEW_ROUTE)
         tp[c].recin = (uint8_t)v;
@@ -769,7 +889,7 @@ static void on_knob(uint32_t c, int32_t d)
             return;
         }
         ui.catch_dir = 0;
-        v = mod_nudge(sys.sel, ui.slot_held, g, d);
+        v = mod_nudge(sys.sel, ui.slot_held, g, knob_steps(c, d, 200));
         if (o && !v) {                                  /* reached 0 from either side: the catch */
             ui.catch_g = (uint8_t)g;
             ui.catch_s = ui.slot_held;
@@ -793,13 +913,15 @@ static void on_knob(uint32_t c, int32_t d)
         uint32_t k;
         for (k = 0; k < 16u; k++)
             if ((ui.steps_held >> k) & 1u)
-                tp[sys.sel].steps[ui.slot][k] = (int8_t)clamp(tp[sys.sel].steps[ui.slot][k] + d, 0, 100);
+                tp[sys.sel].steps[ui.slot][k] = (int8_t)clamp(tp[sys.sel].steps[ui.slot][k] + knob_steps(c, d, 100), 0, 100);
         return;                                         /* (LEN isn't the knob turned: its tag stays as it was) */
     }
     if (pdesc_empty(p))                                 /* an unused knob on a page */
         return;
-    v = param_nudge(p, *vp, d);
-    if (ui.view == VIEW_MIXER && !ui.chan)
+    v = param_nudge(p, *vp, knob_steps(c, d, p->fmt == F_ENUM ? 0 : (p->max - p->min) / param_step(p)));
+    if (ui.view == VIEW_MIXER && ui.chan == CHAN_SETUP)
+        setup_set(c, v);
+    else if (ui.view == VIEW_MIXER && !ui.chan)
         track[c].level = (uint8_t)v;
     else if (ui.view == VIEW_ROUTE)
         tp[c].recin = (uint8_t)v;
@@ -874,7 +996,8 @@ static void ui_input(void)
     for (id = 0; id < NB; id++)
         if ((pressed >> id) & 1u) {
             uint32_t b = panel_btn_of(id);
-            if (b < NB && b != B_SCL && b == focus_btn() && scl_down())
+            if (b < NB && b != B_SCL && scl_down() && (b == focus_btn() || (b == B_LFO && ui.view == VIEW_PAGE &&
+                                                                       ui.kind == FOCUS_SLOT && ui.slot == ui.lfo_slot)))
                 scl_page();                             /* SCL held + the page's own pad: its defaults */
             else if (b < NB)
                 on_button(b);
@@ -942,23 +1065,31 @@ static void ui_input(void)
     for (k = 0; k < 4u; k++)
         if ((d = panel_enc(EN_K1 + k)) != 0)
             on_knob(k, d);
-    if (ui.slot_held != SLOT_NONE && !((fm1_in.buttons >> panel.btn[SLOT_BTN[ui.slot_held]]) & 1u))
+    if (ui.slot_held != SLOT_NONE && !((fm1_in.buttons >> panel.btn[ui.slot_btn % NB]) & 1u))
         slot_up();                                      /* (after the knobs: a turn in the same pass counts) */
     if ((d = panel_enc(EN_SELECT)) != 0) {
         if (ui.slot_held != SLOT_NONE) {
-            /* a slot's pad held + SELECT: its engine (LFO ADSR SEQ FOLLOW), from its defaults; its depths stay */
-            uint32_t s = ui.slot_held, e = (uint32_t)(((int32_t)tp[sys.sel].engine[s] + d % (int32_t)NME + (int32_t)NME) % (int32_t)NME);
+            /* a slot's pad held + SELECT: its engine (LFO ADSR FOLLOW), from its defaults; its depths stay. The SEQ
+             * pad's stays the sequencer */
+            uint32_t s = ui.slot_held, i, e;
             char m[24] = "M";
-            param_engine(sys.sel, s, e);
             ui.slot_used = 1;
-            if (ui.view == VIEW_PAGE && ui.kind == FOCUS_SLOT && ui.slot == s) {
-                ui.page = 0;
-                ui.last = 0xFF;
-            } else {                                    /* (another page up: say what it is now) */
-                fmt_int(m + 1, (int32_t)s + 1);
-                str_cpy(m + str_len(m), " IS ", 5);
-                str_cpy(m + str_len(m), ME_NAME[e], 8);
-                ui_message(m);
+            for (i = 0; i < 3u && SWAP_ENGINE[i] != tp[sys.sel].engine[s]; i++)
+                ;
+            e = SWAP_ENGINE[(uint32_t)(((int32_t)(i % 3u) + d % 3 + 3) % 3)];
+            if (s == SLOT_SEQ) {
+                ui_message("M4 IS THE SEQUENCER");
+            } else {
+                param_engine(sys.sel, s, e);
+                if (ui.view == VIEW_PAGE && ui.kind == FOCUS_SLOT && ui.slot == s) {
+                    ui.page = 0;
+                    ui.last = 0xFF;
+                } else {                                /* (another page up: say what it is now) */
+                    fmt_int(m + 1, SLOT_NUM[s % NSLOT]);
+                    str_cpy(m + str_len(m), " IS ", 5);
+                    str_cpy(m + str_len(m), ME_NAME[e], 8);
+                    ui_message(m);
+                }
             }
         } else if (ui.home_held && ((fm1_in.buttons >> panel.btn[B_HOME]) & 1u)) {
             /* HOME held + SELECT, from any page: the track's source (TAPE, SYNTH, POLY, DRUM), shown on its first
@@ -971,8 +1102,9 @@ static void ui_input(void)
             chain_tracks((int32_t)sys.ntrk + d);
             ui.last = 0xFF;
             ui.glo_used = 1;
-        } else {                                        /* SELECT: the global tempo, on every view */
-            sys.bpm = (uint16_t)clamp((int32_t)sys.bpm + d, 40, 240);
+        } else {                                        /* SELECT: the global tempo, on every view (KNOB ACC: a fast
+                                                         * turn goes further; 2X, 4X leave it a BPM a detent) */
+            sys.bpm = (uint16_t)clamp((int32_t)sys.bpm + (((bryo_prefs >> 1) & 3u) == KNOB_ACC ? knob_steps(4, d, 200) : d), 40, 240);
         }
     }
     if ((d = panel_enc(EN_PRESET)) != 0)               /* PRESETS: the project view, the slot it points at */

@@ -29,8 +29,9 @@
 
 #define PJ_N 6u                      /* project slots */
 #define PJ_MAGIC 0x50595242u         /* "BRYP" */
-#define PJ_VERSION 2u                   /* 2: SEQ's slots have SPRD AMT OFS (a version 1 project's SEQ gets their
-                                         * defaults, not the 0s it stored there) */
+#define PJ_VERSION 3u                   /* 2: SEQ's slots have SPRD AMT OFS (a version 1 project's SEQ gets their
+                                         * defaults, not the 0s it stored there). 3: each track's arpeggiator after
+                                         * its drum kit (older: the arpeggiator off, its defaults) */
 static uint8_t pj_ver;                  /* the version of the project being read */
 static uint8_t pj_wver = PJ_VERSION;    /* the version written (always PJ_VERSION; the host tests write a 1 to
                                          * check an older project still loads) */
@@ -344,6 +345,7 @@ static void pj_write_state(void)
         pw_u16(DRM_NINST);
         for (s = 0; s < DRM_NINST; s++)
             pw_a16(P->dins[s], NDIN);
+        pw_a16(P->arp, NARP);
     }
     for (t = 0; t < NTRK; t++)                           /* the depths, sparse: track, slot, array, knob, depth */
         n += mdl[t].n;
@@ -456,6 +458,8 @@ static int pj_read_state(void)
             int16_t junk[NDIN];
             pr_a16(s < DRM_NINST ? P->dins[s] : junk, s < DRM_NINST ? NDIN : 0u, DRI_P);
         }
+        if (pj_ver >= 3u)
+            pr_a16(P->arp, NARP, ARP_P);
     }
     n = pr_u16();
     for (i = 0; i < n && !pr.bad; i++) {
@@ -520,6 +524,8 @@ static void pj_scan(uint32_t s)
             pr_a16(junk, 16, 0);
         pr_a16(junk, NPK, 0);
         for (k = pr_u16(), s2 = 0; s2 < k; s2++)
+            pr_a16(junk, NPK, 0);
+        if (pj_ver >= 3u)                                /* (the arpeggiator) */
             pr_a16(junk, NPK, 0);
     }
     m->used = !pr.bad;
@@ -677,6 +683,43 @@ static int pj_load(uint32_t s)
     pj_cur = (uint8_t)s;
     pj_hash_at = pj_hash();
     return 0;
+}
+
+/* main loop: a new project in slot s, blank: every knob at its default, every track an empty tape of its own (no
+ * reel to play, POLY's on it too), no drum pattern, no modulation, nothing latched in an arpeggiator; the mixer and
+ * the tempo as at power-on. Nothing is written to the slot until SAVE (it shows EMPTY until then); what was loaded
+ * before is in its own slot as it was last saved. */
+static void pj_new(uint32_t s)
+{
+    uint32_t t, b;
+    sys.playing = 0;
+    sys.rec = 0;
+    param_defaults();
+    for (t = 0; t < NTRK; t++) {
+        tp[t].dev[DEV_SRC][TK_REEL] = 0;
+        tp[t].pol[PL_REEL] = 0;
+        for (b = 0; b < DRM_NBAR; b++) {
+            memset(tp[t].dpat[b], 0, sizeof tp[t].dpat[b]);
+            tp[t].dacc[b] = 0;
+        }
+        track[t].level = 100;
+        track[t].mute = 0;
+        track[t].octave = 3;
+        mdl[t].n = 0;
+        tape_unprepare(t);
+        tape_ctl[t].empty = 1;
+        tape_ver[t]++;
+        drm_dirty[t] = 0;
+        mod_rebuild(t);
+        arp_clear(t);
+    }
+    sys.bpm = 120;
+    chain_tracks(NTRK);
+    tape_undo.valid = 0;
+    mod_undo_buf.valid = 0;
+    drm_undo_buf.valid = 0;
+    pj_cur = (uint8_t)(s < PJ_N ? s : 0u);
+    pj_hash_at = pj_hash();
 }
 
 /* main loop: slot s erased (both copies). 0, or -1 */

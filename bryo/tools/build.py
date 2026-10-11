@@ -5,8 +5,8 @@
 
   tools/build.py [--release X.Y[-suffix]]
 
-Outputs in build/: felucca.bin (app), loader/ota.bin (update loader),
-felucca.fwsc (package). A release build (--release X.Y) writes bryo-X.Y.fwsc and a folder
+Outputs in build/: bryo.bin (app), loader/ota.bin (update loader),
+bryo.fwsc (package). A release build (--release X.Y) writes bryo-X.Y.fwsc and a folder
 release-X.Y/ with the package, the app, SHA256SUMS, the sample attribution and the licence files.
 See BUILDING.md for the toolchain and the SDK.
 
@@ -79,7 +79,7 @@ def tc(tool, *args):
     r = subprocess.run(cmd, cwd=SRC, capture_output=True, text=True)
     if r.returncode:
         sys.stderr.write(r.stdout + r.stderr)
-        raise SystemExit(f"build: {tool} failed")
+        raise SystemExit(f"build: {tool} failed (exit {r.returncode})")
     if r.stderr.strip():
         sys.stderr.write(r.stderr)
     return r.stdout
@@ -195,20 +195,20 @@ def build_app():
     # marked minsize (tools/size_fns.py), then the IR is compiled at -Os. FELUCCA_SIZE=0: -Os everywhere
     size = os.environ.get("FELUCCA_SIZE") != "0"
     cmain = (("cc", *flags, "-S", "-emit-llvm", "-Xclang", "-disable-llvm-optzns", "-c",
-              FW / "src" / "bryo.c", "-o", OUT / "felucca.ll") if size else
-             ("cc", *flags, "-c", FW / "src" / "bryo.c", "-o", OUT / "felucca.o"))
+              FW / "src" / "bryo.c", "-o", OUT / "bryo.ll") if size else
+             ("cc", *flags, "-c", FW / "src" / "bryo.c", "-o", OUT / "bryo.o"))
     tc_all(("cc", "-c", FW / "crt0.S", "-o", OUT / "crt0.o"),
            ("cc", "-c", FW / "hal" / "fm1_vec.S", "-o", OUT / "fm1_vec.o"),
            ("cc", "-c", FW / "hal" / "fm1_isr.S", "-o", OUT / "fm1_isr.o"),
            cmain)
     if size:
-        subprocess.run([sys.executable, SRC / "tools" / "size_fns.py", OUT / "felucca.ll", OUT / "felucca_size.ll"],
+        subprocess.run([sys.executable, SRC / "tools" / "size_fns.py", OUT / "bryo.ll", OUT / "bryo_size.ll"],
                        check=True)
         tc("cc", *[f for f in flags if not f.startswith(("-I", "-D", "-W"))], "-c",
-           OUT / "felucca_size.ll", "-o", OUT / "felucca.o")
-    elf = OUT / "felucca.elf"
+           OUT / "bryo_size.ll", "-o", OUT / "bryo.o")
+    elf = OUT / "bryo.elf"
     tc("pi32v2/bin/ld", "-T", FW / "app.ld", OUT / "crt0.o", OUT / "fm1_vec.o", OUT / "fm1_isr.o",
-       OUT / "felucca.o", "-o", elf)
+       OUT / "bryo.o", "-o", elf)
     for sect in ("text.bin", "data.bin", "ramtext.bin"):
         (OUT / sect).unlink(missing_ok=True)
     *_, syms, dis, rt = tc_all(("common/bin/objcopy", "-O", "binary", "-j", ".text", elf, OUT / "text.bin"),
@@ -217,7 +217,7 @@ def build_app():
                                ("common/bin/objdump", "-t", elf),
                                ("common/bin/objdump", "-d", elf),
                                ("common/bin/objdump", "-d", "-j", ".ram_text", elf))
-    (OUT / "felucca.dis").write_text(dis)
+    (OUT / "bryo.dis").write_text(dis)
 
     def symv(name):
         return int(re.search(r"^([0-9a-f]+) .*\s" + name + r"$", syms, re.M).group(1), 16)
@@ -234,7 +234,7 @@ def build_app():
             img += b"\xff" * (load - APP_XIP - len(img))
             img += blob
     img += b"\xff" * (-len(img) % 4)
-    (OUT / "felucca.bin").write_bytes(img)
+    (OUT / "bryo.bin").write_bytes(img)
     return bytes(img), syms, dis, rt
 
 
@@ -324,7 +324,7 @@ def main():
     ap.add_argument("--release", metavar="X.Y", help="release build: identity FM-1_9XY, version string vX.Y")
     ap.add_argument("--sdk", type=Path, help="JieLi AC79 SDK checkout (default: $AC79_SDK)")
     a = ap.parse_args()
-    name = "felucca.fwsc"
+    name = "bryo.fwsc"
     if a.release:                   # one digit each: the identity has room for two (X.Y.Z keeps X.Y's)
         m = re.fullmatch(r"(\d)\.(\d)(?:\.\d)?(-[A-Za-z0-9]+)?", a.release)
         if not m:
@@ -358,7 +358,7 @@ def main():
     att = SRC / "assets" / "samples-cc0" / "ATTRIBUTION.txt"
     if att.exists():
         shutil.copy(att, OUT / "ATTRIBUTION.txt")
-    print(f"app      {OUT / 'felucca.bin'}  {len(img)} B")
+    print(f"app      {OUT / 'bryo.bin'}  {len(img)} B")
     print(f"loader   {LDR / 'ota.bin'}  {len(ota)} B")
     print(f"package  {OUT / name}  {len(pkg)} B, identity {PRODUCT}")
     if a.release:                   # what a release carries: the package, the app and every licence they need

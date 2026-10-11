@@ -36,6 +36,9 @@ typedef struct {
                                   * DMODE_HITS (the keys play the kit) */
     volatile uint8_t usbrec;     /* the USB record mode is up (usbrec.c): the tracks stop, the output plays the
                                   * computer */
+    uint8_t keys_notes;          /* SETUP KEYS NOTE: the 27 keys are a keyboard, F to G (the black keys play the
+                                  * sharps on SYNTH and POLY, and aren't shortcuts); 0: the white keys 16 semitones
+                                  * from C, the black keys the shortcuts */
 } sys_t;
 static sys_t sys;
 
@@ -61,6 +64,12 @@ static const uint8_t KEY_BLACK[27] = {0xFF, 0, 0xFF, 1, 0xFF, 2, 0xFF, 0xFF, 3, 
                                       7, 0xFF, 0xFF, 8, 0xFF, 9, 0xFF, 0xFF, 10, 0xFF};
 enum { BK_OP1, BK_OP2, BK_OP3, BK_OP4, BK_OP5, BK_OP6, BK_PIT, BK_GLO, BK_MONO, BK_POLY, BK_ZERO };
 #define WHITE_MASK 0x05AD5AD5u   /* fm1_in.notes bits of the white keys */
+/* What SYNTH and POLY play: a mask of up to 32 keys held, bit k the note key_base[t] + k (chain.c sets both each
+ * block, the ISR's). Shortcut keys: the 16 white keys, bit k white key k, key_base C of the octave. KEYS NOTE: the
+ * 27 keys as they lie, bit k fm1_in.notes bit k, key_base the F below. The arpeggiator (arp.c): its one note,
+ * bit 0, key_base the note itself. */
+#define NKEYBIT 32u
+static uint8_t key_base[NTRK];
 /* fm1_in.notes -> the white keys held, bit k = white key k (a plain loop: no builtin that could become a runtime
  * library call on the target compiler) */
 static inline uint32_t white_keys(uint32_t notes)

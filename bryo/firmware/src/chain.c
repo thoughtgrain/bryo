@@ -88,16 +88,31 @@ static void chain_source(uint32_t t, uint32_t keys, const int32_t *rin, int32_t 
 static void chain_block(int32_t *out, uint32_t n)
 {
     int32_t l[CTL], r[CTL], rin[NTRK][CTL];
-    uint32_t i, t, u, keys = sys.keys_live ? white_keys(fm1_in.notes) : 0u, sel = sys.sel, zero = 0;
+    uint32_t i, t, u, white = sys.keys_live ? white_keys(fm1_in.notes) : 0u, sel = sys.sel, zero = 0, play[NTRK];
     uint32_t ntrk = sys.ntrk >= 1u && sys.ntrk <= NTRK ? sys.ntrk : NTRK;
     if (ur.isr_in) {                                    /* the record mode: the monitor */
         usbrec_block(l, r, n);
         master_block(l, r, out, n);
         return;
     }
+    for (t = 0; t < NTRK; t++) {                       /* what each track's source plays: its keys (the focused
+                                                        * track's), on SYNTH and POLY through the arpeggiator */
+        uint32_t src = tp[t].src, base = 12u * ((uint32_t)track[t].octave + 1u), in, nb;
+        int notes = src == SRC_SYNTH || src == SRC_POLY;
+        if (notes && sys.keys_notes) {                 /* KEYS NOTE: the 27 keys as a keyboard, from the F above */
+            in = t == sel && sys.keys_live ? fm1_in.notes & 0x7FFFFFFu : 0u;
+            base += 5u;
+        } else {
+            in = t == sel ? white : 0u;
+        }
+        nb = base;
+        play[t] = notes ? arp_block(t, in, base, n, &nb) : in;
+        key_base[t] = (uint8_t)clamp((int32_t)nb, 0, 127);
+        mod_xkeys[t] = t == sel ? 0u : play[t];
+    }
     {                                                  /* the modulators, and the knobs they move (mod.c) */
         const int32_t *last[NTRK] = {track_rt[0].last, track_rt[1].last, track_rt[2].last, track_rt[3].last};
-        mod_tick(keys, sel, last);
+        mod_tick(play[sel % NTRK], sel, last);
     }
     gr_plan();                                         /* the grains each track may sound this block (grain.c) */
     for (u = 0; u < 27u; u++)                          /* the 0 black key held, or tapped (latched): GRAIN frozen */
@@ -124,7 +139,7 @@ static void chain_block(int32_t *out, uint32_t n)
         track_rt_t *rt = &track_rt[t];
         int32_t s[CTL], gl[CTL], gr[CTL], g = c->mute ? 0 : (int32_t)LEVEL_Q12[c->level & 127u], pk = rt->peak;
         int32_t a0 = rt->act, a1 = clamp(a0 + (t < ntrk ? 1 : -1) * 372 * (int32_t)n, 0, 32767);
-        uint32_t k = t == sel ? keys : 0u, gk = 0, rk = 0;
+        uint32_t k = play[t], gk = 0, rk = 0;
         rt->act = a1;
         if (!a0 && !a1) {                               /* parked (TRACKS): silent, not rendered */
             grain_kill(t);                              /* (its grain slots go to the tracks still on) */
@@ -133,13 +148,14 @@ static void chain_block(int32_t *out, uint32_t n)
             rt->peak = pk - (pk >> 6);
             continue;
         }
-        if (k && sys.keys_grain && tp[t].src == SRC_TAPE) {   /* the GRAIN page: the keys move GRAIN's cursor */
-            gk = k;
+        if (t == sel && white && sys.keys_grain && tp[t].src == SRC_TAPE) {   /* the GRAIN page: the keys move
+                                                                               * GRAIN's cursor */
+            gk = white;
             k = 0;
         }
-        if (k && sys.keys_reso) {                       /* the RESONATOR page: the keys set its root; on a TAPE track
-                                                         * they pluck it, on SYNTH or POLY they still play the source */
-            rk = k;
+        if (t == sel && white && sys.keys_reso) {       /* the RESONATOR page: the white keys set its root; on a TAPE
+                                                         * track they pluck it, on SYNTH or POLY they still play it */
+            rk = white;
             if (tp[t].src == SRC_TAPE)
                 k = 0;
         }

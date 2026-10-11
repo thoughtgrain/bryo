@@ -10,15 +10,18 @@ test and measure, the decisions and the open questions. The per-part detail ("as
 tests/run_tests.sh                       # must end "ALL HOST TESTS PASSED"
 sh tests/checkpoint_sim.sh 10            # load per run (callgrind) + interrupt stress ("the books balance")
 sh tests/mod_audit.sh [--cost]           # every modulation target: change, steps at block edges, cost
-clang -fsyntax-only -m32 -ffreestanding -fno-builtin -Wall -Wno-unused-function \
+clang -fsyntax-only --target=i386-unknown-linux-gnu -ffreestanding -fno-builtin -Wall -Wno-unused-function \
       -Ifirmware/hal -Ifirmware/src -Ibuild/gen firmware/src/bryo.c          # target type check: no warnings
 python3 tests/ui_golden.py update tests/bryo_golden.txt build/bryo_ui        # after a deliberate screen change,
+python3 tools/gen_manual_shots.py                                            # the manual's pictures too, and
 sed -i '2s|.*|# Bryo: SHA-256 of every Bryo screen render (tests/bryo_host.c, tests/ui_golden.py)|' tests/bryo_golden.txt
 ```
 
 The host binary alone: `cc -O1 -I build/gen -Itests -o build/bryo_host tests/bryo_host.c -lm && ./build/bryo_host
-build/bryo_ui`. The device build (`./build.sh`) needs JieLi's toolchain, which isn't reachable from a cloud
-container; everything is verified on the host.
+build/bryo_ui`. The device build (`./build.sh` → `build/bryo.fwsc`) needs JieLi's toolchain (Linux x86-64): from a
+cloud container it isn't reachable; on the Mac it runs each tool in a linux/amd64 container (colima). Valgrind runs
+there too, for the cost numbers. Install with `tools/fm1_install.py build/bryo.fwsc`; the suite's update-path tests
+need `AC79_SDK` set. Since 2026-10-10 Bryo runs on a real FM-1 (`docs/hardware-checkpoint.md` has the readings).
 
 ## Rules
 

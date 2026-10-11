@@ -240,7 +240,7 @@ static void fm1_main(void)
         cdc_task();
 #endif
         felucca_dbg.ui_frames++;
-        felucca_dbg.page = ui.kind == FOCUS_SLOT ? 8u + ui.slot : ui.dev;   /* breadcrumbs: what the screen shows */
+        felucca_dbg.page = ui.kind == FOCUS_SLOT ? 8u + ui.slot : ui.kind == FOCUS_ARP ? 12u : ui.dev;   /* breadcrumbs: what the screen shows */
         felucca_dbg.home = ui.view;
         felucca_dbg.stage = 1;
         ui_input();

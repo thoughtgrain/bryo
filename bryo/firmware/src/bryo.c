@@ -78,6 +78,7 @@ static void ui_redraw(void);
 #include "poly.c"                /* POLY: a sound across the keys */
 #include "drum_voice.c"          /* the DRUM kit's voices: synthesized drums */
 #include "drum.c"                /* DRUM: the kit and its pattern */
+#include "arp.c"                 /* the arpeggiator: the keys into one note at a time, in time */
 #include "source.c"              /* the source engines a track starts with */
 #include "grain.c"               /* GRAIN: grains of the track's tape */
 #include "reso.c"                /* RESONATOR: four tuned strings */

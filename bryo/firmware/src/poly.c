@@ -64,7 +64,7 @@ static void pol_start(uint32_t t, uint32_t k, uint32_t nv, uint32_t len)
         v->env = 0;
     }
     v->pos = (int32_t)(len * (uint32_t)TPD(t, MA_POL)[PL_STRT] / 100u) << 12;
-    v->note = (uint8_t)clamp(12 * ((int32_t)track[t].octave + 1) + (int32_t)k, 0, 127);
+    v->note = (uint8_t)clamp((int32_t)key_base[t] + (int32_t)k, 0, 127);
     v->inc = pol_inc(t, v->note);
     v->key = (uint8_t)k;
     v->stage = 1;
@@ -122,7 +122,7 @@ static void pol_voice(uint32_t t, pol_voice_t *v, tape_rd_t *rd, const tape_view
     v->amp = a1;
 }
 
-/* audio ISR: one block of track t's POLY into out; keys: the white keys held; rec: unused (REC prints POLY onto the
+/* audio ISR: one block of track t's POLY into out; keys: the keys held (bit k: key_base + k); rec: unused (REC prints POLY onto the
  * tape, chain.c) */
 static void pol_block(uint32_t t, uint32_t keys, const int32_t *rec, int32_t *out, uint32_t n)
 {
@@ -134,7 +134,7 @@ static void pol_block(uint32_t t, uint32_t keys, const int32_t *rec, int32_t *ou
         out[j] = 0;
     tape_view_of(t, (uint32_t)clamp(tp[t].pol[PL_REEL], 0, (int32_t)(NREEL + USLOT_N)), &vw);
     s->keys = keys;
-    for (k = 0; off && k < NWHITE; k++)                     /* keys let go: their voices release */
+    for (k = 0; off && k < NKEYBIT; k++)                     /* keys let go: their voices release */
         if ((off >> k) & 1u)
             for (j = 0; j < POL_NV; j++)
                 if (s->v[j].key == k && s->v[j].stage && s->v[j].stage != 3u)
@@ -142,7 +142,7 @@ static void pol_block(uint32_t t, uint32_t keys, const int32_t *rec, int32_t *ou
     for (j = nv; j < POL_NV; j++)                           /* VOIC turned down: the voices above it let go */
         if (s->v[j].stage && s->v[j].stage != 3u)
             s->v[j].stage = 3;
-    for (k = 0; on && vw.len && k < NWHITE; k++)            /* new keys, lowest first (nothing to play: none) */
+    for (k = 0; on && vw.len && k < NKEYBIT; k++)            /* new keys, lowest first (nothing to play: none) */
         if ((on >> k) & 1u)
             pol_start(t, k, nv, vw.len);
     for (j = 0; j < POL_NV; j++)

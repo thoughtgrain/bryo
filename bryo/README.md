@@ -10,9 +10,11 @@ keeps Felucca's hardware layer, update path and installer, which is why installi
 Felucca. Thanks go upstream: see [ACKNOWLEDGEMENTS.md](ACKNOWLEDGEMENTS.md) and [NOTICE.md](NOTICE.md).
 Felucca's own README is kept in [docs/FELUCCA-README.md](docs/FELUCCA-README.md).
 
+**New to Bryo? Start with [the manual](docs/manual/README.md):** step by step, with the screens.
+
 ## Where it stands
 
-**Phases 1 to 7 of 10, on the host** (p-locks still to decide; the whole picture, with the file map and what's open,
+**Phases 1 to 9 of 10, and running on an FM-1 since 2026-10-10** (p-locks still to decide; the whole picture, with the file map and what's open,
 is in [docs/bryo-status.md](docs/bryo-status.md)). Each of the four tracks has a tape: a loop in RAM (IMA ADPCM at 22.05 kHz) that plays when
 you press PLAY. The tracks share one memory (28 s in all) and each takes what it records: a blank tape grows while
 REC records it, and TRACKS (GLO held + SELECT) switches tracks off to give the rest more. To start, track n plays factory reel n (BEAT, KEYS, AIR, PLUK, made from material in
@@ -34,8 +36,7 @@ VERB is up) make sound as well. The mixer's channel (LOW, HIGH, FILT, PAN) and a
 (GLO, then EDIT, EDIT again for MASTER) shape the mix. The four modulator slots run (an LFO, an ADSR, a step sequencer,
 an envelope follower): hold a slot's pad and turn any knob on a device, source or channel page to set how far that
 slot moves it, and the keys, the loop and the tempo drive them. The knobs carry the Torso S-4's names where they do the same job
-([docs/s4-alignment.md](docs/s4-alignment.md)). Everything so far is verified on the host only: nothing has been built
-for or run on an FM-1 yet. The plan, with what the hardware allows and the order of the work, is in
+([docs/s4-alignment.md](docs/s4-alignment.md)). It runs on the FM-1 since 2026-10-10 (the hardware checkpoint is under way). The plan, with what the hardware allows and the order of the work, is in
 [docs/bryo-architecture.md](docs/bryo-architecture.md).
 
 What works on the panel now (every control, in every context, with what's planned for it, is in
@@ -49,9 +50,13 @@ What works on the panel now (every control, in every context, with what's planne
 | EDIT | GRAIN; again: GRAIN 2, GRAIN 3 (SCAN WARP OFST FDBK), GRAIN 4 (PATN SCAL PRND ROUT), RESONATOR, RESONATOR 2, RESONATOR 3 |
 | FX | COLOR; again: COLOR 2, COLOR 3, SPACE, SPACE 2, SPACE 3 |
 | ROUT (the last page: GRAIN 4, RESONATOR 3, COLOR 3, just left of LVL where there is one) | INS: WET crossfades the dry sound with the device's; SEND: the dry stays at full and the device is added at WET, a send per track (SPACE's DLY and VERB always work that way) |
-| LFO ENV SEQ ARP, tapped | modulator slots 1 to 4 (the page opens as you let go); again for the slot's next page |
-| LFO ENV SEQ ARP, held + a knob | that slot's depth to the knob on the page shown (-100 to 100 %); the strip shows the slot's depths while held |
-| LFO ENV SEQ ARP, held + SELECT | the slot's engine (LFO, ADSR, SEQ, FOLLOW); its depths stay |
+| LFO ENV SEQ, tapped | the modulators (the page opens as you let go; again for its next page): LFO holds M1, M2, M3 (each an LFO, ADSR or FOLLOW), ENV is M2, SEQ is M4, the step sequencer |
+| LFO ENV SEQ, held + a knob | that modulator's depth to the knob on the page shown (-100 to 100 %); the strip shows its depths while held |
+| LFO held + OP1, OP2, OP3 | which modulator the LFO pad is: M1, M2, M3 |
+| LFO ENV, held + SELECT | the modulator's engine (LFO, ADSR, FOLLOW); its depths stay. M4 stays the sequencer |
+| ARP | the arpeggiator (SYNTH and POLY tracks): MODE (OFF, KEY, LTCH, ADD), ORDR (UP, DOWN, UPDN, RND, PLAY), RNGE 1-3 octaves, RATE; page 2 GATE, SWNG. POLY held on its page clears its notes |
+| GLO held + OCT+ | the black keys: the shortcuts, or notes (the 27 keys a keyboard, F to G) |
+| GLO, then EDIT x3 | SETUP: KEYS, KNOB (a click moves 1X, 2X, 4X, or ACC: faster turns go further), HOLD, LEDS; kept for the instrument |
 | White key held + KNOB 1, on a SEQ page | that step's value (the keys pick steps there, they don't play) |
 | GLO, held | the mixer while held: white keys 1 to 4 pick the track, KNOB 1 to 4 set the levels, SELECT sets TRACKS (1 to 4 in use) |
 | GLO, tapped | the mixer stays up; tap again or press a page pad to leave |
@@ -62,7 +67,7 @@ What works on the panel now (every control, in every context, with what's planne
 | PLAY | start and stop: every tape plays its loop from the start |
 | REC | arm the focused track: while playing it records onto its tape the other tracks (TAPE) or its own sound (SYNTH, POLY); a reel is copied on first |
 | SAVE, tapped | save the project: the whole instrument (every knob, source, pattern, depth, the mixer, the tempo) into the project loaded last (P1 to start with). A track's own recorded tape goes into a user reel named after it (P2T3). The last project saved comes back at power-on |
-| PRESETS | the project view: six slots; turn to point at one, OCT+ loads it, SAVE saves into it, POLY held deletes it, OCT- goes back. EDIT turns to its second page, the track PRESETS (A..H): a track's sound (its source, devices, channel strip, slots and depths, not its pattern or level). OCT+ loads one into the focused track, SAVE saves the focused track there. Past H come eight factory presets, two a source: DRIFT and RINGS (TAPE), BASS and PAD (SYNTH), KEYS and SWELL (POLY), TIGHT and DUB (DRUM) |
+| PRESETS | the project view: six slots; turn to point at one, OCT+ loads it (an EMPTY one: a new, blank project there), SAVE saves into it, POLY held deletes it, OCT- goes back. EDIT turns to its second page, the track PRESETS (A..H): a track's sound (its source, devices, channel strip, slots and depths, not its pattern or level). OCT+ loads one into the focused track, SAVE saves the focused track there. Past H come eight factory presets, two a source: DRIFT and RINGS (TAPE), BASS and PAD (SYNTH), KEYS and SWELL (POLY), TIGHT and DUB (DRUM) |
 | SAVE, held | undo the last clear (the tape, the track's modulation, or a DRUM pattern), or the last track preset load or SCL reset |
 | OCT− / OCT+ | the white keys' octave |
 | White keys | TAPE: the 16 slices of the focused track's loop (stopped: the slice plays once); SYNTH, POLY: notes, a semitone apart from C; DRUM: the kit (on STEP: steps, accents, live hits, or held to wipe) |

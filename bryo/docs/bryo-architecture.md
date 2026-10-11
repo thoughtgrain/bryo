@@ -481,8 +481,9 @@ After phase 1, two changes to the screen, from your review:
   forever); on RND that's the steps themselves, on the other shapes each cycle's level, repeating every LEN
   cycles. SMTH is a slew on any shape. SPRD is the right channel's phase against the left, drawn as a dim second
   trace. AMT scales the slot as a whole (the S-4's AMOUNT); the PRD's hold-and-turn still sets each target's
-  depth. The ARP pad's slot starts as the LFO on RND with a little VAR, so the random modulator is still one press
-  away. ADSR's MODE/SENS from the last pass went to FOLLOW, where they belong. What I couldn't confirm from the
+  depth. The ARP pad's slot started as the LFO on RND with a little VAR, so the random modulator was one press
+  away (2026-10-10: that slot is M3 on the LFO pad now, and ARP is the arpeggiator: "The arpeggiator, the keys as a
+  keyboard, SETUP"). ADSR's MODE/SENS from the last pass went to FOLLOW, where they belong. What I couldn't confirm from the
   S-4 docs: FOLLOW's exact knob names (the docs describe a source, rise and fall times and sample and hold), so
   those four names are mine.
 
@@ -1636,6 +1637,64 @@ the pictures and the projects are untouched. A test checks every layout puts eac
 that the two rules hold. The one stored change is SEQ's three new knobs, so the project format is version 2: a
 version 1 project's SEQ slots get AMT 100 (and SPRD, OFS 0) instead of the 0s they stored there, which would
 have silenced them.
+
+## The arpeggiator, the keys as a keyboard, SETUP (2026-10-10)
+
+Four things from one round of playing it on the FM-1, built together because they meet at the keys and the pads.
+
+**The pads.** ARP was the fourth modulator slot; the modulators now are three that swap between LFO, ADSR and
+FOLLOW, plus the step sequencer. The LFO pad holds the three (M1 M2 M3): held + OP1, OP2 or OP3 picks the one it
+shows (`ui.lfo_slot`), and from then a tap opens that one's page and a hold sets its depths. ENV stays M2 straight
+away (so M2 is reachable two ways; both pads light on its page). SEQ is M4 and its engine never changes (SELECT with
+it held says so). The slots keep their stored numbers so nothing saved moves: slot 0 M1, slot 1 M2, slot 2 the SEQ
+(shown M4), slot 3 M3, the old ARP slot, still a random LFO to start (`SLOT_NUM`, `SLOT_OF_NUM` in param.c turn one
+into the other for the screen). An old project whose slot 2 isn't a SEQ, or whose other slots are, loads as it was;
+only the engine switch keeps to the new rule.
+
+**The arpeggiator** (`arp.c`, one per track, `tp[t].arp`, its page on the ARP pad). It's a filter on the key mask:
+chain.c gives it the keys held on a SYNTH or POLY track and the note of bit 0 (`key_base`), and takes back a mask
+with at most bit 0 set, `key_base` set to the step's note. Between steps there's always a silent block (GATE is
+clamped a block short of the step), so the source sees a new key press each step and starts its envelope, and so do
+the modulators' KEY triggers. SYNTH and POLY needed only `key_base` instead of "C of the octave" and 32 key bits
+instead of 16. The notes it holds are absolute (0..127), in the order pressed: KEY keeps the keys held, LTCH keeps
+the last chord after they're all let go (a press after that starts a new one), ADD keeps every key ever pressed
+(past 32 the oldest goes; POLY held on its page, or MODE to OFF, clears it). ORDR walks RNGE octaves of them UP,
+DOWN, UPDN (the ends once), RND or PLAY (pressed order); `arp_place` is the walk, shared with the screen's preview.
+Its clock is its own: the first note sounds on the key press, each step RATE long at the tempo (60 x 44100 / (BPM
+x steps a beat): 1/16 at 120 is 5,512 samples), SWNG moving a third of a step at most from the second of each pair
+to the first. It runs whether the transport plays or not. A latched pattern on a track you're not looking at plays
+on, and its KEY triggers still fire (`mod_xkeys`). Cost: about 4 host instructions a sample for all four
+(checkpoint run 1: 940 to 944, with the new reels). It isn't a modulation target (its knobs are choices acted on per
+step) and it isn't in track presets (the music, like the pattern), but it's in projects (version 3).
+
+**The keys as a keyboard.** The 27 keys are a piano's from F3 to G5 (hal/fm1_input.h); Bryo had the white keys as
+16 semitones from C so the black keys could be the PRD's macros. SETUP's KEYS on NOTE (or GLO held + OCT+) makes
+them a keyboard on SYNTH and POLY: the mask is `fm1_in.notes` itself, `key_base` the F of the octave (53 at OCT 3).
+The black keys' shortcuts are off then, all of them (a key can't be a sharp and a mute), except under the LFO pad,
+where OP1-OP3 still pick. TAPE's slices, DRUM's kit, GRAIN's cursor and RESONATOR's root keep the white keys as
+they were.
+
+**SETUP**, the mixer's fourth page: KEYS, KNOB, HOLD and LEDS, the instrument's, not a project's. HOLD and LEDS were
+Felucca's MENU settings (kept in its fields all along); KEYS and KNOB are a byte of their own in the settings record:
+favorites.factory[15][0], an engine Felucca never had, so going back to Felucca reads nothing from it. KNOB is how
+far a detent moves a value with more than 32 steps: 1X, 2X, 4X, or ACC, Felucca's acceleration (#52: the time
+between detents makes the multiplier, 1 to 4, so a slow turn stays fine). Choices always move one a detent. ACC
+also reaches the tempo; 2X and 4X leave it a BPM a detent.
+
+**A blank project.** OCT+ on an EMPTY slot in the project view starts a new project there (`pj_new`): every knob at
+its default, every track on its own empty tape (TAPE's and POLY's REEL on TAPE), no drum pattern, no depths, nothing
+in the arpeggiators, the mixer and tempo as at power-on. It's the current project from then (SAVE saves it there),
+and the slot shows EMPTY until it's saved. Power-on with nothing saved still plays the factory reels, which are now
+generative patches (`tools/gen_reels.py`: KEYS a Turing machine on the piano, AIR a sample-and-hold flute pad, PLUK
+two Euclidean string rhythms against each other; one bar each, so they loop together with BEAT).
+
+How it's tested (`tests/bryo_host.c` test_arp_keys): KEY UP at 1/16 plays C3 E3 C3 E3 with a silent block between
+steps; RNGE 2 UPDN and DOWN walk as they should; KEY stops when the keys go, LTCH keeps a chord and replaces it on a
+new press, ADD piles up, POLY held clears; OFF passes the keys through, a TAPE track gets no arpeggio; GLO + OCT+
+flips the keys and keeps it, a black key plays F#3 and doesn't mute, white key 1 is F3, OP1-OP3 still pick under
+LFO; depths follow the LFO pad's pick; SETUP 4X moves a 0-100 value 4 a detent and a choice 1, ACC goes further on
+a fast turn and stays fine on a slow one; a project keeps the arpeggiator. The screens: ARP, ARP in ADD, SETUP, a
+new blank project.
 
 ## USB record mode (2026-10-08)
 

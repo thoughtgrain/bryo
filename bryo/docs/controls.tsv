@@ -3,7 +3,7 @@
 # starting with # are comments; the first other line is the header. tests/controls_check.py validates it.
 #
 # context   where the row applies: any | power-on | page (any device or slot page) | page:tape | page:grain |
-#           page:resonator | page:color | page:space | page:drum (a DRUM track's own pages) | page:slot | mixer (GLO's
+#           page:resonator | page:color | page:space | page:drum (a DRUM track's own pages) | page:arp (the arpeggiator's page) | page:slot | mixer (GLO's
 #           view) | glo-held | slot-held | scl-held (SCL down: the reset) |
 #           slot-held+step (a SEQ slot's pad and a white key held) | project-view | routing-view | usb-record (the
 #           USB record mode: REC held a second)
@@ -22,10 +22,10 @@ power-on	BTN_OCTDN	combo	held with OCT+ at power-on: HARDWARE CALIBRATION (press
 page	BTN_HOME	press	focus the track's source (TAPE, SYNTH, POLY or DRUM) as HOME is let go (held for SELECT or a DRUM key: no page turn); again: its next page (TAPE 2, TAPE 3; SYNTH's AMP, FILTER, VOICE, LEVEL; POLY's ENV, FILTER, LEVEL), round. Every source's last page has LVL on KNOB 4 (-24..+6 dB: what the track hears of it, the S-4's LEVEL)	now	-	PRD 2.2
 page	BTN_EDIT	press	focus GRAIN; again: GRAIN 2 (WET SPRY CONT REV), GRAIN 3 (SCAN WARP OFST FDBK), GRAIN 4 (PATN SCAL PRND ROUT); again: RESONATOR, RESONATOR 2 (CUT RES TYPE SCAL), RESONATOR 3 (- - - ROUT); again: GRAIN. ROUT on GRAIN, RESONATOR and COLOR: INS (WET crossfades the dry with the device) or SEND (the dry at full, the device added at WET)	now	-	PRD 2.2
 page	BTN_FX	press	focus COLOR; again: COLOR 2 (NDEC NTON CMOD WET), COLOR 3 (- - ROUT LVL: ROUT left of LVL, as on every page with both); again: SPACE, SPACE 2 (DLY VERB TONE SPRD), SPACE 3 (PRE)	now	-	PRD 2.2
-page	BTN_LFO	tap	modulator slot 1's page as the pad is let go (default engine LFO, SIN); again: its next page (4: shape, refine, timing (SYNC TRIG FADE), place (PHAS SPRD AMT OFS)). Every engine's last page ends AMT OFS on KNOB 3-4. Held, it sets depths instead (slot-held)	now	-	PRD 2.2
-page	BTN_ENV	tap	modulator slot 2's page as the pad is let go (default engine ADSR); again: its next page (3: stages, curves, VEL LOOP AMT OFS)	now	-	PRD 2.2
-page	BTN_SEQ	tap	modulator slot 3's page as the pad is let go (default engine SEQ); again: its page 2 (DIR TRIG PROB STRT), page 3 (- SPRD AMT OFS)	now	-	PRD 2.2
-page	BTN_ARP	tap	modulator slot 4's page as the pad is let go (default engine LFO on its random shape, RND); again: its next page	now	-	PRD 2.2
+page	BTN_LFO	tap	the LFO pad's modulator: M1, M2 or M3 (the three swappable slots, each an LFO, ADSR or FOLLOW; LFO held + OP1 OP2 OP3 picks which, M1 to start), its page as the pad is let go; again: its next page. Every engine's last page ends AMT OFS on KNOB 3-4. Held, it sets depths instead (slot-held)	now	-	change
+page	BTN_ENV	tap	M2's page as the pad is let go (default engine ADSR; it can be swapped, as M1 and M3); again: its next page (ADSR: 3: stages, curves, VEL LOOP AMT OFS)	now	-	change
+page	BTN_SEQ	tap	M4's page, the step sequencer (always a SEQ: its engine doesn't swap), as the pad is let go; again: its page 2 (DIR TRIG PROB STRT), page 3 (- SPRD AMT OFS)	now	-	change
+page	BTN_ARP	tap	the arpeggiator's page (arp.c, not a modulator): MODE ORDR RNGE RATE; again: GATE SWNG. It plays a SYNTH or POLY track's keys one note at a time, in time	now	-	change
 page	BTN_GLO	tap	open the mixer and keep it up	now	-	change
 page	BTN_GLO	hold	the mixer while held; letting go returns to the page	now	-	change
 page	BTN_SCL	press	down: the reset (scl-held); on its own, nothing	now	-	change
@@ -52,7 +52,7 @@ page	ENC_SELECT	turn	the global tempo, 40..240 BPM	now	-	PRD 2.1
 page	ENC_PRESETS	turn	open the project view (PROJECTS), pointing at the project loaded last	now	-	change
 page	ENC_ALGORITHM	turn	open REC IN (the routing view): what each track's REC records	now	-	change
 page	WHITE_1-16	press	TAPE: slice n of the focused track's loop (16 slices); playing: the head jumps there (crossfaded); stopped: that slice plays once. SYNTH and POLY: notes, key n the semitone n above C of OCT (until RESONATOR and SEQ give the keys their own jobs)	now	-	change
-page	BLACK_OP1	press	mute / unmute track 1	now	-	PRD 2.3
+page	BLACK_OP1	press	mute / unmute track 1 (with SETUP's KEYS on NOTE no black key is a shortcut: they play the sharps on SYNTH and POLY, F3-G5 with the white keys)	now	-	PRD 2.3
 page	BLACK_OP2	press	mute / unmute track 2	now	-	PRD 2.3
 page	BLACK_OP3	press	mute / unmute track 3	now	-	PRD 2.3
 page	BLACK_OP4	press	mute / unmute track 4	now	-	PRD 2.3
@@ -85,14 +85,18 @@ mixer	ENC_K4	turn	track 4 level	now	-	change
 mixer	BTN_GLO	tap	close the mixer	now	-	change
 mixer	BTN_HOME	press	close the mixer and focus the source (any page pad does the same for its page)	now	-	change
 mixer	BTN_EDIT	hold	the selected track's channel: KNOB 1-4 set LOW HIGH FILT PAN; letting go returns to the levels	now	-	PRD 2.2
-mixer	BTN_EDIT	tap	steps the pages, each latched (as a tapped GLO latches the mixer): LEVELS, CHANNEL (the selected track's LOW HIGH FILT PAN), MASTER (the compressor: AMT ATK REL MIX), LEVELS	now	-	change
+mixer	BTN_EDIT	tap	steps the pages, each latched (as a tapped GLO latches the mixer): LEVELS, CHANNEL (the selected track's LOW HIGH FILT PAN), MASTER (the compressor: AMT ATK REL MIX), SETUP (KEYS KNOB HOLD LEDS: the panel's preferences, kept for the instrument), LEVELS	now	-	change
 glo-held	WHITE_1-4	press	focus track 1..4 (the white keys don't play while GLO is held)	now	-	change
 glo-held	ENC_K1-4	turn	the four track levels; letting go of GLO returns to the page	now	-	change
 glo-held	ENC_SELECT	turn	TRACKS 1-4: the tracks in use; the ones above it park (silent, not rendered, their tapes taken first when memory runs short). A pad held + SELECT picks that pad's thing, as HOME + SELECT (the source) and a slot + SELECT (its engine); plain SELECT stays the tempo on every view	now	-	change
 glo-held	BTN_GLO	release	back to the page if something was done or it was held past HOLD; else the mixer stays up	now	-	change
+glo-held	BTN_OCTUP	press	SETUP's KEYS flipped: the black keys as the shortcuts, or as notes (the 27 keys a keyboard from F on SYNTH and POLY)	now	-	change
 slot-held	ENC_K1-4	hold-turn	the depth (-100..100 %) from this slot to that knob on the page shown: a device, the source (each source its own depths), the channel strip. The strip shows the slot's depths while it's held; a modulated knob gets a mark. Not the reel choices; at most 32 depths a track. Turned back to 0 it catches there (gone): a turn that keeps going stays at 0 until the knob rests 250 ms, then goes on into the other sign. Let go: the page stays	now	-	PRD 4.2
 slot-held	BLACK_MONO	hold	held 0.5 s with the pad: clear that slot's depths on the page shown (other slots', other pages' stay); the pad let go first calls it off. SAVE held undoes	now	-	change
-slot-held	ENC_SELECT	hold-turn	that slot's engine (LFO ADSR SEQ FOLLOW), starting from that engine's defaults; its depths stay; the tempo is left alone	now	-	change
+slot-held	ENC_SELECT	hold-turn	that slot's engine (LFO ADSR FOLLOW: the SEQ pad's stays a SEQ, and says so), starting from that engine's defaults; its depths stay; the tempo is left alone	now	-	change
+slot-held	BLACK_OP3	press	the LFO pad held: it shows M3 from now (a knob turned next sets M3's depth; let go without one: M3's page). Other pads: the key's own job	now	-	change
+slot-held	BLACK_OP2	press	the LFO pad held: it shows M2 from now (a knob turned next sets M2's depth; let go without one: M2's page). Other pads: the key's own job	now	-	change
+slot-held	BLACK_OP1	press	the LFO pad held: it shows M1 from now (a knob turned next sets M1's depth; let go without one: M1's page). Other pads: the key's own job	now	-	change
 page	BTN_HOME	hold	held + SELECT, from any page: the track's source engine, TAPE, SYNTH, POLY, DRUM, shown on its first page; each keeps its own knobs, the switch crossfades	now	-	change
 slot-held+step	ENC_K1-4	hold-turn	the depth for that step only (p-lock); release the key and pad to commit (waiting on a decision: SEQ's step values are in, per-step depths are not)	proposed	-	PRD 4.3
 scl-held	ENC_K1-4	hold-turn	that knob to its default (any view with knobs: a page, the mixer's levels, channel and master, REC IN); PATN is turned, not reset (it writes a pattern)	now	-	change
@@ -100,10 +104,10 @@ scl-held	BTN_HOME	combo	on a source page: every knob on the page shown to its de
 scl-held	BTN_EDIT	combo	on GRAIN or RESONATOR (or the mixer's channel and master pages): the page shown to its defaults	now	-	change
 scl-held	BTN_FX	combo	on COLOR or SPACE: the page shown to its defaults	now	-	change
 scl-held	BTN_GLO	combo	on the mixer's levels: every track's level to 100	now	-	change
-scl-held	BTN_LFO	combo	on slot 1's page (and ENV, SEQ, ARP on theirs): the page shown to its defaults; the slot's depths stay (MONO clears those)	now	-	change
+scl-held	BTN_LFO	combo	on an LFO-pad slot's page (and ENV, SEQ, ARP on theirs): the page shown to its defaults; the slot's depths stay (MONO clears those)	now	-	change
 project-view	ENC_PRESETS	turn	point at the next or previous of the six project slots (on the PRESETS page: of the eight track presets, A..H, then the eight factory ones, 1..8: DRIFT RINGS (TAPE), BASS PAD (SYNTH), KEYS SWELL (POLY), TIGHT DUB (DRUM))	now	-	change
 project-view	BTN_EDIT	press	the view's pages, round: PROJECTS, PRESETS (a track's sound: source and its knobs, the devices, the channel strip, the slots and depths; not the pattern, level or REC IN), as EDIT steps the mixer's	now	-	change
-project-view	BTN_OCTUP	press	load the slot pointed at (it stops the transport); with changes not saved, asked first: OCT+ again within 3 s. On the PRESETS page: the preset (or factory one) into the focused track, no question (SAVE held puts the track back), playing on	now	-	change
+project-view	BTN_OCTUP	press	load the slot pointed at (it stops the transport); with changes not saved, asked first: OCT+ again within 3 s. On the PRESETS page: the preset (or factory one) into the focused track, no question (SAVE held puts the track back), playing on. On an EMPTY slot: a new project there, blank (every knob at its default, every track an empty tape of its own, no pattern, no depths, 120 BPM; saved by SAVE)	now	-	change
 project-view	BTN_OCTDN	press	leave the project view (any page pad does too)	now	-	change
 project-view	BTN_SAVE	tap	save into the slot pointed at; over another project, asked first: SAVE again within 3 s. On the PRESETS page: the focused track saved as the preset pointed at (over another, asked the same way); a factory one can't be saved over (FACTORY: SAVE INTO A..H)	now	-	PRD 2.1
 project-view	BLACK_POLY	hold	held 0.5 s: delete the project pointed at (the user reels it saved stay); on the PRESETS page, the preset (a factory one stays)	now	-	change
@@ -111,3 +115,6 @@ project-view	ENC_K1-4	turn	nothing (the view has no knobs)	now	-	change
 routing-view	ENC_ALGORITHM	turn	the focused track's REC IN (AUTO OTHR T1-T4; its own number: SELF)	now	-	change
 routing-view	ENC_K1-4	turn	track 1..4's REC IN: AUTO (as before: the others on TAPE, its own source on SYNTH or POLY), OTHR (the others' mix), T1-T4 (one track; its own: SELF)	now	-	change
 routing-view	BTN_HOME	press	leave REC IN for the source (any page pad does the same for its page; GLO for the mixer)	now	-	change
+page:arp	ENC_K1-4	turn	MODE (OFF KEY LTCH ADD), ORDR (UP DOWN UPDN RND PLAY), RNGE (1-3 octaves), RATE (1/4 1/8 8T 1/16 16T 1/32); page 2: GATE, SWNG	now	-	change
+page:arp	BLACK_POLY	hold	held 0.5 s: forget the notes the arpeggiator holds (a latched chord, an ADD pile)	now	-	change
+page:arp	WHITE_1-16	press	on a SYNTH or POLY track: the notes it arpeggiates (KEY: while held; LTCH: the last chord goes on; ADD: each joins for good)	now	-	change

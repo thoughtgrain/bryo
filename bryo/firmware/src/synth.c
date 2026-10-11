@@ -5,8 +5,9 @@
  * voices per track (VOIC); at 1 it plays legato, gliding by GLID.
  *
  * Keys: the white keys of the focused track, read by the audio ISR once per block (chain.c), so a note starts
- * within one block. White key k is the semitone k above C of the track's octave (OCT-/OCT+): sixteen keys, sixteen
- * semitones, because the black keys are the PRD's macros.
+ * within one block. With the black keys as shortcuts, white key k is the semitone k above C of the track's octave
+ * (OCT-/OCT+): sixteen keys, sixteen semitones. With SETUP's KEYS on NOTE the 27 keys are a keyboard from F, and with
+ * the arpeggiator on (arp.c) its one note plays: either way a mask of keys over key_base (bryo.h).
  *
  * A voice for a new key: a silent one, else the quietest releasing one, else the oldest. A stolen voice keeps its
  * phases and filter state and attacks from its current level, so taking it over doesn't click. Every block's
@@ -35,11 +36,11 @@ typedef struct {
 
 static syn_t syn[NTRK];
 
-/* white key k of track t as a pitch, 1/16 semitone, before TUNE (added as the voice plays, so a modulated TUNE
- * moves a held note too: mod.c) */
+/* key bit k of track t as a pitch, 1/16 semitone, before TUNE (added as the voice plays, so a modulated TUNE
+ * moves a held note too: mod.c). The bit's note is key_base's (bryo.h) */
 static int32_t syn_note16(uint32_t t, uint32_t k)
 {
-    int32_t n = 12 * ((int32_t)track[t].octave + 1) + (int32_t)k;
+    int32_t n = (int32_t)key_base[t] + (int32_t)k;
     return clamp(n, 0, 127) * 16;
 }
 
@@ -181,7 +182,7 @@ static void syn_voice(uint32_t t, syn_voice_t *v, int32_t *out, uint32_t n)
     v->amp = a1;
 }
 
-/* audio ISR: one block of track t's synth into out; keys: the white keys held (bit k = key k); rec: unused (the
+/* audio ISR: one block of track t's synth into out; keys: the keys held (bit k: key_base + k); rec: unused (the
  * synth records nothing; REC prints it onto the tape, chain.c) */
 static void syn_block(uint32_t t, uint32_t keys, const int32_t *rec, int32_t *out, uint32_t n)
 {
@@ -191,14 +192,14 @@ static void syn_block(uint32_t t, uint32_t keys, const int32_t *rec, int32_t *ou
     for (j = 0; j < n; j++)
         out[j] = 0;
     s->keys = keys;
-    for (k = 0; off && k < NWHITE; k++)                     /* keys let go: their voices release */
+    for (k = 0; off && k < NKEYBIT; k++)                     /* keys let go: their voices release */
         if ((off >> k) & 1u)
             for (j = 0; j < SYN_NV; j++) {
                 syn_voice_t *v = &s->v[j];
                 if (v->key != k || !v->stage || v->stage == 3u)
                     continue;
                 if (nv == 1u && keys) {                     /* legato: back to the highest key still down */
-                    uint32_t h = NWHITE - 1u;
+                    uint32_t h = NKEYBIT - 1u;
                     while (!((keys >> h) & 1u))
                         h--;
                     v->key = (uint8_t)h;
@@ -212,7 +213,7 @@ static void syn_block(uint32_t t, uint32_t keys, const int32_t *rec, int32_t *ou
     for (j = nv; j < SYN_NV; j++)                           /* VOIC turned down: the voices above it let go */
         if (s->v[j].stage && s->v[j].stage != 3u)
             s->v[j].stage = 3;
-    for (k = 0; on && k < NWHITE; k++)                      /* new keys, lowest first */
+    for (k = 0; on && k < NKEYBIT; k++)                      /* new keys, lowest first */
         if ((on >> k) & 1u)
             syn_start(t, k, nv);
     for (j = 0; j < SYN_NV; j++)

@@ -221,6 +221,39 @@ static const pdesc_t MS_P[NMS] = {
 };
 static int16_t mst[NMS];
 
+/* The arpeggiator (arp.c), one per track, on the ARP pad: it plays the notes held on a SYNTH or POLY track one at a
+ * time, in time. MODE: OFF; KEY, while keys are held; LTCH, the last chord keeps playing after the keys are let go
+ * (a new chord, pressed after letting go, replaces it); ADD, every key pressed joins the notes for good (an endless
+ * pattern you pile up; POLY held on the ARP page clears it). ORDR: UP, DOWN, UPDN (up and back, the ends once), RND,
+ * PLAY (the order pressed). RNGE spreads them over 1-3 octaves. RATE a step (8T, 16T: triplets), GATE how much of
+ * it the note sounds, SWNG the off-beats late. Not modulation targets (choices the ISR acts on per step). */
+enum { AR_MODE, AR_ORDR, AR_RNGE, AR_RATE, AR_GATE, AR_SWNG, NARP = 8 };
+enum { ARM_OFF, ARM_KEY, ARM_LTCH, ARM_ADD };
+enum { ARO_UP, ARO_DOWN, ARO_UPDN, ARO_RND, ARO_PLAY };   /* (PK_DIR's order, then PLAY) */
+static const char *const N_ARM[4] = {"OFF", "KEY", "LTCH", "ADD"};
+static const char *const N_ARO[5] = {"UP", "DOWN", "UPDN", "RND", "PLAY"};
+static const char *const N_ARATE[6] = {"1/4", "1/8", "8T", "1/16", "16T", "1/32"};
+static const pdesc_t ARP_P[NPK] = {   /* (NPK long: pdesc_pages looks past the last page) */
+    {"MODE", 0, 3, ARM_OFF, F_ENUM, N_ARM, 1}, {"ORDR", 0, 4, ARO_UP, F_ENUM, N_ARO, 1}, {"RNGE", 1, 3, 1, F_NUM, 0, 1},
+    {"RATE", 0, 5, 3, F_ENUM, N_ARATE, 1},
+    {"GATE", 10, 100, 50, F_PCT, 0, 1}, {"SWNG", 0, 100, 0, F_PCT, 0, 1}};
+
+/* SETUP, the mixer's fourth page (EDIT tapped three times): how the panel behaves, for the instrument, not a project
+ * (settings.c keeps them). KEYS: the black keys as the shortcuts (SHRT: mutes, reverse, clears, freeze) or as notes
+ * (NOTE: the 27 keys a keyboard, F to G, on SYNTH and POLY; GLO held + OCT+ flips it too). KNOB: how far a detent
+ * moves a value with a range wider than 32 steps: 1X, 2X, 4X, or ACC (a slow turn 1, a fast one up to 4). HOLD: how
+ * long a pad is held before it counts as held. LEDS: how the idle pads glow (settings.c LEDS_*, in the menu's
+ * order, darkest first). */
+enum { ST_KEYS, ST_KNOB, ST_HOLD, ST_LEDS, NSET };
+enum { KNOB_1X, KNOB_2X, KNOB_4X, KNOB_ACC };
+static const char *const N_KEYS[2] = {"SHRT", "NOTE"};
+static const char *const N_KNOB[4] = {"1X", "2X", "4X", "ACC"};
+static const char *const N_HOLDMS[4] = {"300", "400", "500", "600"};
+static const char *const N_LEDS[4] = {"OFF", "DIML", "DIMH", "INV"};
+static const pdesc_t SET_P[NSET] = {
+    {"KEYS", 0, 1, 0, F_ENUM, N_KEYS, 1}, {"KNOB", 0, 3, KNOB_1X, F_ENUM, N_KNOB, 1},
+    {"HOLD", 0, 3, 1, F_ENUM, N_HOLDMS, 1}, {"LEDS", 0, 3, 2, F_ENUM, N_LEDS, 1}};
+
 /* The modulator engines, lined up with
  * the Torso S-4's modulators (docs/bryo-architecture.md, "Modulators"). The S-4's WAVE and RANDOM are one LFO
  * here: random is one of its shapes (RND), on the same core, so every shape gets the same rate, placement and
@@ -318,8 +351,17 @@ static uint32_t pdesc_pages(const pdesc_t *p)
     return n;
 }
 
-/* the slots' default engines: the pads are labelled LFO ENV SEQ ARP (PRD 2.2) */
-static const uint8_t SLOT_DEF_ENGINE[NSLOT] = {ME_WAVE, ME_ADSR, ME_SEQ, ME_WAVE};   /* slot 4: the LFO, RND */
+/* The slots' default engines. Four modulators a track: three you can swap between LFO, ADSR and FOLLOW, which the
+ * LFO pad holds (LFO held + OP1, OP2, OP3 picks the one it shows; ENV goes straight to the second), and the step
+ * sequencer, which keeps the SEQ pad and stays a SEQ. The ARP pad is the arpeggiator (arp.c), not a slot. Stored
+ * slots keep their old numbers (projects and depths are by slot): slot 2 is the SEQ (shown M4), slot 3 the third
+ * swappable one (shown M3, a random LFO to start, as it was when ARP held it). */
+static const uint8_t SLOT_DEF_ENGINE[NSLOT] = {ME_WAVE, ME_ADSR, ME_SEQ, ME_WAVE};   /* slot 3: the LFO, RND */
+#define SLOT_SEQ 2u                                   /* the SEQ pad's slot */
+static const uint8_t SLOT_NUM[NSLOT] = {1, 2, 4, 3};  /* the number a slot shows as: M1 M2 M4 M3 */
+static const uint8_t SLOT_OF_NUM[NSLOT] = {0, 1, 3, 2};   /* .. and back: M1..M4's slot */
+/* the engines a swappable slot can run (not SEQ: the SEQ pad has it) */
+static const uint8_t SWAP_ENGINE[3] = {ME_WAVE, ME_ADSR, ME_FOLLOW};
 
 typedef struct {
     int16_t dev[NDEV][NPK];
@@ -335,6 +377,7 @@ typedef struct {
     uint16_t dpat[DRM_NBAR][16]; /* DRUM's pattern: per bar and step, the instruments that hit (a bit each) */
     uint16_t dacc[DRM_NBAR];     /* .. the accented steps of each bar (a bit each) */
     int16_t dins[16][NDIN];       /* .. each instrument's own TUNE DEC LVL TONE */
+    int16_t arp[NARP];           /* the arpeggiator's knobs (arp.c) */
 } track_params_t;
 static track_params_t tp[NTRK];
 
@@ -390,6 +433,8 @@ static void param_defaults(void)
             tp[t].ch[k] = CH_P[k].def;
         tp[t].src = SRC_TAPE;
         tp[t].recin = RIN_AUTO;
+        for (k = 0; k < NARP; k++)
+            tp[t].arp[k] = pdesc_empty(&ARP_P[k]) ? 0 : ARP_P[k].def;
         for (k = 0; k < NPK; k++) {
             tp[t].syn[k] = SYN_P[k].def;
             tp[t].pol[k] = pdesc_empty(&POL_P[k]) ? 0 : POL_P[k].def;
