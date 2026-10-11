@@ -792,6 +792,14 @@ what's left gets what it asks, round by round; the rest is split evenly among th
 pad (asking 62) beside a sparse grain track at the defaults (asking 3) keeps 27 of 30, and only two dense tracks
 thin each other (15 and 15). Any grain slot serves any track now; the shares keep the total inside the pool.
 
+The need is only who gives way when the pool runs short, not a cap (2026-10-11, from playing it: one track alone
+read "5 OF 9 GRAINS", as if the other 31 were locked away). When every track has what it asks and some is left,
+the rest is split evenly among them all, so a track alone always has the whole 40, and two light tracks of 30 have
+8 + 10 and 3 + 9. That costs nothing when nothing asks for more: RATE and SIZE still decide how many start, the
+share only decides how many may sound. Where it pays is the bunching (CLST's three close grains, RND's short gaps,
+a SEQ on SIZE), which the need's headroom guessed at and the leftover now covers; and the screen's "OF" is the real
+ceiling.
+
 When a share drops (another track's GRAIN comes on), nothing is cut: the grains sounding finish, and new ones are
 skipped until the track is inside its share, so a cloud thins over one grain's length. A grain's level counts only
 the grains its track may sound (1 / sqrt of the smaller of what overlaps and its share), so a thinned cloud doesn't
@@ -1297,11 +1305,11 @@ warns first, and how to go back to the last save when undo can't help.
 
 **BODY: a floor under the grains (2026-10-11).** At WET 100 the source is gone, and with it what held a cloud down.
 GRAIN's page 4 (stored 16-19, so nothing else moved; ROUT stays KNOB 4 of the last page, now page 5) adds BODY,
-MODE, NOTE, TONE: a layer under the grains, part of the wet side (it goes into the grains' half-rate mix before WET,
+MODE, ROOT (NOTE until the wave followed the grains, below), TONE: a layer under the grains, part of the wet side (it goes into the grains' half-rate mix before WET,
 so WET sets it with them, and the 2x up costs it nothing more).
 
 - **SRC** is the track's source (the dry block, every other sample at the half rate) low-passed; **TRI** and **SIN**
-  a wave at NOTE (`pitch_inc`, doubled for the half rate), -12 dBFS at BODY 100. All three go through one one-pole
+  a wave playing the grains' notes over ROOT (`pitch_inc`, doubled for the half rate), -12 dBFS at BODY 100. All three go through one one-pole
   low-pass at TONE (CUTOFF_HZ's scale, 30 Hz to 4.2 kHz; the coefficient w / (1 + w), w = 2 pi f / 22050, worked
   out once a block). The input's held to +-32767 so the product fits 32 bits at TONE's top.
 - Its level ramps across the block from last block's; a new MODE takes it down to 0 over one block and starts the
@@ -1315,13 +1323,28 @@ so WET sets it with them, and the 2x up costs it nothing more).
   sample more with it compiled in (run 3 2,483 to 2,502), none of it in `gr_body`: the x86-64 build lays the grain
   code out differently (its decoding inlined otherwise). Compiled out, they're back where they were. The device's
   compiler lays it out its own way, so I left it.
+- **The wave follows the grains (2026-10-11, from playing it: "I want the body to follow the scale the grains play,
+  not a singular tone").** Each grain that starts (`gr_start`, once it has a slot: a skipped or silent one doesn't
+  count) leaves its pitch, PTCH + PRND held to SCAL in 1/16 semitones, folded into one octave (0 to 191), in
+  `bto`; the wave sits at ROOT plus that. The grains' pitch is relative to the source's own (0 is the sound as
+  recorded) and SCAL's scales are rooted there, so ROOT is where the source's own pitch lands: grains a fifth up put
+  the wave on ROOT's fifth, and a pentatonic cloud plays the pentatonic over ROOT. Folding keeps it in the octave over
+  ROOT whatever PTCH's octave, so it stays a floor (PTCH -19 is ROOT's fourth, not a note an octave and a half
+  down). It glides there, 1/16 of the way a block (`bst`, about 12 ms; rounding away from 0 so it arrives): at
+  RATE's fast end a new note every few blocks, and steps that fast would buzz, a glide blurs them into a line.
+  Coming on from BODY 0 it starts on the note, no glide up from ROOT. With PTCH 0 and PRND 0 it's ROOT, as NOTE was,
+  so a project or preset sounds the same as it did unless its grains move; the knob's only new name is ROOT (same
+  place, range and default, so no version). Cost: one modulo a grain start and a few adds a block, nothing a sample
+  (runs within 1 to 7 a sample, the two changes together).
 - Projects are version 7: an older one stored 0s there (NOTE held to C1, TONE 30 Hz), so it gets the defaults. A track
   preset has no version: BODY, MODE and TONE all 0 means one from before, and gets them too (BODY stays off either
   way).
 
 Tested (`test_grain_body`, each case run twice, BODY on and off, so the difference is BODY alone): SRC at TONE 200 Hz
 keeps a 100 Hz and drops a 3 kHz under a tenth of it, TONE up lets it through; TRI at A2 is 110 Hz and SIN at A3
-220 Hz, whatever the source; WET 0 silences it; BODY 0 to 100 at once ramps in; a MODE change while it sounds moves
+220 Hz, whatever the source; PTCH +7 puts TRI on ROOT's fifth (165 Hz) and PTCH -19 on its fourth (147 Hz, folded);
+PRND 12 with SCAL PEN has the wave's notes all pentatonic (4 or 5 of them in a second), there most of the time and
+gliding the rest, with no step; BODY turned up starts on the grains' note; WET 0 silences it; BODY 0 to 100 at once ramps in; a MODE change while it sounds moves
 no more at the switch than a few times what it moves playing. Projects (a version 6 one gets the defaults, a version 7
 one keeps it) and presets (one from before gets the defaults). Each fails its mutant.
 
@@ -1401,7 +1424,9 @@ it has sounding (they finish) and starts none; the moment sound goes into its bu
 The GRAIN page says why a track has none: MUTED, STOPPED, NO TAPE, or SILENT.
 
 Tested: three silent POLY tracks with GRAIN on leave the fourth all 40; a chord on one gives it its share of 30;
-muting it gives the 40 back; SCAN TAPE stopped takes none. Mutants caught: the old WET-only rule, mute ignored,
+muting it gives the 40 back; SCAN TAPE stopped takes none; two tracks asking less than 30 between them each get
+what they ask and half of what's over. Mutants: no leftover (a lone track held at its need), the leftover's odd one
+dropped; the wave not following, not folded, not gliding, not starting on the note. Mutants caught: the old WET-only rule, mute ignored,
 silence ignored, the loud count not kept, a stopped TAPE scan counted.
 
 **Saving while playing (2026-10-11, from playing it).** SAVE clicked while playing. Bryo's code runs from the flash,

@@ -54,7 +54,7 @@
                                       * block's start: the wider the window, the rarer) */
 #define GR_BUF_MAX (12u * TAPE_SR)   /* a buffer's most, tape samples (12 s) */
 enum { GP_SIZE, GP_RATE, GP_PTCH, GP_SPRD, GP_WET, GP_SPRY, GP_CONT, GP_REV, GP_PATN, GP_SCAL, GP_PRND, GP_ROUT, GP_SCAN,
-       GP_WARP, GP_OFST, GP_FDBK, GP_BODY, GP_BMOD, GP_NOTE, GP_BTON };   /* (param.c DEV_P[DEV_GRAIN]) */
+       GP_WARP, GP_OFST, GP_FDBK, GP_BODY, GP_BMOD, GP_ROOT, GP_BTON };   /* (param.c DEV_P[DEV_GRAIN]) */
 enum { BODY_SRC, BODY_TRI, BODY_SIN };
 enum { SCAN_TAPE, SCAN_STR, SCAN_POS, SCAN_DLY };
 
@@ -131,6 +131,8 @@ typedef struct {
     int32_t hl[3], hr[3];            /* the grains' half-rate mix: its last three samples (the 2x interpolator's) */
     int32_t wetq;                    /* WET last block, Q15: the grains' mix ramps from it (0: the grains are off) */
     uint32_t bph;                    /* BODY: its wave's phase (TRI, SIN) */
+    int16_t bto;                     /* .. the last grain started: its pitch in the octave over ROOT, 1/16 semitone */
+    int16_t bst;                     /* .. the wave's pitch there now (gliding to bto) */
     int32_t blp;                     /* .. TONE's low-pass */
     int32_t bg;                      /* .. its level last block, Q15 (each block ramps from it) */
     uint8_t bmode;                   /* .. the MODE it's sounding (a new one: down to 0 a block, then the new) */
@@ -207,10 +209,13 @@ static const char *gr_why(uint32_t t)
 
 /* the pool shared out by need, into share[]. The pool's size follows the tracks whose grains would be heard
  * (gr_wants); those asking less than an even share of what's left get what they ask, round by round; the rest is
- * split evenly among those that want more. (The ISR's every block, gr_plan; the screen the same, for itself.) */
+ * split evenly among those that want more. When everyone has what they ask and some is left, it's split evenly among
+ * them all: the need only decides who gives way when the pool runs short, it's no cap (a lone track has all 40, and
+ * PATN's and chance's bunching, or RATE and SIZE turned up, get the grains). (The ISR's every block, gr_plan; the
+ * screen the same, for itself.) */
 static void gr_plan_into(uint8_t *share)
 {
-    uint32_t t, on = 0, act = 0, left, need[NTRK], k;
+    uint32_t t, on = 0, act = 0, want, left, need[NTRK], k;
     uint8_t *gr_share = share;
     for (t = 0; t < NTRK; t++) {
         gr_share[t] = 0;
@@ -220,6 +225,7 @@ static void gr_plan_into(uint8_t *share)
             need[t] = gr_need(TPD(t, DEV_GRAIN));
         }
     }
+    want = act;
     left = GR_POOL[on] * grain_cap / GR_CAP;
     for (k = 0; k < NTRK && act; k++) {
         uint32_t n = 0, share, gave = 0;
@@ -238,8 +244,14 @@ static void gr_plan_into(uint8_t *share)
             for (t = 0; t < NTRK; t++)
                 if ((act >> t) & 1u)
                     gr_share[t] = (uint8_t)(left / n + (i++ < left % n));
-            break;
+            return;
         }
+    }
+    if (on && left) {                                   /* all asked for given, some left: theirs too, evenly */
+        uint32_t i = 0;
+        for (t = 0; t < NTRK; t++)
+            if ((want >> t) & 1u)
+                gr_share[t] = (uint8_t)(gr_share[t] + left / on + (i++ < left % on));
     }
 }
 
@@ -537,6 +549,7 @@ static void gr_start(uint32_t t, grain_trk_t *G, const int16_t *p, int32_t ls, i
     gr_set((uint32_t)(g - gslot));
     g->trk = (uint8_t)t;
     g->st16 = (int16_t)pan;                             /* (SPRY, PTCH, PRND: drawn above) */
+    G->bto = (int16_t)(((pan % 192) + 192) % 192);      /* (BODY's wave plays it: its degree over ROOT) */
     g->rev = (uint8_t)((int32_t)(gr_rnd(G) % 100u) < p[GP_REV]);
     g->len = (uint32_t)p[GP_SIZE] * 441u / 10u;        /* SIZE ms -> output samples */
     g->fade = (uint32_t)p[GP_CONT] * g->len / 200u;    /* CONT: the ramps, up to half the grain each */
@@ -564,9 +577,12 @@ static int32_t gr_pace(const gr_buf_t *B, int32_t len)
 }
 
 /* audio ISR: GRAIN's BODY, a floor under the grains, into their half-rate mix (xl xr, h2 samples) before WET (the wet
- * side's): the source low-passed (SRC), or a wave at NOTE (TRI SIN, -12 dBFS at 100), through TONE's one-pole low-pass,
- * its level ramped across the block. A new MODE: the old one down to 0 this block, the new from 0 the next (a 0.7 ms
- * dip, no step). Returns 1 when it added something. Out of line: off (the default), grain_block's loops compile as
+ * side's): the source low-passed (SRC), or a wave (TRI SIN, -12 dBFS at 100) playing the grains' notes, through TONE's
+ * one-pole low-pass, its level ramped across the block. The wave follows the pitch of the last grain started (PTCH,
+ * PRND, SCAL's note) in the octave over ROOT: the grains' sound at its own pitch is ROOT, a fifth up is ROOT's fifth,
+ * so it plays their scale, folded low enough to stay a floor. It glides there (1/16 of the way a block, about 12 ms):
+ * a fast RATE blurs into a moving line, not a buzz of steps. Before any grain, ROOT itself; coming on from 0, straight
+ * to the note. A new MODE: the old one down to 0 this block, the new from 0 the next (a 0.7 ms dip, no step). Returns 1 when it added something. Out of line: off (the default), grain_block's loops compile as
  * they did without it */
 static __attribute__((noinline)) uint32_t gr_body(grain_trk_t *G, const int16_t *p, const int32_t *dry, int32_t *xl,
                                                   int32_t *xr, uint32_t h2)
@@ -588,7 +604,13 @@ static __attribute__((noinline)) uint32_t gr_body(grain_trk_t *G, const int16_t 
         int32_t wq = (int32_t)CUTOFF_HZ[clamp(p[GP_BTON], 0, 127)] * 9337 / 1000;   /* 2 pi f / 22050, Q15 */
         int32_t kq = (int32_t)(((uint32_t)wq << 15) / (uint32_t)(32768 + wq));        /* w / (1 + w) */
         int32_t dg = (g1 - g0) / (int32_t)h2, gk = g0, lp = G->blp;
-        uint32_t ph = G->bph, inc = 2u * pitch_inc((uint32_t)clamp(p[GP_NOTE], 0, 127) * 16u);
+        int32_t d = G->bto - G->bst;
+        uint32_t ph = G->bph, inc;
+        if (!g0)
+            G->bst = G->bto;                            /* (coming on: straight to the note, no glide up to it) */
+        else
+            G->bst = (int16_t)(G->bst + (d >= 0 ? (d + 15) >> 4 : -((15 - d) >> 4)));
+        inc = 2u * pitch_inc((uint32_t)(clamp(p[GP_ROOT], 0, 127) * 16 + G->bst));
         for (k = 0; k < h2; k++) {
             int32_t x, y;
             if (G->bmode == BODY_SRC) {

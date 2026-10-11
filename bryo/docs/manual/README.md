@@ -515,7 +515,8 @@ GRAIN keeps the last bars of the track's sound and plays tiny pieces of it (grai
 
 **How many grains:** under the picture, "5 OF 40 GRAINS" is how many are sounding and how many this track may have
 right now. There's a pool of 40 for one track, 30 between two and 18 between three or four, and only tracks whose
-grains you'd hear share it. A muted track doesn't, and neither does one with nothing in its buffer yet (a SYNTH or
+grains you'd hear share it. A track alone always has all 40; how many actually sound is up to **RATE** and **SIZE**
+(more grains a second, or longer ones, overlap more), so turn those up for a thicker cloud. A muted track doesn't, and neither does one with nothing in its buffer yet (a SYNTH or
 POLY track nobody has played), or one reading the tape while the transport is stopped. When a track has no grains,
 the page says why: **MUTED**, **STOPPED** or **SILENT**.
 
@@ -565,12 +566,16 @@ floor back under them:
 - **BODY**: how loud the floor is (0 is off). It goes with the grains, so WET turns it down too.
 - **MODE**: what the floor is.
   - **SRC**: the track's own sound with its top taken off. Always in key and in time with what you're playing.
-  - **TRI**: a triangle wave at **NOTE**. It's heard on the FM-1's own speaker too.
-  - **SIN**: a sine at **NOTE**: the purest, best on headphones (the speaker barely plays it when it's low).
-- **NOTE**: the wave's note (TRI and SIN), C1 to C5. Set it to the key you're in.
+  - **TRI**: a triangle wave that plays the grains' notes. It's heard on the FM-1's own speaker too.
+  - **SIN**: a sine that plays the grains' notes: the purest, best on headphones (the speaker barely plays it when
+    it's low).
+- **ROOT**: where the wave sits (TRI and SIN), C1 to C5. Set it to the key you're in. The wave follows each grain's
+  note, so when **PTCH** (GRAIN 1), **PRND** and **SCAL** (GRAIN 5) send the grains around a scale, the wave walks the same
+  scale over ROOT, gliding from note to note. It always stays in the octave above ROOT, so it's a floor however high
+  or low the grains go. With PTCH and PRND at 0 it holds ROOT.
 - **TONE**: how much top end the floor keeps, from a deep rumble to a full low-mid.
 
-<img src="img/grain_body.png" width="240" alt="GRAIN 4: BODY 40%, MODE TRI, NOTE A2, TONE 392 Hz">
+<img src="img/grain_body.png" width="240" alt="GRAIN 4: BODY 40%, MODE TRI, ROOT A2, TONE 392 Hz">
 
 ### 6.5 RESONATOR: four strings
 

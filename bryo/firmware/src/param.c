@@ -103,11 +103,12 @@ static const pdesc_t DEV_P[NDEV][NPK] = {
         {"SCAN", 0, 3, 1, F_ENUM, N_SCAN}, {"WARP", -200, 200, 100, F_BIPCT},
         {"OFST", 0, 100, 25, F_PCT}, {"FDBK", 0, 100, 0, F_PCT},
         /* 5: BODY, a floor under the grains (it helps at WET 100, where the source is gone): the track's own sound
-         * low-passed (MODE SRC: always in key and in time with it), or a wave at NOTE (TRI: heard on the small
-         * speaker too, its harmonics; SIN: the purest, for headphones), through TONE's low-pass, at BODY's level. It's
-         * part of the wet side: WET sets it with the grains (grain.c) */
+         * low-passed (MODE SRC: always in key and in time with it), or a wave playing the grains' notes (PTCH,
+         * PRND, SCAL) in the octave over ROOT (TRI: heard on the small speaker too, its harmonics; SIN: the purest, for
+         * headphones), through TONE's low-pass, at BODY's level. It's part of the wet side: WET sets it with the
+         * grains (grain.c) */
         {"BODY", 0, 100, 0, F_PCT}, {"MODE", 0, 2, 0, F_ENUM, N_BODY, 1},
-        {"NOTE", 24, 72, 45, F_NOTE}, {"TONE", 0, 100, 38, F_HZ}},
+        {"ROOT", 24, 72, 45, F_NOTE}, {"TONE", 0, 100, 38, F_HZ}},
     {   /* RESONATOR (the S-4's RING) */
         {"PTCH", 33, 81, 45, F_NOTE}, {"DEC", 0, 100, 60, F_PCT},
         {"TONE", 0, 100, 60, F_PCT}, {"WET", 0, 100, 0, F_PCT},

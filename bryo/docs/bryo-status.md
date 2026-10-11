@@ -165,20 +165,21 @@ grains went to half rate and the pool to 40, 30, 18: the dense grain runs at the
 grain use about 12 a sample more a track for the upsampler; then the channel's LOW and HIGH made to glide under
 modulation, a few a sample more, 32 on the strip-heavy run 17; then the grains made click-free, which put back the
 sound of grains that ran off the buffer's end: the dense grain runs 7 to 11 % more; then silent grains skipped, up to
-9 % back where there's silence):
+9 % back where there's silence; then the pool's leftover given out and BODY's wave following the grains, 1 to
+7 a sample. Run 25's 3,299 here was out of date: the build before these two read 3,079):
 
 | Run | What | Cost |
 | --- | --- | ---: |
-| 1 | four reels, nothing on | 987 |
-| 19 | a realistic four-track groove | 1,665 |
-| 24 | the groove, modulated the way I'd play it | 1,885 (109 of it the modulators) |
-| 21 | the groove's busiest moment | 2,468 |
-| 23 | GRAIN at its densest on one track | 2,849 |
-| 25 | every slot on every track, 128 depths | 3,299 |
-| 26 | DRUM busy alone (FUNK, VARY 100, FILL 100, long decays), the others plain reels | 1,327 |
-| 27 | the groove with a DRUM track in place of its drum reel | 1,889 |
-| 28 | four DRUM tracks at once, every voice (20) | 2,429 |
-| 15 | everything on, all four tracks | 5,038 |
+| 1 | four reels, nothing on | 989 |
+| 19 | a realistic four-track groove | 1,672 |
+| 24 | the groove, modulated the way I'd play it | 1,896 (109 of it the modulators) |
+| 21 | the groove's busiest moment | 2,475 |
+| 23 | GRAIN at its densest on one track | 2,856 |
+| 25 | every slot on every track, 128 depths | 3,086 |
+| 26 | DRUM busy alone (FUNK, VARY 100, FILL 100, long decays), the others plain reels | 1,329 |
+| 27 | the groove with a DRUM track in place of its drum reel | 1,896 |
+| 28 | four DRUM tracks at once, every voice (20) | 2,430 |
+| 15 | everything on, all four tracks | 5,059 |
 
 My target for a realistic four-track scene is 2,000. The first device reading (run 1, 2026-10-10: 25 %, in 5 % steps)
 puts the ratio at about 37.6 host instructions a sample per percent, if the load scales with the host's count: the
@@ -218,7 +219,8 @@ number.
   fixed order. Tapes grow as they record (up to 23.6 s).
 - **2026-10-08: GRAIN's grains are one pool shared by demand** (since 2026-10-11, with the grains rendered at half
   rate: 40 for one track, 30 for two, 18 for three or four; it was 32 for one track, 24 for two, 16 for three or
-  four), split by what each track's settings ask for.
+  four), split by what each track's settings ask for when it runs short; what's left over is everyone's (since
+  2026-10-11: a track alone has all 40, not just what RATE and SIZE ask).
 - **2026-10-08: the USB record mode is its own mode.** Everything else stops while the computer is recorded;
   REC held a second opens it. Audio out to the computer in that mode is future work.
 - **2026-10-09: modulation reads a modulated copy only of what's modulated.** A track without depths reads exactly

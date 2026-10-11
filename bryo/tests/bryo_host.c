@@ -412,7 +412,7 @@ static void test_input(void)
     press(B_EDIT);
     press(B_EDIT);
     press(B_EDIT);
-    check("EDIT again: GRAIN 4 (BODY MODE NOTE TONE)", ui.dev == DEV_GRAIN && ui.page == 3u &&
+    check("EDIT again: GRAIN 4 (BODY MODE ROOT TONE)", ui.dev == DEV_GRAIN && ui.page == 3u &&
           !strcmp(dev_p(0, DEV_GRAIN)[pdesc_at(dev_p(0, DEV_GRAIN), 12u)].label, "BODY"));
     press(B_EDIT);
     check("..again: GRAIN 5 (PATN SCAL PRND ROUT: ROUT KNOB 4 of the last page)", ui.dev == DEV_GRAIN && ui.page == 4u &&
@@ -832,7 +832,7 @@ static void screens_in(const char *pal)
     turn(3, 40);
     shot(pal, "grain2");
     press(B_EDIT);
-    press(B_EDIT);                                       /* GRAIN 4: BODY 40, MODE TRI, NOTE A2, TONE 400 Hz */
+    press(B_EDIT);                                       /* GRAIN 4: BODY 40, MODE TRI, ROOT A2, TONE 400 Hz */
     turn(0, 40);
     turn(1, 1);
     turn(3, 14);
@@ -2301,6 +2301,9 @@ static void test_grain_clicks(void)
 #define BODY_N 1378u                                     /* blocks: a second */
 static int32_t body_on[BODY_N * CTL], body_off[BODY_N * CTL];
 static int32_t body_hf = 6000;                           /* the source's 3 kHz (0: only its 100 Hz) */
+static int16_t body_ptch, body_prnd, body_scal;          /* the grains' PTCH PRND SCAL (0: the defaults) */
+static int16_t body_seen[BODY_N], body_to[BODY_N];       /* the wave's pitch over ROOT each block, 1/16 semitone, and
+                                                          * the grain's note it glides to */
 static void body_run(int32_t *o, int body, int mode, int note, int tone, int wet, int sw_at, int sw_mode)
 {
     static int32_t dry[CTL], l[CTL], r[CTL];
@@ -2314,8 +2317,11 @@ static void body_run(int32_t *o, int body, int mode, int note, int tone, int wet
     p[GP_WET] = (int16_t)wet;
     p[GP_BODY] = (int16_t)body;
     p[GP_BMOD] = (int16_t)mode;
-    p[GP_NOTE] = (int16_t)note;
+    p[GP_ROOT] = (int16_t)note;
     p[GP_BTON] = (int16_t)tone;
+    p[GP_PTCH] = body_ptch;
+    p[GP_PRND] = body_prnd;
+    p[GP_SCAL] = body_scal;
     sys.playing = 1;
     chain_poll();
     for (b = 0; b < BODY_N; b++) {
@@ -2327,6 +2333,8 @@ static void body_run(int32_t *o, int body, int mode, int note, int tone, int wet
         grain_block(0, dry, 0, 0, l, r, CTL);
         for (i = 0; i < CTL; i++)
             o[b * CTL + i] = l[i];
+        body_seen[b] = grain[0].bst;
+        body_to[b] = grain[0].bto;
     }
 }
 static double body_amp(double hz, uint32_t from)          /* the difference's amplitude at hz (Goertzel), from block */
@@ -2374,10 +2382,51 @@ static void test_grain_body(void)
     snprintf(m, sizeof m, "..TONE up (%u Hz): the 3 kHz comes through (%.0f)", CUTOFF_HZ[90], hi2);
     check(m, hi2 > 5 * hi);
     body_run(body_on, 100, BODY_TRI, 45, 60, 100, -1, -1);
-    snprintf(m, sizeof m, "BODY TRI at NOTE A2: 110 Hz (%u cycles in the last 0.85 s), whatever the source", body_xings(200));
+    snprintf(m, sizeof m, "BODY TRI at ROOT A2: 110 Hz (%u cycles in the last 0.85 s), whatever the source", body_xings(200));
     check(m, body_xings(200) >= 92u && body_xings(200) <= 95u);
+    body_ptch = 7;                                       /* the grains a fifth up: the wave too, over ROOT */
+    body_run(body_off, 0, BODY_TRI, 45, 60, 100, -1, -1);
+    body_run(body_on, 100, BODY_TRI, 45, 60, 100, -1, -1);
+    snprintf(m, sizeof m, "..PTCH +7: it plays the grains' note, ROOT's fifth (E3, 165 Hz: %u cycles)", body_xings(200));
+    check(m, body_xings(200) >= 138u && body_xings(200) <= 142u);
+    body_ptch = -19;                                     /* (an octave and a fifth down: a fourth, over ROOT) */
+    body_run(body_off, 0, BODY_TRI, 45, 60, 100, -1, -1);
+    body_run(body_on, 100, BODY_TRI, 45, 60, 100, -1, -1);
+    snprintf(m, sizeof m, "..PTCH -19: the note folded into the octave over ROOT, a floor (ROOT's fourth, D3, 147 Hz: %u cycles)",
+             body_xings(200));
+    check(m, body_xings(200) >= 123u && body_xings(200) <= 127u);
+    body_ptch = 0;
+    body_prnd = 12;                                      /* PRND 12, SCAL PEN: the grains a pentatonic melody */
+    body_scal = 4;
+    body_run(body_off, 0, BODY_TRI, 45, 60, 100, -1, -1);
+    body_run(body_on, 100, BODY_TRI, 45, 60, 100, -1, -1);
+    {
+        uint32_t b, notes = 0, odd = 0, there = 0, n = 0, k;
+        for (b = 200; b < BODY_N; b++) {
+            k = (uint32_t)body_to[b];
+            odd += k % 16u != 0u || k >= 192u || !((0x295u >> (k / 16u)) & 1u);
+            if (k < 192u && !((notes >> (k / 16u)) & 1u))
+                notes |= 1u << (k / 16u), n++;
+            there += body_seen[b] == body_to[b];
+        }
+        snprintf(m, sizeof m, "..PRND 12, SCAL PEN: the wave plays the grains' pentatonic notes (%u of its 5, %u blocks off "
+                 "the scale), arriving at them (%u of %u blocks there), gliding, no steps (largest move %d)", n, odd,
+                 there, BODY_N - 200u, body_jump());
+        check(m, n >= 4u && odd == 0u && there > (BODY_N - 200u) / 3u && there < BODY_N - 200u && body_jump() < 400);
+    }
+    body_prnd = 0;                                       /* (PTCH +7, BODY turned up: at the grains' note at once, not
+                                                          * gliding up from ROOT) */
+    body_scal = 0;
+    body_ptch = 7;
+    body_run(body_on, 0, BODY_TRI, 45, 60, 100, 600, -1);
+    check("..BODY turned up from 0: the wave starts on the grains' note (no glide up to it)",
+          body_to[600] == 112 && body_seen[600] == 112 && body_seen[599] != 112);
+    body_ptch = 0;
+    body_prnd = 0;
+    body_scal = 0;
+    body_run(body_off, 0, BODY_TRI, 45, 60, 100, -1, -1);
     body_run(body_on, 100, BODY_SIN, 57, 60, 100, -1, -1);
-    snprintf(m, sizeof m, "BODY SIN at NOTE A3: 220 Hz (%u cycles)", body_xings(200));
+    snprintf(m, sizeof m, "BODY SIN at ROOT A3: 220 Hz (%u cycles)", body_xings(200));
     check(m, body_xings(200) >= 186u && body_xings(200) <= 189u);
     body_run(body_off, 0, BODY_SRC, 45, 38, 0, -1, -1);
     body_run(body_on, 100, BODY_SRC, 45, 38, 0, -1, -1);
@@ -2505,6 +2554,7 @@ static void test_grain_silence(void)
  * has played), or the track muted, takes no share; the moment there's sound to granulate, it takes its share */
 static void test_grain_shares(void)
 {
+    char m[160];
     uint32_t t, b, mx = 0;
     power_on();
     sys.bpm = 120;
@@ -2532,10 +2582,17 @@ static void test_grain_shares(void)
     render_poll(64);
     check("..a chord played on track 2: it takes its share of a pool of 30, track 1 the rest",
           gr_allow(1) > 0u && gr_allow(0) + gr_allow(1) == 30u && gr_allow(2) == 0u);
+    tp[0].dev[DEV_GRAIN][GP_RATE] = 50;                  /* track 1 asking 8 (21 a second x 200 ms, with room), track
+                                                          * 2 its 3: what's over is theirs too, evenly */
+    tp[0].dev[DEV_GRAIN][GP_SIZE] = 200;
+    render_poll(2);
+    snprintf(m, sizeof m, "..both asking less than the pool: each has what it asks and half of what's over, the odd one "
+             "to track 1 (8 + 10, 3 + 9: %u, %u)", gr_allow(0), gr_allow(1));
+    check(m, gr_need(tp[0].dev[DEV_GRAIN]) == 8u && gr_allow(0) == 18u && gr_allow(1) == 12u);
     track[1].mute = 1;
     render_poll(2);
-    check("..track 2 muted: its grains wouldn't be heard, the whole pool is track 1's again",
-          gr_allow(1) == 0u && gr_allow(0) == 40u && gr_why(1) && !strcmp(gr_why(1), "MUTED: NO GRAINS"));
+    check("..track 2 muted: its grains wouldn't be heard, the whole pool is track 1's again, asking 8 or not (no cap "
+          "at what RATE and SIZE ask)", gr_allow(1) == 0u && gr_allow(0) == 40u && gr_why(1) && !strcmp(gr_why(1), "MUTED: NO GRAINS"));
     track[1].mute = 0;
     sys.playing = 0;
     tp[0].dev[DEV_GRAIN][GP_SCAN] = SCAN_TAPE;
@@ -5947,26 +6004,26 @@ static void test_projects(void)
         pj_wver = PJ_VERSION;
         power_on();
         rc |= pj_load(0);
-        check("a version 6 project: GRAIN's BODY gets its defaults (off, A2, 200 Hz), not NOTE C1 and TONE 30 Hz",
-              rc == 0 && tp[0].dev[DEV_GRAIN][GP_BODY] == 0 && tp[0].dev[DEV_GRAIN][GP_NOTE] == 45 &&
+        check("a version 6 project: GRAIN's BODY gets its defaults (off, A2, 200 Hz), not ROOT C1 and TONE 30 Hz",
+              rc == 0 && tp[0].dev[DEV_GRAIN][GP_BODY] == 0 && tp[0].dev[DEV_GRAIN][GP_ROOT] == 45 &&
               tp[0].dev[DEV_GRAIN][GP_BTON] == DEV_P[DEV_GRAIN][GP_BTON].def);
         tp[0].dev[DEV_GRAIN][GP_BODY] = 60;              /* and this version keeps it as saved */
         tp[0].dev[DEV_GRAIN][GP_BMOD] = BODY_TRI;
-        tp[0].dev[DEV_GRAIN][GP_NOTE] = 38;
+        tp[0].dev[DEV_GRAIN][GP_ROOT] = 38;
         tp[0].dev[DEV_GRAIN][GP_BTON] = 70;
         rc = pj_save(0);
         power_on();
         rc |= pj_load(0);
         check("..a version 7 one keeps BODY as saved (60, TRI, D2, TONE 70)", rc == 0 &&
               tp[0].dev[DEV_GRAIN][GP_BODY] == 60 && tp[0].dev[DEV_GRAIN][GP_BMOD] == BODY_TRI &&
-              tp[0].dev[DEV_GRAIN][GP_NOTE] == 38 && tp[0].dev[DEV_GRAIN][GP_BTON] == 70);
+              tp[0].dev[DEV_GRAIN][GP_ROOT] == 38 && tp[0].dev[DEV_GRAIN][GP_BTON] == 70);
         for (k = GP_BODY; k <= GP_BTON; k++)             /* a track preset from before BODY: 0s there */
             tp[0].dev[DEV_GRAIN][k] = 0;
         rc = tpr_save(0, 0);
         power_on();
         rc |= tpr_load(0, 0);
-        check("a track preset from before BODY: its defaults (NOTE A2, TONE 200 Hz), BODY off", rc == 0 &&
-              tp[0].dev[DEV_GRAIN][GP_BODY] == 0 && tp[0].dev[DEV_GRAIN][GP_NOTE] == 45 &&
+        check("a track preset from before BODY: its defaults (ROOT A2, TONE 200 Hz), BODY off", rc == 0 &&
+              tp[0].dev[DEV_GRAIN][GP_BODY] == 0 && tp[0].dev[DEV_GRAIN][GP_ROOT] == 45 &&
               tp[0].dev[DEV_GRAIN][GP_BTON] == DEV_P[DEV_GRAIN][GP_BTON].def);
     }
     pj_wipe();
