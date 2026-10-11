@@ -163,8 +163,8 @@ in, about 4 a sample for the four arpeggiators and the new reels; the rest are f
 
 | Run | What | Cost |
 | --- | --- | ---: |
-| 1 | four reels, nothing on | 944 |
-| 19 | a realistic four-track groove | 1,616 |
+| 1 | four reels, nothing on | 921 |
+| 19 | a realistic four-track groove | 1,594 |
 | 24 | the groove, modulated the way I'd play it | 1,815 (87 of it the modulators) |
 | 21 | the groove's busiest moment | 2,454 |
 | 23 | GRAIN at its densest on one track | 2,986 |
@@ -270,6 +270,16 @@ number.
 - **2026-10-10: a blank project.** OCT+ on an EMPTY project slot starts one there: defaults, empty tapes, no reels,
   no pattern, no depths. The factory reels BELL, DRON and FOLD are synthesized modular patches (FM bells, a
   drone, wavefolded plucks; one bar each, no samples); BEAT is the drum loop.
+
+- **2026-10-10: the FM-1 crackled with the scene's drums (CPU past 80 %), and the host had said ~45 %.** What I
+  found and did: (1) the target's compiler keeps a division by a constant as a hardware divide, which the host's
+  counts hide (x86 makes it a multiply); one ran on every track on every sample even with GRAIN off
+  (`dry * (100 - WET) / 100`), others in SPACE's spread, SYNTH's drive and TAPE's loop crossfade. They're gains now,
+  worked out once a block (the scene's sound differs by at most 16 LSB, 72 dB under it). Any new per-sample code:
+  no `/` or `%` that isn't a power of two. (2) DRUM's voices stop at -60 dB, not -84. (3) Overload sheds DRUM's
+  voices after the grains and the strings (5 a track down to 2, a calm second each back). (4) The scene's drums
+  6 dB up, T4's TILT gone (COLOR off). Host: the scene 1,720 -> 1,547, run 1 944 -> 921; the device should gain
+  more than that (the divides). Its CPU reading on the scene is the number to take next.
 
 ## Known considerations and open questions
 

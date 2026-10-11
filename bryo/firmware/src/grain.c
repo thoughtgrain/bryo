@@ -464,9 +464,14 @@ static void grain_block(uint32_t t, const int32_t *dry, uint32_t keys, int froze
         } else if (p[GP_ROUT]) {
             for (i = 0; i < (int32_t)n; i++)
                 l[i] = r[i] = dry[i];
-        } else {
+        } else if (wet) {                               /* (a gain, not a divide a sample: the target's compiler
+                                                         * keeps x / 100 a hardware divide, and this runs on every
+                                                         * track, always) */
             for (i = 0; i < (int32_t)n; i++)
-                l[i] = r[i] = dry[i] * (100 - wet) / 100;
+                l[i] = r[i] = (dry[i] * (d1 >> 3)) >> 12;
+        } else {                                        /* (WET 0: the dry as it is) */
+            for (i = 0; i < (int32_t)n; i++)
+                l[i] = r[i] = dry[i];
         }
     }
     if (scan != SCAN_TAPE && B->len && B->nch) {        /* the buffer: the bar line at the transport's start */

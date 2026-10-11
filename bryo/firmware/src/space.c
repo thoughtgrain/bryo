@@ -313,7 +313,7 @@ static void sp_room_run(space_t *S, uint8_t *const *pb, int plb, uint32_t pl, in
         SP_AP_STEP(1, al);
         SP_AP_STEP(2, ar);
         SP_AP_STEP(3, ar);
-        ar = al + (((ar - al) * sprd) / 100);           /* SPRD: 0 mono */
+        ar = al + (((ar - al) * sprd) >> 12);           /* SPRD (Q12 here: 0 mono, 4096 apart) */
         wl[i] += (al * g) >> 15;
         wr[i] += (ar * g) >> 15;
     }
@@ -408,7 +408,8 @@ static void space_block(uint32_t t, int32_t *l, int32_t *r, uint32_t n)
         if (S->dlive)
             sp_delay(S, db, dlb, dl, tgt, off, kl, kh, fbg, gd0, gd1, m, wl, wr);
         if (S->rlive)
-            sp_room_run(S, pb, plb, pl, pre, rb, kh, damp, sprd, gv0, gv1, m, wl, wr);
+            sp_room_run(S, pb, plb, pl, pre, rb, kh, damp, sprd * 4096 / 100, gv0, gv1, m, wl, wr);   /* (SPRD Q12: a
+                                                                                * multiply a sample, not a divide) */
         for (i = 0; i < h; i++) {                       /* back up to 44.1 kHz: halfway, then the sample */
             l[2 * i] += (ol + wl[i]) >> 1;
             r[2 * i] += (or_ + wr[i]) >> 1;

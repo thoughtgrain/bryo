@@ -158,6 +158,11 @@ under the address and undefined-behaviour sanitizers).
 | 19 | 1,609 | 43 % | | |
 | 22 | 1,781 | 47 % | | |
 
+**The factory scene, 2026-10-10:** CPU above 80 % and crackles once the drums came in, where the host predicted
+about 45 % (1,720). So the scale from run 1 doesn't hold for every kind of work: the target divides where the host
+multiplies (see bryo-status.md's decision of the day). After the fixes the host reads 1,547; the device's reading
+is the next number to take.
+
 ## What I'll do with the numbers
 
 - **Run 3 under about 70 %:** GRAIN fits as it is; then run 15 decides the rest (below).

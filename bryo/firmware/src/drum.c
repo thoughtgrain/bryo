@@ -416,6 +416,9 @@ static void drm_step(uint32_t t, const int16_t *p, uint32_t v, uint32_t bar, uin
 
 /* ------------------------------------------------------------------------ the player --- */
 #define DRM_NV 5u                    /* voices per track: a voice per instrument while it rings, the oldest taken */
+static uint32_t drm_cap = DRM_NV;    /* the voices a track may use now: chain_shed lowers it (down to 2) when the
+                                      * audio runs out of time, a calm second raises it again (drm_recover) */
+static uint32_t drm_calm;
 #define DRM_STEP (1u << 14)          /* a sixteenth, in beats Q16 */
 typedef struct {                     /* audio ISR only */
     dk_coef_t c[DRM_NV];
@@ -479,26 +482,43 @@ static uint32_t drm_scale(int32_t d)
     return s + s * (uint32_t)d / 50u;
 }
 
+/* audio ISR: the audio ran out of time again (chain_shed, after the grains and the strings): one voice fewer a
+ * track, down to two; a calm second gives one back */
+static void drm_shed(void)
+{
+    if (drm_cap > 2u)
+        drm_cap--;
+    drm_calm = 0;
+}
+static void drm_recover(void)
+{
+    if (++drm_calm >= 1378u && drm_cap < DRM_NV) {
+        drm_cap++;
+        drm_calm = 0;
+    }
+}
+
 /* audio ISR: instrument i struck on track t (knobs p), accented, quiet (a ghost note) */
 static void drm_strike(uint32_t t, const int16_t *p, uint32_t i, uint32_t acc, uint32_t soft)
 {
     drm_rt_t *r = &drm_rt[t];
     const int16_t *in = tp[t].dins[i];
     dk_knobs_t k;
-    uint32_t j, best = 0;
+    uint32_t j, best = 0, cap;
     for (j = 0; j < DRM_NV; j++)                        /* what this one chokes */
         if (r->v[j].live && ((DRM_KIT[i].chokes >> r->inst[j]) & 1u))
             dk_choke(&r->v[j]);
-    for (j = 0; j < DRM_NV && !(r->inst[j] == i && r->v[j].live); j++)   /* its own voice, still ringing */
+    cap = drm_cap < DRM_NV ? drm_cap : DRM_NV;          /* (the voices allowed now: drm_cap) */
+    for (j = 0; j < cap && !(r->inst[j] == i && r->v[j].live); j++)   /* its own voice, still ringing */
         ;
-    if (j == DRM_NV)
-        for (j = 0; j < DRM_NV && (r->v[j].live || r->v[j].trig); j++)   /* a quiet one */
+    if (j == cap)
+        for (j = 0; j < cap && (r->v[j].live || r->v[j].trig); j++)   /* a quiet one */
             ;
-    if (j == DRM_NV)                                     /* the oldest */
-        for (j = 1; j < DRM_NV; j++)
+    if (j == cap)                                        /* the oldest */
+        for (j = 1; j < cap; j++)
             if (r->age[j] - r->age[best] > 0x80000000u)
                 best = j;
-    j = j == DRM_NV ? best : j;
+    j = j == cap ? best : j;
     k.tune = (int16_t)(clamp(p[DM_TUNE] + in[DIN_TUNE], -24, 24) * 16);
     k.dscale = (uint16_t)drm_scale(p[DM_DECY] + in[DIN_DECY]);
     k.bright = (int16_t)clamp((p[DM_TONE] + in[DIN_TONE]) * 127 / 100, -127, 127);
@@ -583,6 +603,9 @@ static void drm_block(uint32_t t, uint32_t keys, const int32_t *rec, int32_t *ou
             drm_strike(t, p, i, 0, 0);
     for (j = 0; j < n; j++)
         out[j] = 0;
+    for (j = drm_cap; j < DRM_NV; j++)                  /* over the cap (shed): its tail ends in 1.5 ms, no click */
+        if (r->v[j].live && !r->v[j].choke)
+            dk_choke(&r->v[j]);
     for (j = 0; j < DRM_NV; j++)
         if (r->v[j].live || r->v[j].trig) {
             int32_t y[CTL];

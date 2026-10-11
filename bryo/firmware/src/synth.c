@@ -97,7 +97,7 @@ static void syn_voice(uint32_t t, syn_voice_t *v, int32_t *out, uint32_t n)
     tsvf_t flt;
     uint32_t wave = (uint32_t)p[SY_WAVE], i, inc1, inc2, ph0 = v->ph[0], ph1 = v->ph[1];
     int32_t e15, a0 = v->amp, a1, cut, m2 = p[SY_MIX] * 327, m1 = 32767 - m2, nz = p[SY_NOIS] * 254;
-    int32_t drv = p[SY_DRV], ic1 = v->ic1, ic2 = v->ic2, nst = v->nst, pp;
+    int32_t drv = p[SY_DRV], dg = (100 + 2 * drv) * 4096 / 100, ic1 = v->ic1, ic2 = v->ic2, nst = v->nst, pp;
     switch (v->stage) {                                     /* the envelope: one step per block (as Felucca's) */
     case 1:
         v->env += (int32_t)ENV_LIN[p[SY_ATK] & 127];
@@ -165,7 +165,7 @@ static void syn_voice(uint32_t t, syn_voice_t *v, int32_t *out, uint32_t n)
         if (nz)
             s += mulq15((int32_t)(noise32(&nst) >> 17) - 16384, nz);
         if (drv)                                            /* drive: up to 3x into the soft clip */
-            s = softclip(s * (100 + 2 * drv) / 100);
+            s = softclip((s * dg) >> 12);
         y = tsvf_lp(&flt, s >> 1, &ic1, &ic2);             /* linear to half scale, then a soft knee */
         k = y < 0 ? -y : y;
         if (k > 16000) {

@@ -147,6 +147,8 @@ static void power_on(void)
     memset(&tape_undo, 0, sizeof tape_undo);
     memset(syn, 0, sizeof syn);
     memset(pol, 0, sizeof pol);
+    drm_cap = DRM_NV;                                    /* (DRUM's voices: none shed) */
+    drm_calm = 0;
     memset(arp_rt, 0, sizeof arp_rt);                    /* (the arpeggiators, the keys' notes) */
     memset((void *)arp_clear_req, 0, sizeof arp_clear_req);
     memset(key_base, 0, sizeof key_base);
@@ -6390,6 +6392,34 @@ static void test_factory_scene(void)
     pj_wipe();
 }
 
+/* overload sheds DRUM's voices after the grains and the strings, and gives them back */
+static void test_drum_shed(void)
+{
+    uint32_t b, j, live, i;
+    power_on();
+    tp[0].src = SRC_DRUM;
+    sys.playing = 1;
+    for (i = 0; i < 5u; i++)                             /* five instruments struck together */
+        drm_strike(0, tp[0].drm, i == 0 ? 0u : i + 11u > 15u ? 15u : i + 11u, 0, 0);
+    render(1, 0);
+    grain_cap = 4u;                                      /* (the grains and strings already shed) */
+    reso_cap = 2u;
+    chain_shed();
+    chain_shed();
+    chain_shed();
+    check("overload past the grains and strings: the drum voices come down, 5 -> 2", drm_cap == 2u);
+    render(40, 0);                                       /* (30 ms: 1.5 ms decays, past -60 dB in ~10) */
+    for (live = 0, j = 0; j < DRM_NV; j++)
+        live += drm_rt[0].v[j].live;
+    check("..the voices over the cap fade out (a 1.5 ms decay), at most two ring", live <= 2u);
+    for (b = 0; b < 1378u * 3u + 10u; b++)
+        render(1, 0);
+    check("..three calm seconds: three voices back", drm_cap == 5u);
+    sys.playing = 0;
+    grain_cap = GR_CAP;
+    reso_cap = RS_N;
+}
+
 int main(int argc, char **argv)
 {
     out_dir = argc > 1 ? argv[1] : "build/bryo_ui";
@@ -6424,6 +6454,7 @@ int main(int argc, char **argv)
     test_tpfactory();
     test_arp_keys();
     test_factory_scene();
+    test_drum_shed();
     test_input();
     test_settings();
     palette_set(UI_GREY_INDEX);                          /* (the screens are one ink now, whatever the palette) */

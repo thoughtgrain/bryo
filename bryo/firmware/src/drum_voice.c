@@ -15,13 +15,14 @@
  * factor can't hold a decay that slow).
  *
  * Every strike starts from rest (phases, filter, the noise seed), so a hit renders the same every time: what you
- * program is what plays. A voice that has rung out (-84 dB) stops computing (live 0) and writes zeros.
+ * program is what plays. A voice that has rung out (-60 dB, under anything a mix lets you hear: it was -84 until
+ * the FM-1 ran out of time on long tails) stops computing (live 0) and writes zeros.
  *
  * Use: dk_setup when the patch or a knob changes, dk_trigger on a hit (struck at the start of the next block),
  * dk_choke to cut a voice short (1.5 ms), dk_run per block into y: Q15 at its level, linear to -6 dBFS, a soft
  * knee above. */
 
-#define DK_QUIET (1 << 16)                               /* Q30: -84 dB */
+#define DK_QUIET (1 << 20)                               /* Q30: -60 dB */
 #define DK_NMETAL 4
 
 enum { DK_OFF, DK_LOW, DK_BAND, DK_HIGH };              /* the noise layer's filter */

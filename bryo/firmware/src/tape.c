@@ -418,7 +418,7 @@ static void tape_block(uint32_t t, uint32_t keys, const int32_t *rec_in, int32_t
     tape_rt_t *rt = &tape_rt[t];
     tape_ctl_t *c = &tape_ctl[t];
     tape_view_t v;
-    int32_t ls, ll, inc = tape_inc(t), i, keep, inl, gain = db_q10(TPD(t, DEV_SRC)[TK_GAIN]), wlen;
+    int32_t ls, ll, inc = tape_inc(t), i, keep, inl, gain = db_q10(TPD(t, DEV_SRC)[TK_GAIN]), wlen, xk;
     uint32_t k, press = keys & ~rt->keys_prev, playing = sys.playing;
     int rec = rec_in && c->rec_ok && tape_src(t) == 0u, grow;
     if (c->grow && !rec) {                             /* REC let go of a growing tape: its length is what it has */
@@ -474,15 +474,19 @@ static void tape_block(uint32_t t, uint32_t keys, const int32_t *rec_in, int32_t
         }
     if (!rec && rt->wstaged)
         tape_commit(t);                                /* REC let go: the last block */
+    xk = 0;
     for (i = 0; i < (int32_t)n; i++) {
         int32_t s = 0, tgt = rt->running ? 32767 : 0;
         rt->amp += rt->amp < tgt ? 372 : rt->amp > tgt ? -372 : 0;   /* ~2 ms either way */
         rt->amp = clamp(rt->amp, 0, 32767);
         if (rt->amp) {
             s = tape_read(&v, &rt->a, rt->pos);
-            if (rt->xf > 0) {                          /* the old head fading out */
+            if (rt->xf > 0) {                          /* the old head fading out (its share xf / xflen, Q14: a
+                                                         * multiply, xk worked out once a block, not a divide a sample) */
                 int32_t o = tape_read(&v, &rt->b, rt->xpos);
-                s = (s * (rt->xflen - rt->xf) + o * rt->xf) / rt->xflen;
+                if (!xk)
+                    xk = (int32_t)((1u << 28) / (uint32_t)(rt->xflen > 0 ? rt->xflen : 1));
+                s += ((o - s) * ((rt->xf * xk) >> 14)) >> 14;
                 rt->xpos += inc;
                 rt->xf--;
             }

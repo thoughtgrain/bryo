@@ -187,6 +187,7 @@ static void chain_block(int32_t *out, uint32_t n)
     }
     grain_recover();
     reso_recover();
+    drm_recover();
     mix_comp(l, r, n);                                  /* the master compressor on the sum (mixer.c) */
     master_block(l, r, out, n);
     if (sys.usbrec) {                                   /* the record mode opening: this block fades the tracks out */
@@ -200,14 +201,17 @@ static void chain_block(int32_t *out, uint32_t n)
 }
 
 /* audio ISR, the half after two overloaded halves: take load away. GRAIN's sounding cap goes first (grain.c), down
- * to half; then RESONATOR's strings (reso.c), down to two; the tape is never shed. */
+ * to half; then RESONATOR's strings (reso.c), down to two; then DRUM's voices (drum.c), down to two a track (the
+ * voices above the cap fade out in 1.5 ms); the tape is never shed. */
 static void chain_shed(void)
 {
     chain_shed_count++;
-    if (grain_cap > 4u)                                 /* grains first, then strings */
+    if (grain_cap > 4u)                                 /* grains first, then strings, then drum tails */
         grain_shed();
-    else
+    else if (reso_cap > 2u)
         reso_shed();
+    else
+        drm_shed();
 }
 
 /* main loop: TRACKS set to n (GLO held + SELECT). The tracks above it park: they fade out in 2 ms and stop
