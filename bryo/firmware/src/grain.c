@@ -87,6 +87,7 @@ typedef struct {
     int32_t wlo;                     /* the sample at w[0] (-1: nothing decoded yet) */
     int32_t dpos, pred, idx;         /* the decoder: the next sample it decodes, its state */
     int16_t w[GR_WIN];
+    uint16_t wver;                   /* the buffer's commit count its window was decoded at (gr_buf_t.cver) */
     int16_t st16;                    /* its pitch, 1/16 semitone (for the tests and the screen) */
     uint8_t rev;
     uint8_t trk;                     /* whose it is */
@@ -109,6 +110,8 @@ typedef struct {                     /* a track's live buffer */
                                       * kept as each is written; 0: grains of it would be silence */
     uint32_t loud_len;               /* .. the length and chunks it was counted over (changed: counted again) */
     uint8_t loud_nch;
+    uint16_t cver;                   /* ISR: blocks committed (a grain whose window holds the last one decodes again) */
+    uint32_t cblk;                   /* .. the last one */
 } gr_buf_t;
 
 typedef struct {
@@ -123,6 +126,7 @@ typedef struct {
     uint8_t dset;                    /* dsh holds last block's dry share */
     int32_t dsh;                     /* the dry share last block, Q15 (ROUT switched: ramped across the next) */
     int32_t hl[3], hr[3];            /* the grains' half-rate mix: its last three samples (the 2x interpolator's) */
+    int32_t wetq;                    /* WET last block, Q15: the grains' mix ramps from it (0: the grains are off) */
     uint8_t hq;                      /* 1: they're 0 (nothing to carry into the next block) */
 } grain_trk_t;
 
@@ -300,6 +304,8 @@ static void gr_bcommit(gr_buf_t *B)
     B->staged = 0;
     if (b / MEM_CB >= B->nch || b * TAPE_BLK >= B->len)
         return;
+    B->cver++;                                          /* (the grains reading it: their windows are stale) */
+    B->cblk = b;
     c = mem_at(B->map[b / MEM_CB]);
     ima_fit(B->stage, &c->pred[b % MEM_CB], &c->idx[b % MEM_CB]);
     ima_enc(B->stage, c->pred[b % MEM_CB], c->idx[b % MEM_CB], c->data[b % MEM_CB], TAPE_BLK);
@@ -503,6 +509,7 @@ static void gr_start(uint32_t t, grain_trk_t *G, const int16_t *p, int32_t ls, i
     g->inc = g->rev ? -rate : rate;
     g->pos = (g->rev ? at + (int32_t)((uint32_t)rate * g->len >> 12) : at) << 12;   /* (backwards: from its end) */
     g->wlo = -1;
+    g->wver = gbuf[t].cver;
     gps100 = gr_gps100(p[GP_RATE]);                     /* grains overlapping: a second's grains x SIZE, but no */
     ov = clamp(gps100 * p[GP_SIZE] / 100000, 1, clamp((int32_t)gr_allow(t), 1, 32));   /* more than it may sound */
     pan = p[GP_SPRD] ? (int32_t)(gr_rnd(G) % (uint32_t)(2 * p[GP_SPRD] + 1)) - p[GP_SPRD] : 0;
@@ -519,6 +526,60 @@ static int32_t gr_pace(const gr_buf_t *B, int32_t len)
 }
 
 /* -------------------------------------------------------------- a block --- */
+#define GR_DUCK_LOG2 5
+#define GR_DUCK (1u << GR_DUCK_LOG2)        /* a seam's duck: a grain fades to 0 over this many samples of what it
+                                             * reads either side of a jump in it (1.5 ms at its own pitch) */
+
+/* how far a is from b round a loop of len samples (0..len/2) */
+static inline int32_t gr_cdist(int32_t a, int32_t b, int32_t len)
+{
+    int32_t d = a - b;
+    d = len ? d % len : d;
+    d = d < 0 ? -d : d;
+    return len && d > len - d ? len - d : d;
+}
+
+/* audio ISR: h half-rate samples of grain g into ol and or: its window (e, Q20, moving de a sample), its pan (gl
+ * gr), read through its decoded window (round the loop of ll at the ends of the view's len). duck: the read passes
+ * near the seam this block, the zone of zh either side of seam where what it reads jumps or is about to (the block the
+ * buffer is writing, the tape's end): inside it the grain is silent, and over GR_DUCK either side it fades down and
+ * back up, a dip instead of a click; sv: the zone moves a sample a half-rate sample (the write head's pace). Inlined
+ * with duck a constant: a grain nowhere near it runs the loop it always did */
+static inline __attribute__((always_inline)) void gr_mix(grain_t *g, const tape_view_t *v, int32_t len, int32_t ll,
+                                                        int32_t h, int32_t e, int32_t de, int32_t gl, int32_t gr,
+                                                        int32_t *ol, int32_t *or, int duck, int32_t seam, int32_t zh,
+                                                        int32_t sv)
+{
+    int32_t pos = g->pos, inc = 2 * g->inc, wlo = g->wlo, half = len / 2, i;
+    const int16_t *w = g->w;
+    for (i = 0; i < h; i++, e += de, pos += inc) {      /* (the grain's state in locals: the mix can't alias it) */
+        int32_t ix = (pos >> 12) - wlo, x, a, b;
+        if (wlo >= 0 && ix >= 0 && ix + 1 < (int32_t)GR_WIN) {   /* (the usual case: inside the window) */
+            a = w[ix];
+            b = w[ix + 1];
+            x = a + (((b - a) * (pos & 4095)) >> 12);
+        } else {
+            if (pos < 0 || (pos >> 12) >= len)          /* (off either end: round the loop, as the buffer and the
+                                                         * tape go round, not silence: a grain cut mid-way clicks) */
+                pos += pos < 0 ? ll << 12 : -(ll << 12);
+            x = gr_read(g, v, pos);
+            wlo = g->wlo;
+        }
+        if (duck) {                                     /* (the seam: silent inside the zone, the window's own curve
+                                                         * down to it and up from it, by the distance in Q12) */
+            int32_t ds = pos - ((seam + sv * i) << 12);  /* (the zone moving with the head: sv a sample) */
+            ds = ds > half << 12 ? ds - (len << 12) : ds < -(half << 12) ? ds + (len << 12) : ds;
+            ds = (ds < 0 ? -ds : ds) - (zh << 12);
+            if (ds < (int32_t)GR_DUCK << 12)
+                x = ds <= 0 ? 0 : (x * GR_RAMP[ds >> (GR_DUCK_LOG2 + 12 - 7)]) >> 15;
+        }
+        x = (x * (e >> 5)) >> 15;
+        ol[i] += (x * gl) >> 15;
+        or[i] += (x * gr) >> 15;
+    }
+    g->pos = pos;
+}
+
 /* audio ISR: track t's GRAIN on one block. dry: the source (n samples); keys: the white keys on the GRAIN page (0
  * otherwise); frozen: the 0 key held. The track's stereo out into l and r. */
 static void grain_block(uint32_t t, const int32_t *dry, uint32_t keys, int frozen, int32_t *l, int32_t *r, uint32_t n)
@@ -527,7 +588,7 @@ static void grain_block(uint32_t t, const int32_t *dry, uint32_t keys, int froze
     gr_buf_t *B = &gbuf[t];
     const int16_t *p = TPD(t, DEV_GRAIN);
     tape_view_t v;
-    int32_t ls = 0, ll = 0, wet = p[GP_WET], i, len, live = tp[t].src != SRC_TAPE, playing = sys.playing;
+    int32_t ls = 0, ll = 0, wet = p[GP_WET], i, len, live = tp[t].src != SRC_TAPE, playing = sys.playing, rec = 0;
     uint32_t k, press = keys & ~G->keys, scan = (uint32_t)clamp(p[GP_SCAN], 0, 3);
     G->keys = keys;
     if (!G->rng)
@@ -563,8 +624,10 @@ static void grain_block(uint32_t t, const int32_t *dry, uint32_t keys, int froze
             B->odd = 0;
             B->acc = 0;
         }
-        if (!frozen && wet && (playing || live))        /* it records: what's there x FDBK + the source */
+        if (!frozen && wet && (playing || live)) {      /* it records: what's there x FDBK + the source */
             gr_record(B, dry, n, clamp(p[GP_FDBK], 0, 100));
+            rec = 1;
+        }
         else if (B->staged)
             gr_bcommit(B);
     }
@@ -626,12 +689,13 @@ static void grain_block(uint32_t t, const int32_t *dry, uint32_t keys, int froze
         G->cur -= ll << 12;
     while (G->cur < ls << 12)
         G->cur += ll << 12;
-    if (!wet) {                                         /* (dry only: the grains stop, the cursor goes on) */
+    if (!wet && !G->wetq) {                             /* (dry only, the grains faded out last block: they stop,
+                                                         * the cursor goes on) */
         grain_kill(t);
         return;
     }
     G->wait -= (int32_t)n;
-    if (G->wait <= 0 && (playing || keys || (scan != SCAN_TAPE && (live || frozen)))) {
+    if (G->wait <= 0 && wet && (playing || keys || (scan != SCAN_TAPE && (live || frozen)))) {
         gr_start(t, G, p, ls, ll);
         G->n++;
         G->wait += gr_gap(G, p);
@@ -641,7 +705,7 @@ static void grain_block(uint32_t t, const int32_t *dry, uint32_t keys, int froze
     {                                                   /* the grains, at half rate (the buffer's and the tape's
                                                          * 22.05 kHz: nothing in them above 11 kHz), into xl xr
                                                          * after the last block's three; then 2x up into l and r */
-        int32_t xl[3u + CTL / 2u], xr[3u + CTL / 2u];
+        int32_t xl[3u + CTL / 2u], xr[3u + CTL / 2u], seam, zh;   /* (rec: the buffer recorded this block) */
         uint32_t h2 = n / 2u, any = 0;
         for (k = 0; k < 3u; k++) {
             xl[k] = G->hl[k];
@@ -649,42 +713,61 @@ static void grain_block(uint32_t t, const int32_t *dry, uint32_t keys, int froze
         }
         for (k = 0; k < h2; k++)
             xl[3u + k] = xr[3u + k] = 0;
+        /* where what it reads jumps, or is about to: recording, the TAPE_BLK behind the write head (the block being
+         * written is stored when it's full: until then a grain reads a bar ago's sound there, after it the new) up
+         * to the head (the newest against the oldest), moving with the head a sample a half-rate sample (sv), from
+         * where it was at the block's start; the buffer still, its head; the tape, its end (round to its loop) */
+        rec = rec && scan != SCAN_TAPE;
+        zh = rec ? (int32_t)(TAPE_BLK / 2u) : 0;
+        seam = scan == SCAN_TAPE ? 0 : rec ? B->w - (int32_t)h2 - zh : B->w;
+        if (len)
+            seam = (seam % len + len) % len;
         for (k = 0; k < GR_SLOTS; k++) {
             grain_t *g = &gslot[k];
             int32_t e0, e1, gl, gr, m, h;
             if (!gr_on(k) || g->trk != t)
                 continue;
             any = 1;
+            if (scan != SCAN_TAPE && g->wver != B->cver) {   /* a block was stored since its window was decoded: if
+                                                         * the window holds it, decode again (else a bar ago's sound
+                                                         * meets the new inside the window) */
+                int32_t c0 = (int32_t)(B->cblk * TAPE_BLK);
+                if (g->wlo >= 0 && g->wlo < c0 + (int32_t)TAPE_BLK && g->dpos > c0)
+                    g->wlo = -1;
+                g->wver = B->cver;
+            }
             m = (int32_t)(g->left < n ? g->left : n);
             h = (m + 1) / 2;                            /* (half-rate samples: a grain ending mid-block rounds up) */
             e0 = gr_env(g, g->len - g->left);           /* the window: its value at the block's ends, ramped */
             e1 = gr_env(g, g->len - g->left + (uint32_t)m);
-            gl = g->gl * wet / 100;                     /* (WET folded into the pan) */
-            gr = g->gr * wet / 100;
+            gl = g->gl;                                 /* (WET: on the mix, below) */
+            gr = g->gr;
             {
-                int32_t pos = g->pos, inc = 2 * g->inc, wlo = g->wlo, de = ((e1 - e0) * 32) >> (CTL_LOG2 - 1), e = e0 << 5;
-                const int16_t *w = g->w;
-                int32_t *ol = xl + 3, *or = xr + 3;
-                for (i = 0; i < h; i++, e += de, pos += inc) {   /* (the grain's state in locals: the mix can't
-                                                                  * alias it) */
-                    int32_t ix = (pos >> 12) - wlo, x, a, b;
-                    if (wlo >= 0 && ix >= 0 && ix + 1 < (int32_t)GR_WIN) {   /* (the usual case: inside the window) */
-                        a = w[ix];
-                        b = w[ix + 1];
-                        x = a + (((b - a) * (pos & 4095)) >> 12);
-                    } else {
-                        x = gr_read(g, &v, pos);
-                        wlo = g->wlo;
-                    }
-                    x = (x * (e >> 5)) >> 15;
-                    ol[i] += (x * gl) >> 15;
-                    or[i] += (x * gr) >> 15;
-                }
-                g->pos = pos;
+                int32_t inc = 2 * g->inc, p0 = g->pos >> 12, p1 = (g->pos + inc * h) >> 12, span = p1 - p0;
+                int32_t de = ((e1 - e0) * 32) >> (CTL_LOG2 - 1);
+                span = span < 0 ? -span : span;
+                if (gr_cdist(p0, seam, len) <= span + zh + (int32_t)(GR_DUCK + h2) ||
+                    gr_cdist(p1, seam, len) <= span + zh + (int32_t)(GR_DUCK + h2))   /* (near the seam this block:
+                                                                                     * ducked) */
+                    gr_mix(g, &v, len, ll, h, e0 << 5, de, gl, gr, xl + 3, xr + 3, 1, seam, zh, rec);
+                else
+                    gr_mix(g, &v, len, ll, h, e0 << 5, de, gl, gr, xl + 3, xr + 3, 0, 0, 0, 0);
             }
             g->left -= (uint32_t)m;
             if (!g->left)
                 gr_clr(k);
+        }
+        {                                               /* WET on the track's grains together, ramped across the block
+                                                         * from last block's (no step when it's turned or modulated;
+                                                         * turned to 0, they fade out over this block, then stop) */
+            int32_t w1 = wet * 32767 / 100, w0 = G->wetq, gw = w0, dw = (w1 - w0) / (int32_t)h2;
+            if (any && (w0 != 32767 || w1 != 32767))
+                for (k = 0; k < h2; k++) {
+                    gw += dw;
+                    xl[3u + k] = (xl[3u + k] * (gw >> 3)) >> 12;
+                    xr[3u + k] = (xr[3u + k] * (gw >> 3)) >> 12;
+                }
+            G->wetq = w1;
         }
         if (any || !G->hq) {                            /* 2x up, a cubic's midpoint (-1 9 9 -1)/16 between each pair,
                                                          * two half-rate samples late; then their tail carried on */

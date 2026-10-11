@@ -2200,6 +2200,82 @@ static uint32_t buf_loud(uint32_t t, uint32_t from, uint32_t to)   /* blocks of 
     return n;
 }
 
+/* no clicks in the grains: a 201.3 Hz sine (it doesn't fit the bar, so the live buffer has a real seam at its write
+ * head, as music does) through GRAIN, the output's second difference never above 600 (a corner: a click; a sine this
+ * loud bends at most about 90 a sample). The cases that clicked: a grain off the buffer's end, one crossing the write
+ * head or reading the block being written, WET to 0 cutting the grains */
+static int32_t clk_p1, clk_p2;
+static double clk_ph;
+static uint32_t clk_run(uint32_t blocks, int count)
+{
+    static int32_t dry[CTL], l[CTL], r[CTL];
+    uint32_t b, i, nk = 0;
+    for (b = 0; b < blocks; b++) {
+        for (i = 0; i < CTL; i++, clk_ph += 2 * 3.14159265358979 * 201.3 / 44100)
+            dry[i] = (int32_t)(8000 * sin(clk_ph));
+        gr_plan();
+        grain_block(0, dry, 0, 0, l, r, CTL);
+        for (i = 0; i < CTL; i++) {
+            int32_t d2 = l[i] - 2 * clk_p1 + clk_p2;
+            nk += count && (d2 > 600 || d2 < -600);
+            clk_p2 = clk_p1;
+            clk_p1 = l[i];
+        }
+    }
+    return nk;
+}
+static void test_grain_clicks(void)
+{
+    static const struct { const char *what; int16_t k[3], v[3], k2, v2; } C[] = {
+        {"CONT 0 (2 ms ends)", {GP_CONT, -1, -1}, {0}, -1, 0},
+        {"PTCH +12 (reading past the write head)", {GP_PTCH, GP_CONT, -1}, {12, 50}, -1, 0},
+        {"REV 100", {GP_REV, GP_CONT, -1}, {100, 50}, -1, 0},
+        {"SCAN DLY, OFST 1 (just behind the head)", {GP_SCAN, GP_OFST, GP_CONT}, {SCAN_DLY, 1, 50}, -1, 0},
+        {"SCAN POS at 98 %, PTCH +24 (off the buffer's end; the head sweeping past)", {GP_SCAN, GP_OFST, GP_PTCH},
+         {SCAN_POS, 98, 24}, -1, 0},
+        {"SIZE 10 ms, RATE 100", {GP_SIZE, GP_RATE, -1}, {10, 100}, -1, 0},
+        {"PTCH -12 (the write head overtakes them)", {GP_PTCH, GP_CONT, -1}, {-12, 50}, -1, 0},
+        {"REV 100, PTCH -12, SIZE 500", {GP_REV, GP_PTCH, GP_SIZE}, {100, -12, 500}, -1, 0},
+        {"WET 100 -> 0 while they sound", {GP_CONT, -1, -1}, {50}, GP_WET, 0},
+        {"WET 100 -> 30 at once", {GP_CONT, -1, -1}, {50}, GP_WET, 30},
+    };
+    uint32_t c, j, t, worst = 0;
+    char b[160];
+    for (c = 0; c < sizeof C / sizeof C[0]; c++) {
+        int16_t *p = tp[0].dev[DEV_GRAIN];
+        uint32_t nk;
+        power_on();
+        tp[0].src = SRC_SYNTH;                           /* (live: the buffer always records) */
+        for (t = 1; t < NTRK; t++)
+            track[t].mute = 1;
+        p[GP_WET] = 100;
+        p[GP_RATE] = 60;
+        p[GP_SIZE] = 120;
+        p[GP_CONT] = 0;
+        p[GP_SCAN] = SCAN_STR;
+        for (j = 0; j < 3u; j++)
+            if (C[c].k[j] >= 0)
+                p[C[c].k[j]] = C[c].v[j];
+        sys.playing = 1;
+        chain_poll();
+        clk_run(1378 * 3, 0);                            /* (the buffer full, more than once round) */
+        nk = clk_run(1378, 1);
+        if (C[c].k2 >= 0) {
+            p[C[c].k2] = C[c].v2;
+            nk += clk_run(400, 1);
+        }
+        worst = nk > worst ? nk : worst;
+        if (nk) {
+            snprintf(b, sizeof b, "grains click: %s (%u corners)", C[c].what, nk);
+            check(b, 0);
+        }
+    }
+    check("grains of a sine with a seam in its buffer: no click anywhere (CONT 0, PTCH +12 and -12, REV, DLY by the "
+          "head, POS off the end, 10 ms grains, WET to 0 and stepped)", worst == 0u);
+    power_on();
+    render_poll(1378);
+}
+
 /* the pool goes to the tracks whose grains would be heard: GRAIN on but nothing in its buffer (a POLY track nobody
  * has played), or the track muted, takes no share; the moment there's sound to granulate, it takes its share */
 static void test_grain_shares(void)
@@ -7082,6 +7158,7 @@ int main(int argc, char **argv)
     test_grain();
     test_grain_buffer();
     test_grain_shares();
+    test_grain_clicks();
     test_reso();
     test_color();
     test_space();

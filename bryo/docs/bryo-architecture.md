@@ -1294,6 +1294,42 @@ so I don't run it every frame: `ui_input` refreshes `ui.unsaved` four times a se
 flips. The manual has a "Saving, in short" section up front: tap and hold SAVE, what POLY held clears and how it
 warns first, and how to go back to the last save when undo can't help.
 
+**No clicks in the grains (2026-10-11).** Asked whether grains are smoothed: each has a window (a raised-cosine ramp
+at each end, CONT long, 2 ms at the least), so a grain on its own starts and ends without a click. Measuring rather
+than assuming (a sine through GRAIN, counting output samples whose second difference passes 600: a corner, where a
+sine this loud bends at most about 90), the window was never the problem. What clicked:
+
+- **A grain off the end.** A grain reading past the buffer's end (or the tape's) read silence for the rest of its
+  life: cut mid-way. The buffer goes round, and so does the tape's loop, so now the read does too (`gr_mix`, on the
+  slow path it already took there).
+- **The seam.** The live buffer is a loop: behind the write head the newest sound, ahead of it a bar ago's. A pure
+  200 Hz sine fits the 2 s bar exactly, so my first test couldn't see it; at 201.3 Hz (as music is) every grain that
+  crossed it clicked (up to 194 corners in 4 s). Worse, the head writes a block at a time and stores it when it's
+  full, so until then the stretch just behind the head still reads as a bar ago, and then switches. So a grain is
+  silent inside the zone from TAPE_BLK behind the write head up to it, with the window's own curve down to it and up
+  from it over GR_DUCK (1.5 ms of what it reads) either side. The zone moves with the head a sample a half-rate
+  sample (when it jumped a block at a time, its own edges clicked). A grain is checked once a block
+  (`gr_cdist`); only one near the zone runs the ducking loop (`gr_mix` inlined twice, the duck a constant): 4 % of
+  grain-blocks in the densest run.
+- **A stale window.** A grain decodes 128 samples ahead. When the head overtakes it (a grain pitched down, or
+  reversed), those samples get rewritten after it decoded them, and it plays the old version into the new. When a
+  block is stored (`gr_bcommit` counts them, `cver`), a grain whose window holds it decodes again (663 times in the
+  densest run's 6 s).
+- **WET.** It scaled each grain's level a block at a time, and WET 0 killed the grains at once. Now WET is applied
+  to the track's grains together, ramped across the block, and at 0 they fade out over that block before they stop.
+
+After: no corners in any case (CONT 0, 50, 100; PTCH +12, -12, +24; REV; SPRY 100; DLY just behind the head; STR at
+WARP 200; POS at 98 %; 10 ms grains; WET stepped and to 0), on either sine; the worst bend 260 where it was 5,813.
+`test_grain_clicks` keeps eight of them, and each part of the fix fails it when taken out. The level is the same
+(RMS within a few percent in every SCAN).
+
+What it costs: the dense runs went up (run 23 2,820 to 3,130; run 3 2,314 to 2,483; run 15 4,870 to 5,041; the
+groove +18), and almost none of it is the fix's own work (the refreshes, the wraps and the ducked blocks are all
+rare). It's grains doing their work again: a grain that ran off the buffer's end read silence cheaply for the rest
+of its life, and in run 23 (500 ms grains in a 2 s buffer) a quarter of them did. That was a bug (quieter clouds,
+a click each); the cost of the sound it should have made is the right cost. If the device needs it back, the pool
+is where to take it (40, 30, 18).
+
 **The pool goes to grains you'd hear (2026-10-11, from playing it).** One track's grains stayed at a low share with
 no other track making grains you could hear. The pool's size and its split counted every track with GRAIN's WET above
 0, and a SYNTH or POLY track with GRAIN on starts grains all the time (its buffer always records), reading silence
