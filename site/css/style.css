@@ -927,3 +927,14 @@ tr:last-child td { border-bottom: 0; }
   .panel-figure::before,
   .thanks__card::before { display: none; }
 }
+
+/* two screens a row, whatever the column's width (the arpeggiator's four on the landing page) */
+.figure-row--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 32px; }
+
+/* a short definition list inside prose: narrower labels than the spec sheet */
+.specs--compact { margin: 24px 0; }
+@media (min-width: 720px) {
+  .specs--compact div { grid-template-columns: 96px 1fr; gap: 16px; }
+}
+.specs--compact div { padding: 12px 0; }
+.specs--compact dd { color: var(--ink-soft); }
