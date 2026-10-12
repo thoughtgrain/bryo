@@ -1,0 +1,365 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bryo documentation</title>
+  <meta name="description" content="How to install, play, record, save and build Bryo, the four-track sound-sculpting firmware for the M-VAVE FM-1.">
+  <meta name="theme-color" content="#121212">
+  <link rel="icon" href="img/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap">
+  <link rel="preload" href="fonts/bryo-px5.woff" as="font" type="font/woff" crossorigin>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="js/main.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap site-header__inner">
+      <a class="logo" href="./">
+        <img class="logo__mark pixelated" src="img/wordmark.svg" width="115" height="35" alt="Bryo, home">
+      </a>
+      <div class="header-actions">
+        <a class="icon-btn" href="https://github.com/thoughtgrain/moss-and-air" aria-label="Bryo on GitHub">
+          <svg aria-hidden="true"><use href="img/icons.svg#github"/></svg>
+        </a>
+        <button class="icon-btn" type="button" data-menu-open aria-haspopup="dialog" aria-controls="menu" aria-expanded="false" aria-label="Open menu">
+          <svg aria-hidden="true"><use href="img/icons.svg#menu"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <dialog class="menu" id="menu" aria-label="Site menu">
+    <div class="wrap">
+      <div class="menu__top">
+        <a class="logo" href="./">
+          <img class="logo__mark pixelated" src="img/wordmark.svg" width="115" height="35" alt="Bryo, home">
+        </a>
+        <button class="icon-btn" type="button" data-menu-close aria-label="Close menu">
+          <svg aria-hidden="true"><use href="img/icons.svg#close"/></svg>
+        </button>
+      </div>
+      <nav aria-label="Main">
+        <ul class="menu__list">
+          <li><a href="./#instrument"><span>01</span>Instrument</a></li>
+          <li><a href="./#chain"><span>02</span>The chain</a></li>
+          <li><a href="./#sources"><span>03</span>Sources</a></li>
+          <li><a href="./#specs"><span>04</span>Specs</a></li>
+          <li><a href="./#get"><span>05</span>Get it</a></li>
+          <li><a href="./#thanks"><span>06</span>Thanks, Felucca</a></li>
+          <li><a href="docs.html" aria-current="page"><span>//</span>Documentation</a></li>
+          <li><a href="https://github.com/thoughtgrain/moss-and-air"><span>&gt;&gt;</span>GitHub</a></li>
+        </ul>
+      </nav>
+    </div>
+  </dialog>
+
+  <div class="product-bar">
+    <div class="wrap product-bar__inner">
+      <p class="product-bar__name">Bryo <span aria-hidden="true">/</span> Docs</p>
+      <p class="product-bar__meta">Short guide · full manual on GitHub</p>
+      <a class="btn" href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/docs/manual/README.md">Full manual</a>
+    </div>
+  </div>
+
+  <main id="main">
+    <div class="docs-hero">
+      <div class="wrap">
+        <span class="section__num px"><span class="slash" aria-hidden="true">/</span> Docs</span>
+        <h1 class="section__title">Documentation</h1>
+        <div class="prose">
+          <p>This is the short version: enough to install Bryo, find your way round the panel, record a loop and save it. The <a href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/docs/manual/README.md">full manual</a> goes step by step through every page, with the real screens. Each section here links to its long form.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="wrap docs">
+      <details class="toc" open>
+        <summary class="px">Contents</summary>
+        <nav aria-label="On this page">
+          <ol>
+            <li><a href="#overview">Overview</a></li>
+            <li><a href="#install">Install</a></li>
+            <li><a href="#panel">The panel</a></li>
+            <li><a href="#screen">Reading the screen</a></li>
+            <li><a href="#first">First sounds</a></li>
+            <li><a href="#pages">Pages</a></li>
+            <li><a href="#record">Recording</a></li>
+            <li><a href="#save">Saving and undo</a></li>
+            <li><a href="#usb">With a computer</a></li>
+            <li><a href="#trouble">When something goes wrong</a></li>
+            <li><a href="#reference">Quick reference</a></li>
+            <li><a href="#build">Building and testing</a></li>
+            <li><a href="#credits">Credits and licence</a></li>
+          </ol>
+        </nav>
+      </details>
+
+      <article class="doc">
+        <section id="overview" aria-labelledby="h-overview">
+          <h2 id="h-overview"><span class="px">01</span>Overview</h2>
+          <p>Bryo turns the M-VAVE FM-1 into a four-track instrument for sculpting sound. Each track has a <strong>source</strong> (a tape loop, a synth, a sampler or a drum machine) and runs through four effects in a fixed order: <strong>GRAIN, RESONATOR, COLOR, SPACE</strong>. Four <strong>modulators</strong> per track can move any knob, and an <strong>arpeggiator</strong> can play your chords for you.</p>
+          <p>There are no menus. You hold a pad and turn a knob. I built it that way because menus are where ideas go to die mid-jam: if the four knobs always change the four values on screen, your hands never have to stop and look for anything.</p>
+          <div class="callout">
+            <span class="px">Where it stands</span>
+            <p>Phases 1 to 9 of 10 are built, and it runs on a real FM-1 since 2026-10-10. The hardware checkpoint is under way. The details are in <a href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/docs/bryo-status.md">bryo-status.md</a>.</p>
+          </div>
+        </section>
+
+        <section id="install" aria-labelledby="h-install">
+          <h2 id="h-install"><span class="px">02</span>Install</h2>
+          <p>There's no released Bryo package yet, so for now you build it and install your own. Bryo keeps Felucca's update loader byte for byte, which is why installing it works exactly like installing Felucca, and why the FM-1 can always be put back.</p>
+
+          <h3>1. Build the package</h3>
+          <p>The device build needs JieLi's toolchain (Linux x86-64; on a Mac it runs in a <code>linux/amd64</code> container) and three files from the AC79 SDK. <a href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/BUILDING.md">BUILDING.md</a> has the full setup. Once that's in place:</p>
+          <div class="code"><pre><code>git clone https://github.com/thoughtgrain/moss-and-air.git
+cd moss-and-air/bryo
+tools/get_toolchain.sh        # installs to ~/.jieli/toolchain
+./build.sh                    # makes build/bryo.fwsc</code></pre></div>
+
+          <h3>2. Install from the command line</h3>
+          <p>The installer talks to the FM-1 over MIDI, so it needs two Python packages.</p>
+          <div class="code"><pre><code>pip3 install mido python-rtmidi
+python3 tools/fm1_install.py --info          # check which FM-1 is connected
+python3 tools/fm1_install.py build/bryo.fwsc</code></pre></div>
+
+          <h3>Or from the web installer</h3>
+          <p>Web MIDI only works in a secure context, so serve a local copy of the installer from <code>localhost</code> and open it in Chrome or Edge:</p>
+          <div class="code"><pre><code>python3 web/make_site.py build/bryo.fwsc dev /tmp/bryo-site
+cd /tmp/bryo-site &amp;&amp; python3 -m http.server 8000
+# open http://localhost:8000/webapp/installer/</code></pre></div>
+
+          <div class="callout callout--red">
+            <span class="px">At your own risk</span>
+            <p>Installing firmware is at your own risk. If an install fails and the FM-1 no longer starts, recovery needs <a href="https://github.com/kurogedelic/FM-1-transporter">FM-1-transporter</a>. To go back to the stock firmware, use M-VAVE's updater (Bryo's projects and tapes can't be opened there).</p>
+          </div>
+        </section>
+
+        <section id="panel" aria-labelledby="h-panel">
+          <h2 id="h-panel"><span class="px">03</span>The panel</h2>
+          <figure class="panel-figure">
+            <img src="img/panel.svg" width="960" height="540" alt="The FM-1 panel labelled for Bryo, in the screen's own lettering: MASTER, SELECT, PRESETS and ALGORITHM top left over OCT- and OCT+; the screen showing the TAPE page; KNOB 1 to 4; the pads in two rows, page pads edged blue, modulator pads purple, PLAY and REC green; the black keys' jobs over them; white keys 1 to 16.">
+            <figcaption>The FM-1's panel as Bryo uses it now. The edges are the colours the screen gives each pad's pages. PIT and GLO on the black keys aren't assigned yet.</figcaption>
+          </figure>
+          <ul>
+            <li><strong>Top left:</strong> MASTER (volume), SELECT (tempo), PRESETS (projects and presets), ALGORITHM (what REC records). Under them, OCT&minus; and OCT+.</li>
+            <li><strong>Top right:</strong> KNOB 1 to 4. They always change the four values on screen.</li>
+            <li><strong>Blue pads, the pages:</strong> HOME (the track's source), EDIT (GRAIN, RESONATOR), FX (COLOR, SPACE), GLO (the mixer).</li>
+            <li><strong>Purple pads, the modulators and the envelope:</strong> LFO holds M1 to M3, SEQ is M4 (a step sequencer), ENV is the source's own envelope, ARP is the arpeggiator.</li>
+            <li><strong>Green pads, the transport:</strong> PLAY and REC. SAVE saves (held: undo). SCL held resets things.</li>
+            <li><strong>Keys:</strong> 16 white keys play the track. The 11 black keys above them are mutes, reverse, clears and freeze.</li>
+          </ul>
+          <a class="more" href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/docs/manual/README.md#01-the-panel">Manual 0.1 &gt;</a>
+        </section>
+
+        <section id="screen" aria-labelledby="h-screen">
+          <h2 id="h-screen"><span class="px">04</span>Reading the screen</h2>
+          <p>The header shows the track (T1 to T4), the page's name with dots for which of its pages you're on, then the transport (&#9632; stopped, &#9654; playing, &#9679; armed) and the tempo. A <strong>&#10033;</strong> means there are changes you haven't saved. Under that come the four knobs, each a little picture with a 4-letter name and a value, and the last one you turned has its name inverted.</p>
+          <p>The screen is white on black, and colour only ever says two things: where you are and what's alive. Everything a colour says is also said by a shape or a word, so you never need to tell the colours apart.</p>
+          <div class="table-wrap" tabindex="0" role="region" aria-label="What the screen's colours mean">
+            <table>
+              <thead><tr><th scope="col">Colour</th><th scope="col">Means</th></tr></thead>
+              <tbody>
+                <tr><td><span class="swatch" style="background:var(--blue)" aria-hidden="true"></span>Blue</td><td>A page of the blue pads (HOME, EDIT, FX, GLO)</td></tr>
+                <tr><td><span class="swatch" style="background:var(--purple)" aria-hidden="true"></span>Purple</td><td>A modulator's page, or a knob a modulator moves</td></tr>
+                <tr><td><span class="swatch" style="background:var(--orange)" aria-hidden="true"></span>Orange</td><td>Sound happening now: grains, strings, echoes, the playhead, the meters</td></tr>
+                <tr><td><span class="swatch" style="background:var(--red)" aria-hidden="true"></span>Red</td><td>Recording; the CPU near its limit</td></tr>
+                <tr><td><span class="swatch" style="background:var(--yellow)" aria-hidden="true"></span>Yellow</td><td>Something to know: not saved, FROZEN, grains HELD</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <a class="more" href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/docs/manual/README.md#02-reading-the-screen">Manual 0.2 &gt;</a>
+        </section>
+
+        <section id="first" aria-labelledby="h-first">
+          <h2 id="h-first"><span class="px">05</span>First sounds</h2>
+          <ol class="steps">
+            <li><strong>Turn it on.</strong> BRYO shows for a moment, then you're on track 1's TAPE page. Don't hold OCT&minus; and OCT+ while it starts: that's the calibration.</li>
+            <li><strong>Press PLAY.</strong> You hear the factory scene: a drum machine that varies itself, FM bells on the arpeggiator, a drone through ringing strings, and wavefolded plucks into an echo. All in A minor.</li>
+            <li><strong>Turn SELECT</strong> for the tempo (40 to 240 BPM) and <strong>MASTER</strong> for the volume. Both work on every page.</li>
+            <li><strong>Press black keys OP1 to OP4</strong> to mute and unmute tracks 1 to 4.</li>
+            <li><strong>Hold GLO and press white key 2</strong> to move to track 2. Almost everything changes the track you're on.</li>
+          </ol>
+          <a class="more" href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/docs/manual/README.md#1-first-sounds">Manual 1 &gt;</a>
+        </section>
+
+        <section id="pages" aria-labelledby="h-pages">
+          <h2 id="h-pages"><span class="px">06</span>Pages</h2>
+          <p>Every pad opens a page, and pressing the same pad again goes to its next page, then round to the first. To jump straight to one, <strong>hold its pad and press a white key</strong>: while you hold it, one key glows for each page.</p>
+          <div class="table-wrap" tabindex="0" role="region" aria-label="Pads and their pages">
+            <table>
+              <thead><tr><th scope="col">Pad</th><th scope="col">Pages, in order</th></tr></thead>
+              <tbody>
+                <tr><td>HOME</td><td>The source's pages (TAPE 4, SYNTH 5, POLY 4, DRUM 4). Held + SELECT changes the source.</td></tr>
+                <tr><td>EDIT</td><td>GRAIN 1&ndash;6, then RESONATOR 1&ndash;3</td></tr>
+                <tr><td>FX</td><td>COLOR 1&ndash;3, then SPACE 1&ndash;4</td></tr>
+                <tr><td>ENV</td><td>The source's envelope (DRUM: its KIT)</td></tr>
+                <tr><td>LFO, SEQ</td><td>A modulator's pages (LFO: M1, M2 or M3; SEQ: M4)</td></tr>
+                <tr><td>ARP</td><td>The arpeggiator: 2 pages, then RES ARP</td></tr>
+                <tr><td>GLO</td><td>The mixer; EDIT then steps through CHANNEL, MASTER, KEY, SETUP</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <h3>Modulation in one move</h3>
+          <p>Hold <strong>LFO</strong>, <strong>ENV</strong> or <strong>SEQ</strong> and turn any knob on a source, effect or channel page. That sets how far the modulator moves it (&minus;100 to 100&nbsp;%). Hold <strong>LFO + SELECT</strong> to change the slot's engine (LFO, ADSR, FOLLOW); the depths stay.</p>
+          <div class="figure-row">
+            <figure class="screen"><img class="pixelated" src="img/mod1.png" width="480" height="480" alt="An LFO modulator page" loading="lazy"><figcaption class="px">LFO / M1</figcaption></figure>
+            <figure class="screen"><img class="pixelated" src="img/arp.png" width="480" height="480" alt="The arpeggiator page" loading="lazy"><figcaption class="px">ARP</figcaption></figure>
+          </div>
+          <a class="more" href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/docs/manual/README.md#7-modulation">Manual 7 &gt;</a>
+        </section>
+
+        <section id="record" aria-labelledby="h-record">
+          <h2 id="h-record"><span class="px">07</span>Recording</h2>
+          <p>REC records onto <strong>the track you're on</strong>. On a TAPE track it records the other three playing, which is how you bounce a scene down and keep building on it. ALGORITHM changes what each track's REC hears (AUTO, the others, one track, itself).</p>
+          <ol class="steps">
+            <li><strong>Pick track 2</strong> (hold GLO + white key 2).</li>
+            <li><strong>Hold black key POLY for half a second</strong> to clear its tape. The screen warns you first; let go early and nothing happens.</li>
+            <li><strong>Press PLAY, then REC.</strong> The header shows &#9679; and the tape grows while it records.</li>
+            <li><strong>Press REC again</strong> after 10 to 15 seconds. Track 2 now loops what the others played.</li>
+          </ol>
+          <p>Hold REC and press SELECT to record exactly N bars, which is what you want for drum loops. Changed your mind about a clear? Hold SAVE.</p>
+          <a class="more" href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/docs/manual/README.md#4-recording">Manual 4 &gt;</a>
+        </section>
+
+        <section id="save" aria-labelledby="h-save">
+          <h2 id="h-save"><span class="px">08</span>Saving and undo</h2>
+          <ul>
+            <li><strong>Nothing is kept until you tap SAVE.</strong> It saves everything (every knob, source, pattern, depth, the mixer, the tempo) into the current project, P1 to start with. A recorded tape goes into a user reel named after it, like <code>P1T2</code>.</li>
+            <li><strong>Hold SAVE</strong> to undo the last clear, reset or load.</li>
+            <li><strong>Turn PRESETS</strong> for the six project slots: OCT+ loads, SAVE saves, POLY held deletes, OCT&minus; leaves. An empty slot + OCT+ starts a blank project; past P6, FACTORY brings back the factory scene.</li>
+            <li><strong>Track presets</strong> (A to H, plus eight factory ones) keep one track's sound: PRESETS, then EDIT.</li>
+          </ul>
+          <p>Saving while it plays doesn't stop the sound. When there's a new recording to write, it fades out for a moment and back in. Bryo gets the next save ready in a quiet moment, when nothing sounds, so a save mid-set stays short.</p>
+          <a class="more" href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/docs/manual/README.md#9-saving">Manual 9 &gt;</a>
+        </section>
+
+        <section id="usb" aria-labelledby="h-usb">
+          <h2 id="h-usb"><span class="px">09</span>With a computer</h2>
+          <h3>Files</h3>
+          <p>Plugged in, the FM-1 shows up as a small drive called <strong>BRYO</strong>.</p>
+          <ul>
+            <li><code>TAPE1.WAV</code> to <code>TAPE4.WAV</code> are what each track plays. Copy them off to keep them.</li>
+            <li>Copy a WAV on named <code>TAPE2.WAV</code> to replace track 2's tape.</li>
+            <li>Any other name becomes one of six user reels (up to 21.5&nbsp;s).</li>
+            <li>Eject and plug back in to see new files. Deleting a file on the computer doesn't delete the sound; do that on the REELS page.</li>
+          </ul>
+          <h3>Record what the computer plays</h3>
+          <p>With the transport stopped, <strong>hold REC for a second</strong>. Pick Bryo as the computer's sound output, then REC starts and stops a take (up to 23.6&nbsp;s). Trim it with STRT and LEN, set GAIN and FADE, pick the track with white key 1 to 4, and REC keeps it. HOME goes back a step.</p>
+          <a class="more" href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/docs/manual/README.md#10-with-a-computer">Manual 10 &gt;</a>
+        </section>
+
+        <section id="trouble" aria-labelledby="h-trouble">
+          <h2 id="h-trouble"><span class="px">10</span>When something goes wrong</h2>
+          <div class="figure-row">
+            <figure class="screen"><img class="pixelated" src="img/crash.png" width="480" height="480" alt="The red BRYO CRASH screen" loading="lazy"><figcaption class="px">Crash</figcaption></figure>
+          </div>
+          <ul>
+            <li><strong>A red BRYO CRASH screen:</strong> it restarts by itself after 4 seconds. Anything unsaved is gone; saved projects, reels and settings stay. A freeze restarts after 8 seconds (the watchdog). Two crashes within 30 seconds of power-on and it starts in update mode, so it can be reinstalled instead of looping.</li>
+            <li><strong>UPDATE MODE IN 3&hellip;:</strong> you're holding OCT&minus; and OCT+ together. Five seconds puts it in update mode. Let go to cancel.</li>
+            <li><strong>A calibration screen:</strong> OCT&minus; and OCT+ were held at power-on. Follow the screen, or turn it off and on.</li>
+          </ul>
+          <p>If you hit a crash, please write down what you were doing and <a href="https://github.com/thoughtgrain/moss-and-air/issues">open an issue</a>. It's the fastest way to find the bug.</p>
+          <a class="more" href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/docs/manual/README.md#11-when-something-goes-wrong">Manual 11 &gt;</a>
+        </section>
+
+        <section id="reference" aria-labelledby="h-reference">
+          <h2 id="h-reference"><span class="px">11</span>Quick reference</h2>
+          <div class="table-wrap" tabindex="0" role="region" aria-label="Quick reference: controls">
+            <table>
+              <thead><tr><th scope="col">Do this</th><th scope="col">To</th></tr></thead>
+              <tbody>
+                <tr><td>PLAY</td><td>Start / stop</td></tr>
+                <tr><td>SELECT</td><td>Tempo</td></tr>
+                <tr><td>MASTER</td><td>Volume</td></tr>
+                <tr><td>GLO held + white key 1&ndash;4</td><td>Pick a track</td></tr>
+                <tr><td>GLO held + KNOB 1&ndash;4</td><td>Track levels</td></tr>
+                <tr><td>GLO held + SELECT</td><td>How many tracks are on</td></tr>
+                <tr><td>GLO tapped, then EDIT</td><td>CHANNEL, MASTER, KEY, SETUP</td></tr>
+                <tr><td>OP1&ndash;OP4</td><td>Mute tracks</td></tr>
+                <tr><td>OP5 / OP6</td><td>Tape backwards / half speed</td></tr>
+                <tr><td>HOME</td><td>The source's pages</td></tr>
+                <tr><td>HOME held + SELECT</td><td>Change the source</td></tr>
+                <tr><td>EDIT</td><td>GRAIN, then RESONATOR</td></tr>
+                <tr><td>FX</td><td>COLOR, then SPACE</td></tr>
+                <tr><td>ENV</td><td>The source's envelope page</td></tr>
+                <tr><td>LFO / SEQ tapped</td><td>That modulator's pages</td></tr>
+                <tr><td>LFO / SEQ held + a knob</td><td>How much that modulator moves the knob</td></tr>
+                <tr><td>LFO held + OP1 / OP2 / OP3</td><td>Which modulator LFO is: M1, M2, M3</td></tr>
+                <tr><td>LFO held + SELECT</td><td>The modulator's engine</td></tr>
+                <tr><td>ARP</td><td>The arpeggiator; page 3 is RES ARP</td></tr>
+                <tr><td>GLO held + OCT+</td><td>Black keys: shortcuts or notes</td></tr>
+                <tr><td>REC</td><td>Record onto the track</td></tr>
+                <tr><td>REC held 1&nbsp;s, stopped</td><td>Record the computer</td></tr>
+                <tr><td>ALGORITHM</td><td>What REC records</td></tr>
+                <tr><td>Black POLY held</td><td>Clear the tape (DRUM: the pattern)</td></tr>
+                <tr><td>Black MONO held</td><td>Clear the track's modulation</td></tr>
+                <tr><td>Black 0</td><td>Freeze GRAIN (held, or tapped to latch)</td></tr>
+                <tr><td>SCL held + a knob</td><td>That knob to its default</td></tr>
+                <tr><td>SCL held + the lit pad</td><td>The page to its defaults</td></tr>
+                <tr><td>SAVE</td><td>Save the project</td></tr>
+                <tr><td>SAVE held</td><td>Undo the last clear, reset or load</td></tr>
+                <tr><td>PRESETS</td><td>Projects; EDIT for track presets, again for reels</td></tr>
+                <tr><td>OCT&minus; / OCT+</td><td>Octave (DRUM: the bar)</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>Every control in every context is in <a href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/docs/controls.tsv">controls.tsv</a>, one row per control and gesture, and a test checks it against the code.</p>
+        </section>
+
+        <section id="build" aria-labelledby="h-build">
+          <h2 id="h-build"><span class="px">12</span>Building and testing</h2>
+          <p>You don't need the device toolchain to work on Bryo. The host tests build the whole chain, input handling and screens with any C compiler, and check every screen against its pixel fingerprint. That's also where the pictures on this site come from.</p>
+          <div class="code"><pre><code>pip3 install Pillow fonttools
+cd bryo
+tests/run_tests.sh            # must end "ALL HOST TESTS PASSED"</code></pre></div>
+          <p>For the cost of each modulation target (needs numpy, and valgrind for <code>--cost</code>):</p>
+          <div class="code"><pre><code>sh tests/mod_audit.sh --cost</code></pre></div>
+          <p>The architecture, part by part as built, is in <a href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/docs/bryo-architecture.md">bryo-architecture.md</a>. Contributions follow <a href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/CONTRIBUTING.md">CONTRIBUTING.md</a>.</p>
+        </section>
+
+        <section id="credits" aria-labelledby="h-credits">
+          <h2 id="h-credits"><span class="px">13</span>Credits and licence</h2>
+          <p>Bryo is a fork of <a href="https://github.com/hugelton/Felucca">Felucca</a>, the GPL-3.0 replacement firmware by <a href="https://github.com/kurogedelic">Leo Kuroshita (@kurogedelic)</a> / Hügelton Instruments. They reverse-engineered the FM-1 and wrote the bare-metal firmware Bryo still stands on: the hardware layer, the update loader, USB, storage, the display and the installer. Thank you, Leo.</p>
+          <p>Felucca credits DaisySP and Rings (Electrosmith, Emilie Gillet), msfa (Google, Pascal Gauthier, via Dexed), klattsch (Tony Gies), the Inter Tight font (The Inter Project Authors), the Fukiai icon font (Hügelton), the VSCO-2 CE and VCSL sample libraries (Versilian Studios) and three files from the JieLi AC79 SDK, and those credits carry through to Bryo.</p>
+          <div class="btn-row">
+            <a class="btn btn--solid" href="https://github.com/sponsors/hugelton">Sponsor on GitHub</a>
+            <a class="btn" href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/ACKNOWLEDGEMENTS.md">Acknowledgements</a>
+          </div>
+          <p style="margin-top:24px">Bryo is <strong>GPL-3.0-only</strong>, like Felucca. If you share it, or firmware built from it, give your recipients the complete source. See <a href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/LICENSE">LICENSE</a>, <a href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/LICENSING.md">LICENSING.md</a> and <a href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/NOTICE.md">NOTICE.md</a>.</p>
+        </section>
+      </article>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap site-footer__grid">
+      <div>
+        <h2 class="px">Bryo</h2>
+        <p>Firmware for the M-VAVE FM-1, a fork of <a href="https://github.com/hugelton/Felucca">Felucca</a> by Leo Kuroshita / Hügelton Instruments. GPL-3.0-only. Bryo is an independent project and isn't affiliated with M-VAVE. The name: <em>bryon</em> is Greek for moss.</p>
+      </div>
+      <div>
+        <h2 class="px">Read</h2>
+        <ul>
+          <li><a href="./">Home</a></li>
+          <li><a href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/docs/manual/README.md">The full manual</a></li>
+          <li><a href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/docs/bryo-status.md">Where it stands</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2 class="px">Source</h2>
+        <ul>
+          <li><a href="https://github.com/thoughtgrain/moss-and-air">thoughtgrain/moss-and-air</a></li>
+          <li><a href="https://github.com/hugelton/Felucca">hugelton/Felucca</a></li>
+          <li><a href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/LICENSE">Licence</a></li>
+        </ul>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>
