@@ -145,9 +145,23 @@ typedef struct {
 
 static grain_t gslot[GR_SLOTS] __attribute__((section(".pool")));
 static uint32_t gr_used[2];          /* a bit per slot sounding (GR_SLOTS past 32: two words) */
+static uint32_t gr_trk[NTRK][2];     /* the same bits by track: a track walks its own slots, not all 40 (kept in
+                                      * step with gr_used by gr_tset and gr_tclr: a slot is set with its track) */
 static inline uint32_t gr_on(uint32_t k) { return (gr_used[k >> 5] >> (k & 31u)) & 1u; }
 static inline void gr_set(uint32_t k) { gr_used[k >> 5] |= 1u << (k & 31u); }
 static inline void gr_clr(uint32_t k) { gr_used[k >> 5] &= ~(1u << (k & 31u)); }
+static inline void gr_tset(uint32_t t, uint32_t k) { gr_set(k); gr_trk[t][k >> 5] |= 1u << (k & 31u); }
+static inline void gr_tclr(uint32_t t, uint32_t k) { gr_clr(k); gr_trk[t][k >> 5] &= ~(1u << (k & 31u)); }
+/* the lowest set bit's slot of a track's mask word w (w != 0) */
+static inline uint32_t gr_low(uint32_t w)
+{
+    uint32_t k = 0;
+    if (!(w & 0xFFFFu)) { w >>= 16; k += 16u; }
+    if (!(w & 0xFFu)) { w >>= 8; k += 8u; }
+    if (!(w & 0xFu)) { w >>= 4; k += 4u; }
+    if (!(w & 0x3u)) { w >>= 2; k += 2u; }
+    return k + (1u - (w & 1u));
+}
 static grain_trk_t grain[NTRK];
 static gr_buf_t gbuf[NTRK];
 static uint32_t grain_cap = GR_CAP;  /* the pool's scale, lowered by chain_shed */
@@ -312,9 +326,10 @@ static uint32_t gr_allow(uint32_t t) { return gr_share[t]; }
 /* the grains sounding on track t (the screen, the tests) */
 static uint32_t grain_count(uint32_t t)
 {
-    uint32_t k, c = 0;
-    for (k = 0; k < GR_SLOTS; k++)
-        c += gr_on(k) && gslot[k].trk == t;
+    uint32_t w, c = 0, j;
+    for (j = 0; j < 2u; j++)
+        for (w = gr_trk[t][j]; w; w &= w - 1u)
+            c++;
     return c;
 }
 
@@ -322,9 +337,9 @@ static uint32_t grain_count(uint32_t t)
 static void grain_kill(uint32_t t)
 {
     uint32_t k;
-    for (k = 0; k < GR_SLOTS; k++)
-        if (gslot[k].trk == t)
-            gr_clr(k);
+    gr_used[0] &= ~gr_trk[t][0];
+    gr_used[1] &= ~gr_trk[t][1];
+    gr_trk[t][0] = gr_trk[t][1] = 0;
     for (k = 0; k < 3u; k++)                            /* (the half-rate mix's tail: nothing left to carry) */
         grain[t].hl[k] = grain[t].hr[k] = 0;
     grain[t].hq = 1;
@@ -407,7 +422,8 @@ static void gr_bput(gr_buf_t *B, int32_t x, int32_t fb)
         B->sblk = b;
         B->staged = 1;
     }
-    B->stage[o] = (int16_t)clamp(B->stage[o] * fb / 100 + x, -32767, 32767);
+    B->stage[o] = (int16_t)clamp((fb ? B->stage[o] * fb / 100 : 0) + x, -32767, 32767);   /* (FDBK 0: no divide
+                                                                                               * a buffer sample) */
     if ((uint32_t)++B->w >= B->len)
         B->w = 0;
 }
@@ -614,7 +630,7 @@ static void gr_start(uint32_t t, grain_trk_t *G, const int16_t *p, int32_t ls, i
             g = &gslot[k];
     if (!g)
         return;
-    gr_set((uint32_t)(g - gslot));
+    gr_tset(t, (uint32_t)(g - gslot));
     g->trk = (uint8_t)t;
     g->st16 = (int16_t)pan;                             /* (SPRY, PTCH, PRND: drawn above) */
     G->bto = (int16_t)(((pan % 192) + 192) % 192);      /* (BODY's wave plays it: its degree over ROOT) */
@@ -787,7 +803,7 @@ static void grain_block(uint32_t t, const int32_t *dry, uint32_t keys, int froze
     const int16_t *p = TPD(t, DEV_GRAIN);
     tape_view_t v;
     int32_t ls = 0, ll = 0, wet = p[GP_WET], i, len, live = tp[t].src != SRC_TAPE, playing = sys.playing, rec = 0;
-    uint32_t k, press = keys & ~G->keys, scan = (uint32_t)clamp(p[GP_SCAN], 0, 3);
+    uint32_t k, j, mw, press = keys & ~G->keys, scan = (uint32_t)clamp(p[GP_SCAN], 0, 3);
     G->keys = keys;
     if (!G->rng)
         G->rng = 0x2545F491 + (int32_t)t * 7919;
@@ -942,11 +958,12 @@ static void grain_block(uint32_t t, const int32_t *dry, uint32_t keys, int froze
                                                                           * isn't the sound's yet) */
         if (len)
             seam = (seam % len + len) % len;
-        for (k = 0; k < GR_SLOTS; k++) {
-            grain_t *g = &gslot[k];
+        for (j = 0; j < 2u; j++)                        /* the track's own slots, lowest first (as the 40 were) */
+        for (mw = gr_trk[t][j]; mw; mw &= mw - 1u) {
+            grain_t *g;
             int32_t e0, e1, gl, gr, m, h;
-            if (!gr_on(k) || g->trk != t)
-                continue;
+            k = j * 32u + gr_low(mw);
+            g = &gslot[k];
             any = 1;
             if (scan != SCAN_TAPE && g->wver != B->cver)  /* (a block stored: its silence looked at again) */
                 g->qb = -1;
@@ -995,7 +1012,7 @@ static void grain_block(uint32_t t, const int32_t *dry, uint32_t keys, int froze
             }
             g->left -= (uint32_t)m;
             if (!g->left)
-                gr_clr(k);
+                gr_tclr(t, k);
         }
         any |= gr_body(G, p, dry, xl + 3, xr + 3, h2, any);   /* BODY: a floor under the grains (out of line) */
         {                                               /* WET on the track's grains together, ramped across the block

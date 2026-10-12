@@ -1257,6 +1257,8 @@ static void vz_drm_sound(const int16_t *v, uint32_t i)
     while (nch < 128u && (vo.live || vo.trig)) {                      /* 256 samples a chunk */
         int32_t a = 0;
         for (j = 0; j < 8u; j++) {
+            for (m = 0; m < CTL; m++)                                 /* (dk_run adds into its block) */
+                y[m] = 0;
             dk_run(&c, &vo, y, CTL);
             for (m = 0; m < CTL; m++)
                 a = y[m] > a ? y[m] : -y[m] > a ? -y[m] : a;

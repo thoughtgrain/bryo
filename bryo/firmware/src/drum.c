@@ -609,10 +609,6 @@ static void drm_block(uint32_t t, uint32_t keys, const int32_t *rec, int32_t *ou
         if (r->v[j].live && !r->v[j].choke)
             dk_choke(&r->v[j]);
     for (j = 0; j < DRM_NV; j++)
-        if (r->v[j].live || r->v[j].trig) {
-            int32_t y[CTL];
-            dk_run(&r->c[j], &r->v[j], y, n);
-            for (i = 0; i < n; i++)
-                out[i] += y[i];
-        }
+        if (r->v[j].live || r->v[j].trig)
+            dk_run(&r->c[j], &r->v[j], out, n);         /* (each voice adds itself into out) */
 }

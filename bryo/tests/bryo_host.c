@@ -143,6 +143,7 @@ static void power_on(void)
     memset(gbuf, 0, sizeof gbuf);                        /* (GRAIN's buffers and grains: a fresh start, as the */
     memset(grain, 0, sizeof grain);                      /* device's power-on gives) */
     gr_used[0] = gr_used[1] = 0;
+    memset(gr_trk, 0, sizeof gr_trk);                    /* (the slots by track, kept in step with gr_used) */
     sys.freeze = 0;
     vd_sp_w = vd_sp_r = 0;
     memset(&tape_undo, 0, sizeof tape_undo);
@@ -5166,13 +5167,17 @@ static void test_memory(void)
         check("TRACKS 1 with every track's grains sounding: the parked ones' slots free, track 1 sounds the whole 40",
               grain_count(1) == 0 && grain_count(2) == 0 && grain_count(3) == 0 && t2 == 40u);
         {                                                /* (40 slots: two words of the mask, each slot its own bit) */
-            uint32_t w0 = gr_used[0], w1 = gr_used[1];
+            uint32_t w0 = gr_used[0], w1 = gr_used[1], t0 = gr_trk[0][0], t1 = gr_trk[0][1];
             gr_used[0] = 0;
             gr_used[1] = 1u << 7;
+            gr_trk[0][0] = 0;                            /* (its track's mask says the same: slot 39 is track 1's) */
+            gr_trk[0][1] = 1u << 7;
             check("..the slots past 32 are their own (slot 39 is the second word's bit 7, not slot 7)",
                   gr_on(39) && !gr_on(7) && grain_count(0) + grain_count(1) + grain_count(2) + grain_count(3) == 1u);
             gr_used[0] = w0;
             gr_used[1] = w1;
+            gr_trk[0][0] = t0;
+            gr_trk[0][1] = t1;
         }
         sys.playing = 0;
         chain_tracks(4);
@@ -5950,6 +5955,8 @@ static uint32_t drum_hit(uint32_t i, uint32_t acc, uint32_t choke_at, int32_t *o
     while (n + CTL <= max) {
         if (n == choke_at)
             dk_choke(&v);
+        for (k = 0; k < CTL; k++)                        /* (dk_run adds into its block: the voice alone here) */
+            out[n + k] = 0;
         dk_run(&c, &v, out + n, CTL);
         for (k = 0; k < CTL; k++)
             *peak = abs(out[n + k]) > *peak ? abs(out[n + k]) : *peak;

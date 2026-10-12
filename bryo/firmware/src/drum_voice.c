@@ -270,19 +270,16 @@ static inline __attribute__((always_inline)) void dk_noise_loop(const dk_coef_t 
     v->rng = rng;
 }
 
-static __attribute__((noinline)) void dk_run(const dk_coef_t *c, dk_voice_t *v, int32_t *y, uint32_t n)
+static __attribute__((noinline)) void dk_run(const dk_coef_t *c, dk_voice_t *v, int32_t *out, uint32_t n)
 {
     static const uint32_t KB_CHOKE = 40265u;             /* dk_kslow(1500): a 1.5 ms release */
     uint32_t i, j;
-    int32_t ab, db, at, dt, m[CTL];
+    int32_t ab, db, at, dt, m[CTL], y[CTL];
     int tone, noise;
     if (v->trig)
         dk_strike(c, v);
-    if (!v->live) {
-        for (i = 0; i < n; i++)
-            y[i] = 0;
+    if (!v->live)                                        /* (nothing to add) */
         return;
-    }
     if (!v->tail_on && !v->left) {                       /* the last burst struck: the tail starts */
         v->qtail = 1 << 30;
         v->tail_on = 1;
@@ -299,18 +296,23 @@ static __attribute__((noinline)) void dk_run(const dk_coef_t *c, dk_voice_t *v, 
         for (i = 0; i < n; i++)
             y[i] = 0;
     if (noise) {
-        if (c->nm) {                                     /* the metal: its squares summed for the block */
-            for (i = 0; i < n; i++)
-                m[i] = 0;
-            for (j = 0; j < c->nm; j++) {
-                uint32_t ph = v->mph[j], inc = c->minc[j];
-                int32_t amp = c->mamp;
-                for (i = 0; i < n; i++) {
-                    ph += inc;
-                    m[i] += (ph >> 31) ? amp : -amp;
+        if (c->nm) {                                     /* the metal: its squares summed for the block, in one
+                                                          * pass (the phases in locals; the same terms, the same
+                                                          * sums) */
+            uint32_t ph[sizeof v->mph / sizeof v->mph[0]], nm = c->nm;
+            int32_t amp = c->mamp;
+            for (j = 0; j < nm; j++)
+                ph[j] = v->mph[j];
+            for (i = 0; i < n; i++) {
+                int32_t s = 0;
+                for (j = 0; j < nm; j++) {
+                    ph[j] += c->minc[j];
+                    s += (ph[j] >> 31) ? amp : -amp;
                 }
-                v->mph[j] = ph;
+                m[i] = s;
             }
+            for (j = 0; j < nm; j++)
+                v->mph[j] = ph[j];
         }
         switch (c->filt) {
         case DK_LOW: dk_noise_loop(c, v, y, n, c->nm ? m : 0, at, dt, 0u); break;
@@ -321,7 +323,7 @@ static __attribute__((noinline)) void dk_run(const dk_coef_t *c, dk_voice_t *v, 
     if (c->drive != 4096)                                /* DRIVE */
         for (i = 0; i < n; i++)
             y[i] = (softclip((clamp(y[i], -65535, 65535) * c->drive) >> 12) * c->dcomp) >> 15;
-    for (i = 0; i < n; i++)
-        y[i] = soft_knee((clamp(y[i], -65535, 65535) * (c->out >> 1)) >> 11, 16384);   /* (out up to ~42000) */
+    for (i = 0; i < n; i++)                              /* (into the kit's mix: no pass of its own in drm_block) */
+        out[i] += soft_knee((clamp(y[i], -65535, 65535) * (c->out >> 1)) >> 11, 16384);   /* (out up to ~42000) */
     v->live = v->qbody > DK_QUIET || v->qtail > DK_QUIET || v->ehit > 4 || v->left || !v->tail_on;
 }

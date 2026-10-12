@@ -184,24 +184,24 @@ static void reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t keys, int pl
         tsvf_t flt;
         int32_t c8 = mod_fine8(t, FN_RCUT, p[RP_CUT]);   /* (CUT finer than its semitones when modulated: mod.c) */
         int filt = c8 < 127 << 8 || p[RP_RES] || mode;
+        /* the input's share, by the root string's ring: less as the ring gets longer, so a long DEC rings louder but
+         * not without bound (the loop clamps besides); applied as the input is read, not in a pass of its own */
+        int32_t in = clamp((32768 - rs_gain(rs_period_q8(root16) >> 8, t60)) * 16, 4096, 16384);
+        int32_t ic1 = R->ic1, ic2 = R->ic2;             /* (the filter's state in locals across the block) */
         if (filt)
             tsvf_coef(&flt, c8, p[RP_RES] * 127 / 100);
         for (i = 0; i < n; i++) {
             int32_t x = (l[i] + r[i]) >> 1;
             heard |= x;
-            e[i] = filt ? tsvf_mode(&flt, x >> 1, &R->ic1, &R->ic2, (uint32_t)mode) << 1 : x;
+            e[i] = ((filt ? tsvf_mode(&flt, x >> 1, &ic1, &ic2, (uint32_t)mode) << 1 : x) * in) >> 15;
             acc_e[i] = acc_o[i] = 0;
         }
+        R->ic1 = ic1;
+        R->ic2 = ic2;
         if (!heard && R->ic1 > -256 && R->ic1 < 256 && R->ic2 > -256 && R->ic2 < 256)
             R->ic1 = R->ic2 = 0;                        /* (silence in: the filter's integer residue let go. With RES
                                                          * up it held a few dozen for good, and DEC 100's strings rang
                                                          * it up to -16 dB with nothing playing: rs_settle) */
-    }
-    {   /* the input's share, by the root string's ring: less as the ring gets longer, so a long DEC rings louder but
-         * not without bound (the loop clamps besides) */
-        int32_t in = clamp((32768 - rs_gain(rs_period_q8(root16) >> 8, t60)) * 16, 4096, 16384);
-        for (i = 0; i < n; i++)
-            e[i] = (e[i] * in) >> 15;
     }
     if (!heard && R->quiet > RS_LEN + CTL)              /* resting: silence in, and the strings have rung down to
                                                          * next to nothing (|out| <= 2) for longer than a line is
@@ -236,18 +236,33 @@ static void reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t keys, int pl
                 if (++w == RS_LEN)
                     w = 0;
             }
-        } else if (heard) {
-            for (i = 0; i < n; i++) {
-                uint32_t rp = rd ? rd - 1u : RS_LEN - 1u;
-                int32_t x = d[rd] + (((d[rp] - d[rd]) * (int32_t)df) >> 8), y, z;
-                lp += (a * (x - lp)) >> 15;
-                y = (lp * g) >> 15;
-                z = y + e[i];
-                d[w] = (int16_t)(z > 32767 ? 32767 : z < -32767 ? -32767 : z);
-                acc[i] += y;
-                if (++w == RS_LEN)
+        } else if (heard) {                             /* the usual loop, in wrap-free runs: the two wrap tests a
+                                                         * sample leave the loop, and the sample read a step back is
+                                                         * the one read last time (rd moves by one a sample, and the
+                                                         * write head is at least two ahead of it, so that cell is
+                                                         * as it was) */
+            int32_t prev = d[rd ? rd - 1u : RS_LEN - 1u];
+            i = 0;
+            while (i < n) {
+                uint32_t run = n - i, j;
+                if (run > RS_LEN - w)
+                    run = RS_LEN - w;
+                if (run > RS_LEN - rd)
+                    run = RS_LEN - rd;
+                for (j = 0; j < run; j++, i++) {
+                    int32_t cur = d[rd], x = cur + (((prev - cur) * (int32_t)df) >> 8), y, z;
+                    lp += (a * (x - lp)) >> 15;
+                    y = (lp * g) >> 15;
+                    z = y + e[i];
+                    d[w] = (int16_t)(z > 32767 ? 32767 : z < -32767 ? -32767 : z);
+                    acc[i] += y;
+                    prev = cur;
+                    w++;
+                    rd++;
+                }
+                if (w == RS_LEN)
                     w = 0;
-                if (++rd == RS_LEN)
+                if (rd == RS_LEN)
                     rd = 0;
             }
         } else {                                        /* silence in: the same, rounding toward 0 (rs_settle), so
