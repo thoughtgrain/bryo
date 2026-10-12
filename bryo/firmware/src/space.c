@@ -62,6 +62,8 @@ typedef struct {                     /* a track's SPACE */
     int32_t gd, gv;                  /* DLY's gain and the send's (VERB x the track's level) last block, Q15 */
     int32_t pl, pr;                  /* the delay's last half-rate sample, each side (the step back up to 44.1 kHz) */
     uint32_t quiet;                  /* half-rate samples in a row of silence in and next to none out (sp_quiet) */
+    int16_t mdly, mfb;               /* DLY and FDBK as their gains were last worked out (0 at power-on: their gains */
+    int32_t mgd, mfbg;               /* .. 0, right for 0), and the gains: a divide each only when the knob moves */
 } space_t;
 
 typedef struct {                     /* a room, A or B */
@@ -319,27 +321,45 @@ static void sp_delay(space_t *S, uint8_t *const *db, int dlb, uint32_t dl, int32
     S->dw = (uint32_t)w;
 }
 
-/* one comb: read, damp, feed back, step (o: what it read) */
-#define SP_COMB_STEP(k)                                                                                   \
+/* one comb over the block: read, damp, feed back, step; what it read into o[] (the combs are independent: each one
+ * hears only the input, so running one after another over the block is what running them side by side was) */
+#define SP_COMB_RUN(k)                                                                                    \
     do {                                                                                                  \
-        o = c##k[i##k];                                                                                   \
-        lp##k = o + sp_mul(lp##k - o, damp);                                                              \
-        c##k[i##k] = (int16_t)sp_sat(in + sp_mul(lp##k, cg##k));                                          \
-        if (++i##k >= n##k)                                                                               \
-            i##k = 0;                                                                                     \
+        int32_t lp_ = lp##k, cg_ = cg##k;                                                                 \
+        uint32_t i_ = i##k, n_ = n##k;                                                                    \
+        int16_t *c_ = c##k;                                                                               \
+        for (i = 0; i < ns; i++) {                                                                        \
+            int32_t o_ = c_[i_];                                                                          \
+            lp_ = o_ + sp_mul(lp_ - o_, damp);                                                            \
+            c_[i_] = (int16_t)sp_sat(in[i] + sp_mul(lp_, cg_));                                           \
+            if (++i_ >= n_)                                                                               \
+                i_ = 0;                                                                                   \
+            o[i] = o_;                                                                                    \
+        }                                                                                                 \
+        lp##k = lp_;                                                                                      \
+        i##k = i_;                                                                                        \
     } while (0)
-/* one allpass on a */
-#define SP_AP_STEP(k, a)                                                                                  \
+/* one allpass over the block on a[] (in series: the second hears all of the first's output, as it did sample by
+ * sample) */
+#define SP_AP_RUN(k, a)                                                                                   \
     do {                                                                                                  \
-        int32_t o_ = ap##k[j##k];                                                                         \
-        ap##k[j##k] = (int16_t)sp_sat((a) + sdiv2(o_, 1));                                                \
-        (a) = o_ - (a);                                                                                   \
-        if (++j##k >= m##k)                                                                               \
-            j##k = 0;                                                                                     \
+        uint32_t j_ = j##k, m_ = m##k;                                                                    \
+        int16_t *p_ = ap##k;                                                                              \
+        for (i = 0; i < ns; i++) {                                                                        \
+            int32_t o_ = p_[j_];                                                                          \
+            p_[j_] = (int16_t)sp_sat((a)[i] + sdiv2(o_, 1));                                              \
+            (a)[i] = o_ - (a)[i];                                                                         \
+            if (++j_ >= m_)                                                                               \
+                j_ = 0;                                                                                   \
+        }                                                                                                 \
+        j##k = j_;                                                                                        \
     } while (0)
 
-/* a room over ns samples at its rate: x in (mono), through the pre-delay (pre samples), its tail into wl, wr (stereo,
- * the right side from its own pair of allpasses fed a different mix of the combs) */
+/* a room over ns samples at its rate (at most CTL / 2): x in (mono), through the pre-delay (pre samples), its tail
+ * into wl, wr (stereo, the right side from its own pair of allpasses fed a different mix of the combs). Stage by
+ * stage over the block, not every stage a sample: one loop holding four combs and four allpasses kept about 38
+ * values live and spilled on every comb on the target (about 16 registers); each stage on its own keeps its few in
+ * registers. The same arithmetic in the same order for every value: the output bit for bit (2026-10-12) */
 static void sp_room_run(room_t *R, uint8_t *const *pb, int plb, uint32_t pl, int32_t pre, uint8_t *const *rb,
                         int32_t kh, int32_t damp, const int32_t *xin, uint32_t ns, int32_t *wl, int32_t *wr)
 {
@@ -352,9 +372,10 @@ static void sp_room_run(room_t *R, uint8_t *const *pb, int plb, uint32_t pl, int
     uint32_t m0 = R->alen[0], m1 = R->alen[1], m2 = R->alen[2], m3 = R->alen[3];
     int32_t lp0 = R->clp[0], lp1 = R->clp[1], lp2 = R->clp[2], lp3 = R->clp[3], cg0 = R->cg[0], cg1 = R->cg[1];
     int32_t cg2 = R->cg[2], cg3 = R->cg[3], hp = R->rhp, w = (int32_t)R->pw;
+    int32_t in[CTL], o[CTL];
     uint32_t i;
-    for (i = 0; i < ns; i++) {
-        int32_t x, in, o, al, ar, ix = w - pre;
+    for (i = 0; i < ns; i++) {                          /* the pre-delay, TONE's high-pass, the level in */
+        int32_t x, ix = w - pre;
         if (ix < 0)
             ix += (int32_t)pl;
         sp_wr(pb, plb, (uint32_t)w, xin[i]);
@@ -365,25 +386,30 @@ static void sp_room_run(room_t *R, uint8_t *const *pb, int plb, uint32_t pl, int
             hp += sp_mul(x - hp, kh);
             x -= hp;
         }
-        in = (x * 2580) >> 15;                          /* (Felucca's ROOM level) */
-        SP_COMB_STEP(0);                                /* the combs: damped feedback loops; the right side's mix */
-        al = ar = o;                                    /* .. alternates their signs (decorrelated from the left) */
-        SP_COMB_STEP(1);
-        al += o;
-        ar -= o;
-        SP_COMB_STEP(2);
-        al += o;
-        ar += o;
-        SP_COMB_STEP(3);
-        al += o;
-        ar -= o;
-        SP_AP_STEP(0, al);                              /* the allpasses: two each side */
-        SP_AP_STEP(1, al);
-        SP_AP_STEP(2, ar);
-        SP_AP_STEP(3, ar);
-        wl[i] = al;
-        wr[i] = ar;
+        in[i] = (x * 2580) >> 15;                       /* (Felucca's ROOM level) */
     }
+    SP_COMB_RUN(0);                                     /* the combs: damped feedback loops; the right side's mix */
+    for (i = 0; i < ns; i++)                            /* .. alternates their signs (decorrelated from the left) */
+        wl[i] = wr[i] = o[i];
+    SP_COMB_RUN(1);
+    for (i = 0; i < ns; i++) {
+        wl[i] += o[i];
+        wr[i] -= o[i];
+    }
+    SP_COMB_RUN(2);
+    for (i = 0; i < ns; i++) {
+        wl[i] += o[i];
+        wr[i] += o[i];
+    }
+    SP_COMB_RUN(3);
+    for (i = 0; i < ns; i++) {
+        wl[i] += o[i];
+        wr[i] -= o[i];
+    }
+    SP_AP_RUN(0, wl);                                   /* the allpasses: two each side */
+    SP_AP_RUN(1, wl);
+    SP_AP_RUN(2, wr);
+    SP_AP_RUN(3, wr);
     R->ci[0] = (uint16_t)i0;
     R->ci[1] = (uint16_t)i1;
     R->ci[2] = (uint16_t)i2;
@@ -399,8 +425,8 @@ static void sp_room_run(room_t *R, uint8_t *const *pb, int plb, uint32_t pl, int
     R->rhp = hp;
     R->pw = (uint32_t)w;
 }
-#undef SP_COMB_STEP
-#undef SP_AP_STEP
+#undef SP_COMB_RUN
+#undef SP_AP_RUN
 
 /* audio ISR: track t's SPACE on its stereo block (n even): its delay added to it, and what it sends to its room
  * (VERB x lvl, the track's level, Q12) added to the room's input for space_rooms */
@@ -430,7 +456,11 @@ static void space_block(uint32_t t, int32_t *l, int32_t *r, uint32_t n, int32_t 
         dlb = S->dly.bits8;
     } else
         S->dlive = 0;
-    gd1 = S->dlive ? clamp(v[SP_DLY], 0, 100) * 26214 / 100 : 0;   /* DLY 100: the first echo at 0.8 */
+    if (v[SP_DLY] != S->mdly) {
+        S->mdly = v[SP_DLY];
+        S->mgd = clamp(v[SP_DLY], 0, 100) * 26214 / 100;   /* DLY 100: the first echo at 0.8 */
+    }
+    gd1 = S->dlive ? S->mgd : 0;
     gv1 = R->rev.ready && R->pre.ready ? PCT_Q15[clamp(v[SP_VERB], 0, 100)] * clamp(lvl, 0, 4096) >> 12 : 0;
     S->gd = gd1;
     S->gv = gv1;
@@ -438,8 +468,12 @@ static void space_block(uint32_t t, int32_t *l, int32_t *r, uint32_t n, int32_t 
         S->pl = S->pr = 0;
         return;
     }
-    fbg = clamp(v[SP_FDBK], 0, 100) * 32112 / 100;
-    off = sprd * 220 * 256 / 100;
+    if (v[SP_FDBK] != S->mfb) {
+        S->mfb = v[SP_FDBK];
+        S->mfbg = clamp(v[SP_FDBK], 0, 100) * 32112 / 100;
+    }
+    fbg = S->mfbg;
+    off = sprd ? sprd * 220 * 256 / 100 : 0;
     if (tone < 0)                                       /* - : a low-pass in the feedback */
         kl = 32767 + tone * 287;                        /* (to 0.12 at -100: ~430 Hz) */
     else if (tone > 0)                                  /* + : a high-pass in the feedback */

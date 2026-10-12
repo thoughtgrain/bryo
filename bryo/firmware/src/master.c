@@ -71,14 +71,20 @@ static inline int32_t spk_bass(int32_t m)
     return sb_hl * 3;
 }
 
-static inline void master_out(int32_t *l, int32_t *r)
+/* the stage's state, copied into locals for a block (master_block): every store to out[] could alias the statics,
+ * so the target compiler reloaded and stored them each sample. The same arithmetic, in the same order */
+typedef struct {
+    int32_t dl, el, dr, er, lim;      /* dc_l dce_l dc_r dce_r lim_env */
+} ms_t;
+
+static inline __attribute__((always_inline)) void master_out(int32_t *l, int32_t *r, ms_t *st, uint32_t lc)
 {
     int32_t al, ar, a;
-    *l = dc_block(*l, &dc_l, &dce_l);
-    *r = dc_block(*r, &dc_r, &dce_r);
-    if (fx_lowcut) {                  /* two one-pole high-passes, error feedback as dc_block (the */
-        uint32_t sh = fx_lowcut == 2u ? 5u : 6u;    /* rounded step stopped at |x - lc| < 32: an offset) */
-        int32_t b = fx_lowcut == 2u ? spk_bass((*l + *r) >> 1) : 0;
+    *l = dc_block(*l, &st->dl, &st->el);
+    *r = dc_block(*r, &st->dr, &st->er);
+    if (lc) {                         /* two one-pole high-passes, error feedback as dc_block (the */
+        uint32_t sh = lc == 2u ? 5u : 6u;           /* rounded step stopped at |x - lc| < 32: an offset) */
+        int32_t b = lc == 2u ? spk_bass((*l + *r) >> 1) : 0;
         *l = lowcut1(*l, &lc_l1, &lce[0], sh);
         *l = lowcut1(*l, &lc_l2, &lce[1], sh) + b;
         *r = lowcut1(*r, &lc_r1, &lce[2], sh);
@@ -87,12 +93,12 @@ static inline void master_out(int32_t *l, int32_t *r)
     al = *l < 0 ? -*l : *l;
     ar = *r < 0 ? -*r : *r;
     a = al > ar ? al : ar;
-    if (a > lim_env)
-        lim_env += (a - lim_env) >> 2;
-    else if (lim_env > LIM_T)
-        lim_env -= ((lim_env - LIM_T) >> 12) + 1;
-    if (lim_env > LIM_T) {
-        int32_t g = (int32_t)(((uint32_t)LIM_T << 15) / (uint32_t)lim_env);   /* < 32768 */
+    if (a > st->lim)
+        st->lim += (a - st->lim) >> 2;
+    else if (st->lim > LIM_T)
+        st->lim -= ((st->lim - LIM_T) >> 12) + 1;
+    if (st->lim > LIM_T) {
+        int32_t g = (int32_t)(((uint32_t)LIM_T << 15) / (uint32_t)st->lim);   /* < 32768 */
         *l = ((*l >> 4) * g) >> 11;                      /* >> 4 first: |l| may be far above Q15 */
         *r = ((*r >> 4) * g) >> 11;
     }
@@ -150,11 +156,20 @@ static void master_block(const int32_t *l, const int32_t *r, int32_t *out, uint3
         out_fade(out, n);
         return;
     }
-    for (i = 0; i < n; i++) {
-        int32_t ol = (l[i] * mg) >> 12, or_ = (r[i] * mg) >> 12;
-        master_out(&ol, &or_);
-        out[2u * i] = ol;
-        out[2u * i + 1u] = or_;
+    {
+        ms_t st = {dc_l, dce_l, dc_r, dce_r, lim_env};
+        uint32_t lc = fx_lowcut;                        /* (read once a block: it's volatile) */
+        for (i = 0; i < n; i++) {
+            int32_t ol = (l[i] * mg) >> 12, or_ = (r[i] * mg) >> 12;
+            master_out(&ol, &or_, &st, lc);
+            out[2u * i] = ol;
+            out[2u * i + 1u] = or_;
+        }
+        dc_l = st.dl;
+        dce_l = st.el;
+        dc_r = st.dr;
+        dce_r = st.er;
+        lim_env = st.lim;
     }
     out_fade(out, n);                                   /* (flash work: faded, not cut) */
 }

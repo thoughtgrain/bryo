@@ -44,13 +44,14 @@ static inline int32_t col_drive_bits(int32_t x, int32_t g8, uint32_t sh)
 /* CRSH's bits taken off (0..14), by CMOD */
 static inline uint32_t col_bits_off(const int16_t *v)
 {
-    return v[CP_CMOD] == CMOD_RATE ? 0u : (uint32_t)(v[CP_CRSH] * 14 / 100);
+    return v[CP_CMOD] == CMOD_RATE || !v[CP_CRSH] ? 0u : (uint32_t)(v[CP_CRSH] * 14 / 100);   /* (CRSH 0: none,
+                                                         * without the divide every block) */
 }
 
 /* CRSH's hold, samples (1: none), by CMOD */
 static inline uint32_t col_hold(const int16_t *v)
 {
-    return v[CP_CMOD] >= CMOD_RATE ? 1u + (uint32_t)(v[CP_CRSH] * 11 / 100) : 1u;
+    return v[CP_CMOD] >= CMOD_RATE && v[CP_CRSH] ? 1u + (uint32_t)(v[CP_CRSH] * 11 / 100) : 1u;
 }
 
 /* the picture's transfer: x Q15 in, coloured out before WET and LVL */
@@ -65,7 +66,8 @@ static void color_block(uint32_t t, int32_t *l, int32_t *r, uint32_t n)
     color_t *C = &color[t];
     const int16_t *v = TPD(t, DEV_COLOR);
     int32_t g8 = v[CP_DRIV] > 0 ? col_g8(v[CP_DRIV]) : 256, tilt = v[CP_TILT], nois = v[CP_NOIS];
-    int32_t w0 = C->wet, w1 = clamp(v[CP_WET], 0, 100) * 4096 / 100, v0 = C->lvl, v1 = db_q10(v[CP_LVL]);
+    int32_t w0 = C->wet, w1 = v[CP_WET] >= 100 ? 4096 : clamp(v[CP_WET], 0, 100) * 4096 / 100, v0 = C->lvl;
+    int32_t v1 = db_q10(v[CP_LVL]);                     /* (WET 100, the default: no divide every block) */
     int32_t gl = 4096, gh = 4096, ng = PCT_Q15[clamp(nois, 0, 100)], ak, ts, dk;   /* (ak ts dk: past the returns) */
     uint32_t sh = col_bits_off(v), hold = col_hold(v), i;
     int colours = g8 > 256 || sh || hold > 1u || nois || tilt;
