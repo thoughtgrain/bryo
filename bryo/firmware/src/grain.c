@@ -968,7 +968,7 @@ static void grain_block(uint32_t t, const int32_t *dry, uint32_t keys, int froze
                 int32_t inc = 2 * g->inc, p0 = g->pos >> 12, p1 = (g->pos + inc * h) >> 12, span = p1 - p0;
                 int32_t de = ((e1 - e0) * 32) >> (CTL_LOG2 - 1);
                 span = span < 0 ? -span : span;
-                int32_t b0 = (p0 < p1 ? p0 : p1) / (int32_t)TAPE_BLK, b1 = ((p0 < p1 ? p1 : p0) + 1) / (int32_t)TAPE_BLK;
+                int32_t b0 = sdiv2(p0 < p1 ? p0 : p1, 8), b1 = sdiv2((p0 < p1 ? p1 : p0) + 1, 8);   /* (/ TAPE_BLK) */
                 int q;
                 if (b0 == b1 && b0 == g->qb && b0 != busy && p0 >= 0 && p1 < len)
                     q = g->qq;                          /* (still inside the block it last looked at: the same) */

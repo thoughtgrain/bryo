@@ -174,22 +174,25 @@ device (NPK 24, GRAIN's GRNS): the modulators copy wider arrays, 29 a sample on 
 silence: run 29, stopped, 1,717 to 798, run 30, three tracks muted, 3,200 to 2,618, the playing runs within -125 to
 +17; then the two shared rooms in place of a room a track: run 14 1,879 to 1,678, run 15 5,072 to 4,871, the
 one-room runs 12 to 31 more; then round 3 (bar record, the zoom, SYNC: a few checks a block, 2 to 22 a
-sample more); then KEY, ROOT and FINE (2026-10-12: within 1 a sample on every run):
+sample more); then KEY, ROOT and FINE (2026-10-12: within 1 a sample on every run); then the signed divides by a
+power of two made shifts (the rooms' combs and allpasses, REC IN's mono sum: 0 to 11 a sample more here, where a
+divide counts 1 and the shift form 3 or 4, and some 10 hardware divides a sample fewer on the FM-1, where each is
+20-odd cycles: hardware-checkpoint.md, 2026-10-12):
 
 | Run | What | Cost |
 | --- | --- | ---: |
 | 1 | four reels, nothing on | 1,018 |
-| 19 | a realistic four-track groove | 1,716 |
-| 24 | the groove, modulated the way I'd play it | 1,947 (115 of it the modulators) |
-| 21 | the groove's busiest moment | 2,535 |
-| 23 | GRAIN at its densest on one track | 2,885 |
-| 25 | every slot on every track, 128 depths | 2,904 |
-| 26 | DRUM busy alone (FUNK, VARY 100, FILL 100, long decays), the others plain reels | 1,353 |
-| 27 | the groove with a DRUM track in place of its drum reel | 1,936 |
+| 19 | a realistic four-track groove | 1,719 |
+| 24 | the groove, modulated the way I'd play it | 1,950 (115 of it the modulators) |
+| 21 | the groove's busiest moment | 2,539 |
+| 23 | GRAIN at its densest on one track | 2,888 |
+| 25 | every slot on every track, 128 depths | 2,913 |
+| 26 | DRUM busy alone (FUNK, VARY 100, FILL 100, long decays), the others plain reels | 1,354 |
+| 27 | the groove with a DRUM track in place of its drum reel | 1,940 |
 | 28 | four DRUM tracks at once, every voice (20) | 2,438 |
-| 15 | everything on, all four tracks | 4,902 |
-| 29 | the busiest groove's devices all on, the transport stopped (what "nothing playing" costs) | 810 |
-| 30 | one track heard (dense grains, strings with RES ARP, a room), the other three muted | 2,652 |
+| 15 | everything on, all four tracks | 4,913 |
+| 29 | the busiest groove's devices all on, the transport stopped (what "nothing playing" costs) | 809 |
+| 30 | one track heard (dense grains, strings with RES ARP, a room), the other three muted | 2,656 |
 
 My target for a realistic four-track scene is 2,000. The first device reading (run 1, 2026-10-10: 25 %, in 5 % steps)
 puts the ratio at about 37.6 host instructions a sample per percent, if the load scales with the host's count: the

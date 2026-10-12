@@ -164,7 +164,7 @@ under the address and undefined-behaviour sanitizers).
 | 22 | 1,750 | 47 % | | |
 | 29 | 810 | 22 % (was 46 %) | | |
 | 30 | 2,652 | 71 % (was 85 %) | | |
-| 31 | 2,831 (the factory scene) | 75 % (was 81 %) | | |
+| 31 | 3,100 (the factory scene, measured as in the note of 2026-10-11 below; 2,831 the other way) | 75 % (was 81 %) | | |
 
 The host costs were measured again on 2026-10-11, after the second round from playing it (the arpeggiator on every
 source, RESONATOR's own: about 7 a sample more on every run) and after the grains went to half rate with a bigger
@@ -213,7 +213,7 @@ hardware divides a room sample, 6 an output sample for two rooms at LO; the mixe
 `(vl + vr) / 2`, 4 more a sample on every build since GRAIN. Measured with the x86 -Os build (where they're real
 `idiv`s too): 20.3 divides an output sample on the scene, 10 of them these. Now `sdiv2` (dsp.c) does the same
 rounding with a shift and a mask, bit for bit, and the scene has 7.8 a sample left (per block: the modulators',
-the grains' block lookups). At the 20-plus cycles a hardware divide costs, 10 a sample is on the order of 5 to 8 %
+the grains' block lookups; the grains' block index too, 1.4 to 1.2). At the 20-plus cycles a hardware divide costs, 10 a sample is on the order of 5 to 8 %
 of the FM-1, which is the size of what you heard. The I-cache finding above still stands as the other part.
 
 ## What I'll do with the numbers
