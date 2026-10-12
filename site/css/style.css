@@ -2,9 +2,13 @@
 /*
  * Bryo site styles.
  *
- * Two voices: Bryo PX5, the firmware's own 5x7 screen face (fonts/, made from bryo/tools/gen_px_font.py by
- * tools/gen_px_webfont.py), for short labels, buttons, numbers and nav; Schibsted Grotesk for anything you
- * actually read. Pixel type at body length is hard on the eyes, so it never carries a paragraph.
+ * Two voices, both fixed-width: Bryo PX5, the firmware's own 5x7 screen face (fonts/, made from
+ * bryo/tools/gen_px_font.py by tools/gen_px_webfont.py), for short labels, buttons, numbers and nav; IBM Plex
+ * Mono for anything you actually read. Pixel type at body length is hard on the eyes, so it never carries a
+ * paragraph.
+ *
+ * The look is a wireframe: no filled surfaces, no glows. Everything is drawn with 1 px lines on black, the way
+ * the screen draws its pictograms (1-dot strokes, dotted guides), with corner ticks on the things you look at.
  *
  * Colour is the firmware's, value for value (firmware/src/ui_px.c): white on black, and colour only ever
  * says where you are or what's alive. Okabe and Ito's colour-blind-safe set: sky blue a page, reddish
@@ -29,9 +33,9 @@
 
   /* the screen's black and white; --ink-faint is the firmware's dim ink (45 % of the way from black) */
   --bg: #000000;
-  --bg-raise: #121212;
   --bg-sunk: #000000;
-  --line: #2a2a2a;
+  --line: #3a3a3a;      /* a wire */
+  --line-soft: #242424; /* a guide: the hero's grid */
   --line-strong: #ffffff;
   --ink: #ffffff;
   --ink-soft: #b8b8b8; /* 10.6:1 on black */
@@ -45,11 +49,12 @@
   --yellow: #f0e442;
 
   --font-pixel: "Bryo PX5", ui-monospace, monospace;
-  --font-text: "Schibsted Grotesk", "Helvetica Neue", Helvetica, sans-serif;
+  --font-text: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
   --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
 
   --gutter: 16px;
-  --measure: 68ch;
+  --measure: 64ch;
+  --tick: 12px;
   --max: 1240px;
   --header-h: 72px;
   --bar-h: 64px;
@@ -79,13 +84,13 @@ body {
   background: var(--bg);
   color: var(--ink);
   font-family: var(--font-text);
-  font-size: 1.0625rem;
-  line-height: 1.55;
+  font-size: 0.9375rem;
+  line-height: 1.65;
   overflow-x: hidden;
 }
 
 @media (min-width: 720px) {
-  body { font-size: 1.1875rem; }
+  body { font-size: 1.0625rem; }
 }
 
 img,
@@ -151,6 +156,7 @@ a:hover { text-decoration-thickness: 2px; }
   top: 0;
   z-index: 40;
   background: var(--bg);
+  border-bottom: 1px solid var(--line);
 }
 
 .site-header__inner {
@@ -239,7 +245,7 @@ a:hover { text-decoration-thickness: 2px; }
   gap: 10px;
   min-height: 48px;
   padding: 10px 18px;
-  border: 3px solid var(--line-strong);
+  border: 1px solid var(--line-strong);
   background: transparent;
   color: var(--ink);
   font-family: var(--font-pixel);
@@ -253,13 +259,15 @@ a:hover { text-decoration-thickness: 2px; }
 }
 .btn:hover,
 .btn:focus-visible {
-  background: var(--ink);
-  color: var(--bg);
+  border-color: var(--orange);
+  color: var(--orange);
   text-decoration: none;
 }
-.btn--solid { background: var(--ink); color: var(--bg); }
+/* the main action: still only lines, a doubled border and an arrow say it's the one */
+.btn--solid { box-shadow: inset 0 0 0 3px var(--bg), inset 0 0 0 4px var(--line-strong); }
+.btn--solid::after { content: ">"; }
 .btn--solid:hover,
-.btn--solid:focus-visible { background: var(--orange); border-color: var(--orange); color: #000; }
+.btn--solid:focus-visible { box-shadow: inset 0 0 0 3px var(--bg), inset 0 0 0 4px var(--orange); }
 
 @media (min-width: 720px) {
   .btn { font-size: 1rem; padding: 12px 26px; }
@@ -318,22 +326,22 @@ a:hover { text-decoration-thickness: 2px; }
   position: relative;
   overflow: hidden;
   isolation: isolate;
-  background:
-    radial-gradient(60% 70% at 18% 30%, rgba(86, 180, 233, 0.22), transparent 70%),
-    radial-gradient(50% 60% at 85% 75%, rgba(230, 159, 0, 0.18), transparent 70%),
-    var(--bg-sunk);
+  background: var(--bg);
   border-bottom: 1px solid var(--line);
 }
 
-/* The dot grid the FM-1 screen is drawn on, blown up as a backdrop. */
+/* A drafting grid behind the hero: 1 px guides every 48 px, fading out toward the bottom. */
 .hero::before {
   content: "";
   position: absolute;
   inset: 0;
   z-index: -1;
-  background-image: radial-gradient(rgba(255, 255, 255, 0.09) 1px, transparent 1.4px);
-  background-size: 8px 8px;
-  mask-image: linear-gradient(to bottom, #000 40%, transparent);
+  background-image:
+    linear-gradient(to right, var(--line-soft) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--line-soft) 1px, transparent 1px);
+  background-size: 48px 48px;
+  background-position: -1px -1px;
+  mask-image: linear-gradient(to bottom, #000 55%, transparent);
 }
 
 .hero__inner {
@@ -354,11 +362,11 @@ a:hover { text-decoration-thickness: 2px; }
 }
 
 .device__screen {
+  position: relative;
   margin: 0;
   padding: 12px;
   background: #000;
   border: 1px solid var(--line);
-  box-shadow: 0 0 0 1px #000, 0 30px 80px rgba(0, 0, 0, 0.7), 0 0 90px rgba(86, 180, 233, 0.16);
 }
 .device__screen img {
   width: 100%;
@@ -383,7 +391,6 @@ a:hover { text-decoration-thickness: 2px; }
 .device__pause {
   min-height: 40px;
   padding: 6px 12px;
-  border-width: 2px;
   font-size: 0.75rem;
 }
 
@@ -391,17 +398,17 @@ a:hover { text-decoration-thickness: 2px; }
 
 .hero__title {
   margin: 0;
-  font-weight: 700;
-  font-size: clamp(2.6rem, 9vw, 5.5rem);
-  line-height: 0.95;
-  letter-spacing: -0.035em;
+  font-weight: 600;
+  font-size: clamp(2.2rem, 8vw, 4.75rem);
+  line-height: 1;
+  letter-spacing: -0.05em;
 }
 
 .hero__lede {
   margin: 24px 0 32px;
-  max-width: 34ch;
+  max-width: 40ch;
   color: var(--ink-soft);
-  font-size: 1.25rem;
+  font-size: 1.0625rem;
 }
 
 .btn-row { display: flex; flex-wrap: wrap; gap: 12px; }
@@ -426,15 +433,15 @@ a:hover { text-decoration-thickness: 2px; }
 .section__title {
   margin: 0 0 28px;
   max-width: 18ch;
-  font-weight: 700;
-  font-size: clamp(2.1rem, 6.5vw, 4rem);
-  line-height: 1.02;
-  letter-spacing: -0.03em;
+  font-weight: 600;
+  font-size: clamp(1.75rem, 5.5vw, 3.25rem);
+  line-height: 1.08;
+  letter-spacing: -0.045em;
 }
 
 .prose { max-width: var(--measure); }
 .prose p { margin: 0 0 1.1em; }
-.prose p.lead { font-size: 1.3em; line-height: 1.4; color: var(--ink); }
+.prose p.lead { font-size: 1.15em; line-height: 1.5; color: var(--ink); }
 .prose p,
 .prose li { color: var(--ink-soft); }
 .prose strong { color: var(--ink); font-weight: 600; }
@@ -449,6 +456,7 @@ a:hover { text-decoration-thickness: 2px; }
 
 /* A screen shown as a figure. */
 .screen {
+  position: relative;
   margin: 0;
   background: #000;
   border: 1px solid var(--line);
@@ -456,8 +464,7 @@ a:hover { text-decoration-thickness: 2px; }
 .screen img { width: 100%; }
 .screen figcaption {
   padding: 12px 14px;
-  border-top: 1px solid var(--line);
-  background: var(--bg-raise);
+  border-top: 1px dashed var(--line);
   font-size: 0.75rem;
   color: var(--ink-soft);
 }
@@ -496,12 +503,13 @@ a:hover { text-decoration-thickness: 2px; }
   color: var(--ink-faint);
   font-size: 0.8em;
 }
-.chain__tab:hover { color: var(--ink); background: var(--bg-raise); }
+.chain__tab:hover { color: var(--ink); }
+/* selected: an inner frame and a blue bar under it (a page's colour), never a fill */
 .chain__tab[aria-selected="true"] {
-  background: var(--ink);
-  color: var(--bg);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--line-strong), inset 0 -4px 0 var(--blue);
 }
-.chain__tab[aria-selected="true"] small { color: #444; }
+.chain__tab[aria-selected="true"] small { color: var(--blue); }
 .chain__tab:focus-visible { outline-offset: -5px; outline-color: var(--orange); }
 
 /* the arrows between stages: the signal goes left to right */
@@ -530,8 +538,9 @@ a:hover { text-decoration-thickness: 2px; }
 }
 .chain__panel h3 {
   margin: 0 0 16px;
-  font-size: 1.75rem;
-  letter-spacing: -0.02em;
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.04em;
 }
 .chain__panel .tag { color: var(--orange); }
 
@@ -553,8 +562,9 @@ a:hover { text-decoration-thickness: 2px; }
 }
 .card img { background: #000; width: 100%; }
 .card__body { padding: 20px 20px 28px; }
+.card img { border-bottom: 1px dashed var(--line); }
 .card__body h3 { margin: 0 0 8px; font-size: 1.375rem; }
-.card__body p { margin: 0; color: var(--ink-soft); font-size: 1rem; }
+.card__body p { margin: 0; color: var(--ink-soft); font-size: 0.9375rem; }
 
 /* ---------- specs ---------- */
 
@@ -608,9 +618,8 @@ pre {
   font-size: 0.875em;
 }
 :not(pre) > code {
-  padding: 0.1em 0.35em;
-  background: var(--bg-raise);
-  border: 1px solid var(--line);
+  padding: 0.05em 0.35em;
+  border: 1px dashed var(--line);
   color: var(--ink);
   word-break: break-word;
 }
@@ -618,7 +627,6 @@ pre {
 .code {
   position: relative;
   margin: 16px 0 24px;
-  background: var(--bg-sunk);
   border: 1px solid var(--line);
 }
 .code pre {
@@ -635,22 +643,19 @@ pre {
   right: 8px;
   min-height: 32px;
   padding: 4px 10px;
-  border-width: 2px;
   font-size: 0.6875rem;
-  background: var(--bg-sunk);
+  background: var(--bg);
 }
 
 /* ---------- thanks ---------- */
 
-.thanks {
-  background: var(--bg-raise);
-}
 .thanks__card {
+  position: relative;
   margin-top: 40px;
   padding: 28px;
-  border: 3px solid var(--line-strong);
+  border: 1px solid var(--line);
 }
-.thanks__card h3 { margin: 0 0 8px; font-size: 1.5rem; }
+.thanks__card h3 { margin: 0 0 8px; font-size: 1.25rem; font-weight: 600; letter-spacing: -0.03em; }
 .thanks__card p { margin: 0 0 20px; color: var(--ink-soft); }
 
 .thanks__links {
@@ -769,7 +774,6 @@ pre {
 .toc a[aria-current="true"] {
   color: var(--ink);
   border-left-color: var(--blue);
-  background: var(--bg-raise);
 }
 @media (min-width: 1000px) {
   .toc a { padding-left: 14px; }
@@ -780,12 +784,13 @@ pre {
 .doc section:last-child { border-bottom: 0; }
 .doc h2 {
   margin: 0 0 20px;
-  font-size: clamp(1.75rem, 4.5vw, 2.5rem);
-  line-height: 1.08;
-  letter-spacing: -0.025em;
+  font-size: clamp(1.5rem, 4vw, 2.125rem);
+  font-weight: 600;
+  line-height: 1.12;
+  letter-spacing: -0.04em;
 }
 .doc h2 .px { display: block; margin-bottom: 10px; font-size: 0.875rem; color: var(--ink-faint); letter-spacing: 0.04em; }
-.doc h3 { margin: 32px 0 10px; font-size: 1.25rem; letter-spacing: -0.01em; }
+.doc h3 { margin: 32px 0 10px; font-size: 1.125rem; font-weight: 600; letter-spacing: -0.02em; }
 .doc p,
 .doc li { color: var(--ink-soft); }
 .doc strong { color: var(--ink); font-weight: 600; }
@@ -805,8 +810,8 @@ pre {
 .callout {
   margin: 24px 0;
   padding: 16px 20px;
+  border: 1px solid var(--line);
   border-left: 4px solid var(--yellow);
-  background: var(--bg-raise);
 }
 .callout p { margin: 0; color: var(--ink); }
 .callout .px { display: block; margin-bottom: 6px; font-size: 0.75rem; color: var(--yellow); }
@@ -821,9 +826,9 @@ pre {
 }
 
 .panel-figure {
+  position: relative;
   margin: 24px 0;
   padding: 12px;
-  background: #000;
   border: 1px solid var(--line);
 }
 .panel-figure figcaption { padding-top: 10px; font-size: 0.875rem; color: var(--ink-soft); }
@@ -848,7 +853,7 @@ td {
   vertical-align: top;
 }
 th {
-  background: var(--bg-raise);
+  border-bottom-color: var(--line-strong);
   font-family: var(--font-pixel);
   font-weight: 400;
   font-size: 0.75rem;
@@ -895,3 +900,30 @@ tr:last-child td { border-bottom: 0; }
 .chain__tab,
 .card__body h3.px,
 .hero__kicker { font-weight: 700; }
+
+/* Registration ticks: an L of white at each corner of the things you look at, over their 1 px wire, the way a
+ * wireframe marks a frame's extent. Drawn with eight 1 px gradients on a pseudo-element, so no markup. */
+.screen::before,
+.device__screen::before,
+.panel-figure::before,
+.thanks__card::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  pointer-events: none;
+  background:
+    linear-gradient(var(--line-strong), var(--line-strong)) left top / var(--tick) 1px no-repeat,
+    linear-gradient(var(--line-strong), var(--line-strong)) left top / 1px var(--tick) no-repeat,
+    linear-gradient(var(--line-strong), var(--line-strong)) right top / var(--tick) 1px no-repeat,
+    linear-gradient(var(--line-strong), var(--line-strong)) right top / 1px var(--tick) no-repeat,
+    linear-gradient(var(--line-strong), var(--line-strong)) left bottom / var(--tick) 1px no-repeat,
+    linear-gradient(var(--line-strong), var(--line-strong)) left bottom / 1px var(--tick) no-repeat,
+    linear-gradient(var(--line-strong), var(--line-strong)) right bottom / var(--tick) 1px no-repeat,
+    linear-gradient(var(--line-strong), var(--line-strong)) right bottom / 1px var(--tick) no-repeat;
+}
+@media (forced-colors: active) {
+  .screen::before,
+  .device__screen::before,
+  .panel-figure::before,
+  .thanks__card::before { display: none; }
+}
