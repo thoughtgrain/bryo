@@ -2,9 +2,17 @@
  * Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments */
 /* The few libc routines the compiler may call implicitly (struct copies,
  * zeroing). Freestanding: no other libc. */
+/* A word at a time where both ends are word-aligned (the audio code's buffers: the compiler turns its zeroing and
+ * copying loops into these), bytes otherwise and for the tail. */
 void *memset(void *d, int c, unsigned n)
 {
     unsigned char *p = d;
+    if (((unsigned long)d & 3u) == 0u && n >= 4u) {
+        unsigned *w = d, v = (unsigned char)c * 0x01010101u;
+        for (; n >= 4u; n -= 4u)
+            *w++ = v;
+        p = (unsigned char *)w;
+    }
     while (n--)
         *p++ = (unsigned char)c;
     return d;
@@ -14,6 +22,14 @@ void *memcpy(void *d, const void *s, unsigned n)
 {
     unsigned char *p = d;
     const unsigned char *q = s;
+    if ((((unsigned long)d | (unsigned long)s) & 3u) == 0u && n >= 4u) {
+        unsigned *w = d;
+        const unsigned *r = s;
+        for (; n >= 4u; n -= 4u)
+            *w++ = *r++;
+        p = (unsigned char *)w;
+        q = (const unsigned char *)r;
+    }
     while (n--)
         *p++ = *q++;
     return d;

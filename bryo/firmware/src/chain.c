@@ -54,10 +54,12 @@ static void chain_init(void)
 static void chain_source(uint32_t t, uint32_t keys, const int32_t *rin, int32_t *s, uint32_t n)
 {
     track_rt_t *rt = &track_rt[t];
-    uint32_t cur = tp[t].src % NSRC, e, i;
+    uint32_t cur = (uint32_t)tp[t].src & (NSRC - 1u), e, i;   /* (& not %: src is a byte, NSRC an int, so % is a
+                                                                  * signed divide on the target) */
     int32_t o[CTL];
-    for (i = 0; i < n; i++)
-        s[i] = 0;
+    int first = 1;                                      /* the first source heard assigns s, the rest add (no zero
+                                                         * pass; the tape, rendered last, finds s assigned when it
+                                                         * prints it: the chosen source always renders before it) */
     for (e = NSRC; e-- > 0;) {
         int32_t g0 = rt->src_g[e], g1 = clamp(g0 + (e == cur ? 1 : -1) * 372 * (int32_t)n, 0, 32767);
         const int32_t *rec = cur == SRC_TAPE || tp[t].recin != RIN_AUTO ? rin : rin ? s : 0;   /* (for the tape) */
@@ -77,9 +79,26 @@ static void chain_source(uint32_t t, uint32_t keys, const int32_t *rin, int32_t 
                 for (i = 0; i < n; i++)
                     o[i] = (o[i] * (l0 + (((l1 - l0) * (int32_t)i) >> CTL_LOG2))) >> 10;
         }
-        for (i = 0; i < n; i++)                         /* (in 32 bits: POLY's four voices sum past 16) */
-            s[i] += ((o[i] >> 2) * ((g0 + (((g1 - g0) * (int32_t)i) >> CTL_LOG2)) >> 1)) >> 12;
+        if (g0 == g1) {                                 /* steady: the ramp's term is 0 on every sample */
+            int32_t k = g0 >> 1;
+            if (first)
+                for (i = 0; i < n; i++)
+                    s[i] = ((o[i] >> 2) * k) >> 12;
+            else
+                for (i = 0; i < n; i++)
+                    s[i] += ((o[i] >> 2) * k) >> 12;
+        } else if (first) {
+            for (i = 0; i < n; i++)                     /* (in 32 bits: POLY's four voices sum past 16) */
+                s[i] = ((o[i] >> 2) * ((g0 + (((g1 - g0) * (int32_t)i) >> CTL_LOG2)) >> 1)) >> 12;
+        } else {
+            for (i = 0; i < n; i++)
+                s[i] += ((o[i] >> 2) * ((g0 + (((g1 - g0) * (int32_t)i) >> CTL_LOG2)) >> 1)) >> 12;
+        }
+        first = 0;
     }
+    if (first)                                          /* (nothing heard: silence) */
+        for (i = 0; i < n; i++)
+            s[i] = 0;
 }
 
 /* audio ISR: one control block of the whole instrument, interleaved stereo Q15 into out. In the USB record mode
@@ -89,6 +108,7 @@ static void chain_block(int32_t *out, uint32_t n)
 {
     int32_t l[CTL], r[CTL], rin[NTRK][CTL];
     uint32_t i, t, u, white = sys.keys_live ? white_keys(fm1_in.notes) : 0u, sel = sys.sel, zero = 0, play[NTRK];
+    int first;
     uint32_t ntrk = sys.ntrk >= 1u && sys.ntrk <= NTRK ? sys.ntrk : NTRK;
     if (ur.isr_in) {                                    /* the record mode: the monitor */
         usbrec_block(l, r, n);
@@ -136,8 +156,7 @@ static void chain_block(int32_t *out, uint32_t n)
                 rin[t][i] = clamp(a, -32767, 32767);
             }
         }
-    for (i = 0; i < n; i++)
-        l[i] = r[i] = 0;
+    first = 1;                                          /* the first track assigns l and r, the rest add */
     for (t = 0; t < NTRK; t++) {
         const track_ctl_t *c = &track[t];
         track_rt_t *rt = &track_rt[t];
@@ -199,15 +218,24 @@ static void chain_block(int32_t *out, uint32_t n)
         for (i = 0; i < n; i++) {
             int32_t vl = (gl[i] * g) >> 12, vr = (gr[i] * g) >> 12, a = vl < 0 ? -vl : vl, b = vr < 0 ? -vr : vr;
             rt->last[i] = sdiv2(vl + vr, 1);            /* (what the other tracks' REC hears: mono) */
-            l[i] += vl;
-            r[i] += vr;
+            if (first) {
+                l[i] = vl;
+                r[i] = vr;
+            } else {
+                l[i] += vl;
+                r[i] += vr;
+            }
             if (a > pk)
                 pk = a;
             if (b > pk)
                 pk = b;
         }
+        first = 0;
         rt->peak = pk - (pk >> 6);                    /* ~45 ms decay at one block per 0.73 ms */
     }
+    if (first)                                          /* (every track parked: silence) */
+        for (i = 0; i < n; i++)
+            l[i] = r[i] = 0;
     grain_recover();
     reso_recover();
     drm_recover();

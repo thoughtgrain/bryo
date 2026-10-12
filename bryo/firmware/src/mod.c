@@ -822,7 +822,15 @@ static void mod_tick(uint32_t keys, uint32_t sel, const int32_t *const *last)
             if ((arrs >> a) & 1u) {
                 const int16_t *b = mod_base(t, a);
                 int16_t *d = mda[t][a];
-                for (i = 0; i < mod_alen(a); i++)
+                uint32_t len = mod_alen(a);             /* (hoisted, four at a time: this copy was 40 % of mod_tick;
+                                                         * every length is a multiple of four: 24, 4, 16) */
+                for (i = 0; i + 3u < len; i += 4u) {
+                    d[i] = b[i];
+                    d[i + 1u] = b[i + 1u];
+                    d[i + 2u] = b[i + 2u];
+                    d[i + 3u] = b[i + 3u];
+                }
+                for (; i < len; i++)
                     d[i] = b[i];
             }
         mod_pan_r[t] = mda[t][MA_CH][CH_PAN];
