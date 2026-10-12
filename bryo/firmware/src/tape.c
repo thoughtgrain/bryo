@@ -411,6 +411,19 @@ static int32_t tape_read(const tape_view_t *v, tape_rd_t *r, int32_t pos)
     return a + (((b - a) * f) >> 12);
 }
 
+/* a head's whole run over n output samples, from pos (Q12) by inc, lies in one decoded block of the view: that block
+ * decoded (tape_at) and its first index returned, else -1. A loop then reads r->s[(pos >> 12) - base] and the next
+ * sample and interpolates exactly as tape_read does, with no call, bounds check or block lookup a sample (POLY's
+ * voices: the usual case at any pitch under four octaves above ROOT) */
+static int32_t tape_run(const tape_view_t *v, tape_rd_t *r, int32_t pos, int32_t inc, uint32_t n)
+{
+    int32_t i0 = pos >> 12, i1 = (pos + inc * (int32_t)(n - 1u)) >> 12, lo = i0 < i1 ? i0 : i1, hi = i0 < i1 ? i1 : i0;
+    if (lo < 0 || (uint32_t)hi >= v->len || (uint32_t)lo / TAPE_BLK != (uint32_t)hi / TAPE_BLK)
+        return -1;
+    (void)tape_at(v, r, lo);
+    return (int32_t)((uint32_t)lo / TAPE_BLK * TAPE_BLK);
+}
+
 /* ------------------------------------------------------------- writer --- */
 /* a block's decoder state fitted to its sound: its first sample and the step that suits its first move (an encoder
  * that starts from some other block's state takes a while to catch up: a click a block) */

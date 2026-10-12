@@ -5,7 +5,7 @@
  * oscillator at amp = 1.0 (Q15 32767) contributes VOICE_FS. */
 #define VOICE_FS 24000           /* per-voice level: one voice peaks near -6 dBFS before the master */
 
-static inline int32_t mulq15(int32_t a, int32_t b) { return (a * b) >> 15; }
+static inline __attribute__((always_inline)) int32_t mulq15(int32_t a, int32_t b) { return (a * b) >> 15; }
 /* a * k / 65536 without 64-bit: a up to 2^31, k Q16 */
 static inline int32_t mulq16(int32_t a, uint32_t k)
 {
@@ -101,7 +101,7 @@ static inline void tsvf_coef(tsvf_t *c, int32_t cut, int32_t reso)   /* reso 0..
     tsvf_coef_k(c, cut, 8192 - reso * 7600 / 127);
 }
 
-static inline int32_t tsvf_lp(const tsvf_t *c, int32_t in, int32_t *ic1, int32_t *ic2)
+static inline __attribute__((always_inline)) int32_t tsvf_lp(const tsvf_t *c, int32_t in, int32_t *ic1, int32_t *ic2)
 {
     int32_t v3 = in - *ic2;
     int32_t v1 = (c->a1 * *ic1 + c->a2 * v3) >> 13;
@@ -111,8 +111,10 @@ static inline int32_t tsvf_lp(const tsvf_t *c, int32_t in, int32_t *ic1, int32_t
     return v2;
 }
 
-/* the same filter, one of its three outputs: 0 low-pass, 1 band-pass, 2 high-pass (in - k band - low) */
-static inline int32_t tsvf_mode(const tsvf_t *c, int32_t in, int32_t *ic1, int32_t *ic2, uint32_t mode)
+/* the same filter, one of its three outputs: 0 low-pass, 1 band-pass, 2 high-pass (in - k band - low). Inlined
+ * (as tsvf_lp and mulq15): a call a sample with the state through memory was a third of a POLY voice's cost */
+static inline __attribute__((always_inline)) int32_t tsvf_mode(const tsvf_t *c, int32_t in, int32_t *ic1, int32_t *ic2,
+                                                               uint32_t mode)
 {
     int32_t v3 = in - *ic2;
     int32_t v1 = (c->a1 * *ic1 + c->a2 * v3) >> 13;

@@ -144,11 +144,26 @@ static void pol_voice(uint32_t t, pol_voice_t *v, tape_rd_t *rd, const tape_view
     }
     c8 = mod_fine8(t, FN_PCUT, p[PL_CUT]);                  /* (CUT finer than its semitones when modulated: mod.c) */
     tsvf_coef(&flt, c8 + p[PL_ENV] * 96 * (e15 >> 7) / 100, p[PL_RES] * 127 / 100);
-    for (i = 0; i < n; i++) {
-        int32_t x = tape_read(vw, rd, pos), y;
-        pos += v->inc;
-        y = mode || c8 < 127 << 8 || p[PL_RES] || p[PL_ENV] ? tsvf_mode(&flt, x >> 1, &ic1, &ic2, mode) << 1 : x;
-        out[i] += mulq15(y, a0 + (((a1 - a0) * (int32_t)i) >> CTL_LOG2));
+    {
+        int filt = mode || c8 < 127 << 8 || p[PL_RES] || p[PL_ENV];   /* (decided once a block, not a sample) */
+        int32_t base = tape_run(vw, rd, pos, v->inc, n), da = a1 - a0, y;
+        if (base >= 0) {                                    /* the block's run inside one decoded block (tape.c): the
+                                                             * samples read straight from it, as tape_read reads them */
+            for (i = 0; i < n; i++) {
+                int32_t o = (pos >> 12) - base, a = rd->s[o], b = rd->s[o + 1];
+                int32_t x = a + (((b - a) * (pos & 4095)) >> 12);
+                pos += v->inc;
+                y = filt ? tsvf_mode(&flt, x >> 1, &ic1, &ic2, mode) << 1 : x;
+                out[i] += mulq15(y, a0 + ((da * (int32_t)i) >> CTL_LOG2));
+            }
+        } else {
+            for (i = 0; i < n; i++) {
+                int32_t x = tape_read(vw, rd, pos);
+                pos += v->inc;
+                y = filt ? tsvf_mode(&flt, x >> 1, &ic1, &ic2, mode) << 1 : x;
+                out[i] += mulq15(y, a0 + ((da * (int32_t)i) >> CTL_LOG2));
+            }
+        }
     }
     v->pos = pos;
     v->ic1 = ic1;
