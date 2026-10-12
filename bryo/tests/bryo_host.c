@@ -3331,6 +3331,52 @@ static double rpk_energy(uint32_t k)
         e += (double)d[i] * d[i];
     return e;
 }
+/* a muted track sleeps (chain.c): its source keeps its time and makes no sound. The factory scene twice from power-on,
+ * once with tracks 1, 3 and 4 muted for 3 s: the heads and the pattern end where they'd have been, nothing of theirs
+ * was rendered, and unmuted they sound again */
+static void test_sleep(void)
+{
+    char b[200];
+    int32_t pos_awake, pos_asleep, xpos_awake, xpos_asleep;
+    uint32_t now_awake, now_asleep, w_awake, w_asleep, k, voices = 0, drums = 0;
+    power_on();
+    pj_wipe();
+    pj_boot();
+    sys.playing = 1;
+    render_poll(1378 * 3);
+    pos_awake = tape_rt[2].pos;
+    xpos_awake = tape_rt[2].xpos;
+    now_awake = drm_now[0];
+    w_awake = (uint32_t)gbuf[2].w;
+    power_on();
+    pj_wipe();
+    pj_boot();
+    sys.playing = 1;
+    track[0].mute = track[2].mute = track[3].mute = 1;
+    render_poll(1378 * 3);
+    pos_asleep = tape_rt[2].pos;
+    xpos_asleep = tape_rt[2].xpos;
+    now_asleep = drm_now[0];
+    w_asleep = (uint32_t)gbuf[2].w;
+    for (k = 0; k < POL_NV; k++)
+        voices += pol[3].v[k].stage != 0u;
+    for (k = 0; k < DRM_NV; k++)
+        drums += drm_rt[0].v[k].live;
+    snprintf(b, sizeof b, "muted, asleep 3 s: T3's tape head where it would be (%d, %d), T1's pattern on its step (%u, "
+             "%u), T3's buffer head in its place (%u, %u)", pos_asleep >> 12, pos_awake >> 12, now_asleep, now_awake,
+             w_asleep, w_awake);
+    check(b, pos_asleep == pos_awake && xpos_asleep == xpos_awake && now_asleep == now_awake && w_asleep == w_awake);
+    check("..and nothing of theirs sounding: no POLY voice on T4, no drum voice on T1, no grains on T3",
+          voices == 0 && drums == 0 && grain_count(2) == 0 && grain_count(0) == 0);
+    track[0].mute = track[2].mute = track[3].mute = 0;
+    k = grain[2].n;
+    render_poll(1378);
+    check("..unmuted: they sound again (T1's drums, T3's tape and the grains starting on it, T4's voices)",
+          peak_of(track_rt[0].last, CTL) > 0 && peak_of(track_rt[2].last, CTL) > 0 && peak_of(track_rt[3].last, CTL) > 0
+          && grain[2].n > k);
+    power_on();
+}
+
 static void test_reso_pluck(void)
 {
     char b[200];
@@ -8849,6 +8895,7 @@ int main(int argc, char **argv)
     test_grain_clicks();
     test_reso();
     test_reso_pluck();
+    test_sleep();
     test_color();
     test_space();
     test_usbrec();

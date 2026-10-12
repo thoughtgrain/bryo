@@ -722,7 +722,12 @@ static void tape_block(uint32_t t, uint32_t keys, const int32_t *rec_in, int32_t
         int32_t s = 0, tgt = rt->running ? 32767 : 0;
         rt->amp += rt->amp < tgt ? 372 : rt->amp > tgt ? -372 : 0;   /* ~2 ms either way */
         rt->amp = clamp(rt->amp, 0, 32767);
-        if (rt->amp) {
+        if (rt->amp && src_sleep) {                    /* asleep (muted): the heads move as they would, nothing read */
+            if (rt->xf > 0) {
+                rt->xpos += inc;
+                rt->xf--;
+            }
+        } else if (rt->amp) {
             s = tape_read(&v, &rt->a, rt->pos);
             if (rt->xf > 0) {                          /* the old head fading out (its share xf / xflen, Q14: a
                                                          * multiply, xk worked out once a block, not a divide a sample) */

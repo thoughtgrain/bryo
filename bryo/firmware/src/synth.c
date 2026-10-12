@@ -212,6 +212,12 @@ static void syn_block(uint32_t t, uint32_t keys, const int32_t *rec, int32_t *ou
     for (j = nv; j < SYN_NV; j++)                           /* VOIC turned down: the voices above it let go */
         if (s->v[j].stage && s->v[j].stage != 3u)
             s->v[j].stage = 3;
+    if (src_sleep) {                                    /* asleep (muted): no voice sounds; at waking the next keys
+                                                         * start from silence */
+        for (j = 0; j < SYN_NV; j++)
+            s->v[j].stage = 0, s->v[j].amp = 0, s->v[j].env = 0;
+        return;
+    }
     for (k = 0; on && k < NKEYBIT; k++)                      /* new keys, lowest first */
         if ((on >> k) & 1u)
             syn_start(t, k, nv);

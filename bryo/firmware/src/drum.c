@@ -605,6 +605,12 @@ static void drm_block(uint32_t t, uint32_t keys, const int32_t *rec, int32_t *ou
             drm_strike(t, p, i, 0, 0);
     for (j = 0; j < n; j++)
         out[j] = 0;
+    if (src_sleep) {                                    /* asleep (muted): the pattern steps on (its hits still move
+                                                         * the modulators), no voice sounds */
+        for (j = 0; j < DRM_NV; j++)
+            r->v[j].live = r->v[j].trig = 0;
+        return;
+    }
     for (j = drm_cap; j < DRM_NV; j++)                  /* over the cap (shed): its tail ends in 1.5 ms, no click */
         if (r->v[j].live && !r->v[j].choke)
             dk_choke(&r->v[j]);

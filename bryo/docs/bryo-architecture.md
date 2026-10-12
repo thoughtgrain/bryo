@@ -1014,6 +1014,16 @@ host (runs 29 and 30) and measured where the time went. Three causes:
 - **A muted track cost as much as a heard one.** Mute is a cut after the devices, so they ran on. Now a muted
   track's devices after GRAIN hear silence (`chain_block`): they ring down and rest, and unmuted they start from
   rest on the track's sound. GRAIN itself keeps recording its buffer (unmuted, its grains have the recent bars).
+  *Changed 2026-10-12: a muted track sleeps.* From playing it: 70-75 % with one track heard and three muted. The
+  three still rendered their sources and GRAIN, about a third of the work, all of it zeroed. Now a muted track that
+  isn't recording sleeps (`src_sleep`, `grain_sleep`): its source keeps its time and makes no sound (TAPE's heads,
+  seams, slices and SYNC run as ever with nothing read; DRUM's pattern steps on and still moves the modulators; POLY
+  and SYNTH follow the keys with every voice silent), GRAIN neither records nor plays but keeps its write head on its
+  place in the bars, and RES ARP doesn't pluck. The modulators and arpeggiators run on. A mute was already a cut, so
+  what changes is only at waking: notes start fresh and the buffer holds the bars from before the mute until it's
+  written over. The scene with T2 alone: 42 % less work on the host. Tested (`test_sleep`): asleep 3 s, T3's tape
+  head, T1's pattern step and T3's buffer head end exactly where they do awake, nothing of theirs sounds, and
+  unmuted they all play again.
 - **Shedding gave back blindly.** It took grains (then strings, then drum voices) after two halves over 85 %, and
   gave an eighth back a second after the last shed whatever the load: a track near the edge went over, shed, came
   back and went over again, a crackle a second. Now it also sheds on one half over 95 %, and gives back only while

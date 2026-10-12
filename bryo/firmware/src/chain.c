@@ -163,6 +163,7 @@ static void chain_block(int32_t *out, uint32_t n)
         int32_t s[CTL], gl[CTL], gr[CTL], g = c->mute ? 0 : (int32_t)LEVEL_Q12[c->level & 127u], pk = rt->peak;
         int32_t a0 = rt->act, a1 = clamp(a0 + (t < ntrk ? 1 : -1) * 372 * (int32_t)n, 0, 32767);
         uint32_t k = play[t], gk = 0, rk = 0, ra = 0, rn = 0;
+        int sleep;
         int32_t anote = -1;
         if (tp[t].dev[DEV_RESO][RP_AMODE] == ARM_OFF)
             reso_arp_on[t] = 0;                         /* (its arpeggio off: the next step on is a pluck) */
@@ -194,8 +195,23 @@ static void chain_block(int32_t *out, uint32_t n)
             if (tp[t].src == SRC_TAPE || tp[t].src == SRC_DRUM)
                 k = 0;
         }
+        sleep = c->mute && !((sys.rec >> t) & 1u);   /* asleep: muted and not recording. Its source keeps its time
+                                                         * (tape heads, the drum pattern, keys, arpeggios; the
+                                                         * modulators run on) and makes no sound, GRAIN neither
+                                                         * records nor plays, RES ARP doesn't pluck: a mute is a cut,
+                                                         * so at waking notes start fresh and GRAIN's buffer holds the
+                                                         * bars from before until it's written over (2026-10-12: a
+                                                         * muted track had rendered everything, then been zeroed: a
+                                                         * third of the CPU with one track heard) */
+        src_sleep = (uint8_t)sleep;
         chain_source(t, k, (sys.rec >> t) & 1u ? rin[t] : 0, s, n);
-        grain_block(t, s, gk, (int)zero, gl, gr, n);    /* from here the track is stereo */
+        src_sleep = 0;
+        if (sleep) {
+            grain_sleep(t, (int)zero, n);
+            anote = -1;
+        } else {
+            grain_block(t, s, gk, (int)zero, gl, gr, n);   /* from here the track is stereo */
+        }
         if (c->mute)                                    /* muted: nothing after GRAIN is heard, so it hears silence
                                                          * too: RESONATOR, COLOR, SPACE and the channel ring down
                                                          * and rest (their work given back: a muted track cost as

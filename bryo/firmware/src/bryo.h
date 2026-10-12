@@ -81,6 +81,9 @@ enum { BK_OP1, BK_OP2, BK_OP3, BK_OP4, BK_OP5, BK_OP6, BK_PIT, BK_GLO, BK_MONO, 
  * bit 0, key_base the note itself. */
 #define NKEYBIT 32u
 static uint8_t key_base[NTRK];
+/* audio ISR (chain.c): 1 while the track being rendered sleeps (muted, REC not armed): its source keeps its time
+ * (heads, patterns, keys) but makes no sound (2026-10-12: a muted track had rendered all of it, then been zeroed) */
+static uint8_t src_sleep;
 /* fm1_in.notes -> the white keys held, bit k = white key k (a plain loop: no builtin that could become a runtime
  * library call on the target compiler) */
 static inline uint32_t white_keys(uint32_t notes)

@@ -348,6 +348,39 @@ static void grain_kill(uint32_t t)
     grain[t].hq = 1;
 }
 
+/* audio ISR: track t asleep (muted, REC not armed: chain.c). No grains and nothing recorded, but the buffer's write
+ * head keeps its place in the bars (what's under it is the old sound until it wakes and writes over it), and at
+ * waking WET comes back in from 0 and the dry share starts afresh */
+static void gr_bcommit(gr_buf_t *B);
+static void grain_sleep(uint32_t t, int frozen, uint32_t n)
+{
+    gr_buf_t *B = &gbuf[t];
+    grain_trk_t *G = &grain[t];
+    const int16_t *p = tp[t].dev[DEV_GRAIN];
+    uint32_t i, playing = sys.playing, live = tp[t].src != SRC_TAPE;
+    grain_kill(t);
+    G->wetq = 0;
+    G->dset = 0;
+    if (clamp(p[GP_SCAN], 0, 3) != SCAN_TAPE && B->len && B->nch) {
+        if (B->staged)
+            gr_bcommit(B);
+        if (B->w >= (int32_t)B->len)
+            B->w %= (int32_t)B->len;
+        if (playing && !B->was_playing) {               /* (the bar line at the transport's start, as recording) */
+            B->w = 0;
+            B->odd = 0;
+            B->fill = 0;
+            for (i = 0; i < 6u; i++)
+                B->hx[i] = 0;
+        } else if (!frozen && p[GP_WET] && (playing || live)) {
+            B->w += (int32_t)(n >> 1);                  /* (22.05 kHz: half the block) */
+            if (B->w >= (int32_t)B->len)
+                B->w -= (int32_t)B->len;
+        }
+    }
+    B->was_playing = (uint8_t)playing;
+}
+
 /* the bars a buffer holds: by TRACKS, fewer when they'd pass 12 s at this tempo */
 static uint32_t gr_bars(void)
 {
