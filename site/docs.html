@@ -10,7 +10,8 @@
   <link rel="icon" href="img/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono&family=Schibsted+Grotesk:wght@400;500;600;700&family=Silkscreen&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono&family=Schibsted+Grotesk:wght@400;500;600;700&display=swap">
+  <link rel="preload" href="fonts/bryo-px5.woff" as="font" type="font/woff" crossorigin>
   <link rel="stylesheet" href="css/style.css">
   <script src="js/main.js" defer></script>
 </head>
@@ -19,9 +20,8 @@
 
   <header class="site-header">
     <div class="wrap site-header__inner">
-      <a class="logo" href="./" aria-label="Bryo, home">
-        <svg aria-hidden="true"><use href="img/icons.svg#logo"/></svg>
-        <span class="logo__word px">Bryo</span>
+      <a class="logo" href="./">
+        <img class="logo__mark pixelated" src="img/wordmark.svg" width="115" height="35" alt="Bryo, home">
       </a>
       <div class="header-actions">
         <a class="icon-btn" href="https://github.com/thoughtgrain/moss-and-air" aria-label="Bryo on GitHub">
@@ -37,9 +37,8 @@
   <dialog class="menu" id="menu" aria-label="Site menu">
     <div class="wrap">
       <div class="menu__top">
-        <a class="logo" href="./" aria-label="Bryo, home">
-          <svg aria-hidden="true"><use href="img/icons.svg#logo"/></svg>
-          <span class="logo__word px">Bryo</span>
+        <a class="logo" href="./">
+          <img class="logo__mark pixelated" src="img/wordmark.svg" width="115" height="35" alt="Bryo, home">
         </a>
         <button class="icon-btn" type="button" data-menu-close aria-label="Close menu">
           <svg aria-hidden="true"><use href="img/icons.svg#close"/></svg>
@@ -144,14 +143,14 @@ cd /tmp/bryo-site &amp;&amp; python3 -m http.server 8000
         <section id="panel" aria-labelledby="h-panel">
           <h2 id="h-panel"><span class="px">03</span>The panel</h2>
           <figure class="panel-figure">
-            <img src="img/panel.svg" width="960" height="490" alt="The FM-1 panel labelled for Bryo: four labelled knobs top left, KNOB 1 to 4 top right, two rows of pads, and the keys below.">
-            <figcaption>The FM-1's panel, labelled for Bryo.</figcaption>
+            <img src="img/panel.svg" width="960" height="540" alt="The FM-1 panel labelled for Bryo, in the screen's own lettering: MASTER, SELECT, PRESETS and ALGORITHM top left over OCT- and OCT+; the screen showing the TAPE page; KNOB 1 to 4; the pads in two rows, page pads edged blue, modulator pads purple, PLAY and REC green; the black keys' jobs over them; white keys 1 to 16.">
+            <figcaption>The FM-1's panel as Bryo uses it now. The edges are the colours the screen gives each pad's pages. PIT and GLO on the black keys aren't assigned yet.</figcaption>
           </figure>
           <ul>
             <li><strong>Top left:</strong> MASTER (volume), SELECT (tempo), PRESETS (projects and presets), ALGORITHM (what REC records). Under them, OCT&minus; and OCT+.</li>
             <li><strong>Top right:</strong> KNOB 1 to 4. They always change the four values on screen.</li>
             <li><strong>Blue pads, the pages:</strong> HOME (the track's source), EDIT (GRAIN, RESONATOR), FX (COLOR, SPACE), GLO (the mixer).</li>
-            <li><strong>Purple pads, the modulators:</strong> LFO holds M1 to M3, SEQ is M4 (a step sequencer), ENV is the track's own envelope. ARP is the arpeggiator.</li>
+            <li><strong>Purple pads, the modulators and the envelope:</strong> LFO holds M1 to M3, SEQ is M4 (a step sequencer), ENV is the source's own envelope, ARP is the arpeggiator.</li>
             <li><strong>Green pads, the transport:</strong> PLAY and REC. SAVE saves (held: undo). SCL held resets things.</li>
             <li><strong>Keys:</strong> 16 white keys play the track. The 11 black keys above them are mutes, reverse, clears and freeze.</li>
           </ul>
@@ -209,7 +208,7 @@ cd /tmp/bryo-site &amp;&amp; python3 -m http.server 8000
           <h3>Modulation in one move</h3>
           <p>Hold <strong>LFO</strong>, <strong>ENV</strong> or <strong>SEQ</strong> and turn any knob on a source, effect or channel page. That sets how far the modulator moves it (&minus;100 to 100&nbsp;%). Hold <strong>LFO + SELECT</strong> to change the slot's engine (LFO, ADSR, FOLLOW); the depths stay.</p>
           <div class="figure-row">
-            <figure class="screen"><img class="pixelated" src="img/mod1.png" width="480" height="480" alt="An LFO modulator page" loading="lazy"><figcaption class="px">LFO · M1</figcaption></figure>
+            <figure class="screen"><img class="pixelated" src="img/mod1.png" width="480" height="480" alt="An LFO modulator page" loading="lazy"><figcaption class="px">LFO / M1</figcaption></figure>
             <figure class="screen"><img class="pixelated" src="img/arp.png" width="480" height="480" alt="The arpeggiator page" loading="lazy"><figcaption class="px">ARP</figcaption></figure>
           </div>
           <a class="more" href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/docs/manual/README.md#7-modulation">Manual 7 &gt;</a>
@@ -329,7 +328,7 @@ tests/run_tests.sh            # must end "ALL HOST TESTS PASSED"</code></pre></d
           <p>Bryo is a fork of <a href="https://github.com/hugelton/Felucca">Felucca</a>, the GPL-3.0 replacement firmware by <a href="https://github.com/kurogedelic">Leo Kuroshita (@kurogedelic)</a> / Hügelton Instruments. They reverse-engineered the FM-1 and wrote the bare-metal firmware Bryo still stands on: the hardware layer, the update loader, USB, storage, the display and the installer. Thank you, Leo.</p>
           <p>Felucca credits DaisySP and Rings (Electrosmith, Emilie Gillet), msfa (Google, Pascal Gauthier, via Dexed), klattsch (Tony Gies), the Inter Tight font (The Inter Project Authors), the Fukiai icon font (Hügelton), the VSCO-2 CE and VCSL sample libraries (Versilian Studios) and three files from the JieLi AC79 SDK, and those credits carry through to Bryo.</p>
           <div class="btn-row">
-            <a class="btn btn--solid" href="https://github.com/sponsors/hugelton">Sponsor Hügelton</a>
+            <a class="btn btn--solid" href="https://github.com/sponsors/hugelton">Sponsor on GitHub</a>
             <a class="btn" href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/ACKNOWLEDGEMENTS.md">Acknowledgements</a>
           </div>
           <p style="margin-top:24px">Bryo is <strong>GPL-3.0-only</strong>, like Felucca. If you share it, or firmware built from it, give your recipients the complete source. See <a href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/LICENSE">LICENSE</a>, <a href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/LICENSING.md">LICENSING.md</a> and <a href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/NOTICE.md">NOTICE.md</a>.</p>

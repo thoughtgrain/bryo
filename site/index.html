@@ -10,7 +10,8 @@
   <link rel="icon" href="img/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono&family=Schibsted+Grotesk:wght@400;500;600;700&family=Silkscreen&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono&family=Schibsted+Grotesk:wght@400;500;600;700&display=swap">
+  <link rel="preload" href="fonts/bryo-px5.woff" as="font" type="font/woff" crossorigin>
   <link rel="stylesheet" href="css/style.css">
   <script src="js/main.js" defer></script>
 </head>
@@ -19,9 +20,8 @@
 
   <header class="site-header">
     <div class="wrap site-header__inner">
-      <a class="logo" href="./" aria-label="Bryo, home">
-        <svg aria-hidden="true"><use href="img/icons.svg#logo"/></svg>
-        <span class="logo__word px">Bryo</span>
+      <a class="logo" href="./">
+        <img class="logo__mark pixelated" src="img/wordmark.svg" width="115" height="35" alt="Bryo, home">
       </a>
       <div class="header-actions">
         <a class="icon-btn" href="https://github.com/thoughtgrain/moss-and-air" aria-label="Bryo on GitHub">
@@ -37,9 +37,8 @@
   <dialog class="menu" id="menu" aria-label="Site menu">
     <div class="wrap">
       <div class="menu__top">
-        <a class="logo" href="./" aria-label="Bryo, home">
-          <svg aria-hidden="true"><use href="img/icons.svg#logo"/></svg>
-          <span class="logo__word px">Bryo</span>
+        <a class="logo" href="./">
+          <img class="logo__mark pixelated" src="img/wordmark.svg" width="115" height="35" alt="Bryo, home">
         </a>
         <button class="icon-btn" type="button" data-menu-close aria-label="Close menu">
           <svg aria-hidden="true"><use href="img/icons.svg#close"/></svg>
@@ -81,17 +80,13 @@
           </div>
         </div>
 
-        <div class="device" data-screens>
-          <div class="device__screen" aria-live="off">
-            <img class="pixelated is-on" src="img/boot.png" width="480" height="480" alt="Boot screen: BRYO, 4-track sound sculpting">
-            <img class="pixelated" src="img/tape.png" width="480" height="480" alt="TAPE page: the reel with the loop bracketed and the play head" loading="lazy">
-            <img class="pixelated" src="img/grain_playing.png" width="480" height="480" alt="GRAIN page with grains playing, lit in orange" loading="lazy">
-            <img class="pixelated" src="img/reso_live.png" width="480" height="480" alt="RESONATOR page: four strings ringing" loading="lazy">
-            <img class="pixelated" src="img/space_live.png" width="480" height="480" alt="SPACE page: echoes and the room's tail" loading="lazy">
-            <img class="pixelated" src="img/mixer.png" width="480" height="480" alt="The mixer: four track levels" loading="lazy">
-          </div>
+        <div class="device" data-screens
+             data-list='[["img/boot.png","Boot","Boot screen: BRYO, 4-track sound sculpting"],["img/tape.png","Home / Tape","The TAPE page: the reel, the loop bracketed IN to OUT"],["img/grain_playing.png","Edit / Grain","GRAIN with grains playing, lit in orange"],["img/reso_live.png","Edit / Resonator","RESONATOR: four strings ringing"],["img/space_live.png","FX / Space","SPACE: echoes and the tail of the room, in orange"],["img/mixer.png","Glo / Mixer","The mixer: four track levels"],["img/mod1.png","LFO / M1","An LFO modulator drawing its wave"]]'>
+          <figure class="device__screen">
+            <img class="pixelated" src="img/boot.png" width="480" height="480" alt="Bryo's boot screen: BRYO, 4-track sound sculpting" data-screen-img>
+          </figure>
           <div class="device__controls">
-            <p class="device__label px" data-screen-label>Boot</p>
+            <p class="device__label px" data-screen-label aria-hidden="true">Boot</p>
             <button class="btn device__pause" type="button" data-screen-toggle aria-pressed="false">Pause</button>
           </div>
         </div>
@@ -133,7 +128,7 @@
           <div class="chain__panel" role="tabpanel" id="panel-source" aria-labelledby="tab-source" tabindex="0">
             <figure class="screen">
               <img class="pixelated" src="img/tape.png" width="480" height="480" alt="The TAPE page" loading="lazy">
-              <figcaption class="px">Home · Tape</figcaption>
+              <figcaption class="px">Home / Tape</figcaption>
             </figure>
             <div class="prose">
               <h3>Source <span class="tag px">Home</span></h3>
@@ -145,7 +140,7 @@
           <div class="chain__panel" role="tabpanel" id="panel-grain" aria-labelledby="tab-grain" tabindex="0" hidden>
             <figure class="screen">
               <img class="pixelated" src="img/grain_playing.png" width="480" height="480" alt="GRAIN with grains playing" loading="lazy">
-              <figcaption class="px">Edit · Grain</figcaption>
+              <figcaption class="px">Edit / Grain</figcaption>
             </figure>
             <div class="prose">
               <h3>Grain <span class="tag px">Edit</span></h3>
@@ -157,7 +152,7 @@
           <div class="chain__panel" role="tabpanel" id="panel-reso" aria-labelledby="tab-reso" tabindex="0" hidden>
             <figure class="screen">
               <img class="pixelated" src="img/reso_live.png" width="480" height="480" alt="RESONATOR with strings ringing" loading="lazy">
-              <figcaption class="px">Edit · Resonator</figcaption>
+              <figcaption class="px">Edit / Resonator</figcaption>
             </figure>
             <div class="prose">
               <h3>Resonator <span class="tag px">Edit</span></h3>
@@ -168,7 +163,7 @@
           <div class="chain__panel" role="tabpanel" id="panel-color" aria-labelledby="tab-color" tabindex="0" hidden>
             <figure class="screen">
               <img class="pixelated" src="img/color.png" width="480" height="480" alt="The COLOR page with a sine wave drawn through it" loading="lazy">
-              <figcaption class="px">FX · Color</figcaption>
+              <figcaption class="px">FX / Color</figcaption>
             </figure>
             <div class="prose">
               <h3>Color <span class="tag px">FX</span></h3>
@@ -179,7 +174,7 @@
           <div class="chain__panel" role="tabpanel" id="panel-space" aria-labelledby="tab-space" tabindex="0" hidden>
             <figure class="screen">
               <img class="pixelated" src="img/space_live.png" width="480" height="480" alt="SPACE with its echoes and tail sounding" loading="lazy">
-              <figcaption class="px">FX · Space</figcaption>
+              <figcaption class="px">FX / Space</figcaption>
             </figure>
             <div class="prose">
               <h3>Space <span class="tag px">FX</span></h3>
@@ -231,7 +226,7 @@
       <div class="wrap split">
         <figure class="screen">
           <img class="pixelated" src="img/mod1.png" width="480" height="480" alt="An LFO modulator page drawing its waveform" loading="lazy">
-          <figcaption class="px">LFO · M1</figcaption>
+          <figcaption class="px">LFO / M1</figcaption>
         </figure>
         <div class="prose">
           <h2 class="section__title" id="mod-title">Hold a pad. Turn a knob.</h2>
@@ -294,7 +289,7 @@
             <h3>Support the people who made this</h3>
             <p>Sponsoring Hügelton keeps work like Felucca going.</p>
             <div class="btn-row">
-              <a class="btn btn--solid" href="https://github.com/sponsors/hugelton">Sponsor Hügelton</a>
+              <a class="btn btn--solid" href="https://github.com/sponsors/hugelton">Sponsor on GitHub</a>
               <a class="btn" href="https://hugelton.itch.io/felucca">Felucca on itch.io</a>
             </div>
           </div>

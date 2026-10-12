@@ -51,31 +51,51 @@
   }
 
   /* ---------- hero: cycle through real screens ----------
-   * Moves on its own, so WCAG 2.2.2 wants a way to stop it: the Pause button. With reduced motion it
-   * starts paused and you step through by pressing Play. */
+   * One <img> whose source changes, and every screen loaded before the first change. (It was a stack of
+   * cross-faded images, lazily loaded, under a 3D tilt; Safari on iOS didn't always paint the ones after the
+   * first.) It moves on its own, so WCAG 2.2.2 wants a way to stop it: the Pause button. With reduced motion
+   * it starts paused. */
   function initScreens() {
     var root = $("[data-screens]");
     if (!root) return;
-    var imgs = $$(".device__screen img", root);
+    var img = $("[data-screen-img]", root);
     var label = $("[data-screen-label]", root);
     var toggle = $("[data-screen-toggle]", root);
-    if (imgs.length < 2 || !toggle) return;
+    var list;
+    try { list = JSON.parse(root.getAttribute("data-list") || "[]"); } catch (e) { list = []; }
+    if (!img || !toggle || list.length < 2) {
+      if (toggle) toggle.hidden = true;
+      return;
+    }
 
-    var names = ["Boot", "Home · Tape", "Edit · Grain", "Edit · Resonator", "FX · Space", "Glo · Mixer"];
+    var ready = list.map(function () { return false; });
+    ready[0] = true;
+    list.forEach(function (s, n) {
+      if (n === 0) return;
+      var pre = new Image();
+      pre.onload = function () { ready[n] = true; };
+      pre.src = s[0];
+    });
+
     var i = 0;
     var timer = null;
     var INTERVAL = 2600;
 
     function show(n) {
-      imgs[i].classList.remove("is-on");
-      i = (n + imgs.length) % imgs.length;
-      imgs[i].classList.add("is-on");
-      if (label) label.textContent = names[i] || "";
+      // skip a screen that hasn't arrived yet rather than flash a broken image
+      for (var k = 0; k < list.length; k++) {
+        var j = (n + k) % list.length;
+        if (ready[j]) { n = j; break; }
+      }
+      i = n;
+      img.src = list[i][0];
+      img.alt = list[i][2] || "";
+      if (label) label.textContent = list[i][1] || "";
     }
 
     function play() {
       if (timer) return;
-      timer = window.setInterval(function () { show(i + 1); }, INTERVAL);
+      timer = window.setInterval(function () { show((i + 1) % list.length); }, INTERVAL);
       toggle.textContent = "Pause";
       toggle.setAttribute("aria-pressed", "false");
     }

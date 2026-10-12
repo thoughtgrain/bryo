@@ -2,33 +2,49 @@
 /*
  * Bryo site styles.
  *
- * Two voices: Silkscreen (a pixel face, like the FM-1's screen) for short labels, buttons, numbers and
- * nav; Schibsted Grotesk for anything you actually read. Pixel type at body length is hard on the eyes,
- * so it never carries a paragraph.
+ * Two voices: Bryo PX5, the firmware's own 5x7 screen face (fonts/, made from bryo/tools/gen_px_font.py by
+ * tools/gen_px_webfont.py), for short labels, buttons, numbers and nav; Schibsted Grotesk for anything you
+ * actually read. Pixel type at body length is hard on the eyes, so it never carries a paragraph.
  *
- * Colour follows Bryo's own screen: white on black, and colour only ever says where you are or what's
- * alive (blue: a page, purple: modulation, orange: sound, red: recording, yellow: something to know).
+ * Colour is the firmware's, value for value (firmware/src/ui_px.c): white on black, and colour only ever
+ * says where you are or what's alive. Okabe and Ito's colour-blind-safe set: sky blue a page, reddish
+ * purple modulation, orange sound, vermillion recording, yellow something to know.
  */
+
+@font-face {
+  font-family: "Bryo PX5";
+  src: url("../fonts/bryo-px5.woff") format("woff");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Bryo PX5";
+  src: url("../fonts/bryo-px5-bold.woff") format("woff");
+  font-weight: 700;
+  font-display: swap;
+}
 
 :root {
   color-scheme: dark;
 
-  --bg: #121212;
-  --bg-raise: #1a1a1a;
-  --bg-sunk: #0b0b0b;
-  --line: #2f2f2f;
-  --line-strong: #e8e8e8;
-  --ink: #ececec;
-  --ink-soft: #b3b3b3; /* 8.9:1 on --bg */
-  --ink-faint: #8c8c8c; /* 5.6:1 on --bg: still AA for small text */
+  /* the screen's black and white; --ink-faint is the firmware's dim ink (45 % of the way from black) */
+  --bg: #000000;
+  --bg-raise: #121212;
+  --bg-sunk: #000000;
+  --line: #2a2a2a;
+  --line-strong: #ffffff;
+  --ink: #ffffff;
+  --ink-soft: #b8b8b8; /* 10.6:1 on black */
+  --ink-faint: #8c8c8c; /* 6.6:1 on black: AA for small text (the firmware's #737373 is 4.5:1, too close) */
 
-  --blue: #5cb4ff;
-  --purple: #b994ff;
-  --orange: #ff9a3d;
-  --red: #ff5a52;
-  --yellow: #ffd84a;
+  /* px_page, px_mod, px_live, px_rec, px_note */
+  --blue: #56b4e9;
+  --purple: #cc79a7;
+  --orange: #e69f00;
+  --red: #d55e00;
+  --yellow: #f0e442;
 
-  --font-pixel: "Silkscreen", ui-monospace, monospace;
+  --font-pixel: "Bryo PX5", ui-monospace, monospace;
   --font-text: "Schibsted Grotesk", "Helvetica Neue", Helvetica, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
 
@@ -123,7 +139,7 @@ a:hover { text-decoration-thickness: 2px; }
 .px {
   font-family: var(--font-pixel);
   font-weight: 400;
-  letter-spacing: 0.04em;
+  letter-spacing: 0;
   text-transform: uppercase;
   line-height: 1.2;
 }
@@ -150,11 +166,11 @@ a:hover { text-decoration-thickness: 2px; }
   gap: 12px;
   text-decoration: none;
 }
-.logo svg { width: 44px; height: 32px; }
+/* the wordmark is 23 x 7 dots: drawn at a whole number of px a dot so every dot stays square */
+.logo__mark { width: 92px; height: 28px; }
 @media (min-width: 720px) {
-  .logo svg { width: 60px; height: 44px; }
+  .logo__mark { width: 115px; height: 35px; }
 }
-.logo__word { font-size: 1.125rem; }
 
 .header-actions {
   display: flex;
@@ -303,8 +319,8 @@ a:hover { text-decoration-thickness: 2px; }
   overflow: hidden;
   isolation: isolate;
   background:
-    radial-gradient(60% 70% at 18% 30%, rgba(92, 180, 255, 0.28), transparent 70%),
-    radial-gradient(50% 60% at 85% 75%, rgba(255, 154, 61, 0.22), transparent 70%),
+    radial-gradient(60% 70% at 18% 30%, rgba(86, 180, 233, 0.22), transparent 70%),
+    radial-gradient(50% 60% at 85% 75%, rgba(230, 159, 0, 0.18), transparent 70%),
     var(--bg-sunk);
   border-bottom: 1px solid var(--line);
 }
@@ -330,38 +346,25 @@ a:hover { text-decoration-thickness: 2px; }
   .hero__inner { grid-template-columns: 1.1fr 1fr; padding-block: 88px; gap: 56px; }
 }
 
+/* The FM-1's screen, flat and at a whole multiple of its 240 px so the dots stay square: no fake device
+ * around it, just the black glass and a hairline, the way the panel frames it. */
 .device {
   justify-self: center;
-  width: min(100%, 440px);
-  padding: 22px;
-  background: linear-gradient(160deg, #2a2a2c, #161617);
-  border: 1px solid #3a3a3c;
-  box-shadow:
-    0 30px 80px rgba(0, 0, 0, 0.6),
-    0 0 0 6px #0d0d0e,
-    0 0 60px rgba(92, 180, 255, 0.18);
-  transform: perspective(1200px) rotateX(8deg) rotateZ(-2deg);
-}
-@media (prefers-reduced-motion: reduce) {
-  .device { transform: none; }
+  width: min(100%, 506px); /* 480 px of screen (2x its 240) + the padding and hairline */
 }
 
 .device__screen {
-  position: relative;
-  aspect-ratio: 1;
+  margin: 0;
+  padding: 12px;
   background: #000;
-  border: 2px solid #000;
-  overflow: hidden;
+  border: 1px solid var(--line);
+  box-shadow: 0 0 0 1px #000, 0 30px 80px rgba(0, 0, 0, 0.7), 0 0 90px rgba(86, 180, 233, 0.16);
 }
 .device__screen img {
-  position: absolute;
-  inset: 0;
   width: 100%;
-  height: 100%;
-  opacity: 0;
-  transition: opacity 180ms steps(3);
+  aspect-ratio: 1;
+  background: #000;
 }
-.device__screen img.is-on { opacity: 1; }
 
 .device__controls {
   display: flex;
@@ -820,7 +823,7 @@ pre {
 .panel-figure {
   margin: 24px 0;
   padding: 12px;
-  background: #222;
+  background: #000;
   border: 1px solid var(--line);
 }
 .panel-figure figcaption { padding-top: 10px; font-size: 0.875rem; color: var(--ink-soft); }
@@ -885,3 +888,10 @@ tr:last-child td { border-bottom: 0; }
   .chain__tab[aria-selected="true"] { outline: 3px solid CanvasText; }
   .btn { border-color: ButtonText; }
 }
+
+/* Titles in the bold cut, as the screen draws its page names (PXF_5B: each dot doubled to the right). */
+.section__num,
+.menu__list a,
+.chain__tab,
+.card__body h3.px,
+.hero__kicker { font-weight: 700; }
