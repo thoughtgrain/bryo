@@ -85,10 +85,29 @@ static int32_t rs_gain(uint32_t p, uint32_t t60)
 }
 
 /* DEC 0..100 as a ring time, ms */
+/* TONE's damping, 32767 * (15 + 85 * TONE / 100) / 100 (the same arithmetic: two divides a block spared) */
+static const int16_t RS_TONE_A[101] = {
+    4915, 4915, 5242, 5570, 5898, 6225, 6553, 6553, 6881, 7208, 7536, 7864, 8191, 8519, 8519, 8847, 9174, 9502, 9830,
+    10157, 10485, 10485, 10813, 11140, 11468, 11796, 12123, 12123, 12451, 12779, 13106, 13434, 13762, 14089, 14089,
+    14417, 14745, 15072, 15400, 15728, 16055, 16055, 16383, 16711, 17038, 17366, 17694, 17694, 18021, 18349, 18677,
+    19004, 19332, 19660, 19660, 19987, 20315, 20643, 20970, 21298, 21626, 21626, 21953, 22281, 22609, 22936, 23264,
+    23264, 23592, 23919, 24247, 24575, 24902, 25230, 25230, 25558, 25885, 26213, 26541, 26868, 27196, 27196, 27524,
+    27851, 28179, 28507, 28834, 28834, 29162, 29490, 29817, 30145, 30473, 30800, 30800, 31128, 31456, 31783, 32111,
+    32439, 32767};
+
 static uint32_t rs_t60(int32_t dec)
 {
-    int32_t d = clamp(dec, 0, 100), i = d / 10, f = d % 10;
-    return i >= 10 ? RS_T60[10] : RS_T60[i] + (uint32_t)((RS_T60[i + 1] - RS_T60[i]) * f / 10);
+    static int32_t last = -1;                           /* (ISR only: the answer kept for the same DEC, three
+                                                         * divides a block spared while it holds) */
+    static uint32_t lastv;
+    int32_t d = clamp(dec, 0, 100), i, f;
+    if (d == last)
+        return lastv;
+    i = d / 10;
+    f = d % 10;
+    last = d;
+    lastv = i >= 10 ? RS_T60[10] : RS_T60[i] + (uint32_t)((RS_T60[i + 1] - RS_T60[i]) * f / 10);
+    return lastv;
 }
 
 /* pluck: one period of noise into each string's line, behind the write index (softened by TONE's filter) */
@@ -146,7 +165,7 @@ static void reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t keys, int pl
     reso_t *R = &reso[t];
     const int16_t *p = TPD(t, DEV_RESO);
     int32_t wet1 = clamp(p[RP_WET], 0, 100), wet0 = R->wet, e[CTL], acc_e[CTL], acc_o[CTL], heard = 0;
-    int32_t a = 32767 * (15 + 85 * clamp(p[RP_TONE], 0, 100) / 100) / 100, sc = clamp(p[RP_SCAL], 0, 3), root16;
+    int32_t a = RS_TONE_A[clamp(p[RP_TONE], 0, 100)], sc = clamp(p[RP_SCAL], 0, 3), root16;
     uint32_t k, i, press = keys & ~R->keys, nstr = R->nch < reso_cap ? R->nch : reso_cap, t60 = rs_t60(p[RP_DEC]);
     R->keys = keys;
     R->wet = wet1;
@@ -177,11 +196,11 @@ static void reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t keys, int pl
     if (!R->rs16 || R->root16 > 0)                      /* a key's root lands at once (a pluck is a new note); */
         R->rs16 = root16;                               /* PTCH, turned or modulated, glides: half the way a block */
     else
-        R->rs16 += (root16 - R->rs16) / 2;
+        R->rs16 += sdiv2(root16 - R->rs16, 1);
     root16 = R->rs16;
     {   /* what excites the strings: the track, mono, through the filter in front (when it does anything) */
         int32_t mode = clamp(p[RP_SLOP], 0, 2);
-        tsvf_t flt;
+        tsvf_t flt = {0};                                 /* (set when filt; zero keeps the compiler's warning off) */
         int32_t c8 = mod_fine8(t, FN_RCUT, p[RP_CUT]);   /* (CUT finer than its semitones when modulated: mod.c) */
         int filt = c8 < 127 << 8 || p[RP_RES] || mode;
         /* the input's share, by the root string's ring: less as the ring gets longer, so a long DEC rings louder but
@@ -189,7 +208,7 @@ static void reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t keys, int pl
         int32_t in = clamp((32768 - rs_gain(rs_period_q8(root16) >> 8, t60)) * 16, 4096, 16384);
         int32_t ic1 = R->ic1, ic2 = R->ic2;             /* (the filter's state in locals across the block) */
         if (filt)
-            tsvf_coef(&flt, c8, p[RP_RES] * 127 / 100);
+            tsvf_coef(&flt, c8, PCT_127[clamp(p[RP_RES], 0, 100)]);
         for (i = 0; i < n; i++) {
             int32_t x = (l[i] + r[i]) >> 1;
             heard |= x;
@@ -209,9 +228,11 @@ static void reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t keys, int pl
                                                          * half the CPU with nothing playing). A pluck or sound in
                                                          * wakes them, carrying on from their lines as they are */
         nstr = 0;
+    {
+    uint32_t comp = ((uint32_t)(32768 - a) << 8) / (uint32_t)a;   /* (the same for every string: once a block) */
     for (k = 0; k < nstr; k++) {                         /* each string: read a period back, damp, ring, write */
         int16_t *d = rs_line(R, k);
-        uint32_t pq8 = rs_period_q8(root16 + RS_PART16[sc][k]), comp = ((uint32_t)(32768 - a) << 8) / (uint32_t)a;
+        uint32_t pq8 = rs_period_q8(root16 + RS_PART16[sc][k]);
         uint32_t dq8 = pq8 > comp + 512u ? pq8 - comp : 512u, di = dq8 >> 8, df = dq8 & 255u, w = R->w;
         int32_t g = rs_gain(pq8 >> 8, t60), lp = R->lp[k], *acc = k & 1u ? acc_o : acc_e;
         uint32_t rd = w >= di ? w - di : w + RS_LEN - di, d0 = R->dq[k] ? R->dq[k] : dq8;
@@ -292,8 +313,11 @@ static void reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t keys, int pl
             R->lvl[k] = (uint16_t)(a > l0 ? (a > 65535u ? 65535u : a) : l0);
         }
     }
+    }
     if (nstr) {
-        R->w = (R->w + n) % RS_LEN;
+        R->w += n;                                       /* (w < RS_LEN, n a block: one wrap at most) */
+        if (R->w >= RS_LEN)
+            R->w -= RS_LEN;
         for (i = 0; i < n && !heard; i++)
             if (acc_e[i] > 2 || acc_e[i] < -2 || acc_o[i] > 2 || acc_o[i] < -2)
                 heard = 1;
@@ -308,10 +332,10 @@ static void reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t keys, int pl
     }
     {   /* WET: the strings against the track, ramped across the block (Q15: no division a sample). INS crossfades;
          * SEND keeps the track at full and adds the strings (ROUT: the track's share ramped when it's switched) */
-        int32_t w0 = wet0 * 32767 / 100, dw = ((wet1 - wet0) * 32767 / 100) >> CTL_LOG2;
-        int32_t d1 = p[RP_ROUT] ? 32767 : 32767 - wet1 * 32767 / 100, d0 = R->dry ? R->dry - 1 : d1;
+        int32_t w0 = PCT_Q15[wet0], dw = wet1 == wet0 ? 0 : ((wet1 - wet0) * 32767 / 100) >> CTL_LOG2;
+        int32_t d1 = p[RP_ROUT] ? 32767 : 32767 - PCT_Q15[wet1], d0 = R->dry ? R->dry - 1 : d1;
         R->dry = d1 + 1;
-        if (p[RP_ROUT] || d0 != 32767 - wet0 * 32767 / 100) {   /* a send, or switching: the two shares apart */
+        if (p[RP_ROUT] || d0 != 32767 - PCT_Q15[wet0]) {   /* a send, or switching: the two shares apart */
             int32_t dd = (d1 - d0) >> CTL_LOG2;
             for (i = 0; i < n; i++, w0 += dw, d0 += dd) {
                 int32_t wl = soft_knee(((acc_e[i] * 3) >> 2) + ((acc_o[i] * 3) >> 3), 24000);

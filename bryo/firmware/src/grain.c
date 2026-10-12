@@ -205,7 +205,7 @@ static inline int32_t gr_rate_gps(const int16_t *p)
 static uint32_t gr_need(const int16_t *p)
 {
     int32_t m = gr_rate_gps(p) * p[GP_SIZE] / 100000;
-    return (uint32_t)(m + m / 2 + 2);
+    return (uint32_t)(m + (m >> 1) + 2);               /* (m >= 0: the shift is the divide) */
 }
 
 /* track t's grains would be heard now, so it takes a share of the pool: GRAIN on (WET above 0), the track not muted,
@@ -748,7 +748,13 @@ static __attribute__((noinline)) uint32_t gr_body(grain_trk_t *G, const int16_t 
 static inline int32_t gr_cdist(int32_t a, int32_t b, int32_t len)
 {
     int32_t d = a - b;
-    d = len ? d % len : d;
+    if (len) {                                          /* (as d % len, sign kept, no divide: d is within a few
+                                                         * lengths of b, so a step or two) */
+        while (d >= len)
+            d -= len;
+        while (d <= -len)
+            d += len;
+    }
     d = d < 0 ? -d : d;
     return len && d > len - d ? len - d : d;
 }
@@ -809,7 +815,7 @@ static void grain_block(uint32_t t, const int32_t *dry, uint32_t keys, int froze
         G->rng = 0x2545F491 + (int32_t)t * 7919;
     grain_frozen = (uint8_t)frozen;
     {                                                   /* the dry share, centred: INS 1 - WET, SEND all of it */
-        int32_t d1 = p[GP_ROUT] ? 32767 : (100 - wet) * 32767 / 100, d0 = G->dset ? G->dsh : d1;
+        int32_t d1 = p[GP_ROUT] ? 32767 : PCT_Q15[100 - clamp(wet, 0, 100)], d0 = G->dset ? G->dsh : d1;
         G->dsh = d1;
         G->dset = 1;
         if (d0 != d1) {                                  /* (ROUT or WET moved: ramped, no click) */
@@ -956,8 +962,12 @@ static void grain_block(uint32_t t, const int32_t *dry, uint32_t keys, int froze
         seam = scan == SCAN_TAPE ? 0 : rec ? B->w - (int32_t)h2 - zh : B->w;
         busy = scan != SCAN_TAPE && B->staged ? (int32_t)B->sblk : -1;   /* (the block being written: its peak
                                                                           * isn't the sound's yet) */
-        if (len)
-            seam = (seam % len + len) % len;
+        if (len) {                                      /* (into [0, len): as (seam % len + len) % len, no divide) */
+            while (seam < 0)
+                seam += len;
+            while (seam >= len)
+                seam -= len;
+        }
         for (j = 0; j < 2u; j++)                        /* the track's own slots, lowest first (as the 40 were) */
         for (mw = gr_trk[t][j]; mw; mw &= mw - 1u) {
             grain_t *g;
@@ -976,7 +986,7 @@ static void grain_block(uint32_t t, const int32_t *dry, uint32_t keys, int froze
                 g->wver = B->cver;
             }
             m = (int32_t)(g->left < n ? g->left : n);
-            h = (m + 1) / 2;                            /* (half-rate samples: a grain ending mid-block rounds up) */
+            h = (m + 1) >> 1;                           /* (half-rate samples: a grain ending mid-block rounds up) */
             e0 = gr_env(g, g->len - g->left);           /* the window: its value at the block's ends, ramped */
             e1 = gr_env(g, g->len - g->left + (uint32_t)m);
             gl = g->gl;                                 /* (WET: on the mix, below) */
@@ -1018,7 +1028,8 @@ static void grain_block(uint32_t t, const int32_t *dry, uint32_t keys, int froze
         {                                               /* WET on the track's grains together, ramped across the block
                                                          * from last block's (no step when it's turned or modulated;
                                                          * turned to 0, they fade out over this block, then stop) */
-            int32_t w1 = wet * 32767 / 100, w0 = G->wetq, gw = w0, dw = (w1 - w0) / (int32_t)h2;
+            int32_t w1 = PCT_Q15[clamp(wet, 0, 100)], w0 = G->wetq, gw = w0;
+            int32_t dw = h2 == 16u ? sdiv2(w1 - w0, 4) : (w1 - w0) / (int32_t)h2;   /* (a block's half: 16) */
             if (any && (w0 != 32767 || w1 != 32767))
                 for (k = 0; k < h2; k++) {
                     gw += dw;

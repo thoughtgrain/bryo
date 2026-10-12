@@ -23,6 +23,11 @@ typedef struct {
     uint8_t key, stage;          /* 0 silent, 1 attack, 2 decay and sustain, 3 release */
     uint8_t note;                /* the key's note at its octave when it went down (TUNE is added as it plays) */
     uint8_t endf;                /* END passed: blocks of its fade left (POL_ENDF..1; 0: not ending) */
+    int32_t tn16, fcut;          /* what inc and flt were last worked out from (a divide each, a block, a voice:
+                                  * only when they move; tok, fok: worked out at all) */
+    int16_t tfine, fres;
+    uint8_t tok, fok;
+    tsvf_t flt;                  /* the filter's coefficients for fcut and fres */
 } pol_voice_t;
 #define POL_ENDF 6u              /* END's fade, blocks (4.4 ms: one block, 0.7 ms, stepped when END was modulated) */
 
@@ -34,16 +39,35 @@ typedef struct {
 static pol_t pol[NTRK];
 static tape_rd_t pol_rd[NTRK][POL_NV] __attribute__((section(".pool")));   /* each voice's block (8 KB in all) */
 
-/* the head's step for a voice's note on track t, Q12 tape samples per output sample: 0.5 at the sound's own pitch
+/* the head's step for voice v's note on track t, Q12 tape samples per output sample: 0.5 at the sound's own pitch
  * (its ROOT's key, FINE cents off). TUNE is added here, every block, so a modulated TUNE moves a held note too, to
- * 1/16 semitone (mod.c); FINE to the cent (cents_inc) */
-static int32_t pol_inc(uint32_t t, uint32_t note)
+ * 1/16 semitone (mod.c); FINE to the cent (cents_inc). The divide runs only when the pitch or FINE moved */
+static void pol_tune(uint32_t t, pol_voice_t *v)
 {
     const int16_t *p = TPD(t, MA_POL);
-    int32_t n16 = clamp(((int32_t)note + 48 - p[PL_ROOT]) * 16 + mod_pitch16(t, FN_POL, p[PL_TUNE]), 0, 127 * 16);
-    uint32_t inc = p[PL_FINE] ? cents_inc(n16, p[PL_FINE], 0) : pitch_inc((uint32_t)n16);   /* (cents_inc's divides
-                                                                                          * only when FINE is off 0) */
-    return (int32_t)(inc / (pitch_inc(48u * 16u) >> 11));   /* (C3 here: the sound's own) */
+    int32_t n16 = clamp(((int32_t)v->note + 48 - p[PL_ROOT]) * 16 + mod_pitch16(t, FN_POL, p[PL_TUNE]), 0, 127 * 16);
+    if (v->tok && n16 == v->tn16 && p[PL_FINE] == v->tfine)
+        return;
+    {
+        uint32_t inc = p[PL_FINE] ? cents_inc(n16, p[PL_FINE], 0) : pitch_inc((uint32_t)n16);   /* (cents_inc's
+                                                                                   * divides only when FINE is off 0) */
+        v->inc = (int32_t)(inc / (pitch_inc(48u * 16u) >> 11));   /* (C3 here: the sound's own) */
+    }
+    v->tn16 = n16;
+    v->tfine = p[PL_FINE];
+    v->tok = 1;
+}
+
+/* the voice's filter for a cutoff and RES: tsvf_coef's divides only when they moved */
+static void pol_filter(uint32_t t, pol_voice_t *v, int32_t cut)
+{
+    int16_t res = TPD(t, MA_POL)[PL_RES];
+    if (v->fok && cut == v->fcut && res == v->fres)
+        return;
+    tsvf_coef(&v->flt, cut, PCT_127[clamp(res, 0, 100)]);
+    v->fcut = cut;
+    v->fres = res;
+    v->fok = 1;
 }
 
 /* where a note stops in a sound len samples long: END, never past the sound. Audio ISR only (the screen calls
@@ -92,7 +116,8 @@ static void pol_start(uint32_t t, uint32_t k, uint32_t nv, uint32_t len)
     }
     v->pos = pct100_of(len, TPD(t, MA_POL)[PL_STRT]) << 12;
     v->note = (uint8_t)key_snap(clamp((int32_t)key_base[t] + (int32_t)k, 0, 127));   /* (the project's scale) */
-    v->inc = pol_inc(t, v->note);
+    v->tok = 0;
+    pol_tune(t, v);
     v->key = (uint8_t)k;
     v->stage = 1;
     v->endf = 0;
@@ -103,7 +128,6 @@ static void pol_start(uint32_t t, uint32_t k, uint32_t nv, uint32_t len)
 static void pol_voice(uint32_t t, pol_voice_t *v, tape_rd_t *rd, const tape_view_t *vw, int32_t *out, uint32_t n)
 {
     const int16_t *p = TPD(t, MA_POL);
-    tsvf_t flt;
     uint32_t i, mode = (uint32_t)clamp(p[PL_TYPE], 0, 2);
     int32_t a0 = v->amp, a1, e15, pos = v->pos, ic1 = v->ic1, ic2 = v->ic2, c8;
     switch (v->stage) {                                     /* the envelope, a step per block (as SYNTH's) */
@@ -130,7 +154,7 @@ static void pol_voice(uint32_t t, pol_voice_t *v, tape_rd_t *rd, const tape_view
     }
     e15 = v->env >> 9;
     a1 = e15;
-    v->inc = pol_inc(t, v->note);                           /* (TUNE as it is now) */
+    pol_tune(t, v);                                         /* (TUNE as it is now) */
     if (!v->endf && (uint32_t)((pos + v->inc * (int32_t)n) >> 12) >= pol_end(t, vw->len))
         v->endf = POL_ENDF;                                 /* END passed: a short fade from here, then done */
     if (v->endf) {                                          /* (reading on a little past END: the sound's end itself
@@ -143,7 +167,7 @@ static void pol_voice(uint32_t t, pol_voice_t *v, tape_rd_t *rd, const tape_view
         }
     }
     c8 = mod_fine8(t, FN_PCUT, p[PL_CUT]);                  /* (CUT finer than its semitones when modulated: mod.c) */
-    tsvf_coef(&flt, c8 + p[PL_ENV] * 96 * (e15 >> 7) / 100, p[PL_RES] * 127 / 100);
+    pol_filter(t, v, c8 + (p[PL_ENV] ? p[PL_ENV] * 96 * (e15 >> 7) / 100 : 0));   /* (ENV 0: no divide) */
     {
         int filt = mode || c8 < 127 << 8 || p[PL_RES] || p[PL_ENV];   /* (decided once a block, not a sample) */
         int32_t base = tape_run(vw, rd, pos, v->inc, n), da = a1 - a0, y;
@@ -153,14 +177,14 @@ static void pol_voice(uint32_t t, pol_voice_t *v, tape_rd_t *rd, const tape_view
                 int32_t o = (pos >> 12) - base, a = rd->s[o], b = rd->s[o + 1];
                 int32_t x = a + (((b - a) * (pos & 4095)) >> 12);
                 pos += v->inc;
-                y = filt ? tsvf_mode(&flt, x >> 1, &ic1, &ic2, mode) << 1 : x;
+                y = filt ? tsvf_mode(&v->flt, x >> 1, &ic1, &ic2, mode) << 1 : x;
                 out[i] += mulq15(y, a0 + ((da * (int32_t)i) >> CTL_LOG2));
             }
         } else {
             for (i = 0; i < n; i++) {
                 int32_t x = tape_read(vw, rd, pos);
                 pos += v->inc;
-                y = filt ? tsvf_mode(&flt, x >> 1, &ic1, &ic2, mode) << 1 : x;
+                y = filt ? tsvf_mode(&v->flt, x >> 1, &ic1, &ic2, mode) << 1 : x;
                 out[i] += mulq15(y, a0 + ((da * (int32_t)i) >> CTL_LOG2));
             }
         }

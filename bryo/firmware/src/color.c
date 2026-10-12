@@ -66,8 +66,7 @@ static void color_block(uint32_t t, int32_t *l, int32_t *r, uint32_t n)
     const int16_t *v = TPD(t, DEV_COLOR);
     int32_t g8 = v[CP_DRIV] > 0 ? col_g8(v[CP_DRIV]) : 256, tilt = v[CP_TILT], nois = v[CP_NOIS];
     int32_t w0 = C->wet, w1 = clamp(v[CP_WET], 0, 100) * 4096 / 100, v0 = C->lvl, v1 = db_q10(v[CP_LVL]);
-    int32_t gl = 4096, gh = 4096, ng = nois * 32767 / 100, ak = (8 + (v[CP_NTON] + 100) * 75 / 200) * 128 / 100;
-    int32_t ts = (int32_t)TIME_MS_X10[v[CP_NDEC] & 127] * 441 / 100, dk;
+    int32_t gl = 4096, gh = 4096, ng = PCT_Q15[clamp(nois, 0, 100)], ak, ts, dk;   /* (ak ts dk: past the returns) */
     uint32_t sh = col_bits_off(v), hold = col_hold(v), i;
     int colours = g8 > 256 || sh || hold > 1u || nois || tilt;
     if (!C->rng)
@@ -123,6 +122,8 @@ static void color_block(uint32_t t, int32_t *l, int32_t *r, uint32_t n)
         gl = 4096 * (100 - tilt) / 100;
         gh = 4096 * 100 / (100 - tilt);
     }
+    ak = (8 + (v[CP_NTON] + 100) * 75 / 200) * 128 / 100;
+    ts = (int32_t)TIME_MS_X10[v[CP_NDEC] & 127] * 441 / 100;
     if (ts < 8)
         ts = 8;
     dk = 452198 / ts;                                   /* NDEC: falls 60 dB over it (6.9 / samples, Q16) */

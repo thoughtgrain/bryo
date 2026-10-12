@@ -369,7 +369,7 @@ static int32_t tape_inc(uint32_t t)
     int32_t inc = 2048 * k[TK_SPD] / 100;
     if (k[TK_REV])
         inc = -inc;
-    return k[TK_HALF] ? inc / 2 : inc;
+    return k[TK_HALF] ? sdiv2(inc, 1) : inc;
 }
 
 /* sample i of the view through reader r (silence outside it) */
@@ -534,7 +534,7 @@ static int32_t tape_env_step(int32_t v)
  * runs as it is (TE_IDLE: unity) */
 static int32_t tape_env(tape_rt_t *rt, const int16_t *p, uint32_t keys, uint32_t playing)
 {
-    int32_t sus = clamp(p[TK_SUS], 0, 100) * 32767 / 100;
+    int32_t sus = PCT_Q15[clamp(p[TK_SUS], 0, 100)];
     int gate = (int)((keys >> rt->ekey) & 1u);
     switch (rt->est) {
     case TE_JUMP:
@@ -629,7 +629,7 @@ static void tape_block(uint32_t t, uint32_t keys, const int32_t *rec_in, int32_t
     } else {
         wlen = (int32_t)v.len;
         tape_window(t, v.len ? v.len : TAPE_LEN, &ls, &ll);
-        int32_t hp = rt->pos >> 12, tol = ll / 16;     /* (a head just short of the window's start, as STRT moves
+        int32_t hp = rt->pos >> 12, tol = ll >> 4;      /* (a head just short of the window's start, as STRT moves
                                                          * past it, plays on into it: no jump; backwards, past its
                                                          * end the same) */
         if (v.len && rt->running && (inc >= 0 ? hp < ls - tol || hp >= ls + ll : hp < ls || hp >= ls + ll + tol)) {
@@ -653,7 +653,8 @@ static void tape_block(uint32_t t, uint32_t keys, const int32_t *rec_in, int32_t
     }
     rt->keys_prev = keys;
     tape_dub(grow ? -100 : TPD(t, DEV_SRC)[TK_DUB], &keep, &inl);   /* (a blank tape: nothing to keep) */
-    gain = gain * inl / 100;
+    if (inl != 100)
+        gain = gain * inl / 100;
     if (!inl)
         rec = 0;                                       /* DUB +100: nothing comes in, so nothing is re-encoded */
     if (playing != rt->was_playing) {                  /* the transport: all heads from the loop's start (ROTATE's) */

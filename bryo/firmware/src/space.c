@@ -411,10 +411,9 @@ static void space_block(uint32_t t, int32_t *l, int32_t *r, uint32_t n, int32_t 
     uint8_t *db[SP_LMAX];
     room_t *R = &room[clamp(v[SP_ROOM], 0, 1)];
     int32_t tone = v[SP_TONE], sprd = clamp(v[SP_SPRD], 0, 100), gd1, gv1, gd0 = S->gd, gv0 = S->gv;
-    int32_t kl = 32767, kh = 0, fbg = clamp(v[SP_FDBK], 0, 100) * 32112 / 100;
+    int32_t kl = 32767, kh = 0, fbg, off;               /* (worked out past the "nothing on" return: two divides) */
     int32_t tgt = v[SP_SYNC] ? sp_sync_q8(v[SP_TIME])   /* (SYNC: the tempo's division) */
                              : clamp(v[SP_TIME], 10, 370) * 5645;   /* ms -> Q8 samples at 22.05 kHz (22.05 x 256) */
-    int32_t off = sprd * 220 * 256 / 100;
     uint32_t i, dl = 0, h = n / 2u;
     int dlb = 0;
     if (S->dly.ready) {
@@ -432,13 +431,15 @@ static void space_block(uint32_t t, int32_t *l, int32_t *r, uint32_t n, int32_t 
     } else
         S->dlive = 0;
     gd1 = S->dlive ? clamp(v[SP_DLY], 0, 100) * 26214 / 100 : 0;   /* DLY 100: the first echo at 0.8 */
-    gv1 = R->rev.ready && R->pre.ready ? (clamp(v[SP_VERB], 0, 100) * 32767 / 100) * clamp(lvl, 0, 4096) >> 12 : 0;
+    gv1 = R->rev.ready && R->pre.ready ? PCT_Q15[clamp(v[SP_VERB], 0, 100)] * clamp(lvl, 0, 4096) >> 12 : 0;
     S->gd = gd1;
     S->gv = gv1;
     if (!gd0 && !gd1 && !gv0 && !gv1) {                 /* nothing on (or nothing yet) */
         S->pl = S->pr = 0;
         return;
     }
+    fbg = clamp(v[SP_FDBK], 0, 100) * 32112 / 100;
+    off = sprd * 220 * 256 / 100;
     if (tone < 0)                                       /* - : a low-pass in the feedback */
         kl = 32767 + tone * 287;                        /* (to 0.12 at -100: ~430 Hz) */
     else if (tone > 0)                                  /* + : a high-pass in the feedback */
