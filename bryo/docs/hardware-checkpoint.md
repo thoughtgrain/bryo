@@ -216,6 +216,11 @@ rounding with a shift and a mask, bit for bit, and the scene has 7.8 a sample le
 the grains' block lookups; the grains' block index too, 1.4 to 1.2). At the 20-plus cycles a hardware divide costs, 10 a sample is on the order of 5 to 8 %
 of the FM-1, which is the size of what you heard. The I-cache finding above still stands as the other part.
 
+**The performance pass, 2026-10-12 (docs/performance-plan.md):** nine host-visible items and two sweeps of
+hardware divides, every one bit-identical (the audio fingerprints, `checkpoint_sim fp`, hold on all 31 runs). The
+scene by the simulator with the attributes kept: 3,384 to 2,917 host instructions a sample, 7.5 to 1.9 hardware
+divides. The suite's load tables below are the host harness's count, without the inlining, so they move less.
+
 ## What I'll do with the numbers
 
 - **Run 3 under about 70 %:** GRAIN fits as it is; then run 15 decides the rest (below).

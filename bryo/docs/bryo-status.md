@@ -235,6 +235,19 @@ number.
   four), split by what each track's settings ask for when it runs short; what's left over is everyone's (since
   2026-10-11: a track alone has all 40, not just what RATE and SIZE ask). GRAIN 6's GRNS can hold a number for a
   track instead (1-40, taken from the AUTO tracks first, kept whatever the others do).
+- **2026-10-12: the performance pass, with the sound bit for bit the same.** The scene had gone from 65-70 % to
+  80 % on the FM-1 and the host count hadn't moved: the target does every `/` and `%` in hardware, even by a
+  constant, even by a power of two for a signed value, and the shared rooms had put four of those in the combs'
+  inner loop. So first a guard: `checkpoint_sim fp` hashes every output sample of every run (and the factory scene,
+  run 31) and the suite compares them with `tests/bryo_audio.txt`; a change in any run's sound is deliberate or it
+  fails. Then the pass (docs/performance-plan.md): the ADPCM step inlined and branchless, POLY reading its block in
+  a run with the SVF inlined, the chain's buffers assigned instead of zeroed then added, the modulators' copy four at
+  a time, the strings in wrap-free runs, a slot mask per track for the grains, the drums adding themselves into the
+  mix; then the hardware divides, two sweeps: tables for the knob maths that never moves (PCT_Q15, DB_Q10, PCT_127,
+  RS_TONE_A), guards where a knob is at its identity, shifts where every divisor is a power of two, caches per
+  voice. The scene by the simulator with the attributes kept: 3,384 to 2,917 host instructions a sample (13.8 %),
+  7.5 to 1.9 hardware divides. Every fingerprint held through all nine commits; two items were dropped for not
+  being identical and are listed in the plan. The device's reading of this build is the next number.
 - **2026-10-12: tuning and a key, for SYNTH and POLY only.** TAPE's pitch stays its speed. KEY and SCAL are the
   project's (one for every track, the mixer's KEY page), and a note outside the scale snaps to the nearest one in it
   rather than the keys skipping to scale notes, so the keyboard stays a piano. POLY's ROOT replaced setting TUNE to 48

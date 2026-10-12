@@ -87,6 +87,30 @@ its input filter set, filtering silence while it rests.
 2. The target type check, and `sh tests/mod_audit.sh`: 0 targets stepping.
 3. The simulator's count of hardware divides a sample and `checkpoint_sim.sh`'s load tables.
 
+## Where it stands (2026-10-12, the same day)
+
+Tier A and Tier B are in, each step a commit, each checked the same way: every audio fingerprint unchanged, every
+screen unchanged, the modulation audit at 0, the target type check clean. The factory scene, measured by the
+simulator with the firmware's attributes kept (the host harness defines `__attribute__` away, so the suite's own
+load tables don't see the inlining; `always_inline` is what the target compiles):
+
+| Step | Host instr/sample | Hardware divides/sample |
+| --- | ---: | ---: |
+| before A1 (`51aa4ac`'s parent chain, the shift forms in) | 3,384 | 7.5 |
+| A1 the decoder | 3,265 | 7.5 |
+| A2, A3 POLY's block run, the SVF inlined | 3,095 | 7.5 |
+| A4, A5 the chain's buffers, the modulators' copy | 3,024 | 7.5 |
+| A6-A9 the strings, the grain slots, the drums | 2,930 | 6.5 |
+| B1 the modulators' divides, the tables | 2,919 | 3.7 |
+| B2 the engines' divides | 2,917 | 1.9 |
+
+13.8 % fewer instructions and 5.6 fewer hardware divides a sample (at 20-odd cycles each, another 3 % or so of the
+FM-1 by run 1's scale), the sound bit for bit the same. Two things I decided not to do on the way, because they
+weren't identical: skipping `rt->last` when nothing listens (a FOLLOW's first block after it's assigned would see
+stale input) and skipping the buffer's block decode at FDBK 0 (a block the head leaves early keeps its old content,
+and that's stored data). The device's reading of this build is the number that matters next; the simulator says
+the I-cache misses didn't move (31-33 a sample at 16 KB), so the layout question stands as it was.
+
 ## Order
 
 A1-A3 first (the sources are the biggest third), then A4-A5 and the whole of Tier B as one pass (the same three tools
