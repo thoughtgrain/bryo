@@ -41,13 +41,29 @@ static int32_t pol_inc(uint32_t t, uint32_t note)
 {
     const int16_t *p = TPD(t, MA_POL);
     int32_t n16 = clamp(((int32_t)note + 48 - p[PL_ROOT]) * 16 + mod_pitch16(t, FN_POL, p[PL_TUNE]), 0, 127 * 16);
-    return (int32_t)(cents_inc(n16, p[PL_FINE], 0) / (pitch_inc(48u * 16u) >> 11));   /* (C3 here: the sound's own) */
+    uint32_t inc = p[PL_FINE] ? cents_inc(n16, p[PL_FINE], 0) : pitch_inc((uint32_t)n16);   /* (cents_inc's divides
+                                                                                          * only when FINE is off 0) */
+    return (int32_t)(inc / (pitch_inc(48u * 16u) >> 11));   /* (C3 here: the sound's own) */
 }
 
-/* where a note stops in a sound len samples long: END, never past the sound */
+/* where a note stops in a sound len samples long: END, never past the sound. Audio ISR only (the screen calls
+ * pct100_of): each voice asks every block, so the answer is kept per track (pct100_of's three divides are hardware
+ * divides on the target: only when len or END moved) */
+static struct {
+    uint32_t len, end;
+    int16_t knob;
+} pol_endc[NTRK];
+
 static uint32_t pol_end(uint32_t t, uint32_t len)
 {
-    return (uint32_t)pct100_of(len, TPD(t, MA_POL)[PL_END]);
+    int16_t k = TPD(t, MA_POL)[PL_END];
+    t %= NTRK;
+    if (pol_endc[t].len != len || pol_endc[t].knob != k || !len) {
+        pol_endc[t].len = len;
+        pol_endc[t].knob = k;
+        pol_endc[t].end = (uint32_t)pct100_of(len, k);
+    }
+    return pol_endc[t].end;
 }
 
 static void pol_start(uint32_t t, uint32_t k, uint32_t nv, uint32_t len)

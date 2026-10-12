@@ -61,6 +61,9 @@ static void setup(uint32_t g)
     sys.keys_live = 1;
     sys.black_short = 1;
     sys.sel = 0;
+    keyp[KY_SCAL] = 0;                               /* (every key its own note, POLY's sound at C3: the setup the */
+    tp[0].pol[PL_ROOT] = 48;                         /* .. measures were made on; A MIN merges keys, ROOT A3 moves the
+                                                      * held note, and both read as steps that aren't modulation's) */
     tp[0].dev[DEV_SRC][TK_REEL] = 2;                 /* KEYS: tonal and rhythmic */
     tp[0].src = a == MA_SYN ? SRC_SYNTH : a == MA_POL ? SRC_POLY : a == MA_DRM || a >= MA_DIN0 ? SRC_DRUM : SRC_TAPE;
     if (a == MA_DRM && k != DM_SEED)                 /* (a version for VARY, FILL and EVOL to act on) */

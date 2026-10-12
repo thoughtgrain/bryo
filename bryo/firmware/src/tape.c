@@ -278,7 +278,7 @@ static int32_t pct100_of(uint32_t len, int32_t v)
 /* the loop window in samples: from STRT, LEN long, both in % of what the track plays; past the tape's end it's
  * trimmed there (so STRT always cuts the start away: before 2026-10-11 the window slid back instead, and at LEN
  * 100 STRT did nothing), at least one block long */
-static void tape_window(uint32_t t, uint32_t len, int32_t *ls, int32_t *ll)
+static void tape_window_of(uint32_t t, uint32_t len, int32_t *ls, int32_t *ll)
 {
     const int16_t *k = TPD(t, DEV_SRC);
     int32_t s = pct100_of(len, k[TK_STRT]), l = pct100_of(len, k[TK_LEN]);
@@ -290,6 +290,28 @@ static void tape_window(uint32_t t, uint32_t len, int32_t *ls, int32_t *ll)
         s = (int32_t)len - l;
     *ls = s < 0 ? 0 : s;
     *ll = l > (int32_t)len ? (int32_t)len : l;
+}
+
+/* audio ISR only (the screen calls tape_window_of): the same, its last answer kept per track. TAPE and GRAIN ask
+ * every block, and pct100_of's six divides are hardware divides on the target: only when len, STRT or LEN moved */
+static struct {
+    uint32_t len;
+    int16_t strt, lnk;
+    int32_t ls, ll;
+} tape_win[NTRK];
+
+static void tape_window(uint32_t t, uint32_t len, int32_t *ls, int32_t *ll)
+{
+    const int16_t *k = TPD(t, DEV_SRC);
+    t %= NTRK;
+    if (tape_win[t].len != len || tape_win[t].strt != k[TK_STRT] || tape_win[t].lnk != k[TK_LEN] || !len) {
+        tape_window_of(t, len, &tape_win[t].ls, &tape_win[t].ll);
+        tape_win[t].len = len;
+        tape_win[t].strt = k[TK_STRT];
+        tape_win[t].lnk = k[TK_LEN];
+    }
+    *ls = tape_win[t].ls;
+    *ll = tape_win[t].ll;
 }
 
 /* SYNC's bars (0: off): OFF 1 2 4 8 16 */

@@ -150,7 +150,7 @@ static void viz_tape(const int16_t *v, uint32_t f)
         int32_t ls, ll;
         tape_view(sys.sel, &tv);
         if (tv.len) {
-            tape_window(sys.sel, tv.len, &ls, &ll);
+            tape_window_of(sys.sel, tv.len, &ls, &ll);
             vz_zoom(&tv, f == TK_STRT ? ls : ls + ll, f == TK_STRT, f == TK_STRT ? "IN" : "OUT");
             return;
         }
@@ -298,7 +298,7 @@ static void viz_grain(const int16_t *v, uint32_t f)
             px_text_c(0, 120, 16, PXF_3, "NOTHING ON THE TAPE", px_dim);
             return;
         }
-        tape_window(sys.sel, tv.len, &ls, &ll);
+        tape_window_of(sys.sel, tv.len, &ls, &ll);
     }
     cur = G->cur >> 12;
     reach = ll * v[GP_SPRY] / 200;                                     /* SPRY: samples either way */
@@ -1074,7 +1074,7 @@ static void viz_poly(const int16_t *v, uint32_t f)
         tape_view_t vw;
         tape_view_of(sys.sel, (uint32_t)clamp(v[PL_REEL], 0, (int32_t)(NREEL + USLOT_N)), &vw);
         if (vw.len) {
-            int32_t e = f == PL_STRT ? pct100_of(vw.len, v[PL_STRT]) : (int32_t)pol_end(sys.sel, vw.len);
+            int32_t e = pct100_of(vw.len, f == PL_STRT ? v[PL_STRT] : v[PL_END]);
             vz_zoom(&vw, e, f == PL_STRT, f == PL_STRT ? "STRT" : "END");
             return;
         }

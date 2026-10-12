@@ -190,6 +190,20 @@ under callgrind: row 31) it was 2,886 after the fixes, 3,046 (81 %) before the r
 part (about 620 a sample: three rooms and two delays). With the two shared rooms, both at QUAL LO in the scene, it's
 2,821, 75 %. Run sheet row 31 asks for the device's number.
 
+**The factory scene, 2026-10-12:** on the FM-1 it went from a comfortable 65-70 % to about 80 % over the last few
+updates. The host doesn't see it: measured the same way at every commit since the shared rooms (5 s of the scene
+after a second's warm-up, under callgrind), it's flat, 3,088 at the rooms (`cb9fb69`) and 3,095 at `a96691f`, and
+3,304 before the rooms. So whatever moved is something the host can't count. What I found and fixed: divides the
+target does in hardware where x86 multiplies. None was per sample; they were per block, but there were more of them:
+POLY's END in hundredths (three divides where the percent took one) asked by every voice every block, POLY's FINE
+through `cents_inc` (two more) even at 0, and the loop window (six) asked by TAPE and by GRAIN every block. Now END
+and the window are kept per track and worked out only when their inputs move, and `cents_inc` runs only with FINE
+off 0. That's roughly 30 to 45 divides a block in the scene, about 1 to 2 % by run 1's scale: not the whole of it.
+The rest I can't measure from here. Code and constants run from flash through the cache (`app.ld`: `.text` and
+`.rodata` in XIP), so a build that moves the hot loops can cost cache misses the host never sees. The way to find it
+is on the device: the scene's CPU on `cb9fb69` (the rooms), `631ab95` (SYNC) and this build tells which update it
+was, and whether it's code or layout.
+
 ## What I'll do with the numbers
 
 - **Run 3 under about 70 %:** GRAIN fits as it is; then run 15 decides the rest (below).
