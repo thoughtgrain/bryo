@@ -16,3 +16,10 @@ Where it stands: phases 1 to 9 of 10 are built, and since 2026-10-10 it runs on 
 [bryo/docs/bryo-status.md](bryo/docs/bryo-status.md) for the state, the file map, how to build and test, the
 decisions and what's open, and [bryo/docs/bryo-architecture.md](bryo/docs/bryo-architecture.md) for each part as
 built. To play it: [the manual](bryo/docs/manual/README.md).
+
+## site/
+
+[site/](site/) is Bryo's website, in plain HTML, CSS and JavaScript with no build step: a landing page and a short
+guide that links into the manual. A workflow (`.github/workflows/pages.yml`) publishes it to the `gh-pages` branch
+on every push to the default branch that touches it. How it's put together, how to run it locally and the one Pages setting it
+needs are in [site/README.md](site/README.md).
