@@ -28,6 +28,7 @@
  * published whole (mod.c). */
 
 #define PJ_N 6u                      /* project slots */
+#define PJ_TEST (PJ_N + 1u)          /* the project view past FACTORY (PJ_N): TEST, the scene to read the load on */
 #define PJ_MAGIC 0x50595242u         /* "BRYP" */
 #define PJ_VERSION 10u               /* one format: a project of another version reads as one this Bryo can't
                                          * (nothing older is kept up with: projects started with this one) */
@@ -81,6 +82,7 @@ static pj_sum_t pj_sum[PJ_N];
 static uint8_t pj_cur;               /* the project loaded or saved last (SAVE tapped saves into it); PJ_N: the
                                       * FACTORY scene, loaded from the project view and not saved anywhere yet */
 static void tpf_scene(void);         /* tpfactory.c: the factory scene, on the defaults */
+static void tpf_test(void);          /* tpfactory.c: TEST, after the scene */
 static uint32_t pj_hash_at;          /* the state's fingerprint when it was loaded or saved: changed since? */
 static uint32_t pj_seq;              /* the newest seq of all (a save takes the next) */
 
@@ -858,6 +860,16 @@ static void pj_factory(void)
     param_defaults();                                    /* (the reels back on the tracks, the rhythm) */
     tpf_scene();
     pj_cur = PJ_N;
+    pj_hash_at = pj_hash();
+}
+
+/* main loop: the TEST scene loaded (the project view, past FACTORY): FACTORY with every stage of the chain at work
+ * (tpfactory.c tpf_test), for reading the load (SETUP) and comparing one build with the next. Not saved anywhere */
+static void pj_test(void)
+{
+    pj_factory();
+    tpf_test();
+    pj_cur = PJ_TEST;
     pj_hash_at = pj_hash();
 }
 

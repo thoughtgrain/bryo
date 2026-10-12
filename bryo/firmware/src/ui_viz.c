@@ -1523,8 +1523,34 @@ static void viz_setup(void)
                                       "KNOBS: FAST TURNS GO FURTHER"};
     px_text_c(0, 120, 3, PXF_3, sys.keys_notes ? "BLACK KEYS PLAY NOTES: F TO G" : "BLACK KEYS: THE SHORTCUTS", px_ink);
     px_text_c(0, 120, 11, PXF_3, KN[(bryo_prefs >> 1) & 3u], px_ink);
-    px_text_c(0, 120, 19, PXF_3, "HOLD: HOW LONG A PAD IS HELD", px_dim);
-    px_text_c(0, 120, 27, PXF_3, "GLO HELD + OCT+: BLACK KEYS", px_dim);
+    {                                                   /* the load by stage (chain.c ld_pm, in %), and the loop
+                                                         * speeds from RAM and flash (main.c ld_probe) */
+        static const char *const L1[5] = {"SRC ", " GRN ", " RES ", " COL ", " SPC "};
+        static const char *const L2[3] = {"PRE ", " ROOM ", " MST "};
+        static const uint8_t S1[5] = {LD_SRC, LD_GRN, LD_RES, LD_COL, LD_SPC}, S2[3] = {LD_PRE, LD_ROOM, LD_MST};
+        char b[48], v[12];
+        uint32_t k;
+        b[0] = 0;
+        for (k = 0; k < 5u; k++) {
+            str_cpy(b + str_len(b), L1[k], (unsigned)(sizeof b - str_len(b)));
+            fmt_int(v, (int32_t)((ld_pm[S1[k]] + 5u) / 10u));
+            str_cpy(b + str_len(b), v, (unsigned)(sizeof b - str_len(b)));
+        }
+        px_text_c(0, 120, 19, PXF_3, b, px_dim);
+        b[0] = 0;
+        for (k = 0; k < 3u; k++) {
+            str_cpy(b + str_len(b), L2[k], (unsigned)(sizeof b - str_len(b)));
+            fmt_int(v, (int32_t)((ld_pm[S2[k]] + 5u) / 10u));
+            str_cpy(b + str_len(b), v, (unsigned)(sizeof b - str_len(b)));
+        }
+        str_cpy(b + str_len(b), "  R/F ", (unsigned)(sizeof b - str_len(b)));
+        fmt_int(v, (int32_t)ld_ram);
+        str_cpy(b + str_len(b), v, (unsigned)(sizeof b - str_len(b)));
+        str_cpy(b + str_len(b), "/", (unsigned)(sizeof b - str_len(b)));
+        fmt_int(v, (int32_t)ld_xip);
+        str_cpy(b + str_len(b), v, (unsigned)(sizeof b - str_len(b)));
+        px_text_c(0, 120, 27, PXF_3, b, px_dim);
+    }
 }
 
 /* KEY, the mixer's page: an octave, C to B, the scale's notes solid and the rest hollow (a key there plays the
@@ -2084,11 +2110,12 @@ static void viz_project_strip(void)
     }
     char n[4] = {'P', (char)('1' + ui.pj_sel % PJ_N), 0, 0}, b[16];
     uint32_t t;
-    if (ui.pj_sel >= PJ_N) {                                           /* FACTORY: the scene Bryo starts with */
-        px_text_big(2, 3, 3, "F", px_ink);
-        px_text(30, 3, PXF_5B, "FACTORY", px_ink);
-        px_text(30, 13, PXF_5, "EVOLVING SCENE", px_ink);
-        px_tag(30, 22, PXF_3, ui.pj_ask == PJ_ASK_LOAD ? "OCT+ AGAIN: LOAD" : pj_cur >= PJ_N ? "LOADED" : "OCT+ LOADS IT",
+    if (ui.pj_sel >= PJ_N) {                                           /* FACTORY: the scene Bryo starts with; TEST */
+        int test = ui.pj_sel == PJ_TEST;
+        px_text_big(2, 3, 3, test ? "T" : "F", px_ink);
+        px_text(30, 3, PXF_5B, test ? "TEST" : "FACTORY", px_ink);
+        px_text(30, 13, PXF_5, test ? "EVERY STAGE ON" : "EVOLVING SCENE", px_ink);
+        px_tag(30, 22, PXF_3, ui.pj_ask == PJ_ASK_LOAD ? "OCT+ AGAIN: LOAD" : pj_cur == ui.pj_sel ? "LOADED" : "OCT+ LOADS IT",
                px_ink, px_bg);
         for (t = 0; t < NTRK; t++) {
             int32_t x = 30 * (int32_t)t;
@@ -2132,6 +2159,13 @@ static void viz_project(void)
     }
     if (ui.pj_page) {
         viz_tpr();
+        return;
+    }
+    if (ui.pj_sel == PJ_TEST) {                                        /* TEST, past FACTORY: what it's for */
+        px_text_c(0, 120, 3, PXF_3, "FACTORY, EVERY STAGE AT WORK:", px_ink);
+        px_text_c(0, 120, 11, PXF_3, "READ THE LOAD ON SETUP", px_ink);
+        px_text_c(0, 120, 19, PXF_3, "(GLO, EDIT TO SETUP)", px_ink);
+        px_text_c(0, 120, 31, PXF_3, "YOUR PROJECTS STAY", px_dim);
         return;
     }
     if (ui.pj_sel >= PJ_N) {                                           /* FACTORY, past P6: what it is */
@@ -2360,7 +2394,12 @@ static uint32_t viz_sig(void)
         if (ui.chan == CHAN_KEY)                                       /* the key and scale */
             return h + 0x6E1u + (uint32_t)keyp[KY_KEY] * 31u + (uint32_t)keyp[KY_SCAL] * 977u + ui.last * 7u;
         if (ui.chan == CHAN_SETUP)                                     /* the preferences */
-            return h + 0x5E7u + bryo_prefs * 31u + settings_hold * 977u + settings_leds * 7919u;
+        {
+            uint32_t k, lh = 0;
+            for (k = 0; k < LD_N; k++)
+                lh = (lh ^ (uint32_t)(ld_pm[k] + 5u) / 10u) * 16777619u;
+            return h + 0x5E7u + bryo_prefs * 31u + settings_hold * 977u + settings_leds * 7919u + lh;
+        }
         return h + ui.chan * 977u + sys.ntrk * 5381u + (ui.chan ? 0u : sys.cpu_q8 * 100u / 256u / 5u * 7919u) +
                (ui.chan == CHAN_MASTER ? (uint32_t)comp.gr_q8 * 602u / 2560u * 104729u : 0u);
     }

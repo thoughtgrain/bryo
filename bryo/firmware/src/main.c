@@ -117,6 +117,43 @@ static void bryo_init(void)
     pj_boot();                                    /* the project saved last, if there is one (project.c) */
     tpr_boot();                                   /* the track presets' list (tpreset.c) */
 }
+/* the SETUP page's load line (chain.c ld_*): an empty loop run from RAM, where nothing waits on the cache, and the
+ * same loop from flash, warm in the cache after a first pass; each timed by TIMER4 (24 MHz) once at boot, before the
+ * interrupts are on. Loops a microsecond x 10: the RAM one gives the clock (the loop's instructions, bryo.dis), and
+ * the two apart say what running from flash costs when nothing misses */
+#if FELUCCA_FLASH                                       /* (RAM code: the flash build's .ram_text) */
+static uint32_t RAMFN ld_spin_ram(uint32_t n)
+{
+    uint32_t t0 = fm1_ticks_inl();                          /* (the register itself: a call from RAM to flash is out
+                                                         * of reach, fm1_flash.h) */
+    volatile uint32_t i;                                /* (volatile: the loop stays, a load and a store a pass) */
+    for (i = 0; i < n; i++)
+        ;
+    return fm1_ticks_inl() - t0;
+}
+#endif
+static __attribute__((noinline)) uint32_t ld_spin_xip(uint32_t n)
+{
+    uint32_t t0 = fm1_ticks();
+    volatile uint32_t i;                                /* (volatile: the loop stays, a load and a store a pass) */
+    for (i = 0; i < n; i++)
+        ;
+    return fm1_ticks() - t0;
+}
+static void ld_probe(void)
+{
+    uint32_t a, b;
+    ld_spin_xip(2000u);                                 /* (the flash loop into the cache) */
+#if FELUCCA_FLASH
+    a = FL_FAR(ld_spin_ram)(20000u);
+#else
+    a = 0;
+#endif
+    b = ld_spin_xip(20000u);
+    ld_ram = (uint16_t)(20000u * 240u / (a ? a : 1u));  /* (20,000 loops in a / 24 us, x 10) */
+    ld_xip = (uint16_t)(20000u * 240u / (b ? b : 1u));
+}
+
 
 static void fm1_main(void)
 {
@@ -149,6 +186,7 @@ static void fm1_main(void)
     fm1_adc_init();
     panel_init();
     bryo_init();
+    ld_probe();
     audio_init();
     usb_start();
 #if FELUCCA_UART

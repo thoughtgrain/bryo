@@ -127,3 +127,38 @@ for: 743 to 618 on the suite's count.
 
 A1-A3 first (the sources are the biggest third), then A4-A5 and the whole of Tier B as one pass (the same three tools
 everywhere), then A6-A9, then C. D and the two items outside the interrupt as their own changes.
+
+## Round 2 (2026-10-12, evening): one track heard at 70-75 %
+
+From playing it: 70-75 % with only T2 playing, the rest muted. Five read-only audits of the whole path (sources,
+GRAIN and RESONATOR, COLOR SPACE mixer master, the chain and the modulators, the platform), and timing on the host,
+put it this way:
+
+| Where | Share of that 70-75 % | How sure |
+| --- | --- | --- |
+| the muted tracks still rendering their sources and GRAIN, then zeroed | about a third | measured (host time) |
+| code run from flash: `chain_block` alone is 23.7 KB against a 16 KB cache, refetched every block; the screen's code evicts it between | 10-30 points | inferred, not measured |
+| SPACE and the master | ~5 % | estimated |
+| GRAIN | ~5 % | estimated |
+| T2's POLY | ~3 % | estimated |
+| modulators, arpeggiators | 1-1.5 % | estimated |
+
+The plan, agreed: optimize before thinning features.
+
+1. **Muted tracks sleep** (done, `f12f571`): -42 % on the host for one track heard.
+2. **Measure on the device first** (this change): SETUP's load lines (per stage, `chain.c` `ld_*`), a probe of the
+   same loop from RAM and from flash at boot (`main.c` `ld_probe`), and the **TEST** project (past FACTORY: the
+   scene with every stage at work, run 32 here) so readings compare build to build.
+3. **The hot code in RAM** (decided after the device numbers): a `.hot` section high in RAM, within call reach of
+   flash both ways (the 23-bit call: within 4 MB; RAMTEXT at 0x01C00000 is just out of reach of XIP, so it can't
+   be there), with pool objects moved into RAMTEXT and the debug area to make room, and about 1.1 s of sound memory.
+   The PC guard's RAM window widened through a new hal/ function. The risk is a boot that faults, which needs
+   FM-1-transporter to recover: built and checked here, flashed only when asked.
+4. **The bit-identical trims** from the audits (~6-9 %): the room loop split into per-stage passes, the master's
+   state in locals, the delay's 16-bit path, divides ahead of early returns, TAPE's fast path, POLY's second loop,
+   the drum loops, GRAIN's recording, mixing and decoding, RESONATOR's per-string caches, the modulators' divides.
+5. **Thinning, only if needed**: voices ending at -60 dB, modulators every second block, a LO-LO room, and last of
+   all 64-sample blocks.
+
+Found on the way: the drum engine's 16 instruments are bit for bit what they were at `f6ab58e`; the clicks heard on
+the device are the overload's shedding (a drum voice cut in 1.5 ms), not a change in the drums.

@@ -261,6 +261,12 @@ static const int8_t TPS_ARP[NTRK][6] = {
 static const uint8_t TPS_ARPN[NTRK][5] = {{0}, {57, 60, 64, 67}, {0}, {45, 48, 50, 52, 55}};   /* Am7; A minor pent. */
 static const uint8_t TPS_ARPC[NTRK] = {0, 4, 0, 5};
 
+/* main loop: TEST (the project view, past FACTORY), after the scene: the same music with every stage of the chain at
+ * work, to read the load on (SETUP's lines) and compare one build with the next. T1's drums go through GRAIN (the
+ * drums-and-grains case), a little COLOR and an echo; T4's plucks ring RESONATOR's strings and go through COLOR. Kept
+ * under the overload line on purpose: the reading stays a measure, not the shedding */
+static void tpf_test(void);
+
 /* main loop: the scene into the four tracks (on the defaults: param_defaults first) */
 static void tpf_scene(void)
 {
@@ -291,4 +297,13 @@ static void tpf_scene(void)
             arp_clear(t);
         mod_rebuild(t);
     }
+}
+
+static void tpf_test(void)
+{
+    tp[0].dev[DEV_GRAIN][GP_WET] = 30;
+    tp[0].dev[DEV_COLOR][CP_DRIV] = 25;
+    tp[0].dev[DEV_SPACE][SP_DLY] = 20;
+    tp[3].dev[DEV_RESO][RP_WET] = 25;
+    tp[3].dev[DEV_COLOR][CP_TILT] = 20;
 }

@@ -325,8 +325,14 @@ you turn it off.
 3. **KNOB**: how far a knob moves a value per click. **1X**, **2X**, **4X**, or **ACC** (turn slowly for fine
    steps, quickly to cover ground). Small choices, like a filter's type, always move one at a time.
 4. **HOLD**: how long a pad must be held to count as held. **LEDS**: how the idle pads glow.
+5. Under the two lines about the keys and knobs, two lines show **where the CPU goes**, in % of the time the FM-1
+   has, averaged over the last second:
+   - **SRC GRN RES COL SPC**: the four tracks' sources, GRAIN, RESONATOR, COLOR, and SPACE with the channel strip.
+   - **PRE ROOM MST**: the work before the tracks (keys, arpeggiators, modulators), the two rooms, and the master.
+   - **R/F**: how fast a fixed loop runs from fast RAM and from flash, measured once at power-on. It's there for
+     tuning Bryo; together with **TEST** ([9.4](#94-back-to-the-factory-scene)) it shows what a new build changed.
 
-<img src="img/setup.png" width="240" alt="SETUP: KEYS KNOB HOLD LEDS">
+<img src="img/setup.png" width="240" alt="SETUP: KEYS KNOB HOLD LEDS, and the load by stage">
 
 ### 3.8 The CPU meter
 
@@ -890,6 +896,11 @@ The scene Bryo starts with is always there, even after you've saved over it:
 4. To keep your changes to it, turn **PRESETS** to a slot and press **SAVE**.
 
 <img src="img/projects_factory.png" width="240" alt="FACTORY in the project view">
+
+One more step past FACTORY is **T, TEST**: the factory scene with every stage of the sound at work (T1's drums
+through GRAIN, COLOR and an echo; T4's plucks ringing RESONATOR's strings). It's for comparing one firmware with the
+next: load it, press **PLAY**, give it a few seconds, and read the CPU and SETUP's load lines. It plays the same
+every time, so the numbers compare.
 
 ### 9.5 Track presets: keep one track's sound
 

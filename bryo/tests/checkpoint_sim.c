@@ -134,6 +134,13 @@ static double run(int n, char *say, size_t sz)
         play(6);
         snprintf(say, sz, "the factory scene");
         return 6;
+    case 32:                                             /* TEST (the project view, past FACTORY): every stage at work */
+        pj_wipe();
+        pj_test();
+        sys.playing = 1;
+        play(6);
+        snprintf(say, sz, "the TEST scene");
+        return 6;
     case 2:                                              /* WET 100 everywhere, the defaults */
         all_grain(GP_WET, 100);
         play(6);
@@ -823,7 +830,7 @@ int main(int argc, char **argv)
     if (argc > 1 && !strcmp(argv[1], "fp")) {            /* every run's audio fingerprint (the suite compares them
                                                           * with tests/bryo_audio.txt; "fp update" writes it) */
         static const int RUNS[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
-                                   25, 26, 27, 28, 29, 30, 31};
+                                   25, 26, 27, 28, 29, 30, 31, 32};
         uint32_t k;
         FILE *f = argc > 3 && !strcmp(argv[2], "update") ? fopen(argv[3], "w") : 0;
         int bad = 0;

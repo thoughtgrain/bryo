@@ -101,6 +101,22 @@ static void chain_source(uint32_t t, uint32_t keys, const int32_t *rin, int32_t 
             s[i] = 0;
 }
 
+/* The load by stage, for the SETUP page (ui_viz.c viz_setup): TIMER4 ticks (24 MHz) spent in each part of the chain,
+ * summed over a second of blocks, then published as tenths of a percent of the time the blocks had. Each track's
+ * parts add into the same stage, so SRC is all four sources. Nested interrupts (TIMER5) land in whichever stage they
+ * cut into: a little more than the CPU meter, which takes them out. On the host fm1_ticks() is 0: all 0. */
+enum { LD_PRE, LD_SRC, LD_GRN, LD_RES, LD_COL, LD_SPC, LD_ROOM, LD_MST, LD_N };
+static uint32_t ld_acc[LD_N], ld_blocks, ld_t;
+static volatile uint16_t ld_pm[LD_N];               /* ISR -> the screen: per mille of the blocks' time, last second */
+static volatile uint16_t ld_ram, ld_xip;            /* main loop, at boot: a fixed loop's speed from RAM and from
+                                                     * flash (main.c ld_probe), loops a microsecond x 10 */
+static inline void ld_mark(uint32_t k)
+{
+    uint32_t t1 = fm1_ticks();
+    ld_acc[k] += t1 - ld_t;
+    ld_t = t1;
+}
+
 /* audio ISR: one control block of the whole instrument, interleaved stereo Q15 into out. In the USB record mode
  * (usbrec.c) the computer's sound instead: the tracks fade out over one block as it opens, and come back once the
  * monitor has faded out as it closes. */
@@ -115,6 +131,7 @@ static void chain_block(int32_t *out, uint32_t n)
         master_block(l, r, out, n);
         return;
     }
+    ld_t = fm1_ticks();
     for (t = 0; t < NTRK; t++) {                       /* what each track's source plays: its keys (the focused
                                                         * track's), through the arpeggiator (every source) */
         uint32_t src = tp[t].src, base = 12u * ((uint32_t)track[t].octave + 1u), in, nb;
@@ -156,6 +173,7 @@ static void chain_block(int32_t *out, uint32_t n)
                 rin[t][i] = clamp(a, -32767, 32767);
             }
         }
+    ld_mark(LD_PRE);
     first = 1;                                          /* the first track assigns l and r, the rest add */
     for (t = 0; t < NTRK; t++) {
         const track_ctl_t *c = &track[t];
@@ -206,6 +224,7 @@ static void chain_block(int32_t *out, uint32_t n)
         src_sleep = (uint8_t)sleep;
         chain_source(t, k, (sys.rec >> t) & 1u ? rin[t] : 0, s, n);
         src_sleep = 0;
+        ld_mark(LD_SRC);
         if (sleep) {
             grain_sleep(t, (int)zero, n);
             anote = -1;
@@ -219,8 +238,11 @@ static void chain_block(int32_t *out, uint32_t n)
                                                          * from rest on the track's sound, as a mute is a cut */
             for (i = 0; i < n; i++)
                 gl[i] = gr[i] = 0;
+        ld_mark(LD_GRN);
         reso_block(t, gl, gr, rk, tp[t].src == SRC_TAPE || tp[t].src == SRC_DRUM, anote, n);
+        ld_mark(LD_RES);
         color_block(t, gl, gr, n);
+        ld_mark(LD_COL);
         space_block(t, gl, gr, n, g);                   /* (its delay; its send to a room, at its level) */
         if (a0 != 32767 || a1 != 32767)                  /* switching on or off: the 2 ms ramp */
             for (i = 0; i < n; i++) {
@@ -248,6 +270,7 @@ static void chain_block(int32_t *out, uint32_t n)
         }
         first = 0;
         rt->peak = pk - (pk >> 6);                    /* ~45 ms decay at one block per 0.73 ms */
+        ld_mark(LD_SPC);                               /* (SPACE, the channel strip, the level and the sum) */
     }
     if (first)                                          /* (every track parked: silence) */
         for (i = 0; i < n; i++)
@@ -256,8 +279,18 @@ static void chain_block(int32_t *out, uint32_t n)
     reso_recover();
     drm_recover();
     space_rooms(l, r, n);                               /* the rooms A and B on what the tracks sent (space.c) */
+    ld_mark(LD_ROOM);
     mix_comp(l, r, n);                                  /* the master compressor on the sum (mixer.c) */
     master_block(l, r, out, n);
+    ld_mark(LD_MST);
+    if (++ld_blocks >= 1378u) {                         /* a second: per mille of 1378 blocks of 17,408 ticks each
+                                                         * (TIMER4's 544 a frame x 32), one divide a stage a second */
+        for (i = 0; i < LD_N; i++) {
+            ld_pm[i] = (uint16_t)(ld_acc[i] / (1378u * 17408u / 1000u));
+            ld_acc[i] = 0;
+        }
+        ld_blocks = 0;
+    }
     if (sys.usbrec) {                                   /* the record mode opening: this block fades the tracks out */
         for (i = 0; i < n; i++) {
             int32_t g = (int32_t)(n - i) * 32767 / (int32_t)n;
