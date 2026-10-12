@@ -220,7 +220,8 @@ of the FM-1, which is the size of what you heard. The I-cache finding above stil
 hardware divides, every one bit-identical (the audio fingerprints, `checkpoint_sim fp`, hold on all 31 runs). The
 scene by the simulator with the attributes kept: 3,384 to 2,917 host instructions a sample, 7.5 to 1.9 hardware
 divides. The suite's load tables are the host harness's count, without the inlining, and still: run 1 1,018 to 956, the
-groove 1,719 to 1,630, every slot on every track 2,913 to 2,671, everything on 4,913 to 4,630, stopped 809 to 743.
+groove 1,719 to 1,632, every slot on every track 2,913 to 2,674, everything on 4,913 to 4,633, stopped 809 to 618
+(the last with Tier C, resting on silence).
 
 ## What I'll do with the numbers
 

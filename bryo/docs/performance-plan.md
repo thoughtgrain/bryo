@@ -121,7 +121,7 @@ three divides each. The 1/3-beat LFO fix: `fr` is the exact fraction of the divi
 multiple of 256 (the old form reached 65789 and the phase wrapped 0.4 % early every cycle); a test holds the phase to
 the exact fraction every block. The fingerprints held through all of it (no checkpoint run uses the 1/3-beat rate);
 the scene is 2,922 (the two silence scans cost 5 a sample), and run 29, the transport stopped, is what Tier C pays
-for.
+for: 743 to 618 on the suite's count.
 
 ## Order
 
