@@ -132,6 +132,25 @@ static inline int32_t sdiv2(int32_t x, uint32_t k)
     return (x + ((x >> 31) & (int32_t)((1u << k) - 1u))) >> k;
 }
 
+/* Two divides the knobs ask for every block, as tables (the same integer arithmetic, so the same values):
+ * x * 32767 / 100 for a 0..100 knob (a WET, a share, a level as Q15), and db_q10's gain for -24..24 dB (2x per
+ * 6 dB, straight between: tape.c db_q10 reads it). Each divide is 20-odd cycles on the target, and these ran a
+ * dozen or more times a block across the devices, for values that never move. */
+static const int16_t PCT_Q15[101] = {
+    0, 327, 655, 983, 1310, 1638, 1966, 2293, 2621, 2949, 3276, 3604, 3932, 4259, 4587, 4915,
+    5242, 5570, 5898, 6225, 6553, 6881, 7208, 7536, 7864, 8191, 8519, 8847, 9174, 9502, 9830, 10157,
+    10485, 10813, 11140, 11468, 11796, 12123, 12451, 12779, 13106, 13434, 13762, 14089, 14417, 14745, 15072, 15400,
+    15728, 16055, 16383, 16711, 17038, 17366, 17694, 18021, 18349, 18677, 19004, 19332, 19660, 19987, 20315, 20643,
+    20970, 21298, 21626, 21953, 22281, 22609, 22936, 23264, 23592, 23919, 24247, 24575, 24902, 25230, 25558, 25885,
+    26213, 26541, 26868, 27196, 27524, 27851, 28179, 28507, 28834, 29162, 29490, 29817, 30145, 30473, 30800, 31128,
+    31456, 31783, 32111, 32439, 32767};
+static const int16_t DB_Q10[49] = {
+    64, 75, 86, 96, 107, 118, 128, 150, 171, 192, 214, 235,
+    256, 299, 342, 384, 427, 470, 512, 598, 683, 768, 854, 939,
+    1024, 1194, 1365, 1536, 1706, 1877, 2048, 2389, 2730, 3072, 3413, 3754,
+    4096, 4778, 5461, 6144, 6826, 7509, 8192, 9557, 10922, 12288, 13653, 15018,
+    16384};
+
 /* Blocks are always CTL long, so x / CTL is a shift (the compiler at -Os keeps even constant divisions as a
  * hardware divide) */
 #define CTL_LOG2 5

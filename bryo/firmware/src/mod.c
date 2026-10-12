@@ -330,7 +330,9 @@ static int32_t isqrt(int32_t n)                                       /* floor(s
 static int32_t lfo_at(const int16_t *v, int32_t q, const int16_t *rnd)
 {
     int32_t sk = clamp(500 + v[2] * 5, 50, 950), sh = clamp(v[1], 0, 4), n = clamp(v[7], 1, 16), y, a;
-    q = q < sk ? q * 500 / sk : 500 + (q - sk) * 500 / (1000 - sk);  /* SKEW: squashed to one side */
+    if (v[2])                                                         /* SKEW: squashed to one side (at 0, sk is 500
+                                                                       * and both ways give q: no divides) */
+        q = q < sk ? q * 500 / sk : 500 + (q - sk) * 500 / (1000 - sk);
     if (sh == 0)
         y = sine_i((uint32_t)q * 4294967u);
     else if (sh == 1)
@@ -340,8 +342,12 @@ static int32_t lfo_at(const int16_t *v, int32_t q, const int16_t *rnd)
     else if (sh == 3)
         y = (q - 500) * 65;                                           /* saw: a ramp up and the drop */
     else
-        y = rnd[clamp(q * n / 1000, 0, n - 1)];                       /* RND: LEN held steps a cycle */
-    y = y * (100 + v[3] * 3) / 100;                                   /* FOLD: overdrive, then fold back */
+        y = rnd[clamp((int32_t)(((uint32_t)q * (uint32_t)n * 8389u) >> 23), 0, n - 1)];   /* RND: LEN held steps a
+                                                                       * cycle (x 8389 >> 23 is / 1000 for every
+                                                                       * q n here: q < 1000, n <= 16) */
+    if (v[3])                                                         /* FOLD: overdrive, then fold back (at 0 the
+                                                                       * factor is 100 / 100: y) */
+        y = y * (100 + v[3] * 3) / 100;
     while (y > 32767 || y < -32767)
         y = y > 0 ? 65534 - y : -65534 - y;
     a = y < 0 ? -y : y;                                               /* CURV: + narrows the curves, - widens them */
@@ -376,7 +382,11 @@ static struct {
 static const uint32_t MOD_DIV[16] = {64u << 16, 32u << 16, 16u << 16, 12u << 16, 8u << 16, 6u << 16, 4u << 16,
                                      3u << 16, 2u << 16, 3u << 15, 1u << 16, 3u << 14, 1u << 15, 21845u, 1u << 14,
                                      1u << 13};
-static const uint32_t SEQ_DIV[6] = {4u << 16, 2u << 16, 1u << 16, 1u << 15, 1u << 14, 1u << 13};   /* 1 .. 1/32 */
+/* .. each MOD_DIV entry's shift where it's a power of two (0xFF: the triplets and 1/3: a divide), so the LFO's
+ * place in its cycle is a mask and a shift a block instead of two hardware divides */
+static const uint8_t MOD_DIV_SH[16] = {22, 21, 20, 0xFF, 19, 0xFF, 18, 0xFF, 17, 0xFF, 16, 0xFF, 15, 0xFF, 14, 13};
+static const uint32_t SEQ_DIV[6] = {4u << 16, 2u << 16, 1u << 16, 1u << 15, 1u << 14, 1u << 13};   /* 1 .. 1/32:
+                                                                                                    * 1 << (18 - RATE) */
 static const uint32_t HOLD_DIV[5] = {0, 1u << 13, 1u << 14, 1u << 15, 1u << 16};                   /* FOLLOW HOLD */
 #define MOD_PHRASE (16u << 16)       /* a SYNTH or POLY track's "loop": four bars */
 
@@ -466,7 +476,7 @@ static uint32_t mod_hash(uint32_t a, uint32_t b)
 /* AMT then OFS, Q15 in, Q15 out (lo: -32767 bipolar, 0 unipolar) */
 static int32_t mod_place(int32_t y, const int16_t *v, uint32_t ka, int32_t lo)
 {
-    return clamp(y * v[ka] / 100 + v[ka + 1u] * 327, lo, 32767);
+    return clamp((v[ka] == 100 ? y : y * v[ka] / 100) + v[ka + 1u] * 327, lo, 32767);   /* (AMT 100: y as it is) */
 }
 
 /* a one-pole step toward x by a (Q15) */
@@ -512,7 +522,7 @@ static void lfo_round(mod_rt_t *m, const int16_t *v)
 static int32_t lfo_eval(const mod_rt_t *m, const int16_t *v, uint32_t ph)
 {
     uint32_t q = ph >> 16, q1 = q * 1000u >> 16, fr = q * 1000u & 65535u;
-    int32_t a = lfo_at(v, (int32_t)q1, m->rnd), b = lfo_at(v, (int32_t)(q1 + 1u) % 1000, m->rnd), y;
+    int32_t a = lfo_at(v, (int32_t)q1, m->rnd), b = lfo_at(v, q1 == 999u ? 0 : (int32_t)q1 + 1, m->rnd), y;
     y = a + ((((b - a) >> 1) * (int32_t)(fr >> 1)) >> 14);
     if (v[1] != LFO_RND && v[6]) {                     /* VAR on a shape: this cycle's level */
         int32_t r = m->rnd[m->cyc % (uint32_t)clamp(v[7], 1, 16)];
@@ -526,12 +536,17 @@ static void mod_lfo(mod_rt_t *m, const int16_t *v, int restart)
     uint32_t ph0 = m->ph, inc, pofs = (uint32_t)clamp(v[10], 0, 359) * 11930464u, sofs = (uint32_t)clamp(v[11], 0, 100) * 21474836u;
     int32_t y, yr, a;
     if (v[12]) {                                        /* SYNC BPM: locked to the beat from the restart */
-        uint32_t div = MOD_DIV[clamp(v[0], 0, 127) >> 3], rel, fr, cyc;
+        uint32_t di = (uint32_t)clamp(v[0], 0, 127) >> 3, div = MOD_DIV[di], dsh = MOD_DIV_SH[di], rel, fr, cyc;
         if (restart)
             m->t0 = mclk.beat;
         rel = mclk.beat - m->t0;
-        fr = (rel % div << 8) / (div >> 8);
-        cyc = rel / div;
+        if (dsh != 0xFFu) {                             /* a power of two: a mask and a shift (the same values) */
+            fr = ((rel & (div - 1u)) << 8) >> (dsh - 8u);
+            cyc = rel >> dsh;
+        } else {
+            fr = (rel % div << 8) / (div >> 8);
+            cyc = rel / div;
+        }
         if (!restart && cyc != m->last_n)
             lfo_round(m, v);                             /* one time round */
         m->last_n = cyc;
@@ -559,7 +574,8 @@ static void mod_lfo(mod_rt_t *m, const int16_t *v, int restart)
     y = lfo_eval(m, v, m->ph + pofs);
     yr = v[11] ? lfo_eval(m, v, m->ph + pofs + sofs) : y;
     a = v[5] ? 32767 >> (v[5] / 11) : 32767;            /* SMTH: a slew, ~0.4 s at 100 */
-    a -= (a >> 1) * (v[5] % 11) / 11;
+    if (v[5])                                           /* (at 0 the second line takes 0 off: two divides spared) */
+        a -= (a >> 1) * (v[5] % 11) / 11;
     m->sm = mod_slew(m->sm, y, a);
     m->smr = mod_slew(m->smr, yr, a);
     y = m->sm;
@@ -629,17 +645,20 @@ static void mod_adsr(mod_rt_t *m, const int16_t *v, int gate, int press, int loo
  * by AMT and OFS as every engine's output is */
 static void mod_seq(mod_rt_t *m, const int16_t *v, const int8_t *steps, int restart)
 {
-    uint32_t div = SEQ_DIV[clamp(v[1], 0, 5)], len = (uint32_t)clamp(v[0], 1, 16), rel, n, in, c, fr, i;
-    uint32_t sw = (uint32_t)clamp(v[3], 0, 100) * 65536u / 300u;     /* SWNG: the off-beats up to 1/3 step late */
+    uint32_t dsh = 18u - (uint32_t)clamp(v[1], 0, 5), div = SEQ_DIV[clamp(v[1], 0, 5)];   /* (div is 1 << dsh) */
+    uint32_t len = (uint32_t)clamp(v[0], 1, 16), rel, n, in, c, fr, i;
+    uint32_t sw = v[3] ? (uint32_t)clamp(v[3], 0, 100) * 65536u / 300u : 0u;   /* SWNG: the off-beats up to 1/3
+                                                                               * step late */
     if (restart || m->step < 0) {
         m->t0 = mclk.beat;
         m->last_n = 0xFFFFFFFFu;
     }
     rel = mclk.beat - m->t0;
-    n = rel / div;                                                    /* straight steps since the restart */
-    in = (n & 1u) << 16 | (rel % div << 8) / (div >> 8);              /* where in its pair of steps, Q16 */
+    n = rel >> dsh;                                                   /* straight steps since the restart */
+    in = (n & 1u) << 16 | ((rel & (div - 1u)) << 8) >> (dsh - 8u);    /* where in its pair of steps, Q16 */
     c = in < 65536u + sw ? n & ~1u : n | 1u;                          /* the step playing, swung */
-    fr = c & 1u ? ((in - 65536u - sw) << 8) / ((65536u - sw) >> 8) : (in << 8) / ((65536u + sw) >> 8);   /* (Q16) */
+    fr = !sw ? in & 65535u                                            /* (no swing: the fraction as it is; Q16) */
+       : c & 1u ? ((in - 65536u - sw) << 8) / ((65536u - sw) >> 8) : (in << 8) / ((65536u + sw) >> 8);
     if (c != m->last_n) {
         uint32_t L = len, p = c % (L > 1u ? 2u * L - 2u : 1u);
         switch (v[4]) {
@@ -804,7 +823,8 @@ static void mod_tick(uint32_t keys, uint32_t sel, const int32_t *const *last)
             int trig, fresh = 0;
             if (!((L->used >> s) & 1u))
                 continue;
-            e = tp[t].engine[s] % NME;
+            e = tp[t].engine[s] & (NME - 1u);           /* (& not %: a byte against an int enum is a signed
+                                                         * modulo, a hardware divide on the target; NME is 4) */
             trig = v[e == ME_SEQ ? 5 : 13] != 0;        /* TRIG KEY (LFO knob 13, SEQ knob 5) */
             fresh = mod_rt_fresh(m, t, s, e);
             switch (e) {

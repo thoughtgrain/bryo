@@ -140,16 +140,9 @@ static struct {
     uint8_t valid, trk, src, empty;
 } tape_undo;
 
-/* a gain in dB (-24..24) as Q10: 2x per 6 dB, straight between */
-static int32_t db_q10(int32_t db)
-{
-    int32_t f = 1024;
-    for (; db >= 6; db -= 6)
-        f *= 2;
-    for (; db <= -6; db += 6)
-        f /= 2;
-    return db >= 0 ? f + f * db / 6 : f - f * (-db) / 12;
-}
+/* a gain in dB (-24..24) as Q10: 2x per 6 dB, straight between (DB_Q10, dsp.c: every caller's knob is within
+ * -24..24, so the table holds every value the arithmetic gave) */
+static inline int32_t db_q10(int32_t db) { return DB_Q10[clamp(db, -24, 24) + 24]; }
 
 /* ------------------------------------------------------------- codec --- */
 static const int16_t IMA_STEP[89] = {
