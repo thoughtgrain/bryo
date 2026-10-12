@@ -206,9 +206,16 @@ static void reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t keys, int pl
         /* the input's share, by the root string's ring: less as the ring gets longer, so a long DEC rings louder but
          * not without bound (the loop clamps besides); applied as the input is read, not in a pass of its own */
         int32_t in = clamp((32768 - rs_gain(rs_period_q8(root16) >> 8, t60)) * 16, 4096, 16384);
-        int32_t ic1 = R->ic1, ic2 = R->ic2;             /* (the filter's state in locals across the block) */
-        if (filt)
-            tsvf_coef(&flt, c8, PCT_127[clamp(p[RP_RES], 0, 100)]);
+        int32_t ic1 = R->ic1, ic2 = R->ic2, any = 0;    /* (the filter's state in locals across the block) */
+        if (filt) {
+            for (i = 0; i < n; i++)
+                any |= l[i] | r[i];
+            if (any || ic1 || ic2)
+                tsvf_coef(&flt, c8, PCT_127[clamp(p[RP_RES], 0, 100)]);
+            else
+                filt = 0;                               /* silence into a filter at rest: silence out of it, the
+                                                         * state still 0 (what running it gives; resting tracks) */
+        }
         for (i = 0; i < n; i++) {
             int32_t x = (l[i] + r[i]) >> 1;
             heard |= x;
@@ -378,7 +385,7 @@ static void reso_poll(void)
     uint32_t t;
     for (t = 0; t < NTRK; t++) {
         reso_t *R = &reso[t];
-        int on = trk_live(t) && mod_peak(t, MOD_TG(DEV_RESO, RP_WET)) > 0;   /* (WET modulated up: on) */
+        int on = trk_live(t) && mod_peak_dev(t, DEV_RESO, RP_WET) > 0;   /* (WET modulated up: on) */
         while (on && R->nch < RS_N) {
             int32_t c = tape_alloc(MEM_RESO + t, NTRK, 1);
             if (c < 0)

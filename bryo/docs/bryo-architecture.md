@@ -480,7 +480,9 @@ After phase 1, two changes to the screen, from your review:
   VAR is the S-4's VARIATION: each time round the loop drifts from the last by up to that much (0: the same loop
   forever); on RND that's the steps themselves, on the other shapes each cycle's level, repeating every LEN
   cycles. SMTH is a slew on any shape. SPRD is the right channel's phase against the left, drawn as a dim second
-  trace. AMT scales the slot as a whole (the S-4's AMOUNT); the PRD's hold-and-turn still sets each target's
+  trace. The picture is a window of time (2026-10-12; it drew two cycles whatever RATE was): 4 seconds free-running,
+  a dim tick a second, or 2 bars on SYNC BPM, a tick a beat, so RATE shows as how many cycles fit, half a cycle to
+  16, the window's width named under the plot. AMT scales the slot as a whole (the S-4's AMOUNT); the PRD's hold-and-turn still sets each target's
   depth. The ARP pad's slot started as the LFO on RND with a little VAR, so the random modulator was one press
   away (2026-10-10: that slot is M3 on the LFO pad now, and ARP is the arpeggiator: "The arpeggiator, the keys as a
   keyboard, SETUP"). ADSR's MODE/SENS from the last pass went to FOLLOW, where they belong. What I couldn't confirm from the

@@ -226,11 +226,11 @@ static void space_poll(void)
     for (t = 0; t < NTRK; t++) {
         space_t *S = &space[t];
         int use = trk_live(t);                          /* (DLY or VERB at 0 but modulated up: on) */
-        if (use && mod_peak(t, MOD_TG(DEV_SPACE, SP_DLY)) > 0)
+        if (use && mod_peak_dev(t, DEV_SPACE, SP_DLY) > 0)
             sp_line_fill(&S->dly, MEM_SPACE + t, SP_DLY16, SP_DLY8);
         else if (S->dly.nch)
             sp_line_free(&S->dly);
-        if (use && mod_peak(t, MOD_TG(DEV_SPACE, SP_VERB)) > 0)
+        if (use && mod_peak_dev(t, DEV_SPACE, SP_VERB) > 0)
             users[clamp(tp[t].dev[DEV_SPACE][SP_ROOM], 0, 1)] |= 1u << t;
     }
     for (k = 0; k < NROOM; k++) {

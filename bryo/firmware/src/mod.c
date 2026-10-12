@@ -180,6 +180,8 @@ static int16_t *mod_base(uint32_t t, uint32_t a)
 static inline uint32_t mod_alen(uint32_t a) { return a == MA_CH ? NCH : a >= MA_DIN0 ? 4u * NDIN : NPK; }
 
 /* main loop: track t's list from its depths, published whole */
+static uint32_t mod_gen[NTRK];        /* main loop: bumped at each rebuild (mod_peak_dev's spans are per list) */
+
 static void mod_rebuild(uint32_t t)
 {
     uint32_t b = mod_cur[t] ^ 1u, i;
@@ -208,6 +210,7 @@ static void mod_rebuild(uint32_t t)
     RING_PUBLISH();
     mod_cur[t] = (uint8_t)b;
     mod_on = (uint8_t)((mod_on & ~(1u << t)) | (L->n ? 1u << t : 0u));
+    mod_gen[t]++;                                        /* (mod_peak_dev's spans are for a list: this one's) */
 }
 
 /* main loop: the depths that aren't 0 on track t */
@@ -297,7 +300,53 @@ static int mod_undo(void)
 }
 
 /* main loop: the highest value target g of track t can reach (its knob, plus every depth's full swing): the memory
- * polls ask this, so a device turned off but modulated up keeps its memory ready */
+ * polls ask this, so a device turned off but modulated up keeps its memory ready. mod_peak_dev is the same for a
+ * device's knob, with the depths' part kept per track and target for the list it was summed on (mod_gen): the
+ * polls asked four times a track every pass, each a scan of the depths and three divides, for a sum that only
+ * changes with the depths (the knob's part is read live) */
+typedef struct {
+    uint32_t gen;
+    int32_t add;                     /* the depths' full swing in the knob's units */
+    int16_t lo, hi;
+    uint8_t g, ok;
+} mod_pk_t;
+static mod_pk_t mod_pk[NTRK][4];
+static uint8_t mod_pk_next[NTRK];
+
+static int32_t mod_peak_dev(uint32_t t, uint32_t dev, uint32_t k)
+{
+    int32_t v = tp[t].dev[dev][k];
+    uint32_t g = MOD_TG(dev, k), i;
+    mod_pk_t *c;
+    if (!mdl[t].n)                                       /* (the common case: no depths on the track) */
+        return v;
+    for (i = 0; i < 4u; i++)
+        if (mod_pk[t][i].ok && mod_pk[t][i].g == g)
+            break;
+    if (i == 4u) {
+        i = mod_pk_next[t];
+        mod_pk_next[t] = (uint8_t)((i + 1u) & 3u);
+        mod_pk[t][i].ok = 0;
+    }
+    c = &mod_pk[t][i];
+    if (!c->ok || c->gen != mod_gen[t]) {
+        const pdesc_t *d = mod_tdesc(g);
+        int32_t s, span = 0;
+        if (!d)
+            return v;
+        for (s = 0; s < (int32_t)mdl[t].n; s++)
+            if (mdl[t].e[s].g == g)
+                span += mdl[t].e[s].d < 0 ? -mdl[t].e[s].d : mdl[t].e[s].d;
+        c->add = span * (d->max - d->min) / 100;
+        c->lo = d->min;
+        c->hi = d->max;
+        c->g = (uint8_t)g;
+        c->gen = mod_gen[t];
+        c->ok = 1;
+    }
+    return clamp(v + c->add, c->lo, c->hi);
+}
+
 static int32_t mod_peak(uint32_t t, uint32_t g)
 {
     const pdesc_t *d;
@@ -543,6 +592,11 @@ static void mod_lfo(mod_rt_t *m, const int16_t *v, int restart)
         if (dsh != 0xFFu) {                             /* a power of two: a mask and a shift (the same values) */
             fr = ((rel & (div - 1u)) << 8) >> (dsh - 8u);
             cyc = rel >> dsh;
+        } else if (div < 65536u) {                      /* 1/3 beat (21845, not a multiple of 256): the exact
+                                                         * fraction. The form below reached 65789 on it and the
+                                                         * phase wrapped 0.4 % early every cycle (2026-10-12) */
+            fr = (rel % div) * 65536u / div;
+            cyc = rel / div;
         } else {
             fr = (rel % div << 8) / (div >> 8);
             cyc = rel / div;

@@ -139,7 +139,17 @@ static void out_fade(int32_t *out, uint32_t n)
 static void master_block(const int32_t *l, const int32_t *r, int32_t *out, uint32_t n)
 {
     uint32_t i;
-    int32_t mg = fx_usb_fixed ? MASTER_FULL : (int32_t)sys.master_q12;   /* (USB LEVEL FIXED: MASTER after) */
+    int32_t mg = fx_usb_fixed ? MASTER_FULL : (int32_t)sys.master_q12, in = 0;   /* (USB LEVEL FIXED: MASTER after) */
+    for (i = 0; i < n; i++)
+        in |= l[i] | r[i];
+    if (!in && !fx_lowcut && !dc_l && !dc_r && !dce_l && !dce_r && lim_env == LIM_T) {
+        for (i = 0; i < 2u * n; i++)                    /* silence in, and the stage at rest: silence out, and every
+                                                         * state as it is (the DC blockers hold 0 at 0, the limiter
+                                                         * its floor, the soft clip 0): the same as running it */
+            out[i] = 0;
+        out_fade(out, n);
+        return;
+    }
     for (i = 0; i < n; i++) {
         int32_t ol = (l[i] * mg) >> 12, or_ = (r[i] * mg) >> 12;
         master_out(&ol, &or_);

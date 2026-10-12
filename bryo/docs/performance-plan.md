@@ -111,6 +111,18 @@ stale input) and skipping the buffer's block decode at FDBK 0 (a block the head 
 and that's stored data). The device's reading of this build is the number that matters next; the simulator says
 the I-cache misses didn't move (31-33 a sample at 16 KB), so the layout question stands as it was.
 
+**Tier C and the two items outside the interrupt, later the same day.** The compressor's gain loop returns on a
+block whose peak is 0 (0 times any gain is 0; its envelope still runs); `master_block` writes silence on an all-zero
+block when its DC blockers hold 0, the limiter sits at its floor and the low-cut is off (every state as running it
+would leave it); a RESONATOR with its input filter set skips the filter on silence while the filter's state is 0.
+`mod_peak_dev` keeps the depths' part of a peak per track and target for the list it was summed on (`mod_gen`,
+bumped by `mod_rebuild`), the knob's part read live: the polls had asked four times a track every pass, a scan and
+three divides each. The 1/3-beat LFO fix: `fr` is the exact fraction of the division where the division isn't a
+multiple of 256 (the old form reached 65789 and the phase wrapped 0.4 % early every cycle); a test holds the phase to
+the exact fraction every block. The fingerprints held through all of it (no checkpoint run uses the 1/3-beat rate);
+the scene is 2,922 (the two silence scans cost 5 a sample), and run 29, the transport stopped, is what Tier C pays
+for.
+
 ## Order
 
 A1-A3 first (the sources are the biggest third), then A4-A5 and the whole of Tier B as one pass (the same three tools

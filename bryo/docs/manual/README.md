@@ -770,7 +770,8 @@ After you let go, a modulated knob has a **mark under it**: a rail showing how f
 
 1. **Tap LFO** (press and let go). M1's own page opens.
 2. **RATE** is how fast, in time with the tempo (1/2: once every half bar), **SHPE** the shape (SIN TRI SQR SAW RND), **SKEW** and **FOLD** bend
-   it.
+   it. The picture is **2 bars** of time (a tick a beat; **4 seconds** with SYNC off, a tick a second), so turning
+   RATE changes how many cycles you see.
 3. **Tap LFO again** for its other pages. The last one has **AMT** (how much it moves everything) and **OFS** (an
    offset).
 

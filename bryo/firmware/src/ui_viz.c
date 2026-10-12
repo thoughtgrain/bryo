@@ -753,25 +753,33 @@ static void lfo_rand(const int16_t *v, int16_t *now, int16_t *next)
 
 static void viz_wave(const int16_t *v, uint32_t f)
 {
-    /* Two cycles from PHAS. SMTH slews what's drawn (RND's steps glide); VAR: the next time round, dotted (RND: the
-     * loop's steps drifted; the other shapes: each cycle's level drifted, repeating every LEN cycles). FADE fades
-     * the first cycle in; SYNC BPM puts the beat ticks on the line; TRIG KEY marks the key that restarts it; SPRD's
-     * right channel, dim. AMT and OFS place it all. */
+    /* A window of time, from PHAS: 4 seconds free-running (a tick a second), 2 bars on SYNC BPM (a tick a beat), so
+     * RATE shows as how many cycles fit (half a cycle to 16: the ends held readable). SMTH slews what's drawn
+     * (RND's steps glide); VAR: the next time round, dotted (RND: the loop's steps drifted; the other shapes: each
+     * cycle's level drifted, repeating every LEN cycles). FADE fades the first cycle in; TRIG KEY marks the key that
+     * restarts it; SPRD's right channel, dim. AMT and OFS place it all. */
     static const char *const NAME[5] = {"SINE", "TRIANGLE", "SQUARE", "SAW", "RANDOM"};
-    int32_t i, py = DMID, sh = clamp(v[1], 0, 4), fade = v[14] * DW / 200, half = DH / 2 - 1;
+    int32_t i, py = DMID, sh = clamp(v[1], 0, 4), half = DH / 2 - 1, span, fade;
     int16_t now[16], nxt[16];
     int32_t sm = 0, smn = 0, smr = 0, k = 1000 - v[5] * 9, n = clamp(v[7], 1, 16);
+    if (v[12])                                                         /* cycles x 1000 across the window */
+        span = (int32_t)((8000u << 16) / MOD_DIV[(uint32_t)clamp(v[0], 0, 127) >> 3]);   /* 8 beats over the division */
+    else
+        span = (int32_t)(((lfo_inc(v[0]) >> 16) * 344531u) >> 12);     /* 4 s x the rate (cycles a block, Q32) */
+    span = clamp(span, 500, 16000);
+    fade = v[14] * (DW * 1000 / span) / 100;                           /* FADE: of the first cycle, in dots */
     lfo_rand(v, now, nxt);
     px_line(DX0, DMID, DX1, DMID, px_dim, 2);
-    if (v[12])
-        for (i = 0; i <= 8; i++)
-            px_line(DX0 + i * DW / 8, DMID - 1, DX0 + i * DW / 8, DMID + 1, px_ink, 1);
+    for (i = 0; i <= (v[12] ? 8 : 4); i++) {                           /* the ticks: beats, or seconds */
+        int32_t x = DX0 + i * DW / (v[12] ? 8 : 4);
+        px_line(x, DMID - 1, x, DMID + 1, v[12] ? px_ink : px_dim, 1);
+    }
     if (v[13]) {                                                       /* a key going down, at the start */
         px_box(DX0, DY0 - 1, 3, 4, px_ink);
         px_line(DX0 + 1, DY0 + 3, DX0 + 1, DY1, px_ink, 3);
     }
     for (i = 0; i <= DW; i++) {
-        int32_t ph = i * 2000 / DW + v[10] * 1000 / 360, p = ph % 1000, cyc = ph / 1000, y, yn, yr;
+        int32_t ph = i * span / DW + v[10] * 1000 / 360, p = ph % 1000, cyc = ph / 1000, y, yn, yr;
         if (sh == 4) {
             y = lfo_at(v, p, now);
             yn = lfo_at(v, p, nxt);
@@ -811,6 +819,8 @@ static void viz_wave(const int16_t *v, uint32_t f)
     vz_label(DX0 + 14, NAME[sh], f == 1u);
     if (f == 2u || f == 3u)
         vz_label(DX1 - 10, f == 2u ? "SKEW" : "FOLD", 1);
+    else
+        vz_label(DX1 - 12, v[12] ? "2 BARS" : "4 SEC", 0);           /* (the window's width) */
     if (f >= 4u && f < NPK)
         vz_ktag(118, DLBL - 1, &ME_P[ME_WAVE][f], v[f]);
 }

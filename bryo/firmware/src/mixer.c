@@ -307,6 +307,8 @@ static void mix_comp(int32_t *l, int32_t *r, uint32_t n)
         g1 = mx_curve(mx_log2((uint32_t)(comp.env > 1 ? comp.env : 1)), &gr);
     comp.g = g1;
     comp.gr_q8 = gr * clamp(mst[MS_MIX], 0, 100) / 100;
+    if (!pk)                                            /* silence in: 0 x any gain is 0 (the envelope ran above) */
+        return;
     for (i = 0; i < (int32_t)n; i++) {
         int32_t g = g0 + (((g1 - g0) * i) >> CTL_LOG2);
         l[i] = (clamp(l[i], -131071, 131071) >> 2) * g >> 10;

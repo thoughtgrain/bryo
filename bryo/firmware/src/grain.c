@@ -1110,7 +1110,7 @@ static void grain_poll(void)
     uint32_t t, bars = gr_bars(), len = bars * (5292000u / (sys.bpm ? sys.bpm : 120u));
     for (t = 0; t < NTRK; t++) {
         const int16_t *p = tp[t].dev[DEV_GRAIN];
-        int on = trk_live(t) && mod_peak(t, MOD_TG(DEV_GRAIN, GP_WET)) > 0 && p[GP_SCAN] != SCAN_TAPE;   /* (WET 0 but
+        int on = trk_live(t) && mod_peak_dev(t, DEV_GRAIN, GP_WET) > 0 && p[GP_SCAN] != SCAN_TAPE;   /* (WET 0 but
                                                                                                 * modulated up: on) */
         if (grain_frozen && on && gbuf[t].len)
             continue;

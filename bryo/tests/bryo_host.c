@@ -5368,6 +5368,43 @@ static void pan_range(uint32_t t, uint32_t n, int32_t *lo, int32_t *hi)
     }
 }
 
+static void test_lfo_third(void)
+{
+    /* SYNC BPM at 1/3 beat (RATE 104..111: 21845, not a multiple of 256): the phase is the exact fraction of the
+     * division every block. The old (rem << 8) / (div >> 8) reached 65789 there, and the phase wrapped 0.4 % early
+     * every cycle (the beat read after the block, or a block earlier: the clock steps around the tick) */
+    power_on();
+    sys.playing = 1;
+    sys.bpm = 120;
+    tp[0].mod[0][0] = 104;
+    tp[0].mod[0][12] = 1;
+    mod_nudge(0, 0, MOD_TG(DEV_COLOR, 1), 30);
+    render(2, 0);
+    {
+        uint32_t b0, b1, binc, ok = 1, wraps = 0, last = 0, k;
+        render(1, 0);
+        b0 = mclk.beat;
+        render(1, 0);
+        b1 = mclk.beat;
+        binc = b1 - b0;
+        for (k = 0; k < 700u; k++) {                     /* 3 cycles at 120 BPM (230 blocks each) */
+            uint32_t ph, rel, e0, e1;
+            render(1, 0);
+            ph = mrt[0][0].ph >> 16;
+            rel = mclk.beat - mrt[0][0].t0;
+            e0 = (rel % 21845u) * 65536u / 21845u;
+            e1 = ((rel - binc) % 21845u) * 65536u / 21845u;
+            ok &= ph == e0 || ph == e1;
+            wraps += ph < last;
+            last = ph;
+        }
+        check("mod: LFO SYNC at 1/3 beat: the phase is the division's exact fraction every block (3 cycles, 3 wraps)",
+              ok && wraps == 3u);
+    }
+    mod_clear(0);
+    power_on();
+}
+
 static void test_mod(void)
 {
     const uint32_t PAN = MOD_TCH + CH_PAN;
@@ -5453,6 +5490,19 @@ static void test_mod(void)
         render(200, 0);
         check("..let go: released to the knob", TPD(0, DEV_GRAIN)[GP_WET] == 0);
         check("mod: a modulated WET keeps GRAIN's memory in use (the poll asks mod_peak)", mod_peak(0, g) == 100);
+        check("..mod_peak_dev (the polls' cached form) says the same, before and after the depths change",
+              mod_peak_dev(0, DEV_GRAIN, GP_WET) == mod_peak(0, g) && mod_peak_dev(0, DEV_GRAIN, GP_WET) == 100);
+        {
+            int32_t w = tp[0].dev[DEV_GRAIN][GP_WET];
+            tp[0].dev[DEV_GRAIN][GP_WET] = 0;            /* the knob moves: the knob's part is read live */
+            check("..the knob's part live: WET 0 with the depth still there", mod_peak_dev(0, DEV_GRAIN, GP_WET) ==
+                  mod_peak(0, g) && mod_peak_dev(0, DEV_GRAIN, GP_WET) > 0);
+            tp[0].dev[DEV_GRAIN][GP_WET] = (int16_t)w;
+            mod_clear(0);                                /* the depths go: the next ask sees no swing */
+            check("..the depths cleared: the knob alone", mod_peak_dev(0, DEV_GRAIN, GP_WET) == w &&
+                  mod_peak(0, g) == w);
+            mod_nudge(0, 1, g, 100);                     /* (the ADSR's depth back: the loop's start below needs it) */
+        }
         sys.playing = 1;                                 /* PLAY: the loop starts, a one-shot */
         top = 0;
         for (b = 0; b < 3u; b++) {
@@ -8715,6 +8765,7 @@ int main(int argc, char **argv)
     test_project_worst();
     test_save_seamless();
     test_key_tuning();
+    test_lfo_third();
     test_env_pad();
     test_page_keys();
     test_step_leds();

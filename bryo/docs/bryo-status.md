@@ -250,6 +250,12 @@ number.
   voice. The scene by the simulator with the attributes kept: 3,384 to 2,917 host instructions a sample (13.8 %),
   7.5 to 1.9 hardware divides. Every fingerprint held through all nine commits; two items were dropped for not
   being identical and are listed in the plan. The device's reading of this build is the next number.
+- **2026-10-12: the LFO's picture is a window of time.** It drew two cycles whatever RATE was, so turning RATE
+  changed nothing on the screen. Now the plot is 4 seconds free-running (a tick a second, dim) or 2 bars on SYNC BPM
+  (a tick a beat), and RATE shows as how many cycles fit, from half a cycle to 16 (the ends held readable); the
+  window's width is named under the plot. Same day: resting on silence for the output stage, the compressor and a
+  RESONATOR's input filter (Tier C of the plan, identical output); `mod_peak`'s depth spans cached for the memory
+  polls; and the 1/3-beat LFO phase glitch fixed (the only non-identical change, with its own test).
 - **2026-10-12: tuning and a key, for SYNTH and POLY only.** TAPE's pitch stays its speed. KEY and SCAL are the
   project's (one for every track, the mixer's KEY page), and a note outside the scale snaps to the nearest one in it
   rather than the keys skipping to scale notes, so the keyboard stays a piano. POLY's ROOT replaced setting TUNE to 48
