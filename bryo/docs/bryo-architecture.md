@@ -155,7 +155,7 @@ Why:
 
 | Use | Bytes | How it's sized |
 | --- | ---: | --- |
-| Shared sound memory | 270,336 pool + 50,688 main RAM | 152 chunks of tape-format sound (28.2 s in all), handed out by usage: tapes as long as what's on them, GRAIN's live buffers while GRAIN is on, RESONATOR's strings and SPACE's lines while they're on. See "Memory by usage" |
+| Shared sound memory | 266,112 pool + 50,688 main RAM | 150 chunks of tape-format sound (27.9 s in all), handed out by usage: tapes as long as what's on them, GRAIN's live buffers while GRAIN is on, RESONATOR's strings and SPACE's lines while they're on. See "Memory by usage" |
 | RESONATOR | 4 chunks a track, while on | 4 strings × 1,056 samples × 2 B (lowest string F1, 43.7 Hz), from the shared memory while WET is up |
 | SPACE delay | 8 chunks a track, while DLY is up | 8,192 samples × 2 B at 22.05 kHz (TIME's 370 ms); 4 chunks at 8 bits when memory is short |
 | SPACE rooms | 10 chunks a room (two: A and B), while a track sends to it | the room (a comb a chunk, the allpasses in a fifth) and the pre-delay's line (5 chunks; 3 at 8 bits); see "The shared rooms, as built" |
@@ -877,6 +877,25 @@ halves it a pass; freeze holds the buffer while grains loop it, and the loop's p
 cursors, a key's spot and OFST taking over again; SYNTH played with the transport stopped, recorded and granulated;
 16 grains with TRACKS 2, 16-8-8 with 3; a buffer taking from the longest tape when nothing is free.
 
+**Drums through the buffer (2026-10-12).** On the FM-1, GRAIN on the factory scene's drums sounded noisy. I rendered
+T1 alone with GRAIN off and on and found three causes, all in how the buffer is recorded and read; they're fixed:
+
+- *Clipping.* Inside the chain a source runs above full scale (the scene's drums peak near 52,000), and the buffer's
+  16 bits clamped every kick and snare (about 420 samples in 10 s). It now records at half level and a grain of it
+  plays at twice (`gr_record`, `gr_start`); a block's stored peak is the sound's, so the screen and the silence
+  skipping see what they did.
+- *Aliasing.* Halving the rate by averaging pairs left the hats' top end folded into the buffer at -16 dB of it, as
+  hiss. A half-band low-pass (-1 0 9 16 9 0 -1)/32 takes it to about -23 dB and folds what's left to the top
+  instead of the middle. Three multiplies per buffer sample.
+- *The seam.* In STR the cursor started on the write head at PLAY and kept pace with it, so grains kept starting
+  where the newest sound meets the bars-old, and the seam's duck faded them in and out (up to a tenth of grain blocks
+  in a second). Now, once enough is recorded, the cursor keeps a grain's length plus SPRY's reach plus two blocks
+  behind the head (at most half the buffer); 28 ducked blocks in 12 s instead of about 2,700.
+
+The rest of the noise is the 4-bit ADPCM (about -23 dB on drums, louder just after a hit); that's the price of the
+long buffer in little memory, and I left it. Turning WET to 0 also lost a fade's tail: the dry ramp ended a step
+short and the grains' fade finished after the 2x up's three-sample delay; both now land at the block's end.
+
 ## RESONATOR, as built (2026-10-08)
 
 RESONATOR comes after GRAIN (`reso.c`): four tuned strings the track rings through, the S-4's RING with the PRD's
@@ -1008,6 +1027,23 @@ sources' clocks. Tested (`test_resting`): stopped 8 s, every device rests with t
 and the strings' lines standing still; PLAY wakes them at once; muted, they rest while the transport plays, and
 unmuted wake; with the heaviest half at 80 % nothing comes back, at 50 % an eighth does. Each part fails its
 mutant (never resting, the tail ignored, a pluck not waking, the mute feeding sound, the blind give-back).
+
+**A pluck's shape (2026-10-12).** From playing RES ARP: "the resonator always sounds the same". Every pluck was the
+same full burst of noise into all four strings at once, at TONE's brightness, so a pattern of them was identical
+hits. RESONATOR 3's three empty knobs now shape it (`rs_pluck`):
+
+- **PICK** (-100..100): how hard. An offset on TONE for the burst alone: below 0 a mallet (the burst low-passed
+  harder, dark and round), above a pick (bright, snappy); TONE still sets how the strings ring after.
+- **STRM** (0..100 ms): a strum. String 1 at once, string k after k x STRM, block by block (`rs_strum`, 0.7 ms
+  steps). A new pluck drops the strings a strum hasn't reached yet, so a fast arpeggio with a slow strum just
+  doesn't finish its chords, rather than piling them up.
+- **VARY** (0..100 %): each pluck its own brightness (up to VARY x 0.3 points either way) and level (down to
+  1 - VARY / 2), each string a little lower again, so the strings don't come in as one block.
+
+0 on all three is the pluck as it was, bit for bit (no extra random draws, full level written as it was): projects
+saved before them stored 0 in those slots. They're modulation targets like any knob. Tested (`test_reso_pluck`):
+PICK's burst brighter at +60 than -60; STRM 50's strings 50 ms apart, the top one waiting until 150 ms; a new pluck
+dropping a strum under way; VARY 0 full level, VARY 100 every pluck and string its own, none under a quarter.
 
 ## COLOR, as built (2026-10-08)
 
@@ -2601,8 +2637,8 @@ Until now every track had a 36 KB tape whether it used it or not, and the plan r
 track the same way. That's 4 × 3.3 s of tape however you play, with a third of the RAM sitting idle on tracks doing
 nothing. Now there's one pool and each track takes what it uses (`mem.c`).
 
-**Chunks.** The pool is 152 chunks of 16 tape blocks (4,096 samples, 186 ms each): 128 in the pool region and 24 in
-main RAM's spare room, 28.2 s of tape-format sound in all. A tape is a list of chunks, and a reader looks a block up
+**Chunks.** The pool is 150 chunks of 16 tape blocks (4,096 samples, 186 ms each): 126 in the pool region (128 until 2026-10-11: two went back to keep the pool's 8 KiB headroom) and 24 in
+main RAM's spare room, 27.9 s of tape-format sound in all. A tape is a list of chunks, and a reader looks a block up
 through the list (one more load per block decode). The main loop hands chunks out and takes them back; the audio ISR
 only reads the lists. Taking a chunk away shortens the list first, then frees it, and that's safe to reuse at once:
 the main loop never runs inside the audio ISR, so a block being rendered finishes before the next step, and every

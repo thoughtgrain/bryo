@@ -685,7 +685,14 @@ The track rings four tuned strings, like a sitar's sympathetic strings.
 3. **The white keys set the strings' root note** (on a TAPE or DRUM track they pluck the strings alone, without
    playing a slice or a drum). **PTCH** does the same with a knob. **DEC** is how long they ring.
 4. **RESONATOR 2**: a filter (CUT, RES, TYPE) and **SCAL**, the chord the four strings make (HARM, MAJ, MIN, PEN).
-5. **RESONATOR 3**: **TONE**, how bright they ring.
+5. **RESONATOR 3**: **TONE**, how bright they ring, and how each pluck sounds (a white key on a TAPE or DRUM
+   track, or a RES ARP step):
+   - **PICK**: how hard the strings are struck. Turn it left for a soft mallet (dark and round), right for a pick
+     (bright and snappy). It changes the strike only; TONE still sets how they ring.
+   - **STRM**: strum. The four strings sound one after another, lowest first, this many milliseconds apart (0: all at
+     once). A new pluck cuts a strum that hasn't finished.
+   - **VARY**: each pluck comes out a little different, in level and brightness, so a pattern sounds played rather
+     than repeated.
 6. To make the strings play a pattern of their own, use **RES ARP**, the ARP pad's third page ([5.8](#58-arp-the-arpeggiator)).
 
 <img src="img/resonator_wet.png" width="240" alt="RESONATOR ringing"> <img src="img/resonator2.png" width="240" alt="RESONATOR 2: CUT RES TYPE SCAL">

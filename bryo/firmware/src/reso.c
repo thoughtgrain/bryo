@@ -23,8 +23,8 @@
 
 #define RS_N 4u                      /* strings a track */
 #define RS_LEN (sizeof(mem_chunk_t) / 2u)   /* a string's delay line: a chunk as samples (1,056) */
-enum { RP_PTCH, RP_DEC, RP_TONE, RP_WET, RP_CUT, RP_RES, RP_SLOP, RP_SCAL, RP_ROUT, RP_AMODE = 12, RP_AORD, RP_ARNG,
-       RP_ARAT };   /* (12-15: its arpeggio) */
+enum { RP_PTCH, RP_DEC, RP_TONE, RP_WET, RP_CUT, RP_RES, RP_SLOP, RP_SCAL, RP_ROUT, RP_PICK, RP_STRM, RP_VARY,
+       RP_AMODE, RP_AORD, RP_ARNG, RP_ARAT };   /* (12-15: its arpeggio) */
 
 /* the strings above the root, 1/16 semitones, by SCAL (HARM MAJ MIN PEN): the first four of ui_viz.c's PART_16 */
 static const int16_t RS_PART16[4][RS_N] = {{0, 192, 304, 384}, {0, 64, 112, 192}, {0, 48, 112, 192}, {0, 32, 64, 112}};
@@ -53,6 +53,9 @@ typedef struct {
     int32_t dry;                     /* the track's share last block + 1, Q15 (INS: 1 - WET; SEND: all; 0: not set) */
     uint32_t keys;
     int32_t rng;
+    uint32_t pend[RS_N];             /* a strum: samples until string k is plucked (0: not waiting) */
+    int32_t proot, pa, plv[RS_N];    /* .. the pluck it belongs to: its root, brightness, each string's level */
+    int32_t psc;                     /* .. and its SCAL */
 } reso_t;
 
 static reso_t reso[NTRK];
@@ -110,25 +113,68 @@ static uint32_t rs_t60(int32_t dec)
     return lastv;
 }
 
-/* pluck: one period of noise into each string's line, behind the write index (softened by TONE's filter) */
-static void rs_pluck(reso_t *R, uint32_t nstr, int32_t root16, int32_t a, int32_t sc)
+/* string k plucked: one period of noise into its line, behind the write index, softened by a (the pluck's
+ * brightness, as TONE's damping), at level lv (Q15) */
+static void rs_pluck1(reso_t *R, uint32_t k, int32_t root16, int32_t a, int32_t lv, int32_t sc)
 {
-    uint32_t k, i;
+    int16_t *d = rs_line(R, k);
+    uint32_t p = rs_period_q8(root16 + RS_PART16[sc][k]) >> 8, at = R->w, i;
+    int32_t y = 0;
     R->quiet = 0;                                       /* (awake: something to ring) */
+    for (i = 0; i < p + 2u; i++) {
+        int32_t x = (int32_t)(noise32(&R->rng) >> 17) - 16384;
+        y += (a * (x - y)) >> 15;
+        at = at ? at - 1u : RS_LEN - 1u;
+        d[at] = (int16_t)clamp(d[at] + (lv >= 32767 ? y : (y * lv) >> 15), -32767, 32767);
+    }
+    R->lp[k] = 0;
+}
+
+/* a pluck of the strings (a key, or RES ARP's step), shaped by RESONATOR 3: PICK, how hard (an offset on TONE for
+ * the burst alone: below 0 a soft mallet, dark and round; above, a pick, bright and snappy); STRM, a strum (the
+ * strings one after another, root first, STRM ms apart; 0 all at once); VARY, each pluck a little different (its
+ * brightness up to VARY x 0.3 points either way, its level down to 1 - VARY / 2, each string's a little more). All
+ * three at 0: the pluck as it always was. A new pluck drops a strum still under way (its strings not yet reached) */
+static void rs_pluck(reso_t *R, uint32_t nstr, int32_t root16, const int16_t *p, int32_t sc)
+{
+    int32_t pick = clamp(p[RP_TONE] + p[RP_PICK], 0, 100), vary = clamp(p[RP_VARY], 0, 100), lv = 32767;
+    uint32_t k, gap = (uint32_t)clamp(p[RP_STRM], 0, 100) * 441u / 10u;   /* (ms -> samples) */
     if (!R->rng)
         R->rng = 0x51ED27;
-    for (k = 0; k < nstr; k++) {
-        int16_t *d = rs_line(R, k);
-        uint32_t p = rs_period_q8(root16 + RS_PART16[sc][k]) >> 8, at = R->w;
-        int32_t y = 0;
-        for (i = 0; i < p + 2u; i++) {
-            int32_t x = (int32_t)(noise32(&R->rng) >> 17) - 16384;
-            y += (a * (x - y)) >> 15;
-            at = at ? at - 1u : RS_LEN - 1u;
-            d[at] = (int16_t)clamp(d[at] + y, -32767, 32767);
-        }
-        R->lp[k] = 0;
+    if (vary) {
+        int32_t sw = vary * 3 / 10;
+        pick = clamp(pick + (int32_t)(noise32(&R->rng) % (uint32_t)(2 * sw + 1)) - sw, 0, 100);
+        lv = 32767 - (int32_t)((noise32(&R->rng) >> 17) * (uint32_t)vary / 200u);
     }
+    R->proot = root16;
+    R->pa = RS_TONE_A[pick];
+    R->psc = sc;
+    for (k = 0; k < RS_N; k++) {
+        R->pend[k] = 0;
+        if (k >= nstr)
+            continue;
+        R->plv[k] = vary ? lv - (int32_t)((noise32(&R->rng) >> 17) * (uint32_t)vary / 400u) : lv;
+        if (k && gap)
+            R->pend[k] = gap * k;
+        else
+            rs_pluck1(R, k, root16, R->pa, R->plv[k], sc);
+    }
+}
+
+/* audio ISR: a strum's strings, as their time comes (block by block: 0.7 ms) */
+static void rs_strum(reso_t *R, uint32_t nstr, uint32_t n)
+{
+    uint32_t k;
+    for (k = 0; k < RS_N; k++)
+        if (R->pend[k]) {
+            if (R->pend[k] > n) {
+                R->pend[k] -= n;
+            } else {
+                R->pend[k] = 0;
+                if (k < nstr)
+                    rs_pluck1(R, k, R->proot, R->pa, R->plv[k], R->psc);
+            }
+        }
 }
 
 /* audio ISR: one block of track t's RESONATOR arpeggio (RES ARP, the ARP pad's page 3: MODE ORDR RNGE RATE; a pluck
@@ -169,6 +215,7 @@ static void reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t keys, int pl
     uint32_t k, i, press = keys & ~R->keys, nstr = R->nch < reso_cap ? R->nch : reso_cap, t60 = rs_t60(p[RP_DEC]);
     R->keys = keys;
     R->wet = wet1;
+    rs_strum(R, nstr, n);
     if (p[RP_PTCH] != R->ptch_seen)                     /* PTCH turned: it takes over from a key */
         R->root16 = 0;
     for (k = 0; press && k < NWHITE; k++)                /* a key: the root (the lowest new one) */
@@ -176,14 +223,14 @@ static void reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t keys, int pl
             R->root16 = clamp(12 * ((int32_t)track[t].octave + 1) + (int32_t)k, 29, 108) * 16;
             R->ptch_seen = p[RP_PTCH];
             if (pluck && nstr)
-                rs_pluck(R, nstr, R->root16, a, sc);
+                rs_pluck(R, nstr, R->root16, p, sc);
             break;
         }
     if (anote >= 0) {                                    /* its arpeggio's step: that note the root, plucked */
         R->root16 = clamp(anote, 29, 108) * 16;
         R->ptch_seen = p[RP_PTCH];
         if (nstr)
-            rs_pluck(R, nstr, R->root16, a, sc);
+            rs_pluck(R, nstr, R->root16, p, sc);
     }
     if (!nstr || (!wet0 && !wet1)) {                     /* off: the track as it was */
         R->dry = 32768;

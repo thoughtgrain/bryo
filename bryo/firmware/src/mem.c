@@ -19,9 +19,9 @@
  * the books. Integer only. */
 
 #define MEM_CB 16u                   /* tape blocks per chunk */
-#define MEM_NC_POOL 128u             /* chunks in the pool (270 KB) */
+#define MEM_NC_POOL 126u             /* chunks in the pool (266 KB; 128 until 2026-10-11, two given back to the pool's headroom) */
 #define MEM_NC_RAM 24u               /* chunks in main RAM (50 KB) */
-#define MEM_NC (MEM_NC_POOL + MEM_NC_RAM)   /* 152: 28.2 s of tape-format sound in all */
+#define MEM_NC (MEM_NC_POOL + MEM_NC_RAM)   /* 150: 27.9 s of tape-format sound in all */
 #define MEM_FREE 0xFFu               /* owner: nobody */
 /* owners: a track's tape (MEM_TAPE + t), its GRAIN buffer (MEM_GRAIN + t), a WAV arriving over USB (MEM_IMPORT),
  * its RESONATOR's strings (MEM_RESO + t), its SPACE's delay (MEM_SPACE + t), the shared rooms A and B (MEM_ROOM + r) */

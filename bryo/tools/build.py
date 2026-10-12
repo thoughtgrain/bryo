@@ -238,6 +238,11 @@ def build_app():
     return bytes(img), syms, dis, rt
 
 
+# numbers that fall in the ROM's window but are arithmetic, not addresses: -32767 * 100 (grain.c gr_body's
+# BODY * 32767 / 100, folded by the compiler into an add)
+NOT_ROM = {(-32767 * 100) & 0xFFFFFFFF}
+
+
 def check(img, syms, dis, rt):
     errors, notes = [], []
     m = re.search(r"^([0-9a-f]+) .*\s_start$", syms, re.M)
@@ -256,7 +261,7 @@ def check(img, syms, dis, rt):
             continue
         for v in re.findall(r"= (-?\d+) <|call -?\d+ <[^:>]*: ([0-9a-f]+) >", mm.group(3)):
             val = (int(v[0]) & 0xFFFFFFFF) if v[0] else int(v[1], 16) & 0xFFFFFFFF
-            if 0xFFC00000 <= val < 0xFFD00000:
+            if 0xFFC00000 <= val < 0xFFD00000 and val not in NOT_ROM:
                 errors.append(f"reference to ROM address {val:#010x}")
     if len(img) > APP_SLOT:
         errors.append(f"image {len(img)} B exceeds the app slot")

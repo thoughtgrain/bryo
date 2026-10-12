@@ -138,8 +138,10 @@ static const pdesc_t DEV_P[NDEV][NPK] = {
          * strings' tuning: the root's harmonics, or a scale's chord tones from the root */
         {"CUT", 0, 127, 127, F_HZ}, {"RES", 0, 100, 0, F_PCT},
         {"TYPE", 0, 2, 0, F_ENUM, N_SLOP}, {"SCAL", 0, 3, 0, F_ENUM, N_RSCAL},
-        /* 3: how WET mixes the strings in (ROUT: INS or SEND) */
-        P_ROUT, {""}, {""}, {""},
+        /* 3: how WET mixes the strings in (ROUT: INS or SEND); a pluck's shape (reso.c rs_pluck): PICK, how hard
+         * (an offset on TONE for the burst: - a soft mallet, + a pick), STRM, the strings strummed STRM ms apart,
+         * VARY, each pluck a little different. 0 on all three: the pluck as it was (a stored 0 from before them) */
+        P_ROUT, {"PICK", -100, 100, 0, F_BIPCT}, {"STRM", 0, 100, 0, F_MS}, {"VARY", 0, 100, 0, F_PCT},
         /* its own arpeggio, RES ARP (stored here, 12-15, shown on the ARP pad's page 3, not on RESONATOR's): the
          * keys on that page into it, a pluck of the strings each step at that note's root, whatever the source
          * plays. As the ARP pad's knobs, with no GATE (a pluck rings by DEC) */
@@ -428,7 +430,8 @@ static const playout_t PLAYOUT[] = {
                                                     /* GRAIN: SIZE RATE ROUT WET, PTCH SPRD SPRY CONT, REV PATN SCAL
                                                      * PRND, SCAN.., BODY.., GRNS */
     {DEV_P[DEV_RESO], 3, {0, 1, 8, 3, 4, 5, 6, 7, 2, 9, 10, 11, 12, 13, 14, 15}},   /* RESONATOR: PTCH DEC ROUT WET,
-                                                                                      * CUT RES TYPE SCAL, TONE (12-15,
+                                                                                      * CUT RES TYPE SCAL, TONE PICK
+                                                                                      * STRM VARY (12-15,
                                                                                       * RES ARP: the ARP pad's) */
     {DEV_P[DEV_COLOR], 3, {0, 1, 9, 7, 2, 3, 4, 5, 6, 10, 11, 8}},              /* COLOR: DRV CRSH ROUT WET, NOIS TILT
                                                                                  * NDEC NTON, CMOD . . LVL */

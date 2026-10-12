@@ -104,7 +104,10 @@ typedef struct {                     /* a track's live buffer */
     volatile uint32_t len;           /* samples it holds: its bars at the tempo it was sized at (0: none) */
     /* the ISR's */
     int32_t w;                       /* the write head, samples */
-    int32_t acc;                     /* two output samples to one buffer sample */
+    int32_t hx[6];                   /* the last six output samples (the half-band filter's, gr_record) */
+    int32_t fill;                    /* samples recorded since the head last started over (at most len; STR's cursor
+                                      * stays inside them) */
+    uint32_t flen;                   /* len when fill was last counted (resized: only what's behind the head counts) */
     uint8_t odd;
     uint8_t staged;                  /* stage holds block sblk, being written */
     uint8_t was_playing;
@@ -370,6 +373,19 @@ static void gr_buf_view(uint32_t t, tape_view_t *v)
 
 /* ----------------------------------------------------------- the buffer --- */
 /* the staged block back into its chunk (dropped when the buffer has shrunk past it meanwhile) */
+/* a stored block's peak as ima_peak keeps it, of the sound: twice what's stored (gr_record) */
+static uint8_t gr_peak(const int16_t *s)
+{
+    uint32_t i;
+    int32_t pk = 0;
+    for (i = 0; i < TAPE_BLK; i++) {
+        int32_t a = s[i] < 0 ? -s[i] : s[i];
+        if (a > pk)
+            pk = a;
+    }
+    return (uint8_t)(pk >> 6 > 255 ? 255 : pk >> 6);
+}
+
 static void gr_bcommit(gr_buf_t *B)
 {
     mem_chunk_t *c;
@@ -385,7 +401,7 @@ static void gr_bcommit(gr_buf_t *B)
     ima_fit(B->stage, &c->pred[b % MEM_CB], &c->idx[b % MEM_CB]);
     ima_enc(B->stage, c->pred[b % MEM_CB], c->idx[b % MEM_CB], c->data[b % MEM_CB], TAPE_BLK);
     {
-        uint8_t pk = ima_peak(B->stage, TAPE_BLK);
+        uint8_t pk = gr_peak(B->stage);
         if (B->loud_len == B->len && B->loud_nch == B->nch)   /* (the count follows the block: loud now, or not) */
             B->nloud = (uint16_t)(B->nloud + (pk != 0) - (c->peak[b % MEM_CB] != 0));
         c->peak[b % MEM_CB] = pk;
@@ -424,22 +440,35 @@ static void gr_bput(gr_buf_t *B, int32_t x, int32_t fb)
     }
     B->stage[o] = (int16_t)clamp((fb ? B->stage[o] * fb / 100 : 0) + x, -32767, 32767);   /* (FDBK 0: no divide
                                                                                                * a buffer sample) */
+    if (B->fill < (int32_t)B->len)
+        B->fill++;
     if ((uint32_t)++B->w >= B->len)
         B->w = 0;
 }
 
-/* the source's block into the buffer (22.05 kHz, as the tape: each pair of output samples averaged) */
+/* the source's block into the buffer at 22.05 kHz, as the tape, through a half-band low-pass (-1 0 9 16 9 0 -1)/32:
+ * a pair of samples averaged let a hi-hat's top fold down into the buffer at -16 dB, a hiss under every grain; this
+ * keeps it near -23 dB and folds it to the top, not the middle (three samples late). At half the source's level: a
+ * source runs above full scale inside the chain (the factory scene's drums peak near 52,000), and the buffer's 16 bits
+ * would clip it hard, every hit. A grain of the buffer plays at twice (gr_start), its peaks are kept at the sound's
+ * own (gr_bcommit) */
 static void gr_record(gr_buf_t *B, const int32_t *dry, uint32_t n, int32_t fb)
 {
+    int32_t x[6u + CTL];
     uint32_t i;
+    for (i = 0; i < 6u; i++)
+        x[i] = B->hx[i];
+    for (i = 0; i < n; i++)
+        x[6u + i] = dry[i];
     for (i = 0; i < n; i++) {
-        B->acc += dry[i];
         B->odd ^= 1u;
-        if (!B->odd) {
-            gr_bput(B, sdiv2(B->acc, 1), fb);
-            B->acc = 0;
+        if (!B->odd) {                                  /* (centred three back from the newest, x[6 + i]) */
+            const int32_t *c = &x[3u + i];
+            gr_bput(B, sdiv2(16 * c[0] + 9 * (c[-1] + c[1]) - c[-3] - c[3], 6), fb);
         }
     }
+    for (i = 0; i < 6u; i++)
+        B->hx[i] = x[n + i];
 }
 
 /* ------------------------------------------------------------- reading --- */
@@ -650,6 +679,11 @@ static void gr_start(uint32_t t, grain_trk_t *G, const int16_t *p, int32_t ls, i
     pan = p[GP_SPRD] ? (int32_t)(gr_rnd(G) % (uint32_t)(2 * p[GP_SPRD] + 1)) - p[GP_SPRD] : 0;
     g->gl = GR_NORM[ov] * (100 - pan) / 200;            /* (centre: each side half) */
     g->gr = GR_NORM[ov] * (100 + pan) / 200;
+    if (clamp(p[GP_SCAN], 0, 3) != SCAN_TAPE) {        /* the buffer holds half the sound's level (gr_record): twice
+                                                         * (65,534 at most: x 32,767 still fits 32 bits, gr_mix) */
+        g->gl *= 2;
+        g->gr *= 2;
+    }
 }
 
 /* the buffer's cursor pace at WARP 100, Q12 samples per output sample: the buffer once round per its bars at the
@@ -820,8 +854,11 @@ static void grain_block(uint32_t t, const int32_t *dry, uint32_t keys, int froze
         G->dset = 1;
         if (d0 != d1) {                                  /* (ROUT or WET moved: ramped, no click) */
             int32_t dd = (d1 - d0) >> CTL_LOG2;
-            for (i = 0; i < (int32_t)n; i++, d0 += dd)
+            for (i = 0; i < (int32_t)n; i++) {          /* (stepped first: the block's last sample at d1, within
+                                                         * rounding, so the next block's start doesn't step) */
+                d0 = i + 1 == (int32_t)n ? d1 : d0 + dd;
                 l[i] = r[i] = (dry[i] * (d0 >> 3)) >> 12;
+            }
         } else if (p[GP_ROUT]) {
             for (i = 0; i < (int32_t)n; i++)
                 l[i] = r[i] = dry[i];
@@ -835,6 +872,13 @@ static void grain_block(uint32_t t, const int32_t *dry, uint32_t keys, int froze
                 l[i] = r[i] = dry[i];
         }
     }
+    if (B->len != B->flen) {                            /* (resized: what's behind the head, back to 0, is this pass's;
+                                                         * past it, the new end holds nothing of it) */
+        B->flen = B->len;
+        B->fill = B->fill < B->w ? B->fill : B->w;
+    }
+    if (!B->len)
+        B->fill = 0;
     if (scan != SCAN_TAPE && B->len && B->nch) {        /* the buffer: the bar line at the transport's start */
         if (B->w >= (int32_t)B->len)                    /* (shrunk under it: the same place in the bars) */
             B->w %= (int32_t)B->len;
@@ -842,7 +886,9 @@ static void grain_block(uint32_t t, const int32_t *dry, uint32_t keys, int froze
             gr_bcommit(B);
             B->w = 0;
             B->odd = 0;
-            B->acc = 0;
+            B->fill = 0;
+            for (i = 0; i < 6; i++)
+                B->hx[i] = 0;
         }
         if (!frozen && wet && (playing || live)) {      /* it records: what's there x FDBK + the source */
             gr_record(B, dry, n, clamp(p[GP_FDBK], 0, 100));
@@ -909,10 +955,33 @@ static void grain_block(uint32_t t, const int32_t *dry, uint32_t keys, int froze
         G->cur -= ll << 12;
     while (G->cur < ls << 12)
         G->cur += ll << 12;
+    if (scan == SCAN_STR && rec) {                      /* STR never starts grains at the seam, where the newest sound
+                                                         * meets the bars-old: the cursor began on the write head at
+                                                         * PLAY, and WARP's pace and the head's drift apart. It keeps
+                                                         * dd behind the head: a grain's length, SPRY's scatter ahead
+                                                         * of the cursor and two blocks, at most half the buffer, once
+                                                         * that much is recorded since PLAY (till then, as it was:
+                                                         * nothing older to read). So a grain
+                                                         * at its own pitch ends short of the head (one pitched up:
+                                                         * the seam's duck, gr_mix). Closer than 3/4 of that, or about
+                                                         * to be overrun (WARP under 100), it goes back to dd behind.
+                                                         * Only where new grains start moves: those sounding play on */
+        int32_t dd = 2 * (int32_t)TAPE_BLK + 22 * p[GP_SIZE] + ll * p[GP_SPRY] / 200, d = B->w - (G->cur >> 12);
+                                                        /* (SIZE ms x 22.05, and SPRY's scatter: gr_start) */
+        if (dd > len >> 1)
+            dd = len >> 1;
+        if (d < 0)
+            d += len;
+        if (B->fill >= dd && (d < dd - (dd >> 2) || d > len - (dd >> 1)))   /* (a quarter's slack: one move in a
+                                                         * minute for the drift) */
+            G->cur = (B->w >= dd ? B->w - dd : B->w + len - dd) << 12;
+    }
     if (!wet && !G->wetq) {                             /* (dry only, the grains faded out last block: they stop,
-                                                         * the cursor goes on) */
+                                                         * the cursor goes on; the 2x up's last three samples still
+                                                         * play out, below, or their cut is a click) */
         grain_kill(t);
-        return;
+        if (G->hq)
+            return;
     }
     if (p[GP_SYNC]) {                                   /* SYNC: on the tempo's grid, from the beat clock (mod.c) */
         uint32_t dv = gr_sdiv(p), b0 = mclk.beat, b1 = b0 + mclk.inc + 1u;
@@ -1027,12 +1096,16 @@ static void grain_block(uint32_t t, const int32_t *dry, uint32_t keys, int froze
         any |= gr_body(G, p, dry, xl + 3, xr + 3, h2, any);   /* BODY: a floor under the grains (out of line) */
         {                                               /* WET on the track's grains together, ramped across the block
                                                          * from last block's (no step when it's turned or modulated;
-                                                         * turned to 0, they fade out over this block, then stop) */
+                                                         * turned to 0, they fade out over this block, then stop).
+                                                         * The ramp ends three half-rate samples early, at w1: the 2x
+                                                         * up plays them three late, so the block's last output is
+                                                         * at w1, where the next block's starts */
             int32_t w1 = PCT_Q15[clamp(wet, 0, 100)], w0 = G->wetq, gw = w0;
-            int32_t dw = h2 == 16u ? sdiv2(w1 - w0, 4) : (w1 - w0) / (int32_t)h2;   /* (a block's half: 16) */
+            int32_t dw = w1 == w0 || h2 <= 3u ? 0 : (w1 - w0) / (int32_t)(h2 - 3u);   /* (a divide only while WET
+                                                         * moves) */
             if (any && (w0 != 32767 || w1 != 32767))
                 for (k = 0; k < h2; k++) {
-                    gw += dw;
+                    gw = k + 4u > h2 ? w1 : gw + dw;
                     xl[3u + k] = (xl[3u + k] * (gw >> 3)) >> 12;
                     xr[3u + k] = (xr[3u + k] * (gw >> 3)) >> 12;
                 }

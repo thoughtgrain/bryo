@@ -3082,8 +3082,14 @@ static void test_grain_buffer(void)
         render_poll(1378);
         check("the 0 key held: the buffer stops recording (its sound unchanged, the write head still)",
               buf_sum(0) == h0 && (uint32_t)gbuf[0].w == w0);
-        check("..and the grains play on through it (the cursor moves, grains sound)", grain[0].cur != c0 &&
-              grain_count(0) > 0);
+        {                                                /* (sparse grains, RATE 40: one sounds within a few blocks) */
+            uint32_t q, any = grain_count(0) > 0;
+            for (q = 0; q < 8u && !any; q++) {
+                render_poll(1);
+                any = grain_count(0) > 0;
+            }
+            check("..and the grains play on through it (the cursor moves, grains sound)", grain[0].cur != c0 && any);
+        }
         sys.bpm = 60;                                    /* half the tempo while frozen: the loop's pace halves */
         chain_poll();
         c0 = grain[0].cur;
@@ -3279,6 +3285,102 @@ static double buf_rms(const int32_t *x, uint32_t from, uint32_t n)
     for (i = from; i < n; i++)
         a += (double)x[i] * x[i];
     return sqrt(a / (n - from + 1));
+}
+
+/* RESONATOR 3's pluck shape: a fresh track 1 with the strings up, PICK STRM VARY set, and one key on its page (A3) */
+static void rpk_setup(int pick, int strm, int vary)
+{
+    int16_t *p;
+    uint32_t t;
+    power_on();
+    p = tp[0].dev[DEV_RESO];
+    for (t = 1; t < NTRK; t++)
+        track[t].mute = 1;
+    focus_dev(DEV_RESO, 0);
+    ui_input();
+    p[RP_WET] = 100;
+    p[RP_PICK] = (int16_t)pick;
+    p[RP_STRM] = (int16_t)strm;
+    p[RP_VARY] = (int16_t)vary;
+    chain_poll();
+    render(4, 0);
+}
+static void rpk_key(void)
+{
+    fm1_in.notes = note_bit_of_white(9);
+    render(1, 0);
+    fm1_in.notes = 0;
+}
+static double rpk_bright(uint32_t k)                     /* string k's line: its sample-to-sample movement per level */
+{
+    const int16_t *d = rs_line(&reso[0], k);
+    double mv = 0, lv = 0;
+    uint32_t i;
+    for (i = 1; i < RS_LEN; i++) {
+        mv += fabs((double)d[i] - d[i - 1]);
+        lv += fabs((double)d[i]);
+    }
+    return lv > 0 ? mv / lv : 0;
+}
+static double rpk_energy(uint32_t k)
+{
+    const int16_t *d = rs_line(&reso[0], k);
+    double e = 0;
+    uint32_t i;
+    for (i = 0; i < RS_LEN; i++)
+        e += (double)d[i] * d[i];
+    return e;
+}
+static void test_reso_pluck(void)
+{
+    char b[200];
+    double soft, hard, e3a, e3b;
+    int32_t l1[RS_N], l2[RS_N];
+    uint32_t k, same;
+    rpk_setup(-60, 0, 0);
+    rpk_key();
+    soft = rpk_bright(0);
+    rpk_setup(60, 0, 0);
+    rpk_key();
+    hard = rpk_bright(0);
+    snprintf(b, sizeof b, "RESONATOR PICK: -60 plucks soft (a string's burst moves %.2f a sample per level), +60 hard "
+             "(%.2f)", soft, hard);
+    check(b, hard > 1.5 * soft && soft > 0);
+    rpk_setup(0, 50, 0);
+    rpk_key();
+    e3a = rpk_energy(3);
+    snprintf(b, sizeof b, "..STRM 50: the root string at once, the next 50 ms on, the top one 150 (%u samples to go)",
+             reso[0].pend[3]);
+    check(b, rpk_energy(0) > 0 && e3a == 0 && reso[0].pend[1] > 2100u && reso[0].pend[1] <= 2205u &&
+          reso[0].pend[3] > 6500u && reso[0].pend[3] <= 6615u);
+    render(190, 0);                                      /* (138 ms) */
+    e3b = rpk_energy(3);
+    render(30, 0);                                       /* (160 ms in all) */
+    check("..each string as its time comes: the top one still waiting at 138 ms, plucked by 160",
+          e3b == 0 && rpk_energy(3) > 0 && !reso[0].pend[3]);
+    rpk_key();
+    render(30, 0);
+    rpk_key();
+    check("..a new pluck drops a strum still under way, and starts its own", reso[0].pend[3] > 6400u);
+    rpk_setup(0, 0, 0);
+    rpk_key();
+    for (k = 0, same = 1; k < RS_N; k++)
+        same &= reso[0].plv[k] == 32767;
+    check("..VARY 0: every pluck and string at full level (the pluck as it was)", same);
+    rpk_setup(0, 0, 100);
+    rpk_key();
+    for (k = 0; k < RS_N; k++)
+        l1[k] = reso[0].plv[k];
+    render(10, 0);
+    rpk_key();
+    for (k = 0, same = 0; k < RS_N; k++) {
+        l2[k] = reso[0].plv[k];
+        same += l1[k] == l2[k];
+    }
+    snprintf(b, sizeof b, "..VARY 100: each pluck its own levels (%d %d %d %d, then %d %d %d %d), none under a quarter",
+             l1[0], l1[1], l1[2], l1[3], l2[0], l2[1], l2[2], l2[3]);
+    check(b, same == 0 && l1[0] >= 8192 && l2[3] >= 8192 && l1[0] != l1[1]);
+    power_on();
 }
 
 static void test_reso(void)
@@ -8746,6 +8848,7 @@ int main(int argc, char **argv)
     test_sync();
     test_grain_clicks();
     test_reso();
+    test_reso_pluck();
     test_color();
     test_space();
     test_usbrec();
