@@ -32,6 +32,9 @@
 static int16_t *wav_buf;
 static uint32_t wav_n, wav_cap;
 static uint32_t wav_clip;
+static uint32_t wav_fp = 2166136261u;                    /* FNV-1a over every output sample of the run, before the
+                                                          * clamp: the run's audio fingerprint (tests/bryo_audio.txt:
+                                                          * a change in the sound of any run must be deliberate) */
 
 static void wav_block(void)                              /* one control block of the instrument into the take */
 {
@@ -39,6 +42,7 @@ static void wav_block(void)                              /* one control block of
     chain_block(out, CTL);
     for (i = 0; i < 2u * CTL; i++) {
         int32_t x = out[i];
+        wav_fp = (wav_fp ^ (uint32_t)x) * 16777619u;
         if (x > 32767 || x < -32768)
             wav_clip++;
         if (wav_n < wav_cap)
@@ -122,6 +126,13 @@ static double run(int n, char *say, size_t sz)
     case 1:                                              /* the baseline: four reels, GRAIN off */
         play(6);
         snprintf(say, sz, "4 reels playing, GRAIN off");
+        return 6;
+    case 31:                                             /* the factory scene (nothing saved), as it starts */
+        pj_wipe();
+        pj_boot();
+        sys.playing = 1;
+        play(6);
+        snprintf(say, sz, "the factory scene");
         return 6;
     case 2:                                              /* WET 100 everywhere, the defaults */
         all_grain(GP_WET, 100);
@@ -809,6 +820,42 @@ int main(int argc, char **argv)
     }
     if (argc > 2 && !strcmp(argv[1], "stress"))
         return stress(atof(argv[2]));
+    if (argc > 1 && !strcmp(argv[1], "fp")) {            /* every run's audio fingerprint (the suite compares them
+                                                          * with tests/bryo_audio.txt; "fp update" writes it) */
+        static const int RUNS[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+                                   25, 26, 27, 28, 29, 30, 31};
+        uint32_t k;
+        FILE *f = argc > 3 && !strcmp(argv[2], "update") ? fopen(argv[3], "w") : 0;
+        int bad = 0;
+        wav_cap = 0;
+        if (f)
+            fprintf(f, "# Bryo: the audio fingerprint of every checkpoint run (tests/checkpoint_sim.c fp): a change "
+                       "in any run's sound must be deliberate\n");
+        for (k = 0; k < sizeof RUNS / sizeof RUNS[0]; k++) {
+            char line[64];
+            wav_fp = 2166136261u;
+            run(RUNS[k], say, sizeof say);
+            snprintf(line, sizeof line, "run %d %08x", RUNS[k], wav_fp);
+            if (f)
+                fprintf(f, "%s\n", line);
+            else if (argc > 2) {                         /* fp FILE: compare */
+                FILE *g = fopen(argv[2], "r");
+                char want[64];
+                int found = 0;
+                while (g && fgets(want, sizeof want, g))
+                    if (!strncmp(want, line, strlen(line)) && want[strlen(line)] == '\n')
+                        found = 1;
+                if (g)
+                    fclose(g);
+                printf("audio: %s %s\n", line, found ? "ok" : "CHANGED");
+                bad |= !found;
+            } else
+                printf("%s\n", line);
+        }
+        if (f)
+            fclose(f);
+        return bad;
+    }
     if (argc > 2 && !strcmp(argv[1], "wav")) {
         int n;
         wav_cap = 25u * 44100u * 2u;
@@ -823,6 +870,6 @@ int main(int argc, char **argv)
         }
         return 0;
     }
-    fprintf(stderr, "checkpoint_sim wav DIR | run N | stress SECS\n");
+    fprintf(stderr, "checkpoint_sim wav DIR | run N | stress SECS | fp [FILE | update FILE]\n");
     return 2;
 }

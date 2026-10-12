@@ -104,6 +104,7 @@ run "Bryo: chain, input mapping, every screen" "$OUT/bryo_host" build/bryo_ui
 run "Bryo screens pixel-identical to tests/bryo_golden.txt" "$PY" tests/ui_golden.py check tests/bryo_golden.txt build/bryo_ui
 $CC -I"$GEN" -Itests -o "$OUT/checkpoint_sim" tests/checkpoint_sim.c -lm $( [ "$(uname -s)" = Linux ] && echo -lrt)
 run "Bryo under real interrupts: the audio and usb_poll cutting into the main loop, the shared memory's books (3 s)" "$OUT/checkpoint_sim" stress 3
+run "Bryo's sound bit for bit: every checkpoint run's audio fingerprint as in tests/bryo_audio.txt" "$OUT/checkpoint_sim" fp tests/bryo_audio.txt
 run "controls map (docs/controls.tsv): well formed, every physical control mapped" "$PY" tests/controls_check.py
 manual_shots() {   # the manual's pictures show the screens as they are (tools/gen_manual_shots.py to refresh them)
     rm -rf "$OUT/manual" && "$PY" tools/gen_manual_shots.py build/bryo_ui/ppm "$OUT/manual" >/dev/null && "$PY" -c "
