@@ -705,7 +705,7 @@ static void on_button(uint32_t b)
             break;
         }
         if (ui.view == VIEW_MIXER) {                    /* (held: while held; tapped: latched; tapped again: off) */
-            if (ui.chan == CHAN_SETUP && ui.chan_latched) {   /* LEVELS -> CHANNEL -> MASTER -> SETUP -> LEVELS */
+            if (ui.chan == CHAN_SETUP && ui.chan_latched) {   /* LEVELS CHANNEL MASTER KEY SETUP, LEVELS */
                 ui.chan = CHAN_LEVELS;
                 ui.chan_latched = 0;
             } else {

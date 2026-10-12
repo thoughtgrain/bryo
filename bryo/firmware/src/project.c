@@ -29,7 +29,7 @@
 
 #define PJ_N 6u                      /* project slots */
 #define PJ_MAGIC 0x50595242u         /* "BRYP" */
-#define PJ_VERSION 9u                /* one format: a project of another version reads as one this Bryo can't
+#define PJ_VERSION 10u               /* one format: a project of another version reads as one this Bryo can't
                                          * (nothing older is kept up with: projects started with this one) */
 static uint8_t pj_arpn[NTRK][ARP_MAXN];  /* the notes a project being read holds, until pj_load hands them over */
 static uint8_t pj_arpc[NTRK];
@@ -320,6 +320,8 @@ static uint32_t pj_hash(void)
     }
     for (i = 0; i < NMS; i++)
         h = (h ^ (uint32_t)(uint16_t)mst[i]) * 16777619u;
+    for (i = 0; i < NKY; i++)
+        h = (h ^ (uint32_t)(uint16_t)keyp[i]) * 16777619u;
     for (i = 0; i < NROOM * NRM; i++)
         h = (h ^ (uint32_t)(uint16_t)rmp[i / NRM][i % NRM]) * 16777619u;
     return (h ^ (sys.bpm | (uint32_t)sys.ntrk << 16)) * 16777619u;
@@ -348,6 +350,7 @@ static void pj_write_state(void)
     pw_u16(sys.bpm);
     pw_byte(sys.ntrk);
     pw_a16(mst, NMS);
+    pw_a16(keyp, NKY);
     pw_byte(NTRK);
     for (t = 0; t < NTRK; t++) {
         const track_params_t *P = &tp[t];
@@ -439,6 +442,7 @@ static int pj_read_state(void)
         (void)pr_u16();
         (void)pr_byte();
         pr_a16(junk, NMS, 0);
+        pr_a16(junk, NKY, 0);
         nt = pr_byte();
         pr.at = at, pr.lit = (int32_t)lit, pr.run = (int32_t)run, pr.rb = rb;
         if (nt > NTRK || pr.bad)
@@ -452,6 +456,7 @@ static int pj_read_state(void)
     sys.bpm = (uint16_t)clamp((int32_t)pr_u16(), 40, 240);
     sys.ntrk = (uint8_t)clamp(pr_byte(), 1, (int32_t)NTRK);
     pr_a16(mst, NMS, MS_P);
+    pr_a16(keyp, NKY, KY_P);
     nt = pr_byte();
     if (nt > NTRK)                                       /* (more tracks than this FM-1 has: not ours to read) */
         return -1;
@@ -554,6 +559,7 @@ static void pj_scan(uint32_t s)
     {
         int16_t junk[NMS];
         pr_a16(junk, NMS, 0);
+        pr_a16(junk, NKY, 0);                            /* (KEY, SCAL) */
     }
     (void)pr_byte();
     for (t = 0; t < NTRK; t++) {                         /* (each track's source: the first fields, then skip to the

@@ -1012,12 +1012,12 @@ static const uint8_t SYN_PK[NPK] = {
     PK_CUTOFF, PK_RES, PK_ENVAMT, PK_KTRK,           /*        CUT RES ENV KTRK */
     PK_ATTACK, PK_DECAY, PK_SUSTAIN, PK_RELEASE,     /*        ATK DEC SUS REL */
     PK_VOICES, PK_SLEW, PK_DRIVE, PK_KNOB,           /*        VOIC GLID DRV TUNE */
-    PK_FADER};                                       /*        LVL */
+    PK_FADER, PK_DETUNE};                            /*        LVL FINE */
 static const uint8_t POL_PK[NPK] = {
     PK_SRC, PK_START, PK_KNOB, PK_VOICES,            /* POLY: REEL STRT TUNE VOIC */
     PK_ATTACK, PK_DECAY, PK_SUSTAIN, PK_RELEASE,     /*       ATK DEC SUS REL */
     PK_CUTOFF, PK_RES, PK_SLOPE, PK_ENVAMT,          /*       CUT RES TYPE ENV */
-    PK_FADER, PK_LENGTH};                            /*       LVL END */
+    PK_FADER, PK_LENGTH, PK_KEYS, PK_DETUNE};        /*       LVL END ROOT FINE */
 static const uint8_t DRM_PK[NPK] = {
     PK_PATTERN, PK_LENGTH, PK_SWING, PK_FADER,       /* DRUM: PATN LEN SWNG ACNT */
     PK_DOTS, PK_VAR, PK_STAIRS, PK_LOOP,             /*       SEED VARY FILL EVOL */
@@ -1035,6 +1035,7 @@ static const uint8_t CH_PK[NCH] = {PK_SHELF_LO, PK_SHELF_HI, PK_FILTER, PK_PAN};
 static const uint8_t MS_PK[NMS] = {PK_KNOB, PK_ATTACK, PK_RELEASE, PK_MIX};   /* the master compressor */
 static const uint8_t ARP_PK[NARP] = {   /* the arpeggiator: MODE ORDR RNGE RATE, GATE SWNG */
     PK_TOGGLE, PK_DIR, PK_VOICES, PK_CLOCK, PK_GATE, PK_SWING, PK_NONE, PK_NONE};
+static const uint8_t KY_PK[4] = {PK_KEYS, PK_SCALE, PK_NONE, PK_NONE};   /* KEY: KEY SCAL */
 static const uint8_t SET_PK[NSET] = {PK_TOGGLE, PK_KNOB, PK_CLOCK, PK_STEPS};   /* SETUP: KEYS KNOB HOLD LEDS */
 static const uint8_t ME_PK[NME][NPK] = {   /* (in stored order: param.c's PLAYOUT places them on the pages) */
     {PK_KNOB, PK_SHAPE, PK_SKEW, PK_FOLD,            /* LFO: RATE SHPE SKEW FOLD */

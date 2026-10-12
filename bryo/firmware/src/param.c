@@ -181,7 +181,7 @@ static const char *const SRC_NAME[NSRC] = {"TAPE", "SYNTH", "POLY", "DRUM"};
  * the oscillators, the filter, the envelope (one ADSR for the level and, by ENV, the cutoff), how the keys play it
  * and the level; the pages show them in POLY's order (OSC, AMP, FILTER, VOICE, LEVEL: PLAYOUT below). */
 enum { SY_WAVE, SY_DTUN, SY_MIX, SY_NOIS, SY_CUT, SY_RES, SY_ENV, SY_KTRK, SY_ATK, SY_DEC, SY_SUS, SY_REL, SY_VOIC,
-       SY_GLID, SY_DRV, SY_TUNE, SY_LVL };
+       SY_GLID, SY_DRV, SY_TUNE, SY_LVL, SY_FINE };
 #define SYN_NV 3u                /* voices per track */
 static const pdesc_t SYN_P[NPK] = {
     /* OSC: two oscillators of the same wave, the second DTUN cents up and MIX of the blend; white noise */
@@ -194,14 +194,15 @@ static const pdesc_t SYN_P[NPK] = {
      * the tuning in semitones */
     {"VOIC", 1, SYN_NV, SYN_NV, F_NUM}, {"GLID", 0, 127, 0, F_TIME}, {"DRV", 0, 100, 0, F_PCT},
     {"TUNE", -24, 24, 0, F_ST},
-    /* LEVEL: what the track hears of the synth (every source's last page, as the S-4's LEVEL) */
-    {"LVL", -24, 6, 0, F_DB}, {""}, {""}, {""}};
+    /* LEVEL: what the track hears of the synth (every source's last page, as the S-4's LEVEL); FINE: the tuning in
+     * cents, on top of TUNE (page 4, beside it) */
+    {"LVL", -24, 6, 0, F_DB}, {"FINE", -50, 50, 0, F_CT}, {""}, {""}};
 
 /* POLY (poly.c): a sound played at the keys' pitches, up to four at once, each through its own envelope and filter.
  * The sound is any reel choice: a factory reel, one of yours, or this track's own tape (record into it, then play it
- * across the keys). White key 1 at OCT 3 plays it as it was recorded. */
+ * across the keys). The key ROOT names (C3 unless you say otherwise) plays it as it was recorded, FINE cents off. */
 enum { PL_REEL, PL_STRT, PL_TUNE, PL_VOIC, PL_ATK, PL_DEC, PL_SUS, PL_REL, PL_CUT, PL_RES, PL_TYPE, PL_ENV, PL_LVL,
-       PL_END };
+       PL_END, PL_ROOT, PL_FINE };
 #define POL_NV 4u                /* voices per track */
 static const pdesc_t POL_P[NPK] = {
     /* SAMPLE: which sound, where in it a note starts, the tuning, how many notes at once */
@@ -214,7 +215,10 @@ static const pdesc_t POL_P[NPK] = {
     {"ENV", -100, 100, 0, F_BIPCT},
     /* LEVEL: what the track hears of POLY's voices; END: where in the sound a note stops (page 1, after STRT; as
      * STRT, in hundredths: HOME held turns either a hundredth a click, the zoom) */
-    {"LVL", -24, 6, 0, F_DB}, {"END", 100, 10000, 10000, F_PCT100}, {""}, {""}};
+    {"LVL", -24, 6, 0, F_DB}, {"END", 100, 10000, 10000, F_PCT100},
+    /* TUNING (page 4): ROOT, the note the sound was recorded at (that key plays it as it is; a setting, not a
+     * modulation target: it would step by semitones), and FINE, cents, for a sound that sits between two notes */
+    {"ROOT", 24, 96, 48, F_NOTE, 0, 1}, {"FINE", -50, 50, 0, F_CT}};
 
 /* DRUM (drum.c): a drum machine. Sixteen synthesized instruments on the white keys, played from a pattern of 2..4
  * bars of sixteenths. Four pages: the PATTERN (a written rhythm to start from, its length, swing, how hard an
@@ -275,6 +279,35 @@ static const pdesc_t MS_P[NMS] = {
     {"AMT", 0, 100, 0, F_PCT}, {"ATK", 1, 100, 10, F_MS}, {"REL", 20, 990, 200, F_MS}, {"MIX", 0, 100, 100, F_PCT},
 };
 static int16_t mst[NMS];
+
+/* KEY, the mixer's page after MASTER (EDIT tapped three times): the project's key and scale. With SCAL on, a note
+ * SYNTH or POLY starts (a key, the arpeggiator's) that's outside the scale plays the nearest one in it (between two,
+ * the lower): the keyboard stays a piano, the wrong notes just can't sound. One for the whole project. */
+enum { KY_KEY, KY_SCAL, NKY };
+static const char *const N_KEYN[12] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
+static const char *const N_KSCAL[8] = {"OFF", "MAJ", "MIN", "DOR", "MIX", "HMIN", "PEN", "MPEN"};
+static const uint16_t KSCAL_MASK[8] = {   /* the notes in each scale, bit n: n semitones above the key */
+    0xFFFu, 0xAB5u, 0x5ADu, 0x6ADu, 0x6B5u, 0x9ADu, 0x295u, 0x4A9u};
+static const pdesc_t KY_P[4] = {
+    {"KEY", 0, 11, 0, F_ENUM, N_KEYN, 1}, {"SCAL", 0, 7, 0, F_ENUM, N_KSCAL, 1}, {""}, {""}};
+static int16_t keyp[NKY];
+
+/* note n (0..127) as the scale lets it sound: itself, or the nearest note in KEY's SCAL (ties: the lower). Called
+ * when a note starts (the ISR, once a note), so the loop is fine */
+static int32_t key_snap(int32_t n)
+{
+    uint32_t m = KSCAL_MASK[(uint32_t)keyp[KY_SCAL] & 7u], pc = (uint32_t)(n + 120 - clamp(keyp[KY_KEY], 0, 11)), d;
+    while (pc >= 12u)
+        pc -= 12u;
+    m |= m << 12;                                        /* (two octaves: pc - d and pc + d without a wrap) */
+    for (d = 0; d <= 6u; d++) {
+        if ((m >> (pc + 12u - d)) & 1u)
+            return clamp(n - (int32_t)d, 0, 127);
+        if ((m >> (pc + d)) & 1u)
+            return clamp(n + (int32_t)d, 0, 127);
+    }
+    return n;
+}
 
 /* The two rooms the tracks share (space.c; edited on SPACE's pages, the room the track's ROOM picks): SIZE, DEC,
  * TONE (RTON on the page: - darker, + a high-pass in front), QUAL (HI 22.05 kHz, LO 11.025: half the work, a darker
@@ -400,9 +433,10 @@ static const playout_t PLAYOUT[] = {
                                                                                  * ROOM SIZE DEC PRE, TONE SPRD RTON
                                                                                  * QUAL, SYNC (2-3 and 8-11: the
                                                                                  * room's, SP_RMK) */
-    {SYN_P, 5, {0, 1, 2, 3, 8, 9, 10, 11, 4, 5, 6, 7, 12, 13, 14, 15, 17, 18, 19, 16}},   /* OSC AMP FILTER VOICE, LVL */
+    {SYN_P, 5, {0, 1, 2, 3, 8, 9, 10, 11, 4, 5, 6, 7, 12, 13, 15, 17, 14, 18, 19, 16}},   /* OSC AMP FILTER, VOIC GLID
+                                                                                       * TUNE FINE, DRV . . LVL */
     {POL_P, 4, {0, 1, 13, 2, 4, 5, 6, 7, 8, 9, 10, 11, 3, 14, 15, 12}},         /* POLY: REEL STRT END TUNE, ..., VOIC
-                                                                                 * . . LVL */
+                                                                                 * ROOT FINE LVL */
     {ME_P[ME_WAVE], 4, {0, 1, 2, 3, 4, 5, 6, 7, 12, 13, 14, 15, 10, 11, 8, 9}},  /* LFO: timing, then PHAS SPRD AMT OFS */
     {ME_P[ME_SEQ], 3, {0, 1, 2, 3, 4, 5, 6, 7, 11, 8, 9, 10}},                  /* SEQ: . SPRD AMT OFS */
     {ME_P[ME_FOLLOW], 2, {0, 1, 2, 3, 4, 7, 5, 6}},                             /* FOLLOW: HOLD SPRD AMT OFS */
@@ -528,6 +562,8 @@ static void param_defaults(void)
     uint32_t t, d, k, s;
     for (k = 0; k < NMS; k++)                            /* the master compressor */
         mst[k] = MS_P[k].def;
+    for (k = 0; k < NKY; k++)                            /* the key and scale */
+        keyp[k] = KY_P[k].def;
     for (s = 0; s < NROOM; s++)                          /* the rooms */
         for (k = 0; k < NRM; k++)
             rmp[s][k] = RM_P[k].def;
@@ -630,6 +666,11 @@ static void param_format(const pdesc_t *d, int32_t v, char *val, const char **un
         str_cpy(val, d->names[v - d->min], 6);
         break;
     case F_CT:
+        if (d->min < 0 && v > 0) {                      /* (FINE: signed, as TUNE) */
+            val[0] = '+';
+            fmt_int(val + 1, v);
+            break;
+        }
         fmt_int(val, v);
         *unit = "ct";
         break;

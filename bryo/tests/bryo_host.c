@@ -619,6 +619,13 @@ static void test_input(void)
     check("..KNOB 1 sets the master compressor's AMT (0 -> 20), one for all tracks", mst[MS_AMT] == 20);
     mst[MS_AMT] = 0;
     tap(B_EDIT);
+    check("..tapped again: KEY, the project's key and scale (latched)", ui.chan == CHAN_KEY && ui.chan_latched &&
+          ui.view == VIEW_MIXER);
+    host_enc[panel.enc[EN_K1 + 1u]] = 1;
+    ui_input();
+    check("..KNOB 2 sets SCAL (OFF -> MAJ), one for the project", keyp[KY_SCAL] == 1);
+    keyp[KY_SCAL] = 0;
+    tap(B_EDIT);
     check("..tapped again: SETUP, the panel's preferences (latched)", ui.chan == CHAN_SETUP && ui.chan_latched &&
           ui.view == VIEW_MIXER);
     tap(B_EDIT);
@@ -6517,6 +6524,129 @@ static void test_project_worst(void)
     power_on();
 }
 
+static int syn_plays(uint32_t t, int32_t note16);
+
+/* KEY: the project's key and scale (param.c key_snap): a note outside it plays the nearest one in it, on SYNTH and
+ * POLY, and it's saved with the project. POLY's ROOT (the key that plays the sound as it is) and FINE, SYNTH's FINE */
+static void test_key_tuning(void)
+{
+    enum { NB = 1378 };                                  /* 1 s */
+    static int32_t s[NB * CTL];
+    int32_t n, k, sc, far = 0, out = 0, i0;
+    uint32_t c;
+    char m[200];
+    double hz0, hz1;
+    power_on();
+    for (n = 0; n < 128; n++)
+        out |= key_snap(n) != n;
+    check("KEY: SCAL OFF (as at power-on) leaves every note as it is", !out && keyp[KY_SCAL] == 0);
+    keyp[KY_KEY] = 0;
+    keyp[KY_SCAL] = 1;                                   /* C MAJ */
+    check("..C MAJ: C#3 plays C3, F#3 F3 (between two: the lower), B3 B3, C4 C4", key_snap(49) == 48 &&
+          key_snap(54) == 53 && key_snap(59) == 59 && key_snap(60) == 60);
+    keyp[KY_KEY] = 9;
+    keyp[KY_SCAL] = 6;                                   /* A PEN: A B C# E F# */
+    check("..A PEN: C plays B, D C#, G F# (the nearest)", key_snap(60) == 59 && key_snap(62) == 61 &&
+          key_snap(67) == 66);
+    for (k = 0; k < 12; k++)                             /* every key, every scale, every note */
+        for (sc = 1; sc < 8; sc++) {
+            keyp[KY_KEY] = (int16_t)k;
+            keyp[KY_SCAL] = (int16_t)sc;
+            for (n = 12; n < 116; n++) {
+                int32_t q = key_snap(n), d = q - n;
+                out |= !((KSCAL_MASK[sc] >> ((q + 12 - k) % 12)) & 1u);
+                far |= d < -1 || d > 1;
+            }
+        }
+    check("..every key and scale: a note snaps into the scale, never more than a semitone away", !out && !far);
+
+    power_on();                                          /* SYNTH: the keys through the scale */
+    tp[0].src = SRC_SYNTH;
+    keyp[KY_SCAL] = 1;                                   /* C MAJ */
+    fm1_in.notes = note_bit_of_white(1);                 /* (shortcut keys: white key 2 is C#3) */
+    render(4, 0);
+    check("SYNTH, C MAJ: white key 2 (C#3) sounds C3", syn_plays(0, 48 * 16) && !syn_plays(0, 49 * 16));
+    fm1_in.notes = 0;
+    render(80, 0);
+    tp[0].src = SRC_POLY;                                /* POLY: the same */
+    fm1_in.notes = note_bit_of_white(1);
+    render(4, 0);
+    check("POLY, C MAJ: white key 2 (C#3) sounds C3", pol[0].v[0].stage && pol[0].v[0].note == 48);
+    fm1_in.notes = 0;
+    render(80, 0);
+    keyp[KY_SCAL] = 0;
+
+    fm1_in.notes = note_bit_of_white(0);                 /* ROOT: C3 plays the sound as it is (0.5 a sample) */
+    render(4, 0);
+    i0 = pol[0].v[0].inc;
+    tp[0].pol[PL_ROOT] = 60;                             /* the sound is a C4: C3 plays it an octave down */
+    render(1, 0);
+    c = (uint32_t)pol[0].v[0].inc;
+    tp[0].pol[PL_ROOT] = 48;
+    tp[0].pol[PL_FINE] = 50;                             /* +50 cents: 2^(50/1200) = 1.0293 */
+    render(1, 0);
+    snprintf(m, sizeof m, "POLY: ROOT C3 reads the sound at %d (2048, 0.5), ROOT C4 at %u (half), FINE +50 at %d "
+             "(x1.0293)", i0, c, pol[0].v[0].inc);
+    check(m, i0 >= 2046 && i0 <= 2050 && c * 2u >= (uint32_t)i0 - 2u && c * 2u <= (uint32_t)i0 + 2u &&
+          pol[0].v[0].inc * 10000 / i0 >= 10283 && pol[0].v[0].inc * 10000 / i0 <= 10303);
+    fm1_in.notes = 0;
+    render(80, 0);
+
+    tp[0].src = SRC_SYNTH;                               /* SYNTH's FINE: a sine, A3, then +50 cents */
+    tp[0].syn[SY_WAVE] = 0;
+    tp[0].syn[SY_DTUN] = 0;
+    tp[0].syn[SY_MIX] = 0;
+    tp[0].syn[SY_CUT] = 127;
+    tp[0].syn[SY_ENV] = 0;
+    fm1_in.notes = note_bit_of_white(9);
+    render(NB, s);
+    hz0 = buf_hz(s, NB * CTL / 4, NB * CTL);
+    tp[0].syn[SY_FINE] = 50;
+    render(NB, s);
+    hz1 = buf_hz(s, NB * CTL / 4, NB * CTL);
+    fm1_in.notes = 0;
+    snprintf(m, sizeof m, "SYNTH: FINE +50 on A3: %.2f Hz to %.2f Hz (226.45: 50 cents)", hz0, hz1);
+    check(m, fabs(hz0 - 220.0) < 1.5 && fabs(hz1 - 226.45) < 1.0);
+
+    power_on();                                          /* the project keeps KEY and SCAL */
+    keyp[KY_KEY] = 7;
+    keyp[KY_SCAL] = 3;
+    n = pj_save(3);
+    power_on();
+    n |= pj_load(3);
+    check("..a project keeps KEY and SCAL (G DOR saved, G DOR back)", n == 0 && keyp[KY_KEY] == 7 &&
+          keyp[KY_SCAL] == 3);
+    pj_wipe();
+
+    power_on();                                          /* the pages */
+    keyp[KY_KEY] = 9;
+    keyp[KY_SCAL] = 2;                                   /* A MIN */
+    tap(B_GLO);
+    tap(B_EDIT);
+    tap(B_EDIT);
+    tap(B_EDIT);
+    ui.msg_t = 0;
+    check("the KEY page: GLO, EDIT x3 (CHANNEL MASTER KEY)", ui.view == VIEW_MIXER && ui.chan == CHAN_KEY);
+    shot("BRYO", "mixer_key");
+    tap(B_GLO);
+    tp[0].src = SRC_POLY;
+    focus_dev(DEV_SRC, 3);                               /* POLY 4: VOIC ROOT FINE LVL */
+    turn(1, 9);
+    turn(2, 12);
+    ui.msg_t = 0;
+    snprintf(m, sizeof m, "POLY's page 4: KNOB 2 turns ROOT (C3 -> %d), KNOB 3 FINE (0 -> %d ct)", tp[0].pol[PL_ROOT],
+             tp[0].pol[PL_FINE]);
+    check(m, tp[0].pol[PL_ROOT] == 57 && tp[0].pol[PL_FINE] > 0);
+    shot("BRYO", "poly_tuning");
+    tp[0].src = SRC_SYNTH;
+    focus_dev(DEV_SRC, 3);                               /* SYNTH 4: VOIC GLID TUNE FINE */
+    turn(3, -7);
+    ui.msg_t = 0;
+    check("SYNTH's page 4: KNOB 4 turns FINE", tp[0].syn[SY_FINE] < 0);
+    shot("BRYO", "synth_tuning");
+    power_on();
+}
+
 static void test_save_seamless(void)
 {
     uint32_t n0, b, i, t_;
@@ -8325,7 +8455,8 @@ static void test_arp_keys(void)
     tap(B_EDIT);
     tap(B_EDIT);
     tap(B_EDIT);
-    check("SETUP: the mixer's last page (GLO, EDIT x3: CHANNEL MASTER SETUP)", ui.view == VIEW_MIXER &&
+    tap(B_EDIT);
+    check("SETUP: the mixer's last page (GLO, EDIT x4: CHANNEL MASTER KEY SETUP)", ui.view == VIEW_MIXER &&
           ui.chan == CHAN_SETUP);
     turn(1, 2);                                          /* KNOB: 1X -> 4X */
     check("..KNOB 2 sets KNOB: 4X", ((bryo_prefs >> 1) & 3u) == KNOB_4X);
@@ -8409,7 +8540,7 @@ static void test_factory_scene(void)
         for (i = 0; i < 2u * CTL; i++)
             pk = out[i] > pk ? out[i] : -out[i] > pk ? -out[i] : pk;
         if (arp_rt[1].on && !was2) {                     /* each of T2's notes as it sounds: in A minor? */
-            int32_t tr = TPD(1, MA_POL)[PL_TUNE] - (48 - TPS_BELL_NOTE), pc = ((int32_t)arp_rt[1].cur + tr) % 12;
+            int32_t tr = TPD(1, MA_POL)[PL_TUNE], pc = ((int32_t)arp_rt[1].cur + tr) % 12;   /* (TUNE: the chords) */
             inkey &= pc == 9 || pc == 11 || pc == 0 || pc == 2 || pc == 4 || pc == 5 || pc == 7;
             n2 = distinct_add(an2, n2, (int32_t)arp_rt[1].cur + tr);
             steps2++;
@@ -8546,6 +8677,7 @@ int main(int argc, char **argv)
     test_projects();
     test_project_worst();
     test_save_seamless();
+    test_key_tuning();
     test_env_pad();
     test_page_keys();
     test_step_leds();

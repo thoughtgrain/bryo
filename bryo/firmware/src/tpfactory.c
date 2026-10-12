@@ -210,7 +210,7 @@ static int tpf_load(uint32_t f, uint32_t t)
  * The arpeggiators' notes wait for PLAY (arp.c). M4 is the SEQ (slot 2), M3 the random LFO (slot 3), M1 the LFO
  * (slot 0); depths are % of a knob's range: a pitch knob of 48 semitones at 25 % reaches an octave, and a step's
  * value v lands v x 12 / 100 semitones up (0 3 5 7 10 12 are 0 26 43 59 84 100). */
-#define TPS_BELL_NOTE 57             /* BELL's first strike (tools/gen_reels.py), what POLY's TUNE turns to C3 */
+#define TPS_BELL_NOTE 57             /* BELL's first strike (tools/gen_reels.py): POLY's ROOT for it */
 #define TPS_FOLD_NOTE 45             /* FOLD's first pluck */
 static const tpf_set_t TPS_T1_S[] = {
     {MA_DRM, DM_SEED, 5}, {MA_DRM, DM_VARY, 70}, {MA_DRM, DM_FILL, 50}, {MA_DRM, DM_EVOL, 2}, {MA_DRM, DM_LVL, 2},
@@ -219,7 +219,7 @@ static const tpf_set_t TPS_T1_S[] = {
     {TPF_S(2), 0, 8}, {TPF_S(2), 1, 1}};               /* M4: 8 steps, half a bar each */
 static const tpf_dep_t TPS_T1_D[] = {{3, MA_DRM, DM_SEED, 45}, {2, MA_DRM, DM_TUNE, 20}};
 static const tpf_set_t TPS_T2_S[] = {
-    {MA_POL, PL_TUNE, 48 - TPS_BELL_NOTE}, {MA_POL, PL_ATK, 0}, {MA_POL, PL_DEC, 76}, {MA_POL, PL_SUS, 20},
+    {MA_POL, PL_ROOT, TPS_BELL_NOTE}, {MA_POL, PL_ATK, 0}, {MA_POL, PL_DEC, 76}, {MA_POL, PL_SUS, 20},
     {MA_POL, PL_REL, 70}, {MA_POL, PL_CUT, 110}, {MA_POL, PL_RES, 10}, {MA_POL, PL_ENV, 20},
     {DEV_GRAIN, GP_WET, 30}, {DEV_GRAIN, GP_SIZE, 200}, {DEV_GRAIN, GP_RATE, 35}, {DEV_GRAIN, GP_SPRY, 40},
     {DEV_GRAIN, GP_SPRD, 70}, {DEV_SPACE, SP_DLY, 25}, {DEV_SPACE, SP_TIME, 370}, {DEV_SPACE, SP_FDBK, 35},
@@ -236,7 +236,7 @@ static const tpf_set_t TPS_T3_S[] = {
     {TPF_S(3), 0, 32}};
 static const tpf_dep_t TPS_T3_D[] = {{2, DEV_RESO, RP_PTCH, 25}, {3, DEV_GRAIN, GP_SIZE, 20}};
 static const tpf_set_t TPS_T4_S[] = {
-    {MA_POL, PL_TUNE, 48 - TPS_FOLD_NOTE}, {MA_POL, PL_ATK, 0}, {MA_POL, PL_DEC, 60}, {MA_POL, PL_SUS, 0},
+    {MA_POL, PL_ROOT, TPS_FOLD_NOTE}, {MA_POL, PL_ATK, 0}, {MA_POL, PL_DEC, 60}, {MA_POL, PL_SUS, 0},
     {MA_POL, PL_REL, 50}, {MA_POL, PL_CUT, 100}, {MA_POL, PL_RES, 20}, {MA_POL, PL_ENV, 30},
     {DEV_SPACE, SP_DLY, 30}, {DEV_SPACE, SP_TIME, 250}, {DEV_SPACE, SP_FDBK, 45}, {DEV_SPACE, SP_TONE, -20},
     {TPF_S(2), 0, 4}, {TPF_S(2), 1, 0},                 /* M4: T2's chords */

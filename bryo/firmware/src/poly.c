@@ -5,8 +5,9 @@
  * instrument. Nothing is copied, so POLY costs no tape RAM: each voice has a block reader (tape.c's) and a little
  * state.
  *
- * A voice: its head starts at STRT and runs at the key's pitch against the sound's own (white key 1 at OCT 3, plus
- * TUNE, is the sound as it was recorded: 22.05 kHz read at 0.5 a sample, like TAPE at 100 %); its ADSR shapes the
+ * A voice: its head starts at STRT and runs at the key's pitch against the sound's own (the key ROOT names, C3 at
+ * first: white key 1 at OCT 3, plus TUNE and FINE, is the sound as it was recorded: 22.05 kHz read at 0.5 a sample,
+ * like TAPE at 100 %). With the project's SCAL on, a key outside it plays the nearest note in it. Its ADSR shapes the
  * level and, by ENV, the cutoff of its state-variable filter (TYPE: low-, band- or high-pass). At END (or the
  * sound's end) it fades over six blocks and frees itself. Voices are taken as SYNTH's are: a silent one, the quietest
  * releasing one, else the oldest (which keeps its filter state and ramps from its level, so a steal doesn't click).
@@ -33,12 +34,14 @@ typedef struct {
 static pol_t pol[NTRK];
 static tape_rd_t pol_rd[NTRK][POL_NV] __attribute__((section(".pool")));   /* each voice's block (8 KB in all) */
 
-/* the head's step for a voice's note on track t, Q12 tape samples per output sample: 0.5 at the sound's own pitch.
- * TUNE is added here, every block, so a modulated TUNE moves a held note too, to 1/16 semitone (mod.c) */
+/* the head's step for a voice's note on track t, Q12 tape samples per output sample: 0.5 at the sound's own pitch
+ * (its ROOT's key, FINE cents off). TUNE is added here, every block, so a modulated TUNE moves a held note too, to
+ * 1/16 semitone (mod.c); FINE to the cent (cents_inc) */
 static int32_t pol_inc(uint32_t t, uint32_t note)
 {
-    int32_t n16 = clamp((int32_t)note * 16 + mod_pitch16(t, FN_POL, TPD(t, MA_POL)[PL_TUNE]), 0, 127 * 16);
-    return (int32_t)(pitch_inc((uint32_t)n16) / (pitch_inc(48u * 16u) >> 11));   /* (C3: the sound's own) */
+    const int16_t *p = TPD(t, MA_POL);
+    int32_t n16 = clamp(((int32_t)note + 48 - p[PL_ROOT]) * 16 + mod_pitch16(t, FN_POL, p[PL_TUNE]), 0, 127 * 16);
+    return (int32_t)(cents_inc(n16, p[PL_FINE], 0) / (pitch_inc(48u * 16u) >> 11));   /* (C3 here: the sound's own) */
 }
 
 /* where a note stops in a sound len samples long: END, never past the sound */
@@ -72,7 +75,7 @@ static void pol_start(uint32_t t, uint32_t k, uint32_t nv, uint32_t len)
         v->env = 0;
     }
     v->pos = pct100_of(len, TPD(t, MA_POL)[PL_STRT]) << 12;
-    v->note = (uint8_t)clamp((int32_t)key_base[t] + (int32_t)k, 0, 127);
+    v->note = (uint8_t)key_snap(clamp((int32_t)key_base[t] + (int32_t)k, 0, 127));   /* (the project's scale) */
     v->inc = pol_inc(t, v->note);
     v->key = (uint8_t)k;
     v->stage = 1;

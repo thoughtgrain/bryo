@@ -21,8 +21,8 @@
 
 #define TPR_N 8u                     /* presets A..H */
 #define TPR_BANK PJ_N                /* the bank's sector pair (pj_sector) */
-#define TPR_VERSION 2u                 /* one format: a bank of another version reads as empty (nothing older is kept
-                                       * up with: presets started with this one) */
+#define TPR_VERSION 3u               /* one format: a bank of another version reads as empty (nothing older is kept
+                                      * up with: presets started with this one) */
 
 typedef struct {                     /* what the view shows of a preset without loading it */
     uint8_t used, src, ndep;
@@ -243,11 +243,11 @@ static int tpr_delete(uint32_t p) { return tpr_write(p, NTRK) == 0 ? 0 : -1; }
 
 /* ------------------------------------------------------------------------------- the snapshot --- */
 /* What SAVE held puts back after a preset load or a reset (SCL): the track as it was, its depths, and what the
- * other views' knobs set (the levels, REC IN, the master), since a reset can be on those pages too */
+ * other views' knobs set (the levels, REC IN, the master, the key), since a reset can be on those pages too */
 static struct {
     track_params_t p;
     mod_deps_t dep;
-    int16_t mst[NMS];
+    int16_t mst[NMS], key[NKY];
     uint8_t lv[NTRK], rin[NTRK];
     uint8_t trk, valid;
 } trk_undo;
@@ -261,6 +261,8 @@ static void trk_snap(uint32_t t)
     trk_undo.dep = mdl[t];
     for (i = 0; i < NMS; i++)
         trk_undo.mst[i] = mst[i];
+    for (i = 0; i < NKY; i++)
+        trk_undo.key[i] = keyp[i];
     for (i = 0; i < NTRK; i++) {
         trk_undo.lv[i] = track[i].level;
         trk_undo.rin[i] = tp[i].recin;
@@ -279,6 +281,8 @@ static int trk_restore(void)
     mdl[t] = trk_undo.dep;
     for (i = 0; i < NMS; i++)
         mst[i] = trk_undo.mst[i];
+    for (i = 0; i < NKY; i++)
+        keyp[i] = trk_undo.key[i];
     for (i = 0; i < NTRK; i++) {
         track[i].level = trk_undo.lv[i];
         tp[i].recin = trk_undo.rin[i];

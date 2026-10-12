@@ -912,6 +912,32 @@ static int32_t vz_filt_db10(int32_t i, int32_t c, int32_t res, int32_t type)
     return vz_lp_db10(i, c, res);
 }
 
+/* FINE from x0 to x1: a cents meter (-50 .. +50, the node at FINE), its value over it unless in tune (st: TUNE's
+ * semitones before it, unless 0x7F) */
+static void vz_cents(int32_t x0, int32_t x1, int32_t ct, int32_t st)
+{
+    int32_t w = x1 - x0, mx = x0 + w / 2, y = 28, nx = mx + clamp(ct, -50, 50) * (w / 2) / 50;
+    char b[16];
+    px_line(x0, y, x0 + w, y, px_dim, 2);
+    px_line(mx, y - 3, mx, y + 3, px_dim, 1);           /* in tune */
+    px_line(x0, y - 2, x0, y + 2, px_dim, 1);
+    px_line(x0 + w, y - 2, x0 + w, y + 2, px_dim, 1);
+    vz_node(nx, y, 1);
+    b[0] = 0;
+    if (st != 0x7F) {
+        b[0] = '+';
+        fmt_int(st > 0 ? b + 1 : b, st);
+        str_cpy(b + str_len(b), ct ? "st " : "st", 4);
+    }
+    if (ct) {
+        char *e = b + str_len(b);
+        e[0] = '+';
+        fmt_int(ct > 0 ? e + 1 : e, ct);
+        str_cpy(e + str_len(e), "ct", 3);
+    }
+    px_text_c(x0, x1 - x0, 19, PXF_3, b, px_ink);
+}
+
 /* a filter page: the response over the cutoff scale (CUT c, RES res, TYPE type), dotted where the envelope at its
  * top takes it (ENV env, -100..100, 96 steps at full), KTRK's arrow (ktrk %: where it sits an octave up the keys);
  * fi: the page's last-turned knob (0..3, 0xFF none), page: its four knobs (for the tag), knobs CUT RES TYPE|- ENV */
@@ -952,7 +978,8 @@ static void vz_filter(int32_t c, int32_t res, int32_t type, int32_t env, int32_t
 
 static void viz_synth(const int16_t *v, uint32_t f)
 {
-    uint32_t bp = pdesc_at(SYN_P, 4u * ui.page) / 4u;   /* the stored block the page shows */
+    uint32_t bp = ui.page >= 4u ? 4u : pdesc_at(SYN_P, 4u * ui.page) / 4u;   /* the stored block the page shows (page
+                                                                              * 5, DRV . . LVL: 4) */
     int32_t x, k;
     if (bp == 0u) {
         uint32_t w = (uint32_t)clamp(v[SY_WAVE], 0, 4);
@@ -985,6 +1012,17 @@ static void viz_synth(const int16_t *v, uint32_t f)
         a[3] = v[SY_REL];
         a[10] = 100;                                  /* (AMT 100, OFS 0: the envelope as it is) */
         viz_adsr(a, f >= SY_ATK && f <= SY_REL ? f - SY_ATK : 0xFFu);
+    } else if (bp >= 4u && f == SY_DRV) {             /* DRV: the transfer curve, the plot's height */
+        int32_t g = 1000 + v[SY_DRV] * 20, py = 0, w = 40, x0 = 40;
+        px_line(x0, DY0, x0 + w, DY1, px_dim, 2);       /* (straight through: no drive) */
+        px_frame(x0, DY0, w + 1, DH + 1, px_dim, 2);
+        for (x = 0; x <= w; x++) {
+            int32_t yy = DMID - px_clip((x - w / 2) * 2000 / w, g) * (DH / 2) / 1000;
+            if (x)
+                px_line(x0 + x - 1, py, x0 + x, yy, px_ink, 1);
+            py = yy;
+        }
+        vz_label(60, "DRV", 1);
     } else if (bp >= 4u) {
         vz_level(v[SY_LVL], &SYN_P[SY_LVL], f == SY_LVL);
     } else {
@@ -1014,27 +1052,11 @@ static void viz_synth(const int16_t *v, uint32_t f)
             px_line(40 + w, 15, 62, 15, px_ink, 1);
             px_line(34, 15, 62, 15, px_dim, 2);
         }
-        {   /* DRV: the transfer curve */
-            int32_t g = 1000 + v[SY_DRV] * 20, py = 0;
-            px_frame(68, 13, 20, 20, px_dim, 2);
-            for (x = 0; x < 20; x++) {
-                int32_t yy = 23 - px_clip((x - 10) * 100, g) * 9 / 1000;
-                if (x)
-                    px_line(68 + x - 1, py, 68 + x, yy, px_ink, 1);
-                py = yy;
-            }
-        }
-        fmt_int(b, v[SY_TUNE]);                       /* TUNE */
-        if (v[SY_TUNE] > 0) {
-            b[0] = '+';
-            fmt_int(b + 1, v[SY_TUNE]);
-        }
-        str_cpy(b + str_len(b), "st", 3);
-        px_text_c(92, 26, 19, PXF_5, b, px_ink);
-        vz_label(15, "VOIC", f == 0u);
-        vz_label(48, "GLID", f == 1u);
-        vz_label(78, "DRV", f == 2u);
-        vz_label(105, "TUNE", f == 3u);
+        vz_cents(66, 116, v[SY_FINE], v[SY_TUNE]);   /* TUNE and FINE */
+        vz_label(15, "VOIC", f == SY_VOIC);
+        vz_label(48, "GLID", f == SY_GLID);
+        vz_label(78, "TUNE", f == SY_TUNE);
+        vz_label(105, "FINE", f == SY_FINE);
     }
 }
 
@@ -1044,7 +1066,8 @@ static void viz_synth(const int16_t *v, uint32_t f)
  * FILTER: the response, its TYPE, dotted where ENV takes it */
 static void viz_poly(const int16_t *v, uint32_t f)
 {
-    uint32_t bp = pdesc_at(POL_P, 4u * ui.page) / 4u;   /* the stored block the page shows */
+    uint32_t bp = ui.page == 3u ? 3u : pdesc_at(POL_P, 4u * ui.page) / 4u;   /* the stored block the page shows (page
+                                                                            * 4, VOIC ROOT FINE LVL: 3) */
     static const char NOTE[12][3] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
     int32_t x, k;
     if (bp == 0u && ui.zoom && (f == PL_STRT || f == PL_END)) {   /* HOME held + STRT or END: the zoom on that edge */
@@ -1105,8 +1128,29 @@ static void viz_poly(const int16_t *v, uint32_t f)
         a[3] = v[PL_REL];
         a[10] = 100;
         viz_adsr(a, f >= 4u && f < 8u ? f - 4u : 0xFFu);
-    } else if (bp >= 3u) {
-        vz_level(v[PL_LVL], &POL_P[PL_LVL], f == PL_LVL);
+    } else if (bp >= 3u && f == PL_LVL) {
+        vz_level(v[PL_LVL], &POL_P[PL_LVL], 1);
+    } else if (bp >= 3u) {                            /* VOIC; ROOT, the key that plays the sound as it is; FINE */
+        int32_t r = clamp(v[PL_ROOT], 0, 127), nv = v[PL_VOIC];
+        const char *u;
+        char b[12];
+        for (k = 0; k < (int32_t)POL_NV; k++)
+            if (k < nv)
+                px_box(6, 9 + k * 6, 18, 4, px_ink);
+            else
+                px_frame(6, 9 + k * 6, 18, 4, px_dim, 2);
+        str_cpy(b, NOTE[r % 12], 3);
+        fmt_int(b + str_len(b), r / 12 - 1);
+        px_text_c(30, 32, 9, PXF_5, b, px_ink);
+        px_text_c(30, 32, 19, PXF_3, "AS IS", px_dim);
+        vz_cents(64, 88, v[PL_FINE], 0x7F);
+        param_format(&POL_P[PL_LVL], v[PL_LVL], b, &u);
+        str_cpy(b + str_len(b), u, 3);
+        px_text_c(92, 26, 19, PXF_3, b, px_ink);
+        vz_label(15, "VOIC", f == PL_VOIC);
+        vz_label(46, "ROOT", f == PL_ROOT);
+        vz_label(76, "FINE", f == PL_FINE);
+        vz_label(105, "LVL", 0);
     } else {
         vz_filter(v[PL_CUT], v[PL_RES], clamp(v[PL_TYPE], 0, 2), v[PL_ENV], 0, f < NPK ? f % 4u : 0xFFu, POL_P + 8,
                   v + 8, 3u);
@@ -1469,6 +1513,58 @@ static void viz_setup(void)
     px_text_c(0, 120, 11, PXF_3, KN[(bryo_prefs >> 1) & 3u], px_ink);
     px_text_c(0, 120, 19, PXF_3, "HOLD: HOW LONG A PAD IS HELD", px_dim);
     px_text_c(0, 120, 27, PXF_3, "GLO HELD + OCT+: BLACK KEYS", px_dim);
+}
+
+/* KEY, the mixer's page: an octave, C to B, the scale's notes solid and the rest hollow (a key there plays the
+ * nearest solid one: param.c key_snap), the key's note marked under it; beside it, what the scale is called and how
+ * many notes it keeps. SCAL OFF: every key solid. */
+static void viz_key(void)
+{
+    static const char *const FULL[8] = {"EVERY NOTE", "MAJOR", "MINOR", "DORIAN", "MIXOLYDIAN", "HARMONIC MIN",
+                                        "PENTATONIC", "MINOR PENT"};
+    static const int8_t WHITE[7] = {0, 2, 4, 5, 7, 9, 11}, BLACK[5] = {1, 3, 6, 8, 10}, BAFTER[5] = {0, 1, 3, 4, 5};
+    uint32_t sc = (uint32_t)keyp[KY_SCAL] & 7u, key = (uint32_t)clamp(keyp[KY_KEY], 0, 11), m = KSCAL_MASK[sc], n, c;
+    int32_t x0 = DX0 + 2, y0 = DY0 + 1, k, rx = 0;
+    char b[16];
+    for (k = 0; k < 7; k++) {                           /* the white keys: solid in the scale, dotted out of it */
+        int32_t x = x0 + k * 8;
+        n = (uint32_t)WHITE[k];
+        if ((m >> ((n + 12u - key) % 12u)) & 1u)
+            px_box(x, y0, 7, 30, px_ink);
+        else
+            px_frame(x, y0, 7, 30, px_dim, 2);
+        if (n == key)
+            rx = x + 3;
+    }
+    for (k = 0; k < 5; k++) {                           /* the black ones over the gaps, a gap round each */
+        int32_t x = x0 + (BAFTER[k] + 1) * 8 - 3;
+        n = (uint32_t)BLACK[k];
+        px_box(x - 1, y0, 7, 20, px_bg);
+        if ((m >> ((n + 12u - key) % 12u)) & 1u)
+            px_box(x, y0, 5, 19, px_ink);
+        else
+            px_frame(x, y0, 5, 19, px_dim, 2);
+        if (n == key)
+            rx = x + 2;
+    }
+    px_box(rx - 1, y0 + 31, 3, 2, px_ink);              /* the key's note */
+    for (n = 0, c = 0; n < 12u; n++)
+        c += (m >> n) & 1u;
+    str_cpy(b, N_KEYN[key], 4);
+    str_cpy(b + str_len(b), " ", 2);
+    str_cpy(b + str_len(b), N_KSCAL[sc], 6);
+    px_text_c(64, 54, DY0 + 1, PXF_5, b, px_ink);
+    px_text_c(64, 54, 13, PXF_3, FULL[sc], px_ink);
+    if (sc) {
+        fmt_int(b, (int32_t)c);
+        str_cpy(b + str_len(b), " OF 12 NOTES", 14);
+        px_text_c(64, 54, 20, PXF_3, b, px_dim);
+        px_text_c(64, 54, 27, PXF_3, "ELSE: NEAREST", px_dim);
+    } else {
+        px_text_c(64, 54, 20, PXF_3, "SCAL: OFF", px_dim);
+    }
+    vz_label(x0 + 28, "KEY", ui.last == 0u);
+    vz_label(91, "SCAL", ui.last == 1u);
 }
 
 /* ------------------------------------------------------------- MIXER --- */
@@ -2249,6 +2345,8 @@ static uint32_t viz_sig(void)
         if (ui.chan == CHAN_MASTER)                                    /* the compressor's knobs and what it takes off */
             for (k = 0; k < NMS; k++)
                 h = (h ^ (uint32_t)(mst[k] + 32768)) * 16777619u;
+        if (ui.chan == CHAN_KEY)                                       /* the key and scale */
+            return h + 0x6E1u + (uint32_t)keyp[KY_KEY] * 31u + (uint32_t)keyp[KY_SCAL] * 977u + ui.last * 7u;
         if (ui.chan == CHAN_SETUP)                                     /* the preferences */
             return h + 0x5E7u + bryo_prefs * 31u + settings_hold * 977u + settings_leds * 7919u;
         return h + ui.chan * 977u + sys.ntrk * 5381u + (ui.chan ? 0u : sys.cpu_q8 * 100u / 256u / 5u * 7919u) +
@@ -2365,6 +2463,8 @@ static void draw_viz(void)
     } else if (ui.view == VIEW_MIXER) {
         if (ui.chan == CHAN_SETUP)
             viz_setup();
+        else if (ui.chan == CHAN_KEY)
+            viz_key();
         else if (ui.chan == CHAN_MASTER)
             viz_master(f);
         else if (ui.chan)

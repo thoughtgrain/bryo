@@ -37,11 +37,10 @@ typedef struct {
 static syn_t syn[NTRK];
 
 /* key bit k of track t as a pitch, 1/16 semitone, before TUNE (added as the voice plays, so a modulated TUNE
- * moves a held note too: mod.c). The bit's note is key_base's (bryo.h) */
+ * moves a held note too: mod.c). The bit's note is key_base's (bryo.h), held to the project's scale (key_snap) */
 static int32_t syn_note16(uint32_t t, uint32_t k)
 {
-    int32_t n = (int32_t)key_base[t] + (int32_t)k;
-    return clamp(n, 0, 127) * 16;
+    return key_snap(clamp((int32_t)key_base[t] + (int32_t)k, 0, 127)) * 16;
 }
 
 static void syn_start(uint32_t t, uint32_t k, uint32_t nv)
@@ -130,8 +129,8 @@ static void syn_voice(uint32_t t, syn_voice_t *v, int32_t *out, uint32_t n)
     a1 = e15;
     pp = clamp(v->p16 + mod_pitch16(t, FN_SYN, p[SY_TUNE]), 0, 2047);   /* (TUNE as it is now, to 1/16 semitone
                                                                            * when it's modulated: mod.c) */
-    inc1 = pitch_inc((uint32_t)pp);
-    inc2 = p[SY_DTUN] ? cents_inc(pp, p[SY_DTUN], 0) : inc1;
+    inc1 = p[SY_FINE] ? cents_inc(pp, p[SY_FINE], 0) : pitch_inc((uint32_t)pp);   /* (FINE: cents, exactly) */
+    inc2 = p[SY_DTUN] ? cents_inc(pp, p[SY_DTUN] + p[SY_FINE], 0) : inc1;
     cut = mod_fine8(t, FN_SCUT, p[SY_CUT]) + p[SY_ENV] * 96 * (e15 >> 7) / 100 + p[SY_KTRK] * (pp - 60 * 16) * 16 / 100;
                                                             /* (CUT finer than its semitones when modulated: mod.c) */
     tsvf_coef(&flt, cut, p[SY_RES] * 127 / 100);

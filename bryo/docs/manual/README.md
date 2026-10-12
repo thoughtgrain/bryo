@@ -17,7 +17,7 @@ should hear. Do them in order the first time; after that, jump to what you need.
 0. [Before you start](#0-before-you-start): the panel, reading the screen, how pages work
 1. [First sounds](#1-first-sounds): power on, play, tempo, volume, mutes, picking a track
 2. [Playing with a tape](#2-playing-with-a-tape): slices, the loop, speed, reels
-3. [The mixer](#3-the-mixer): levels, tone and pan, the compressor, SETUP, the CPU meter
+3. [The mixer](#3-the-mixer): levels, tone and pan, the compressor, the key and scale, SETUP, the CPU meter
 4. [Recording](#4-recording): clear a track, record onto it, overdub, undo
 5. [Other sources](#5-other-sources): SYNTH, POLY and DRUM; the arpeggiator; the black keys as notes
 6. [The effects](#6-the-effects): GRAIN, RESONATOR, COLOR, SPACE
@@ -88,7 +88,7 @@ Every pad opens a page, and **pressing the same pad again goes to its next page*
 | ENV | the source's envelope: SYNTH's AMP, POLY's ENV, TAPE's slice envelope (each the second page), DRUM's KIT |
 | LFO, SEQ | a modulator's pages (LFO: M1, M2 or M3; SEQ: M4) |
 | ARP | the arpeggiator: 2 pages, then RES ARP (RESONATOR's own arpeggio) |
-| GLO | the mixer (EDIT then steps CHANNEL, MASTER, SETUP) |
+| GLO | the mixer (EDIT then steps CHANNEL, MASTER, KEY, SETUP) |
 
 KNOB 1 to 4 always change the four values you see. There's nothing hidden.
 
@@ -284,7 +284,7 @@ page pad, to leave.
 
 1. In the mixer, **tap EDIT twice**: the **MASTER** page.
 2. **AMT** is how much it squeezes, **ATK** and **REL** how fast, **MIX** how much of it you hear.
-3. Tap EDIT once more for SETUP (3.6), and again to get back to the levels.
+3. Tap EDIT once more for KEY (3.6), again for SETUP (3.7), and again to get back to the levels.
 
 <img src="img/mixer_master.png" width="240" alt="MASTER: AMT ATK REL MIX">
 
@@ -297,12 +297,28 @@ The four tracks share one memory (28 seconds of sound in all). You can switch tr
 
 <img src="img/mixer_tracks3.png" width="240" alt="TRACKS 3: track 4 off">
 
-### 3.6 SETUP: how the panel behaves
+### 3.6 KEY: the project's key and scale
+
+One key and scale for the whole project, for SYNTH and POLY (TAPE, DRUM and the effects don't use it).
+
+1. Tap **GLO**, then tap **EDIT three times** (CHANNEL, MASTER, KEY).
+2. **KEY** is the key's note, C to B. **SCAL** is the scale: **OFF** (every note, as normal), **MAJ**, **MIN**,
+   **DOR** (dorian), **MIX** (mixolydian), **HMIN** (harmonic minor), **PEN** (major pentatonic), **MPEN** (minor
+   pentatonic).
+3. Play. The keys still work like a piano, but a note outside the scale plays **the nearest note in it** (between
+   two, the lower one). You can't play a wrong note, and the arpeggiator follows it too.
+
+The picture shows an octave: the scale's notes solid, the others dotted, a mark under the key's note. It's saved with
+the project.
+
+<img src="img/mixer_key.png" width="240" alt="KEY: A MIN, the A minor notes solid on an octave">
+
+### 3.7 SETUP: how the panel behaves
 
 The mixer's last page holds your preferences. They belong to the FM-1, not to a project, and they're kept when
 you turn it off.
 
-1. Tap **GLO**, then tap **EDIT three times** (CHANNEL, MASTER, SETUP).
+1. Tap **GLO**, then tap **EDIT four times** (CHANNEL, MASTER, KEY, SETUP).
 2. **KEYS**: **SHRT** (the black keys are the shortcuts: mutes, reverse, clears, freeze) or **NOTE** (the black keys
    play notes: see [5.9](#59-play-the-black-keys-as-notes)).
 3. **KNOB**: how far a knob moves a value per click. **1X**, **2X**, **4X**, or **ACC** (turn slowly for fine
@@ -311,7 +327,7 @@ you turn it off.
 
 <img src="img/setup.png" width="240" alt="SETUP: KEYS KNOB HOLD LEDS">
 
-### 3.7 The CPU meter
+### 3.8 The CPU meter
 
 On the mixer, bottom right: **CPU**, how hard Bryo is working, in 5 % steps. It turns bright at 85 %. Past that,
 Bryo thins out grains and strings to keep the sound clean.
@@ -402,10 +418,11 @@ Press **HOME** again to go through its five pages:
 | 1, the oscillator | **WAVE** (SIN TRI SQR SAW PLS), **DTUN** (a second oscillator, detuned), **MIX** of the two, **NOIS** |
 | 2, AMP | **ATK DEC SUS REL**: how a note starts, falls, holds and fades |
 | 3, FILTER | **CUT** (cutoff), **RES** (resonance), **ENV** (how much the envelope opens it), **KTRK** (follows the note) |
-| 4, VOICE | **VOIC** (1-3 notes), **GLID** (slides between notes), **DRV** (drive), **TUNE** |
-| 5, LEVEL | **LVL** |
+| 4, VOICE | **VOIC** (1-3 notes), **GLID** (slides between notes), **TUNE** (semitones), **FINE** (cents) |
+| 5, LEVEL | **DRV** (drive), **LVL** |
 
 <img src="img/synth.png" width="240" alt="SYNTH: WAVE DTUN MIX NOIS"> <img src="img/synth_filter.png" width="240" alt="SYNTH's FILTER">
+<img src="img/synth_tuning.png" width="240" alt="SYNTH's VOICE page: TUNE and FINE over a cents meter">
 
 **Try:** play a note, then turn **CUT** on the FILTER page while it sounds.
 
@@ -417,11 +434,16 @@ POLY plays a reel (or the track's own tape) at the pitch of each key, up to four
 2. **KNOB 1 (REEL)** picks the sound. **STRT** moves where in it each note starts, **END** where it stops, **TUNE**
    shifts the pitch. Hold **HOME** and turn STRT or END to zoom in on that edge, as on TAPE
    ([2.2](#22-make-the-loop-shorter)). **VOIC**, how many notes at once, is on the last page with LVL.
+   With the mixer's SCAL on, the keys stay in its scale ([3.6](#36-key-the-projects-key-and-scale)).
 3. Play the white keys.
+4. **Tune the sound** on the last page: **ROOT** is the note the sound was recorded at (that key plays it as it
+   is; C3 at first), **FINE** nudges it in cents for a sound that sits between two notes.
 
 <img src="img/poly.png" width="240" alt="POLY: REEL STRT END TUNE"> <img src="img/poly_zoom.png" width="240" alt="HOME held + STRT: zoomed in on where notes start">
 
-Its other pages: **ENV** (ATK DEC SUS REL), **FILTER** (CUT RES TYPE ENV), **LEVEL**.
+Its other pages: **ENV** (ATK DEC SUS REL), **FILTER** (CUT RES TYPE ENV), **LEVEL** (VOIC ROOT FINE LVL).
+
+<img src="img/poly_tuning.png" width="240" alt="POLY's last page: VOIC ROOT FINE LVL">
 
 ### 5.4 DRUM: a drum machine
 
@@ -535,7 +557,7 @@ semitones in a row. You can make it a real keyboard instead:
 While the black keys are notes, **hold GLO** to use their shortcuts (mutes, reverse, clears, freeze): with GLO held
 they're shortcuts again, and the OP keys light up for the muted tracks. Holding LFO and tapping
 OP1–OP3 still works ([7.4](#74-choose-which-modulator-the-lfo-pad-controls)). The setting is also on the SETUP page
-([3.6](#36-setup-how-the-panel-behaves)) and is kept when you turn the FM-1 off.
+([3.7](#37-setup-how-the-panel-behaves)) and is kept when you turn the FM-1 off.
 
 ---
 
@@ -961,7 +983,7 @@ M-VAVE's updater puts the stock firmware back. Bryo's projects and tapes can't b
 | **GLO** held + white key 1-4 | pick a track |
 | **GLO** held + KNOB 1-4 | track levels |
 | **GLO** held + SELECT | how many tracks are on |
-| **GLO** tapped, then **EDIT** | CHANNEL, MASTER, SETUP |
+| **GLO** tapped, then **EDIT** | CHANNEL, MASTER, KEY, SETUP |
 | **OP1-OP4** | mute tracks |
 | **OP5 / OP6** | the tape backwards / half speed |
 | **HOME** | the source's pages |

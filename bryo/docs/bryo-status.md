@@ -1,6 +1,6 @@
 # Bryo: where it stands, and how to pick it up
 
-Updated 2026-10-10. This is the page I'd want to read first after a break, or hand to anyone joining: what Bryo
+Updated 2026-10-12. This is the page I'd want to read first after a break, or hand to anyone joining: what Bryo
 is right now, how it's put together, how to build, test and measure it, what I decided and why, and what's still
 open. It points into the longer docs instead of repeating them. When something here and the code disagree, the
 code wins, and this page needs fixing.
@@ -47,7 +47,7 @@ The rest of the hardware checkpoint (`docs/hardware-checkpoint.md`) is under way
 - **Pages and knobs.** KNOB 1 to 4 always edit the four values on screen. HOME is the source (its pages: TAPE 3,
   SYNTH 5, POLY 4, DRUM 4, each ending with LVL); EDIT is GRAIN then RESONATOR; FX is COLOR then SPACE; LFO ENV SEQ are
   the modulators (LFO: M1-M3, picked with OP1-OP3 while it's held; ENV: M2; SEQ: M4) and ARP the arpeggiator; GLO is
-  the mixer (EDIT there: the channel, MASTER, the two shared rooms' pages, SETUP); ALGORITHM turned is REC IN. A pad held +
+  the mixer (EDIT there: the channel, MASTER, KEY, SETUP); ALGORITHM turned is REC IN. A pad held +
   SELECT picks that pad's thing (HOME: the source; a slot: its engine; GLO: TRACKS). Every control in every
   context is in `docs/controls.tsv`, checked by `tests/controls_check.py`. GRAIN, RESONATOR and COLOR have ROUT:
   INS (WET crossfades) or SEND (the dry at full, the device added).
@@ -58,7 +58,9 @@ The rest of the hardware checkpoint (`docs/hardware-checkpoint.md`) is under way
   write steps, accents, live hits, or wipe), set RESONATOR's root on its page, move GRAIN's cursor on its page, and
   pick SEQ steps on a SEQ page. Black keys: OP1 to OP4 mute, OP5 reverse, OP6 half
   speed, MONO and POLY clear (held), 0 freezes GRAIN; or, with SETUP's KEYS on NOTE (GLO held + OCT+), the 27 keys
-  are a keyboard from F on SYNTH and POLY, and the black keys play.
+  are a keyboard from F on SYNTH and POLY, and the black keys play. The mixer's KEY page holds the project's key
+  and scale: with SCAL on, a SYNTH or POLY note outside it plays the nearest one in it (the arpeggiator's too).
+  POLY's ROOT names the key that plays a sound as recorded; FINE tunes SYNTH and POLY in cents.
 - **ARP.** Per track, on every source: the keys held go in, one at a time comes out in time (KEY, LTCH, ADD;
   UP DOWN UPDN RND PLAY; 1-3 octaves; RATE, GATE, SWNG): notes on SYNTH and POLY, slices on TAPE, drums on DRUM.
   RESONATOR has its own, RES ARP (the ARP pad's page 3: MODE ORDR RNGE RATE), plucking the strings at each step's
@@ -172,7 +174,7 @@ device (NPK 24, GRAIN's GRNS): the modulators copy wider arrays, 29 a sample on 
 silence: run 29, stopped, 1,717 to 798, run 30, three tracks muted, 3,200 to 2,618, the playing runs within -125 to
 +17; then the two shared rooms in place of a room a track: run 14 1,879 to 1,678, run 15 5,072 to 4,871, the
 one-room runs 12 to 31 more; then round 3 (bar record, the zoom, SYNC: a few checks a block, 2 to 22 a
-sample more):
+sample more); then KEY, ROOT and FINE (2026-10-12: within 1 a sample on every run):
 
 | Run | What | Cost |
 | --- | --- | ---: |
@@ -183,7 +185,7 @@ sample more):
 | 23 | GRAIN at its densest on one track | 2,885 |
 | 25 | every slot on every track, 128 depths | 2,904 |
 | 26 | DRUM busy alone (FUNK, VARY 100, FILL 100, long decays), the others plain reels | 1,353 |
-| 27 | the groove with a DRUM track in place of its drum reel | 1,937 |
+| 27 | the groove with a DRUM track in place of its drum reel | 1,936 |
 | 28 | four DRUM tracks at once, every voice (20) | 2,438 |
 | 15 | everything on, all four tracks | 4,902 |
 | 29 | the busiest groove's devices all on, the transport stopped (what "nothing playing" costs) | 810 |
@@ -230,6 +232,10 @@ number.
   four), split by what each track's settings ask for when it runs short; what's left over is everyone's (since
   2026-10-11: a track alone has all 40, not just what RATE and SIZE ask). GRAIN 6's GRNS can hold a number for a
   track instead (1-40, taken from the AUTO tracks first, kept whatever the others do).
+- **2026-10-12: tuning and a key, for SYNTH and POLY only.** TAPE's pitch stays its speed. KEY and SCAL are the
+  project's (one for every track, the mixer's KEY page), and a note outside the scale snaps to the nearest one in it
+  rather than the keys skipping to scale notes, so the keyboard stays a piano. POLY's ROOT replaced setting TUNE to 48
+  minus a sound's note; FINE is in cents on both. Projects format 10, presets bank 3.
 - **2026-10-11, round 3 from playing it.** The rooms' knobs went back to SPACE's pages (ROOM picks A or B; the
   room's knobs there are the room's, shared). TAPE's STRT trims the start at any LEN (it slid back before); ROTA
   rotates the loop you hear while it plays. User reels can be deleted (the project view's REELS page). REC held +

@@ -603,7 +603,8 @@ the "closing" sweeps a second envelope is usually for.
 | OSC | WAVE | DTUN (ct) | MIX | NOIS |
 | FILTER | CUT (shown in Hz) | RES | ENV | KTRK |
 | AMP | ATK | DEC | SUS | REL (shown in ms / s) |
-| VOICE | VOIC (1..3) | GLID | DRV | TUNE (st) |
+| VOICE | VOIC (1..3) | GLID | TUNE (st) | FINE (ct) |
+| LEVEL | DRV | | | LVL |
 
 The times and the cutoff print in real units. A new pair of formats, `F_TIME` and `F_HZ`, read Felucca's
 `TIME_MS_X10` and `CUTOFF_HZ`, so "392Hz" on the strip is the frequency the filter really sits at.
@@ -616,6 +617,8 @@ highest key still down.
 
 **Keys.** White key k is the semitone k above C of the track's octave (OCT- / OCT+), plus TUNE. That's sixteen
 semitones, because the black keys are the PRD's macros. The VOICE page prints the range the keys cover ("C3-D#4").
+With the project's SCAL on (the mixer's KEY page), a key outside the scale plays the nearest note in it; FINE tunes
+the whole voice in cents ("KEY, ROOT and FINE, as built").
 
 **Picking it.** Hold HOME and turn SELECT, the same idiom as a modulator slot's engine. Each track keeps both
 TAPE's and SYNTH's knobs, so switching back and forth loses nothing.
@@ -662,9 +665,10 @@ voice reads straight from where the sound is: flash through the XIP window, or t
 and costs no tape RAM, and choosing TAPE means you can record a phrase onto the track and then play it as an
 instrument. Each voice has its own 256-sample block reader (tape.c's), 520 bytes each, 8 KB for all sixteen.
 
-**Pitch.** White key 1 at OCT 3 plays the sound as it was recorded: the head reads 0.5 tape samples per output
-sample, as TAPE does at 100 %. Each key above is a semitone higher (the step comes from `pitch_inc`, so it's exact
-to the table). TUNE moves the whole range; the SAMPLE page prints it ("C3-D#4").
+**Pitch.** The key ROOT names (C3 at first: white key 1 at OCT 3) plays the sound as it was recorded: the head reads
+0.5 tape samples per output sample, as TAPE does at 100 %. Each key above is a semitone higher (the step comes from
+`pitch_inc`, so it's exact to the table). FINE tunes it in cents, TUNE moves the whole range; the SAMPLE page prints
+the range ("C3-D#4"). ROOT and FINE came later ("KEY, ROOT and FINE, as built").
 
 **Each voice:** starts at STRT, runs the ADSR (the same block-rate envelope as SYNTH's), and passes a
 state-variable filter: TYPE LP, BP or HP, with ENV moving the cutoff by the envelope. With the filter wide open as
@@ -675,9 +679,10 @@ over one block and frees itself, even with the key held. Voices are taken the wa
 
 | Page | KNOB 1 | KNOB 2 | KNOB 3 | KNOB 4 |
 | --- | --- | --- | --- | --- |
-| SAMPLE | REEL | STRT | TUNE | VOIC (1..4) |
+| SAMPLE | REEL | STRT | END | TUNE |
 | ENV | ATK | DEC | SUS | REL |
 | FILTER | CUT | RES | TYPE (LP BP HP) | ENV (-100..100) |
+| LEVEL | VOIC (1..4) | ROOT | FINE (ct) | LVL |
 
 **Tests** (`test_poly`): a 440 Hz sine saved as a user reel plays at 440.0 Hz on key 1, 659.2 on key 8 and 880.0 on
 key 13; four keys take four voices and a fifth takes the oldest; VOIC turned down releases the voices above it;
@@ -1837,6 +1842,65 @@ did before, because the live jump made it step under an LFO (the modulation audi
 the ROTA change). The audit also marks a row SILENT now instead of STEPS when the modulated sound is next to nothing
 (-60 dBFS): there its edge measure is noise (POLY's END modulated below a held note ends it, as it should).
 
+## KEY, ROOT and FINE, as built (2026-10-12)
+
+Tuning for the two sources that play notes, SYNTH and POLY, and a scale the keyboard can be held to. TAPE stays a tape
+machine: its pitch is its speed, on purpose.
+
+**Files:** `param.c` (`KY_P`, `keyp`, `KSCAL_MASK`, `key_snap`; POLY's ROOT and FINE, SYNTH's FINE), `synth.c` and
+`poly.c` (the snap where a note starts, FINE through `cents_inc`), `ui.c` / `ui_input.c` / `ui_px.c` / `ui_viz.c`
+(the mixer's KEY page, `viz_key`, `vz_cents`), `project.c` (format 10), `tpreset.c` (bank 3, the snapshot),
+`tpfactory.c` (the scene's ROOTs).
+
+**KEY and SCAL, one pair for the project.** The mixer got a page between MASTER and SETUP (EDIT tapped three
+times): KEY (C to B) and SCAL (OFF MAJ MIN DOR MIX HMIN PEN MPEN). I made it the project's rather than a knob per
+track because tracks that disagree on the key are almost never what I want, and one place to change it means the
+whole song moves together. It's stored with the project, after the master compressor, and SCL's snapshot keeps it
+like the master's knobs.
+
+**Snap to the nearest, not skip.** With SCAL on, the keyboard stays a piano: every key still plays, but a note
+outside the scale sounds as the nearest one in it, and between two the lower (`key_snap`). The other way, white keys
+walking the scale, packs more octaves under the hand, but it breaks the picture of the keyboard you already know and
+makes the black keys meaningless; snapping keeps both, and a wrong note just can't sound. Every scale here has no gap
+wider than three semitones, so nothing ever moves more than one (the test walks every key, scale and note). A scale
+is a 12-bit mask; the snap doubles it to 24 bits so looking a few semitones down or up never wraps, and it runs once
+when a note starts, so the ISR pays nothing per sample.
+
+**Where it applies.** At the one place each source turns a key into a note: `syn_note16` (SYNTH, legato's glides
+too) and `pol_start` (POLY). The arpeggiator's notes go through the same place, so an arpeggio follows the scale
+without arp.c knowing about it. A held note keeps its pitch when SCAL changes; the next one follows. GRAIN's and
+RESONATOR's own SCAL stay theirs: they're sound design, not the keyboard.
+
+**ROOT (POLY).** The note the sound was recorded at: that key plays it as it is, every other key against it. It was
+always C3 (white key 1 at OCT 3), and a sound recorded at A had to be fixed with TUNE -9, which then read as a
+transposition. ROOT is a setting, not a modulation target (`nomod`): modulated, it could only step by semitones, and
+TUNE already does that live and smooth.
+
+**FINE (SYNTH and POLY).** -50 to +50 cents, on top of TUNE, for a sound that sits between two notes or a synth
+against a recording. It goes through `cents_inc`, which takes whole sixteenths of a semitone from the table and the
+rest as a factor, so it's exact to the cent instead of to the 6.25 cents a sixteenth is; at 0 it's the same step as
+before, bit for bit. SYNTH's DTUN rides on it (the second oscillator is FINE + DTUN cents up). Both are modulation
+targets, and the audit shows neither steps.
+
+**The pages.** SYNTH's VOICE page is VOIC GLID TUNE FINE now and DRV moved to the LEVEL page beside LVL (DRV focused
+there draws its curve, LVL the level), so the tuning knobs sit together. POLY's last page is VOIC ROOT FINE LVL: the
+picture shows the voices, ROOT's note "AS IS", FINE on a cents meter and the level. The KEY page draws an octave, C
+to B, the scale's notes solid and the rest dotted (the same dotted frame an unused knob gets), a mark under the key's
+note, and beside it the name, how many notes it keeps and "ELSE: NEAREST".
+
+**Formats.** Projects are version 10 (KEY and SCAL after the master's knobs), the track presets' bank version 3 (a
+POLY preset's ROOT would read as nothing in a bank 2). Nothing older is read, as since "Compatibility dropped".
+
+**Cost.** One `key_snap` a note start, and per POLY voice per block a `cents_inc` in place of `pitch_inc`: one more
+divide by 100 and a multiply, a block. SYNTH pays it only with FINE off 0. The load tables didn't move.
+
+**Tests** (`test_key_tuning`): SCAL OFF changes no note; C MAJ (C#3 to C3, F#3 to F3, B3 and C4 as they are); A PEN
+(C to B, D to C#, G to F#); every key, scale and note lands in the scale within a semitone; SYNTH and POLY play C3 for
+the C#3 key in C MAJ; POLY reads the sound at 0.5 on ROOT's key, half that with ROOT an octave up, x1.0293 at FINE
++50; SYNTH's A3 goes from 220.00 to 226.44 Hz at FINE +50; a project keeps G DOR; the KEY page from EDIT x3, KNOB 2
+on POLY's page 4 to ROOT A3, SYNTH's FINE on KNOB 4. Three new screens are in the golden set (`mixer_key`,
+`poly_tuning`, `synth_tuning`).
+
 ## Sends: ROUT, as built (2026-10-09)
 
 GRAIN, RESONATOR and COLOR each have a WET, and until now it was always a crossfade: turning WET up turned the dry
@@ -2389,7 +2453,7 @@ The black keys' shortcuts are off then, all of them (a key can't be a sharp and 
 where OP1-OP3 still pick. TAPE's slices, DRUM's kit, GRAIN's cursor and RESONATOR's root keep the white keys as
 they were.
 
-**SETUP**, the mixer's fourth page: KEYS, KNOB, HOLD and LEDS, the instrument's, not a project's. HOLD and LEDS were
+**SETUP**, the mixer's last page: KEYS, KNOB, HOLD and LEDS, the instrument's, not a project's. HOLD and LEDS were
 Felucca's MENU settings (kept in its fields all along); KEYS and KNOB are a byte of their own in the settings record:
 favorites.factory[15][0], an engine Felucca never had, so going back to Felucca reads nothing from it. KNOB is how
 far a detent moves a value with more than 32 steps: 1X, 2X, 4X, or ACC, Felucca's acceleration (#52: the time
@@ -2422,8 +2486,8 @@ strings 5 roots, T4's loop 19 starts, the peak about -10 dBFS; FACTORY loads ove
 arpeggiators, which the owner suggested on hearing it: T2 strikes BELL on a latched Am7, RND over two octaves in
 eighths, and M4 steps POLY's TUNE +0 +5 +7 +0 a bar at a time, so the chord goes Am7 Dm7 Em7 Am7 and every note stays
 in A minor; T4 plucks FOLD up and down A minor pentatonic in swung sixteenths with the same four steps. POLY plays a
-reel at its own pitch for C3, so TUNE is set to 48 minus the reel's first note (BELL and FOLD each start with one
-clean note for it, `TPS_BELL_NOTE`, `TPS_FOLD_NOTE`). For a scene, or a project, to hold an arpeggio the
+reel at its own pitch on ROOT's key, so ROOT is set to the reel's first note (BELL and FOLD each start with one
+clean note for it, `TPS_BELL_NOTE`, `TPS_FOLD_NOTE`; until ROOT existed, TUNE was set to 48 minus it). For a scene, or a project, to hold an arpeggio the
 arpeggiator's notes had to outlive a power cycle: projects (format 4) save them after its knobs, and loading hands
 them to the ISR (`arp_seed`: the notes in a buffer, `RING_PUBLISH`, then the request), latched. And notes held with
 no key down now follow the transport: STOP quiets them, PLAY starts them from the first step, a key brings them back
