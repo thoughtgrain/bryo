@@ -159,29 +159,65 @@ static const int16_t IMA_STEP[89] = {
     5358, 5894, 6484, 7132, 7845, 8630, 9493, 10442, 11487, 12635, 13899, 15289, 16818, 18500, 20350, 22385, 24623,
     27086, 29794, 32767};
 static const int8_t IMA_IDX[8] = {-1, -1, -1, -1, 2, 4, 6, 8};
+/* the index after a nibble: clamp(idx + IMA_IDX[code & 7], 0, 88), looked up instead of added and clamped (the
+ * decoder is the scene's biggest single cost: a nibble for every sample every voice and grain reads) */
+static const uint8_t IMA_NXT[89][8] = {
+    {0, 0, 0, 0, 2, 4, 6, 8}, {0, 0, 0, 0, 3, 5, 7, 9}, {1, 1, 1, 1, 4, 6, 8, 10}, {2, 2, 2, 2, 5, 7, 9, 11},
+    {3, 3, 3, 3, 6, 8, 10, 12}, {4, 4, 4, 4, 7, 9, 11, 13}, {5, 5, 5, 5, 8, 10, 12, 14}, {6, 6, 6, 6, 9, 11, 13, 15},
+    {7, 7, 7, 7, 10, 12, 14, 16}, {8, 8, 8, 8, 11, 13, 15, 17}, {9, 9, 9, 9, 12, 14, 16, 18},
+    {10, 10, 10, 10, 13, 15, 17, 19}, {11, 11, 11, 11, 14, 16, 18, 20}, {12, 12, 12, 12, 15, 17, 19, 21},
+    {13, 13, 13, 13, 16, 18, 20, 22}, {14, 14, 14, 14, 17, 19, 21, 23}, {15, 15, 15, 15, 18, 20, 22, 24},
+    {16, 16, 16, 16, 19, 21, 23, 25}, {17, 17, 17, 17, 20, 22, 24, 26}, {18, 18, 18, 18, 21, 23, 25, 27},
+    {19, 19, 19, 19, 22, 24, 26, 28}, {20, 20, 20, 20, 23, 25, 27, 29}, {21, 21, 21, 21, 24, 26, 28, 30},
+    {22, 22, 22, 22, 25, 27, 29, 31}, {23, 23, 23, 23, 26, 28, 30, 32}, {24, 24, 24, 24, 27, 29, 31, 33},
+    {25, 25, 25, 25, 28, 30, 32, 34}, {26, 26, 26, 26, 29, 31, 33, 35}, {27, 27, 27, 27, 30, 32, 34, 36},
+    {28, 28, 28, 28, 31, 33, 35, 37}, {29, 29, 29, 29, 32, 34, 36, 38}, {30, 30, 30, 30, 33, 35, 37, 39},
+    {31, 31, 31, 31, 34, 36, 38, 40}, {32, 32, 32, 32, 35, 37, 39, 41}, {33, 33, 33, 33, 36, 38, 40, 42},
+    {34, 34, 34, 34, 37, 39, 41, 43}, {35, 35, 35, 35, 38, 40, 42, 44}, {36, 36, 36, 36, 39, 41, 43, 45},
+    {37, 37, 37, 37, 40, 42, 44, 46}, {38, 38, 38, 38, 41, 43, 45, 47}, {39, 39, 39, 39, 42, 44, 46, 48},
+    {40, 40, 40, 40, 43, 45, 47, 49}, {41, 41, 41, 41, 44, 46, 48, 50}, {42, 42, 42, 42, 45, 47, 49, 51},
+    {43, 43, 43, 43, 46, 48, 50, 52}, {44, 44, 44, 44, 47, 49, 51, 53}, {45, 45, 45, 45, 48, 50, 52, 54},
+    {46, 46, 46, 46, 49, 51, 53, 55}, {47, 47, 47, 47, 50, 52, 54, 56}, {48, 48, 48, 48, 51, 53, 55, 57},
+    {49, 49, 49, 49, 52, 54, 56, 58}, {50, 50, 50, 50, 53, 55, 57, 59}, {51, 51, 51, 51, 54, 56, 58, 60},
+    {52, 52, 52, 52, 55, 57, 59, 61}, {53, 53, 53, 53, 56, 58, 60, 62}, {54, 54, 54, 54, 57, 59, 61, 63},
+    {55, 55, 55, 55, 58, 60, 62, 64}, {56, 56, 56, 56, 59, 61, 63, 65}, {57, 57, 57, 57, 60, 62, 64, 66},
+    {58, 58, 58, 58, 61, 63, 65, 67}, {59, 59, 59, 59, 62, 64, 66, 68}, {60, 60, 60, 60, 63, 65, 67, 69},
+    {61, 61, 61, 61, 64, 66, 68, 70}, {62, 62, 62, 62, 65, 67, 69, 71}, {63, 63, 63, 63, 66, 68, 70, 72},
+    {64, 64, 64, 64, 67, 69, 71, 73}, {65, 65, 65, 65, 68, 70, 72, 74}, {66, 66, 66, 66, 69, 71, 73, 75},
+    {67, 67, 67, 67, 70, 72, 74, 76}, {68, 68, 68, 68, 71, 73, 75, 77}, {69, 69, 69, 69, 72, 74, 76, 78},
+    {70, 70, 70, 70, 73, 75, 77, 79}, {71, 71, 71, 71, 74, 76, 78, 80}, {72, 72, 72, 72, 75, 77, 79, 81},
+    {73, 73, 73, 73, 76, 78, 80, 82}, {74, 74, 74, 74, 77, 79, 81, 83}, {75, 75, 75, 75, 78, 80, 82, 84},
+    {76, 76, 76, 76, 79, 81, 83, 85}, {77, 77, 77, 77, 80, 82, 84, 86}, {78, 78, 78, 78, 81, 83, 85, 87},
+    {79, 79, 79, 79, 82, 84, 86, 88}, {80, 80, 80, 80, 83, 85, 87, 88}, {81, 81, 81, 81, 84, 86, 88, 88},
+    {82, 82, 82, 82, 85, 87, 88, 88}, {83, 83, 83, 83, 86, 88, 88, 88}, {84, 84, 84, 84, 87, 88, 88, 88},
+    {85, 85, 85, 85, 88, 88, 88, 88}, {86, 86, 86, 86, 88, 88, 88, 88}, {87, 87, 87, 87, 88, 88, 88, 88}};
 
-/* one nibble into the decoder state */
-static inline int32_t ima_step(int32_t *pred, int32_t *idx, uint32_t code)
+/* one nibble into the decoder state. Inlined, and the delta built with masks instead of three branches (the same
+ * sum: a mask is all ones or none), so a decoding loop keeps pred and idx in registers and the inner loop has one
+ * branch, the sign's. The encoder (ima_enc_st) runs the same step, so the two stay in step */
+static inline __attribute__((always_inline)) int32_t ima_step(int32_t *pred, int32_t *idx, uint32_t code)
 {
-    int32_t step = IMA_STEP[*idx], vd = step >> 3, p;
-    if (code & 4u)
-        vd += step;
-    if (code & 2u)
-        vd += step >> 1;
-    if (code & 1u)
-        vd += step >> 2;
+    int32_t step = IMA_STEP[*idx], p;
+    int32_t vd = (step >> 3) + (step & -(int32_t)((code >> 2) & 1u)) + ((step >> 1) & -(int32_t)((code >> 1) & 1u)) +
+                 ((step >> 2) & -(int32_t)(code & 1u));
     p = (code & 8u) ? *pred - vd : *pred + vd;
     *pred = clamp(p, -32768, 32767);
-    *idx = clamp(*idx + IMA_IDX[code & 7u], 0, 88);
+    *idx = IMA_NXT[*idx][code & 7u];
     return *pred;
 }
 
-/* n samples of a block (from its stored state) into out */
+/* n samples of a block (from its stored state) into out: a byte at a time, its low nibble then its high (the
+ * same nibbles in the same order as sample by sample) */
 static void ima_dec(const uint8_t *data, int32_t pred, int32_t idx, int16_t *out, uint32_t n)
 {
     uint32_t i;
-    for (i = 0; i < n; i++)
-        out[i] = (int16_t)ima_step(&pred, &idx, (data[i >> 1] >> ((i & 1u) * 4u)) & 15u);
+    for (i = 0; i + 1u < n; i += 2u) {
+        uint32_t byte = data[i >> 1];
+        out[i] = (int16_t)ima_step(&pred, &idx, byte & 15u);
+        out[i + 1u] = (int16_t)ima_step(&pred, &idx, byte >> 4);
+    }
+    if (i < n)                                           /* (an odd count: the last low nibble) */
+        out[i] = (int16_t)ima_step(&pred, &idx, data[i >> 1] & 15u);
 }
 
 /* n samples into a block, from the state (*pred, *idx), which is left at the block's end: the encoder
