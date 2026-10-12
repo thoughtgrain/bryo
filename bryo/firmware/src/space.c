@@ -150,7 +150,7 @@ static inline int32_t sp_dec8(uint8_t c)
 /* a * b, Q15, toward zero: the loops here run for seconds, and a shift's floor would keep them ringing on a small
  * DC of their own after the sound has gone (-36 at the output, measured; rounding to nearest still left a limit
  * cycle of 28). Cutting the magnitude only ever takes energy out, so a loop with nothing in it falls to 0. */
-static inline int32_t sp_mul(int32_t a, int32_t b) { return a * b / 32768; }
+static inline int32_t sp_mul(int32_t a, int32_t b) { return sdiv2(a * b, 15); }   /* (toward zero: the tails settle) */
 
 /* ----------------------------------------------------------- lines --- */
 /* a line's chunks as pointers, for a block */
@@ -332,7 +332,7 @@ static void sp_delay(space_t *S, uint8_t *const *db, int dlb, uint32_t dl, int32
 #define SP_AP_STEP(k, a)                                                                                  \
     do {                                                                                                  \
         int32_t o_ = ap##k[j##k];                                                                         \
-        ap##k[j##k] = (int16_t)sp_sat((a) + o_ / 2);                                                      \
+        ap##k[j##k] = (int16_t)sp_sat((a) + sdiv2(o_, 1));                                                \
         (a) = o_ - (a);                                                                                   \
         if (++j##k >= m##k)                                                                               \
             j##k = 0;                                                                                     \

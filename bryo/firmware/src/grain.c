@@ -420,7 +420,7 @@ static void gr_record(gr_buf_t *B, const int32_t *dry, uint32_t n, int32_t fb)
         B->acc += dry[i];
         B->odd ^= 1u;
         if (!B->odd) {
-            gr_bput(B, B->acc / 2, fb);
+            gr_bput(B, sdiv2(B->acc, 1), fb);
             B->acc = 0;
         }
     }

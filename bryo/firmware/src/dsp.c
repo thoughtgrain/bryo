@@ -122,6 +122,14 @@ static inline int32_t tsvf_mode(const tsvf_t *c, int32_t in, int32_t *ic1, int32
     return mode == 1u ? v1 : mode == 2u ? in - ((c->k * v1) >> 12) - v2 : v2;
 }
 
+/* x / 2^k rounded toward zero, as `/` rounds, without the divide: the target compiler keeps a signed division by a
+ * constant as a hardware divide, even a power of two (x86 at -Os does too, so the host counts them). For the
+ * per-sample paths; a plain >> k rounds toward minus infinity, which a decaying tail never leaves (-1 >> k is -1) */
+static inline int32_t sdiv2(int32_t x, uint32_t k)
+{
+    return (x + ((x >> 31) & (int32_t)((1u << k) - 1u))) >> k;
+}
+
 /* Blocks are always CTL long, so x / CTL is a shift (the compiler at -Os keeps even constant divisions as a
  * hardware divide) */
 #define CTL_LOG2 5

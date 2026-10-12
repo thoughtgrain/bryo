@@ -204,6 +204,18 @@ The rest I can't measure from here. Code and constants run from flash through th
 is on the device: the scene's CPU on `cb9fb69` (the rooms), `631ab95` (SYNC) and this build tells which update it
 was, and whether it's code or layout.
 
+**Found, later the same day: signed divides by a power of two.** I'd been reading the host's count as if a divide
+by 32768 or 2 were a shift. It isn't, for a signed value: `/` rounds toward zero and `>>` toward minus infinity, so
+the compiler has to emit a fix-up or a divide, and the target's (and x86 at -Os, it turns out) emits the divide. The
+shared rooms put four more in the innermost loop: the combs' damping went from `>> 15` to `sp_mul` (`/ 32768`), on
+purpose, so a tail rounds to 0 and the room can rest. With the allpasses' `o_ / 2` and the comb gains that was 12
+hardware divides a room sample, 6 an output sample for two rooms at LO; the mixer's mono sum for REC IN,
+`(vl + vr) / 2`, 4 more a sample on every build since GRAIN. Measured with the x86 -Os build (where they're real
+`idiv`s too): 20.3 divides an output sample on the scene, 10 of them these. Now `sdiv2` (dsp.c) does the same
+rounding with a shift and a mask, bit for bit, and the scene has 7.8 a sample left (per block: the modulators',
+the grains' block lookups). At the 20-plus cycles a hardware divide costs, 10 a sample is on the order of 5 to 8 %
+of the FM-1, which is the size of what you heard. The I-cache finding above still stands as the other part.
+
 ## What I'll do with the numbers
 
 - **Run 3 under about 70 %:** GRAIN fits as it is; then run 15 decides the rest (below).

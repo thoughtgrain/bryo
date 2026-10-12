@@ -198,7 +198,7 @@ static void chain_block(int32_t *out, uint32_t n)
             g = 4096;
         for (i = 0; i < n; i++) {
             int32_t vl = (gl[i] * g) >> 12, vr = (gr[i] * g) >> 12, a = vl < 0 ? -vl : vl, b = vr < 0 ? -vr : vr;
-            rt->last[i] = (vl + vr) / 2;                /* (what the other tracks' REC hears: mono) */
+            rt->last[i] = sdiv2(vl + vr, 1);            /* (what the other tracks' REC hears: mono) */
             l[i] += vl;
             r[i] += vr;
             if (a > pk)
