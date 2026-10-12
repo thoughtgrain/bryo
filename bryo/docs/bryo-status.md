@@ -235,7 +235,9 @@ number.
 - **2026-10-12: tuning and a key, for SYNTH and POLY only.** TAPE's pitch stays its speed. KEY and SCAL are the
   project's (one for every track, the mixer's KEY page), and a note outside the scale snaps to the nearest one in it
   rather than the keys skipping to scale notes, so the keyboard stays a piano. POLY's ROOT replaced setting TUNE to 48
-  minus a sound's note; FINE is in cents on both. Projects format 10, presets bank 3.
+  minus a sound's note; FINE is in cents on both. Projects format 10, presets bank 3. A new project and the
+  factory scene start on A MIN (every factory reel is in A) and ROOT on A3 (BELL, POLY's first reel), so the keys
+  play the note they're named for and stay in key out of the box.
 - **2026-10-11, round 3 from playing it.** The rooms' knobs went back to SPACE's pages (ROOM picks A or B; the
   room's knobs there are the room's, shared). TAPE's STRT trims the start at any LEN (it slid back before); ROTA
   rotates the loop you hear while it plays. User reels can be deleted (the project view's REELS page). REC held +

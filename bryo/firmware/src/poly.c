@@ -5,7 +5,7 @@
  * instrument. Nothing is copied, so POLY costs no tape RAM: each voice has a block reader (tape.c's) and a little
  * state.
  *
- * A voice: its head starts at STRT and runs at the key's pitch against the sound's own (the key ROOT names, C3 at
+ * A voice: its head starts at STRT and runs at the key's pitch against the sound's own (the key ROOT names, A3 at
  * first: white key 1 at OCT 3, plus TUNE and FINE, is the sound as it was recorded: 22.05 kHz read at 0.5 a sample,
  * like TAPE at 100 %). With the project's SCAL on, a key outside it plays the nearest note in it. Its ADSR shapes the
  * level and, by ENV, the cutoff of its state-variable filter (TYPE: low-, band- or high-pass). At END (or the

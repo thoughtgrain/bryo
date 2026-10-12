@@ -623,8 +623,8 @@ static void test_input(void)
           ui.view == VIEW_MIXER);
     host_enc[panel.enc[EN_K1 + 1u]] = 1;
     ui_input();
-    check("..KNOB 2 sets SCAL (OFF -> MAJ), one for the project", keyp[KY_SCAL] == 1);
-    keyp[KY_SCAL] = 0;
+    check("..KNOB 2 sets SCAL (MIN -> DOR), one for the project", keyp[KY_SCAL] == 3);
+    keyp[KY_SCAL] = 2;
     tap(B_EDIT);
     check("..tapped again: SETUP, the panel's preferences (latched)", ui.chan == CHAN_SETUP && ui.chan_latched &&
           ui.view == VIEW_MIXER);
@@ -1857,6 +1857,8 @@ static void test_poly(void)
         check("POLY, no key down: silence", q == 0);
     }
     p[PL_REEL] = (int16_t)(NREEL + 1u);                  /* the sine */
+    p[PL_ROOT] = 48;                                     /* (white key 1 plays it as recorded; every key as it is) */
+    keyp[KY_SCAL] = 0;
     h0 = pol_note(0, s, NB);
     pk_open = peak_of(s, NB * CTL);
     h7 = pol_note(7, s, NB);
@@ -2574,6 +2576,7 @@ static void test_zoom(void)
     tp[0].pol[PL_ATK] = 0;
     tp[0].pol[PL_SUS] = 100;
     tp[0].pol[PL_END] = 2500;                              /* a quarter of 2.3 s: 0.58 s at the sound's pitch */
+    tp[0].pol[PL_ROOT] = 48;                               /* (white key 1: the sound's pitch) */
     focus_dev(DEV_SRC, 0);
     check("POLY's first page: REEL STRT END TUNE", !strcmp(POL_P[pdesc_at(POL_P, 2u)].label, "END") &&
           !strcmp(POL_P[pdesc_at(POL_P, 3u)].label, "TUNE") && !strcmp(POL_P[pdesc_at(POL_P, 12u)].label, "VOIC"));
@@ -6537,9 +6540,11 @@ static void test_key_tuning(void)
     char m[200];
     double hz0, hz1;
     power_on();
+    check("KEY: a new project starts on A MIN, the factory reels' key", keyp[KY_KEY] == 9 && keyp[KY_SCAL] == 2);
+    keyp[KY_SCAL] = 0;
     for (n = 0; n < 128; n++)
         out |= key_snap(n) != n;
-    check("KEY: SCAL OFF (as at power-on) leaves every note as it is", !out && keyp[KY_SCAL] == 0);
+    check("..SCAL OFF leaves every note as it is", !out);
     keyp[KY_KEY] = 0;
     keyp[KY_SCAL] = 1;                                   /* C MAJ */
     check("..C MAJ: C#3 plays C3, F#3 F3 (between two: the lower), B3 B3, C4 C4", key_snap(49) == 48 &&
@@ -6560,8 +6565,30 @@ static void test_key_tuning(void)
         }
     check("..every key and scale: a note snaps into the scale, never more than a semitone away", !out && !far);
 
+    power_on();                                          /* a new POLY track: BELL, ROOT A3, so a key sounds its note */
+    tp[0].src = SRC_POLY;
+    fm1_in.notes = note_bit_of_white(0);                 /* C3: BELL (A3) read 9 semitones down */
+    render(4, 0);
+    i0 = pol[0].v[0].inc;
+    fm1_in.notes = 0;
+    render(80, 0);
+    fm1_in.notes = note_bit_of_white(9);                 /* A3: BELL as it is */
+    render(4, 0);
+    snprintf(m, sizeof m, "a new POLY track plays BELL with ROOT A3: key C3 reads it at %d (1218: 2048 x 2^(-9/12)), "
+             "key A3 at %d (2048, as recorded)", i0, pol[0].v[0].inc);
+    check(m, tp[0].pol[PL_REEL] == 1 && tp[0].pol[PL_ROOT] == 57 && i0 >= 1216 && i0 <= 1220 &&
+          pol[0].v[0].inc >= 2046 && pol[0].v[0].inc <= 2050);
+    fm1_in.notes = 0;
+    render(80, 0);
+    pj_wipe();                                           /* the factory scene: A MIN */
+    keyp[KY_KEY] = 0;
+    keyp[KY_SCAL] = 0;
+    pj_boot();
+    check("..the factory scene is in A MIN (KEY A, SCAL MIN)", keyp[KY_KEY] == 9 && keyp[KY_SCAL] == 2);
+
     power_on();                                          /* SYNTH: the keys through the scale */
     tp[0].src = SRC_SYNTH;
+    keyp[KY_KEY] = 0;
     keyp[KY_SCAL] = 1;                                   /* C MAJ */
     fm1_in.notes = note_bit_of_white(1);                 /* (shortcut keys: white key 2 is C#3) */
     render(4, 0);
@@ -6576,7 +6603,8 @@ static void test_key_tuning(void)
     render(80, 0);
     keyp[KY_SCAL] = 0;
 
-    fm1_in.notes = note_bit_of_white(0);                 /* ROOT: C3 plays the sound as it is (0.5 a sample) */
+    tp[0].pol[PL_ROOT] = 48;                             /* ROOT: C3 plays the sound as it is (0.5 a sample) */
+    fm1_in.notes = note_bit_of_white(0);
     render(4, 0);
     i0 = pol[0].v[0].inc;
     tp[0].pol[PL_ROOT] = 60;                             /* the sound is a C4: C3 plays it an octave down */
@@ -6630,6 +6658,7 @@ static void test_key_tuning(void)
     shot("BRYO", "mixer_key");
     tap(B_GLO);
     tp[0].src = SRC_POLY;
+    tp[0].pol[PL_ROOT] = 48;
     focus_dev(DEV_SRC, 3);                               /* POLY 4: VOIC ROOT FINE LVL */
     turn(1, 9);
     turn(2, 12);
@@ -8380,6 +8409,7 @@ static void test_arp_keys(void)
 
     /* the black keys as notes: GLO held + OCT+ */
     tp[0].src = SRC_SYNTH;
+    keyp[KY_SCAL] = 0;                                   /* (every note as it is: A MIN would play F for F#) */
     focus_dev(DEV_SRC, 0);
     hold(B_GLO);
     press(B_OCTUP);
@@ -8389,8 +8419,8 @@ static void test_arp_keys(void)
     fm1_in.notes = 1u << black_note(BK_OP1);
     key_edge(black_note(BK_OP1));
     render(4, 0);
-    check("..black OP1 doesn't mute: it plays F#3 (the keyboard from F3)", !track[0].mute && key_base[0] == 53u &&
-          syn_plays(0, (53 + (int32_t)black_note(BK_OP1)) * 16) && black_note(BK_OP1) == 1u);
+    check("..black OP1 doesn't mute: it plays F#3 (SCAL OFF; the keyboard from F3)", !track[0].mute &&
+          key_base[0] == 53u && syn_plays(0, (53 + (int32_t)black_note(BK_OP1)) * 16) && black_note(BK_OP1) == 1u);
     fm1_in.notes = 0;
     render(4, 0);
     fm1_in.notes = c3;                                   /* white key 1, F3 now */

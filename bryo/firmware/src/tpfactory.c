@@ -265,6 +265,8 @@ static const uint8_t TPS_ARPC[NTRK] = {0, 4, 0, 5};
 static void tpf_scene(void)
 {
     uint32_t t, k;
+    keyp[KY_KEY] = 9;                                    /* A MIN: the scene's key (the default too, but the scene */
+    keyp[KY_SCAL] = 2;                                   /* .. says so itself), so a key played over it fits */
     rmp[0][RM_SIZE] = 45;                                /* the rooms: A a small one (T1's kit, T2's bells), B a */
     rmp[1][RM_SIZE] = 80;                                /* .. large, long one (T3's strings); both QUAL LO, half */
     rmp[1][RM_DEC] = 65;                                 /* .. the work (the scene at ~75 % on the FM-1, not ~78) */

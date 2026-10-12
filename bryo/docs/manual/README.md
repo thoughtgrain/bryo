@@ -299,7 +299,8 @@ The four tracks share one memory (28 seconds of sound in all). You can switch tr
 
 ### 3.6 KEY: the project's key and scale
 
-One key and scale for the whole project, for SYNTH and POLY (TAPE, DRUM and the effects don't use it).
+One key and scale for the whole project, for SYNTH and POLY (TAPE, DRUM and the effects don't use it). A new
+project starts on **A MIN**, the key all the factory reels are in, and so does the factory scene.
 
 1. Tap **GLO**, then tap **EDIT three times** (CHANNEL, MASTER, KEY).
 2. **KEY** is the key's note, C to B. **SCAL** is the scale: **OFF** (every note, as normal), **MAJ**, **MIN**,
@@ -437,7 +438,9 @@ POLY plays a reel (or the track's own tape) at the pitch of each key, up to four
    With the mixer's SCAL on, the keys stay in its scale ([3.6](#36-key-the-projects-key-and-scale)).
 3. Play the white keys.
 4. **Tune the sound** on the last page: **ROOT** is the note the sound was recorded at (that key plays it as it
-   is; C3 at first), **FINE** nudges it in cents for a sound that sits between two notes.
+   is), **FINE** nudges it in cents for a sound that sits between two notes. ROOT starts on **A3**, the note the
+   factory reels are built on, so they play in tune with the keys straight away. For your own sounds, set ROOT to
+   the note you recorded.
 
 <img src="img/poly.png" width="240" alt="POLY: REEL STRT END TUNE"> <img src="img/poly_zoom.png" width="240" alt="HOME held + STRT: zoomed in on where notes start">
 

@@ -200,7 +200,8 @@ static const pdesc_t SYN_P[NPK] = {
 
 /* POLY (poly.c): a sound played at the keys' pitches, up to four at once, each through its own envelope and filter.
  * The sound is any reel choice: a factory reel, one of yours, or this track's own tape (record into it, then play it
- * across the keys). The key ROOT names (C3 unless you say otherwise) plays it as it was recorded, FINE cents off. */
+ * across the keys). The key ROOT names (A3 at first: BELL's note, the first reel POLY plays) plays it as it was
+ * recorded, FINE cents off. */
 enum { PL_REEL, PL_STRT, PL_TUNE, PL_VOIC, PL_ATK, PL_DEC, PL_SUS, PL_REL, PL_CUT, PL_RES, PL_TYPE, PL_ENV, PL_LVL,
        PL_END, PL_ROOT, PL_FINE };
 #define POL_NV 4u                /* voices per track */
@@ -218,7 +219,7 @@ static const pdesc_t POL_P[NPK] = {
     {"LVL", -24, 6, 0, F_DB}, {"END", 100, 10000, 10000, F_PCT100},
     /* TUNING (page 4): ROOT, the note the sound was recorded at (that key plays it as it is; a setting, not a
      * modulation target: it would step by semitones), and FINE, cents, for a sound that sits between two notes */
-    {"ROOT", 24, 96, 48, F_NOTE, 0, 1}, {"FINE", -50, 50, 0, F_CT}};
+    {"ROOT", 24, 96, 57, F_NOTE, 0, 1}, {"FINE", -50, 50, 0, F_CT}};   /* (ROOT A3: BELL's, POLY's first reel) */
 
 /* DRUM (drum.c): a drum machine. Sixteen synthesized instruments on the white keys, played from a pattern of 2..4
  * bars of sixteenths. Four pages: the PATTERN (a written rhythm to start from, its length, swing, how hard an
@@ -282,14 +283,16 @@ static int16_t mst[NMS];
 
 /* KEY, the mixer's page after MASTER (EDIT tapped three times): the project's key and scale. With SCAL on, a note
  * SYNTH or POLY starts (a key, the arpeggiator's) that's outside the scale plays the nearest one in it (between two,
- * the lower): the keyboard stays a piano, the wrong notes just can't sound. One for the whole project. */
+ * the lower): the keyboard stays a piano, the wrong notes just can't sound. One for the whole project; a new one
+ * starts on A MIN, the key every factory reel is in. */
 enum { KY_KEY, KY_SCAL, NKY };
 static const char *const N_KEYN[12] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
 static const char *const N_KSCAL[8] = {"OFF", "MAJ", "MIN", "DOR", "MIX", "HMIN", "PEN", "MPEN"};
 static const uint16_t KSCAL_MASK[8] = {   /* the notes in each scale, bit n: n semitones above the key */
     0xFFFu, 0xAB5u, 0x5ADu, 0x6ADu, 0x6B5u, 0x9ADu, 0x295u, 0x4A9u};
 static const pdesc_t KY_P[4] = {
-    {"KEY", 0, 11, 0, F_ENUM, N_KEYN, 1}, {"SCAL", 0, 7, 0, F_ENUM, N_KSCAL, 1}, {""}, {""}};
+    {"KEY", 0, 11, 9, F_ENUM, N_KEYN, 1}, {"SCAL", 0, 7, 2, F_ENUM, N_KSCAL, 1}, {""}, {""}};   /* (A MIN: the
+                                                                                               * factory reels' key) */
 static int16_t keyp[NKY];
 
 /* note n (0..127) as the scale lets it sound: itself, or the nearest note in KEY's SCAL (ties: the lower). Called

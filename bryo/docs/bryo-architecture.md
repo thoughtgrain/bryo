@@ -665,10 +665,11 @@ voice reads straight from where the sound is: flash through the XIP window, or t
 and costs no tape RAM, and choosing TAPE means you can record a phrase onto the track and then play it as an
 instrument. Each voice has its own 256-sample block reader (tape.c's), 520 bytes each, 8 KB for all sixteen.
 
-**Pitch.** The key ROOT names (C3 at first: white key 1 at OCT 3) plays the sound as it was recorded: the head reads
-0.5 tape samples per output sample, as TAPE does at 100 %. Each key above is a semitone higher (the step comes from
-`pitch_inc`, so it's exact to the table). FINE tunes it in cents, TUNE moves the whole range; the SAMPLE page prints
-the range ("C3-D#4"). ROOT and FINE came later ("KEY, ROOT and FINE, as built").
+**Pitch.** The key ROOT names (A3 at first, BELL's note; it was C3, white key 1 at OCT 3, until ROOT came) plays
+the sound as it was recorded: the head reads 0.5 tape samples per output sample, as TAPE does at 100 %. Each key
+above is a semitone higher (the step comes from `pitch_inc`, so it's exact to the table). FINE tunes it in cents,
+TUNE moves the whole range; the SAMPLE page prints the range ("C3-D#4"). ROOT and FINE came later ("KEY, ROOT and
+FINE, as built").
 
 **Each voice:** starts at STRT, runs the ADSR (the same block-rate envelope as SYNTH's), and passes a
 state-variable filter: TYPE LP, BP or HP, with ENV moving the cutoff by the envelope. With the filter wide open as
@@ -1887,6 +1888,15 @@ there draws its curve, LVL the level), so the tuning knobs sit together. POLY's 
 picture shows the voices, ROOT's note "AS IS", FINE on a cents meter and the level. The KEY page draws an octave, C
 to B, the scale's notes solid and the rest dotted (the same dotted frame an unused knob gets), a mark under the key's
 note, and beside it the name, how many notes it keeps and "ELSE: NEAREST".
+
+**In key from the start.** Every factory reel is built on A (BELL's first note A3, DRON an A2 drone, FOLD A minor
+pentatonic from A2), and the factory scene's music is A minor, but the first cut left KEY on C and SCAL OFF, and
+ROOT at C3 while POLY's first reel is BELL: a new POLY track played every key 9 semitones sharp of its name (that
+was true before ROOT too; ROOT is what could fix it). So a new project, and the scene (which says so itself, in
+case the default ever moves), start on A MIN, and ROOT starts on A3: key C3 on BELL now sounds C3. A user reel
+still needs its ROOT set by hand; there's nothing in a WAV that says what note it is. The KEYS and SWELL presets
+inherit both. The scene sounds as it did: its arpeggios' notes are all in A minor already (its test says so), and
+the chords move by TUNE, which is added after the snap.
 
 **Formats.** Projects are version 10 (KEY and SCAL after the master's knobs), the track presets' bank version 3 (a
 POLY preset's ROOT would read as nothing in a bank 2). Nothing older is read, as since "Compatibility dropped".
