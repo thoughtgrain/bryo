@@ -897,10 +897,9 @@ The scene Bryo starts with is always there, even after you've saved over it:
 
 <img src="img/projects_factory.png" width="240" alt="FACTORY in the project view">
 
-One more step past FACTORY is **T, TEST**: the factory scene with every stage of the sound at work (T1's drums
-through GRAIN, COLOR and an echo; T4's plucks ringing RESONATOR's strings). It's for comparing one firmware with the
-next: load it, press **PLAY**, give it a few seconds, and read the CPU and SETUP's load lines. It plays the same
-every time, so the numbers compare.
+One more step past FACTORY is **T, TEST**: the factory scene with T1's drums through GRAIN as well. It's for
+comparing one firmware with the next: load it, press **PLAY**, give it a few seconds, and read the CPU and SETUP's
+load lines. It plays the same every time, so the numbers compare.
 
 ### 9.5 Track presets: keep one track's sound
 

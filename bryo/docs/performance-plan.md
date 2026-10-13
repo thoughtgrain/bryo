@@ -148,7 +148,7 @@ The plan, agreed: optimize before thinning features.
 1. **Muted tracks sleep** (done, `f12f571`): -42 % on the host for one track heard.
 2. **Measure on the device first** (this change): SETUP's load lines (per stage, `chain.c` `ld_*`), a probe of the
    same loop from RAM and from flash at boot (`main.c` `ld_probe`), and the **TEST** project (past FACTORY: the
-   scene with every stage at work, run 32 here) so readings compare build to build.
+   scene with T1's drums through GRAIN, run 32 here) so readings compare build to build.
 3. **The hot code in RAM** (decided after the device numbers): a `.hot` section high in RAM, within call reach of
    flash both ways (the 23-bit call: within 4 MB; RAMTEXT at 0x01C00000 is just out of reach of XIP, so it can't
    be there), with pool objects moved into RAMTEXT and the debug area to make room, and about 1.1 s of sound memory.
@@ -162,3 +162,10 @@ The plan, agreed: optimize before thinning features.
 
 Found on the way: the drum engine's 16 instruments are bit for bit what they were at `f6ab58e`; the clicks heard on
 the device are the overload's shedding (a drum voice cut in 1.5 ms), not a change in the drums.
+
+**The first device readings (8da385f, TEST as first built):** R/F 239/239, so a loop runs from flash exactly as fast
+as from RAM once it's in the cache: flash costs only on misses, which this loop can't show. TEST read SRC 37, GRN 21,
+RES 10, COL 8 % and was over 100 % (noise: the shedding). The host's shares of TEST were SRC 28, GRN 20, RES 19, COL
+8, SPC 11, ROOM 5, MST 3, PRE 5 %: no stage costs the FM-1 far more than its instructions say (RESONATOR's 10 is
+likely its strings shed), the sources a little more. TEST cut down to FACTORY plus T1's drums through GRAIN (1.06 x
+FACTORY on the host, where the first was 1.3 x), and the load lines drawn bright.

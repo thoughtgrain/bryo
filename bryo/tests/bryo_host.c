@@ -8838,15 +8838,15 @@ static void test_factory_scene(void)
     ui.msg_t = 0;                                        /* (the picture, not FACTORY's message) */
     shot("BRYO", "projects_test");
     press(B_OCTUP);
-    check("..OCT+: the TEST scene loaded (FACTORY's music, T1's drums through GRAIN, T4's plucks ringing RESONATOR)",
-          tp[0].src == SRC_DRUM && tp[0].dev[DEV_GRAIN][GP_WET] == 30 && tp[0].dev[DEV_SPACE][SP_DLY] == 20 &&
-          tp[3].dev[DEV_RESO][RP_WET] == 25 && pj_cur == PJ_TEST && !strcmp(ui.msg, "TEST SCENE LOADED"));
+    check("..OCT+: the TEST scene loaded (FACTORY's music, T1's drums through GRAIN)",
+          tp[0].src == SRC_DRUM && tp[0].dev[DEV_GRAIN][GP_WET] == 30 && tp[2].dev[DEV_RESO][RP_WET] > 0 &&
+          pj_cur == PJ_TEST && !strcmp(ui.msg, "TEST SCENE LOADED"));
     tap(B_SAVE);
     check("..SAVE on TEST: it says to save into a slot", !strcmp(ui.msg, "TEST: SAVE INTO P1..P6") && pj_cur == PJ_TEST);
     sys.playing = 1;
     render_poll(1378 * 2);
-    check("..playing: every stage at work (T1's grain buffer, T4's four strings, T1's echo line)",
-          gbuf[0].len > 0 && reso[3].nch == RS_N && peak_of(track_rt[0].last, CTL) + peak_of(track_rt[3].last, CTL) > 0);
+    check("..playing: T1's grain buffer recording the drums, T3's strings ringing",
+          gbuf[0].len > 0 && reso[2].nch == RS_N && peak_of(track_rt[0].last, CTL) > 0);
     sys.playing = 0;
     press(B_OCTDN);
     tap(B_SAVE);

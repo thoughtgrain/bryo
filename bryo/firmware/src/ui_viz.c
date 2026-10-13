@@ -1536,7 +1536,7 @@ static void viz_setup(void)
             fmt_int(v, (int32_t)((ld_pm[S1[k]] + 5u) / 10u));
             str_cpy(b + str_len(b), v, (unsigned)(sizeof b - str_len(b)));
         }
-        px_text_c(0, 120, 19, PXF_3, b, px_dim);
+        px_text_c(0, 120, 19, PXF_3, b, px_ink);
         b[0] = 0;
         for (k = 0; k < 3u; k++) {
             str_cpy(b + str_len(b), L2[k], (unsigned)(sizeof b - str_len(b)));
@@ -1549,7 +1549,7 @@ static void viz_setup(void)
         str_cpy(b + str_len(b), "/", (unsigned)(sizeof b - str_len(b)));
         fmt_int(v, (int32_t)ld_xip);
         str_cpy(b + str_len(b), v, (unsigned)(sizeof b - str_len(b)));
-        px_text_c(0, 120, 27, PXF_3, b, px_dim);
+        px_text_c(0, 120, 27, PXF_3, b, px_ink);
     }
 }
 
@@ -2114,7 +2114,7 @@ static void viz_project_strip(void)
         int test = ui.pj_sel == PJ_TEST;
         px_text_big(2, 3, 3, test ? "T" : "F", px_ink);
         px_text(30, 3, PXF_5B, test ? "TEST" : "FACTORY", px_ink);
-        px_text(30, 13, PXF_5, test ? "EVERY STAGE ON" : "EVOLVING SCENE", px_ink);
+        px_text(30, 13, PXF_5, test ? "DRUMS + GRAINS" : "EVOLVING SCENE", px_ink);
         px_tag(30, 22, PXF_3, ui.pj_ask == PJ_ASK_LOAD ? "OCT+ AGAIN: LOAD" : pj_cur == ui.pj_sel ? "LOADED" : "OCT+ LOADS IT",
                px_ink, px_bg);
         for (t = 0; t < NTRK; t++) {
@@ -2162,7 +2162,7 @@ static void viz_project(void)
         return;
     }
     if (ui.pj_sel == PJ_TEST) {                                        /* TEST, past FACTORY: what it's for */
-        px_text_c(0, 120, 3, PXF_3, "FACTORY, EVERY STAGE AT WORK:", px_ink);
+        px_text_c(0, 120, 3, PXF_3, "FACTORY, T1'S DRUMS IN GRAIN:", px_ink);
         px_text_c(0, 120, 11, PXF_3, "READ THE LOAD ON SETUP", px_ink);
         px_text_c(0, 120, 19, PXF_3, "(GLO, EDIT TO SETUP)", px_ink);
         px_text_c(0, 120, 31, PXF_3, "YOUR PROJECTS STAY", px_dim);
