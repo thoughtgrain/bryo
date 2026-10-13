@@ -48,6 +48,8 @@ typedef struct {
     uint32_t keys;               /* the white keys held last block */
     uint32_t age;
     int32_t last16;              /* the last note started (a glide starts from it) */
+    uint32_t keys_was;           /* CHRD: the keys held before this block's (a new key with others down: legato) */
+    uint8_t croot;               /* CHRD: the chord's root key */
 } syn_t;
 
 static syn_t syn[NTRK];
@@ -131,6 +133,35 @@ static inline __attribute__((always_inline)) int32_t syn_pd(uint32_t ph, int32_t
     }
     q = p + (((q - p) * d) >> 14);
     return sine_i(((uint32_t)q << 16) + 0xC0000000u);  /* (-cos: a sine from its trough, so 0 is a sine) */
+}
+
+/* CHRD: voice j onto note16 (a chord's tone): from silence a clean start, sounding a retune (legato, gliding by GLID) */
+static void syn_chord_voice(uint32_t t, uint32_t j, uint32_t k, int32_t note16, int legato)
+{
+    syn_t *s = &syn[t];
+    syn_voice_t *v = &s->v[j];
+    int glide = TPD(t, MA_SYN)[SY_GLID] > 0;
+    if (legato && (v->stage == 1u || v->stage == 2u)) {
+        v->to16 = note16;
+        if (!glide)
+            v->p16 = note16;
+        v->key = (uint8_t)k;
+        return;
+    }
+    if (!v->stage && !v->amp) {
+        v->ph[0] = 0;
+        v->ph[1] = TPD(t, MA_SYN)[SY_WAVE] == SY_FM ? 0 : 0x40000000u;
+        v->ic1 = v->ic2 = 0;
+        v->env = 0;
+        v->fm1 = v->fm2 = 0;
+        if (!v->nst)
+            v->nst = 0x1234567 + (int32_t)(t * 7919u + k + j);
+    }
+    v->key = (uint8_t)k;
+    v->stage = 1;
+    v->age = ++s->age;
+    v->p16 = glide && v->p16 ? v->p16 : note16;
+    v->to16 = note16;
 }
 
 /* one block of one voice, added into out */
@@ -290,6 +321,34 @@ static void syn_block(uint32_t t, uint32_t keys, const int32_t *rec, int32_t *ou
     for (j = 0; j < n; j++)
         out[j] = 0;
     s->keys = keys;
+    {
+        uint32_t ch = (uint32_t)clamp(TPD(t, MA_SYN)[SY_CHRD], 0, 11);
+        if (ch && !src_sleep) {                         /* CHRD: the lowest key held is the chord's root, its three
+                                                         * tones on the three voices (VOIC aside); a key down from
+                                                         * nothing strikes it, a new lowest key with others held
+                                                         * moves it there legato; none held: every voice lets go */
+            if (!keys) {
+                for (j = 0; j < SYN_NV; j++)
+                    if (s->v[j].stage && s->v[j].stage != 3u)
+                        s->v[j].stage = 3;
+            } else if (on || off) {
+                uint32_t r = 0;
+                int legato = (s->keys_was & keys) != 0u;
+                while (!((keys >> r) & 1u))
+                    r++;
+                if (r != s->croot || !legato)
+                    for (j = 0; j < SYN_NV; j++)
+                        syn_chord_voice(t, j, r, syn_note16(t, r) + SYN_CHORD[ch][j] * 16, legato);
+                s->croot = (uint8_t)r;
+            }
+            s->keys_was = keys;
+            for (j = 0; j < SYN_NV; j++)
+                if (s->v[j].stage || s->v[j].amp)
+                    syn_voice(t, &s->v[j], out, n);
+            return;
+        }
+        s->keys_was = keys;
+    }
     for (k = 0; off && k < NKEYBIT; k++)                     /* keys let go: their voices release */
         if ((off >> k) & 1u)
             for (j = 0; j < SYN_NV; j++) {

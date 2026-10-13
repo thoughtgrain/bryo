@@ -686,6 +686,15 @@ a sine (2nd 0.3 %); SAW at 100 a saw's spectrum (2nd 0.40, 3rd 0.26); SQR odd ha
 (3rd/1st 0.17 at the strike, 0.05 after); RSAW's AMT 10 -> 90 moves its energy up (8th-16th over 1st-4th 0.27 ->
 69). Host cost, three voices: 22-23 ns a sample, about FM's (the saw 17-23).
 
+### SYNTH's CHRD (2026-10-13)
+
+A knob at 19 (nomod: a choice), on the last page of every wave's layout. On, `syn_block` takes the keys as one
+chord: the lowest held is the root (`croot`), its three tones (`SYN_CHORD`, semitones; the sevenths as root, third,
+seventh, since three voices) on voices 0-2 by `syn_chord_voice`; a key from nothing strikes it, a change of root
+with a key still held retunes the sounding voices legato (gliding by GLID), no keys releases all. VOIC is set aside.
+The root is snapped to the project's scale, the tones aren't (a chord is its own intervals). Tested (`test_chord`):
+MAJ on A3 sounds A C# E; DOM7 has G and no E; a lower key held moves the chord legato.
+
 ## POLY, as built (2026-10-07)
 
 POLY is the third source engine: a sound played across the keys, up to four notes at once.

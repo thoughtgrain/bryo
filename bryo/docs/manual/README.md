@@ -469,12 +469,18 @@ Press **HOME** again to go through its five pages:
 | 2, AMP | **ATK DEC SUS REL**: how a note starts, falls, holds and fades |
 | 3, FILTER | **CUT** (cutoff), **RES** (resonance), **ENV** (how much the envelope opens it), **KTRK** (follows the note) |
 | 4, VOICE | **VOIC** (1-3 notes), **GLID** (slides between notes), **TUNE** (semitones), **FINE** (cents) |
-| 5, LEVEL | **DRV** (drive), **LVL** |
+| 5, LEVEL | **DRV** (drive), **CHRD** (a key plays a chord: below), **LVL** |
 
 <img src="img/synth.png" width="240" alt="SYNTH: WAVE DTUN MIX NOIS"> <img src="img/synth_filter.png" width="240" alt="SYNTH's FILTER">
 <img src="img/synth_tuning.png" width="240" alt="SYNTH's VOICE page: TUNE and FINE over a cents meter">
 
 **Try:** play a note, then turn **CUT** on the FILTER page while it sounds.
+
+**CHRD** (page 5, every wave, FM and PD too): one key plays a chord on SYNTH's three voices: **MAJ**, **MIN**,
+**SUS2**, **SUS4**, **DOM7**, **MAJ7**, **MIN7** (the sevenths play root, third and seventh, the way a pianist
+leaves out the fifth), **DIM**, **AUG**, **5TH**, **OCT**. The lowest key you hold is the chord's root: press another
+key below while holding and the chord slides there without restriking; let go of everything and it releases. The
+arpeggiator plays a chord on each step. **OFF** plays notes as usual.
 
 **FM.** Turn **WAVE** past PLS to **FM** and SYNTH becomes a two-operator FM synth (the header says **FM SYNTH**): a
 second sine, the modulator, bends the first one's phase, so one knob takes it from a pure tone to bells, electric

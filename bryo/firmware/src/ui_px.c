@@ -905,7 +905,10 @@ static void px_picto(uint32_t kind, int32_t x, int32_t y, const pdesc_t *d, int3
                                                           * (none at OFF), or the notes RIPPLE's four strings make */
         uint32_t set = gr_mask(v);
         int32_t k;
-        if (d->names == N_RSCAL) {
+        if (d->names == N_CHRD) {                      /* (SYNTH's CHRD: the chord's tones; OFF the key alone) */
+            for (set = 0, k = 0; k < 3; k++)
+                set |= 1u << (SYN_CHORD[clamp(v, 0, 11)][k] % 12);
+        } else if (d->names == N_RSCAL) {
             for (set = 0, k = 0; k < (int32_t)RS_N; k++) {
                 uint32_t st = (uint32_t)(RS_PART16[clamp(v, 0, RS_SCALES)][k] + 8) >> 4;
                 while (st >= 12u)
@@ -1056,19 +1059,19 @@ static const uint8_t SYN_PK[NPK] = {
     PK_CUTOFF, PK_RES, PK_ENVAMT, PK_KTRK,           /*        CUT RES ENV KTRK */
     PK_ATTACK, PK_DECAY, PK_SUSTAIN, PK_RELEASE,     /*        ATK DEC SUS REL */
     PK_VOICES, PK_SLEW, PK_DRIVE, PK_KNOB,           /*        VOIC GLID DRV TUNE */
-    PK_FADER, PK_DETUNE, PK_ENVAMT};                 /*        LVL FINE IENV */
+    PK_FADER, PK_DETUNE, PK_ENVAMT, PK_SCALE};       /*        LVL FINE IENV CHRD */
 static const uint8_t SYN_FM_PK[NPK] = {
     PK_OSC, PK_DETUNE, PK_MIX, PK_LOOP,              /* FM SYNTH: WAVE RATI INDX FDBK */
     PK_CUTOFF, PK_RES, PK_ENVAMT, PK_KTRK,           /*           CUT RES ENV KTRK */
     PK_ATTACK, PK_DECAY, PK_SUSTAIN, PK_RELEASE,     /*           ATK DEC SUS REL */
     PK_VOICES, PK_SLEW, PK_DRIVE, PK_KNOB,           /*           VOIC GLID DRV TUNE */
-    PK_FADER, PK_DETUNE, PK_ENVAMT};                 /*           LVL FINE IENV */
+    PK_FADER, PK_DETUNE, PK_ENVAMT, PK_SCALE};       /*           LVL FINE IENV CHRD */
 static const uint8_t SYN_PD_PK[NPK] = {
     PK_OSC, PK_SHAPE, PK_MIX, PK_NOISE,              /* PD SYNTH: WAVE SHAP AMT NOIS */
     PK_CUTOFF, PK_RES, PK_ENVAMT, PK_KTRK,           /*           CUT RES ENV KTRK */
     PK_ATTACK, PK_DECAY, PK_SUSTAIN, PK_RELEASE,     /*           ATK DEC SUS REL */
     PK_VOICES, PK_SLEW, PK_DRIVE, PK_KNOB,           /*           VOIC GLID DRV TUNE */
-    PK_FADER, PK_DETUNE, PK_ENVAMT};                 /*           LVL FINE AENV */
+    PK_FADER, PK_DETUNE, PK_ENVAMT, PK_SCALE};       /*           LVL FINE AENV CHRD */
 static const uint8_t POL_PK[NPK] = {
     PK_SRC, PK_START, PK_KNOB, PK_VOICES,            /* POLY: REEL STRT TUNE VOIC */
     PK_ATTACK, PK_DECAY, PK_SUSTAIN, PK_RELEASE,     /*       ATK DEC SUS REL */

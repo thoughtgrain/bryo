@@ -3708,6 +3708,55 @@ static void test_pd(void)
     render(NB, 0);
 }
 
+/* SYNTH's CHRD (2026-10-13): a key plays a chord on the three voices; the lowest key held is its root */
+static void test_chord(void)
+{
+    enum { NB = 300 };
+    static int32_t s[NB * CTL];
+    int16_t *p;
+    char b[200];
+    double r1, r3, r5, off;
+    power_on();
+    tp[0].src = SRC_SYNTH;
+    p = tp[0].syn;
+    p[SY_WAVE] = 0;
+    p[SY_DTUN] = 0;
+    p[SY_MIX] = 0;
+    p[SY_CUT] = 127;
+    p[SY_ENV] = 0;
+    p[SY_SUS] = 100;
+    p[SY_CHRD] = 1;                                      /* MAJ */
+    fm1_in.notes = note_bit_of_white(9);                 /* A3 */
+    render(NB, s);
+    r1 = sqrt(goertzel(s, 100 * CTL, NB * CTL, 220.0));
+    r3 = sqrt(goertzel(s, 100 * CTL, NB * CTL, 277.18));
+    r5 = sqrt(goertzel(s, 100 * CTL, NB * CTL, 329.63));
+    off = sqrt(goertzel(s, 100 * CTL, NB * CTL, 246.94));
+    snprintf(b, sizeof b, "CHRD MAJ, A3: A C# E (%.0f %.0f %.0f), B none (%.0f), three voices", r1, r3, r5, off);
+    check(b, r3 > r1 / 2 && r5 > r1 / 2 && off < r1 / 8 && syn_sounding(0) == 3);   /* (B: the neighbours' leakage, unwindowed) */
+    fm1_in.notes = 0;
+    render(NB, 0);
+    check("..let go: every voice released", syn_sounding(0) == 0);
+    p[SY_CHRD] = 5;                                      /* DOM7: root, third, seventh */
+    fm1_in.notes = note_bit_of_white(9);
+    render(NB, s);
+    r5 = sqrt(goertzel(s, 100 * CTL, NB * CTL, 329.63));
+    off = sqrt(goertzel(s, 100 * CTL, NB * CTL, 392.0));
+    snprintf(b, sizeof b, "..DOM7: the seventh G (%.0f), the fifth E left out (%.0f)", off, r5);
+    check(b, off > r1 / 2 && r5 < off / 20);
+    fm1_in.notes |= note_bit_of_white(7);                /* G3 down too: the root moves there, legato */
+    render(2, 0);
+    {
+        uint32_t j, legato = 1;
+        for (j = 0; j < SYN_NV; j++)
+            legato &= syn[0].v[j].stage == 2u && syn[0].v[j].to16 == (55 + SYN_CHORD[5][j]) * 16;
+        check("..G3 held as well: the chord moves to G3 (its lowest key), legato (no new attack)", legato);
+    }
+    fm1_in.notes = 0;
+    p[SY_CHRD] = 0;
+    render(NB, 0);
+}
+
 /* scenes (scene.c, 2026-10-13): the mixer's SCENES page (GLO, then EDIT): white keys 1-4 recall (held + SAVE:
  * store), KNOB 1-4 morph. A track whose source differs fades out, switches, fades in; choices switch at the
  * midpoint; the playing isn't theirs; saved in the project as their differences */
@@ -9859,6 +9908,7 @@ int main(int argc, char **argv)
     test_scenes();
     test_fm();
     test_pd();
+    test_chord();
     test_sleep();
     test_color();
     test_space();

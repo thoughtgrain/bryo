@@ -223,7 +223,13 @@ static const char *const SRC_NAME[NSRC] = {"TAPE", "SYNTH", "POLY", "DRUM"};
  * the oscillators, the filter, the envelope (one ADSR for the level and, by ENV, the cutoff), how the keys play it
  * and the level; the pages show them in POLY's order (OSC, AMP, FILTER, VOICE, LEVEL: PLAYOUT below). */
 enum { SY_WAVE, SY_DTUN, SY_MIX, SY_NOIS, SY_CUT, SY_RES, SY_ENV, SY_KTRK, SY_ATK, SY_DEC, SY_SUS, SY_REL, SY_VOIC,
-       SY_GLID, SY_DRV, SY_TUNE, SY_LVL, SY_FINE, SY_IENV };
+       SY_GLID, SY_DRV, SY_TUNE, SY_LVL, SY_FINE, SY_IENV, SY_CHRD };
+/* CHRD (2026-10-13): a key plays a chord, SYNTH's three voices on its tones (any wave): semitones over the key. The
+ * sevenths leave out the fifth (root, third, seventh: three voices, the shell a pianist plays) */
+static const char *const N_CHRD[12] = {"OFF", "MAJ", "MIN", "SUS2", "SUS4", "DOM7", "MAJ7", "MIN7", "DIM", "AUG",
+                                       "5TH", "OCT"};
+static const int8_t SYN_CHORD[12][3] = {{0, 0, 0}, {0, 4, 7}, {0, 3, 7}, {0, 2, 7}, {0, 5, 7}, {0, 4, 10},
+                                        {0, 4, 11}, {0, 3, 10}, {0, 3, 6}, {0, 4, 8}, {0, 7, 12}, {0, 12, 24}};
 #define SY_FM 5                      /* WAVE FM: the 2-op FM voice (synth.c); DTUN is its RATI, MIX INDX, NOIS FDBK */
 #define SY_PD 6                      /* WAVE PD: phase distortion, the CZ's (synth.c); DTUN is its SHAP, MIX AMT, IENV
                                       * AENV */
@@ -253,8 +259,9 @@ static const pdesc_t SYN_P[NPK] = {
     /* LEVEL: what the track hears of the synth (every source's last page, as the S-4's LEVEL); FINE: the tuning in
      * cents, on top of TUNE (page 4, beside it) */
     {"LVL", -24, 6, 0, F_DB}, {"FINE", -50, 50, 0, F_CT},
-    /* IENV (WAVE FM only, 2026-10-13): how far the envelope pushes INDX (the FM pluck: bright at the strike) */
-    {"IENV", -100, 100, 40, F_BIPCT}, {""}};
+    /* IENV (WAVE FM only, 2026-10-13): how far the envelope pushes INDX (the FM pluck: bright at the strike); CHRD
+     * (every wave): a key plays a chord */
+    {"IENV", -100, 100, 40, F_BIPCT}, {"CHRD", 0, 11, 0, F_ENUM, N_CHRD, 1}};
 /* SYNTH with WAVE FM: the same knobs, FM's labels (a modulator sine bending a carrier's phase): RATI, the modulator's
  * pitch over the carrier's (DTUN's place); INDX, how hard it bends it (MIX's); FDBK, the modulator into itself (NOIS's,
  * sine to saw-ish to noise); IENV. Its own pages (PLAYOUT): WAVE RATI INDX IENV first, FDBK beside DRV */
@@ -265,7 +272,8 @@ static const pdesc_t SYN_FM_P[NPK] = {
     {"ATK", 0, 127, 0, F_TIME}, {"DEC", 0, 127, 60, F_TIME}, {"SUS", 0, 100, 60, F_PCT}, {"REL", 0, 127, 45, F_TIME},
     {"VOIC", 1, SYN_NV, SYN_NV, F_NUM}, {"GLID", 0, 127, 0, F_TIME}, {"DRV", 0, 100, 0, F_PCT},
     {"TUNE", -24, 24, 0, F_ST},
-    {"LVL", -24, 6, 0, F_DB}, {"FINE", -50, 50, 0, F_CT}, {"IENV", -100, 100, 40, F_BIPCT}, {""}};
+    {"LVL", -24, 6, 0, F_DB}, {"FINE", -50, 50, 0, F_CT}, {"IENV", -100, 100, 40, F_BIPCT},
+    {"CHRD", 0, 11, 0, F_ENUM, N_CHRD, 1}};
 /* SYNTH with WAVE PD (2026-10-13): the CZ's phase distortion. SHAP (DTUN's place) the shape; AMT (MIX's) how far the
  * phase bends, a sine at 0 to the whole shape (the CZ's DCW; on the resonant shapes the resonance's sweep); AENV
  * (IENV's) the envelope's push on AMT, the CZ's sweep; NOIS as it is. Its own pages: WAVE SHAP AMT AENV first */
@@ -276,7 +284,8 @@ static const pdesc_t SYN_PD_P[NPK] = {
     {"ATK", 0, 127, 0, F_TIME}, {"DEC", 0, 127, 60, F_TIME}, {"SUS", 0, 100, 60, F_PCT}, {"REL", 0, 127, 45, F_TIME},
     {"VOIC", 1, SYN_NV, SYN_NV, F_NUM}, {"GLID", 0, 127, 0, F_TIME}, {"DRV", 0, 100, 0, F_PCT},
     {"TUNE", -24, 24, 0, F_ST},
-    {"LVL", -24, 6, 0, F_DB}, {"FINE", -50, 50, 0, F_CT}, {"AENV", -100, 100, 40, F_BIPCT}, {""}};
+    {"LVL", -24, 6, 0, F_DB}, {"FINE", -50, 50, 0, F_CT}, {"AENV", -100, 100, 40, F_BIPCT},
+    {"CHRD", 0, 11, 0, F_ENUM, N_CHRD, 1}};
 
 /* POLY (poly.c): a sound played at the keys' pitches, up to four at once, each through its own envelope and filter.
  * The sound is any reel choice: a factory reel, one of yours, or this track's own tape (record into it, then play it
@@ -525,12 +534,12 @@ static const playout_t PLAYOUT[] = {
                                                                                  * DIFF DUCK, TYPE MOD (2-3, 8-11 and
                                                                                  * 16-17: the room's, SP_RMK) */
     {SYN_P, 5, {0, 1, 2, 3, 8, 9, 10, 11, 4, 5, 6, 7, 12, 13, 15, 17, 14, 19, 20, 16, 18, 21, 22, 23}},
-                                                    /* SYNTH: OSC AMP FILTER, VOIC GLID TUNE FINE, DRV . . LVL (18,
+                                                    /* SYNTH: OSC AMP FILTER, VOIC GLID TUNE FINE, DRV CHRD . LVL (18,
                                                      * IENV: FM's alone, past the pages) */
     {SYN_FM_P, 5, {0, 1, 2, 18, 8, 9, 10, 11, 4, 5, 6, 7, 12, 13, 15, 17, 14, 3, 19, 16, 20, 21, 22, 23}},
-                                                    /* FM: WAVE RATI INDX IENV, AMP, FILTER, VOICE, DRV FDBK . LVL */
+                                                    /* FM: WAVE RATI INDX IENV, AMP, FILTER, VOICE, DRV FDBK CHRD LVL */
     {SYN_PD_P, 5, {0, 1, 2, 18, 8, 9, 10, 11, 4, 5, 6, 7, 12, 13, 15, 17, 14, 3, 19, 16, 20, 21, 22, 23}},
-                                                    /* PD: WAVE SHAP AMT AENV, AMP, FILTER, VOICE, DRV NOIS . LVL */
+                                                    /* PD: WAVE SHAP AMT AENV, AMP, FILTER, VOICE, DRV NOIS CHRD LVL */
     {POL_P, 4, {0, 1, 13, 2, 4, 5, 6, 7, 8, 9, 10, 11, 3, 14, 15, 12}},         /* POLY: REEL STRT END TUNE, ..., VOIC
                                                                                  * ROOT FINE LVL */
     {ME_P[ME_WAVE], 4, {0, 1, 2, 3, 4, 5, 6, 7, 12, 13, 14, 15, 10, 11, 8, 9}},  /* LFO: timing, then PHAS SPRD AMT OFS */
