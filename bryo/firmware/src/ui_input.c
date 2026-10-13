@@ -270,7 +270,7 @@ static uint32_t pad_pages(uint32_t b)
     switch (b) {
     case B_HOME: return pdesc_pages(dev_p(sys.sel, DEV_SRC));
     case B_ENV: return 1u;
-    case B_EDIT: return pdesc_pages(DEV_P[DEV_GRAIN]) + pdesc_pages(DEV_P[DEV_RESO]);
+    case B_EDIT: return pdesc_pages(DEV_P[DEV_GRAIN]) + pdesc_pages(dev_p(sys.sel, DEV_RESO));
     case B_FX: return pdesc_pages(DEV_P[DEV_COLOR]) + pdesc_pages(DEV_P[DEV_SPACE]);
     case B_LFO: return pdesc_pages(ME_P[tp[sys.sel].engine[ui.lfo_slot % NSLOT] % NME]);
     case B_SEQ: return pdesc_pages(ME_P[tp[sys.sel].engine[SLOT_SEQ] % NME]);
@@ -1368,6 +1368,16 @@ static void ui_input(void)
                     ui_message(m);
                 }
             }
+        } else if (ui.pg_pad == B_EDIT && pad_down() && ui.view == VIEW_PAGE) {
+            /* EDIT held + SELECT, from any page: RIPPLE's form (RIPPLE's strings, COMB, RESO, 12-BAND: reso.c
+             * RM_*), shown on its first page (from RIPPLE's own pages: the page stays, every form's are alike);
+             * the knobs are the same ones in every form, each form its own labels and picture */
+            int16_t *m = &tp[sys.sel].dev[DEV_RESO][RP_MODE];
+            *m = (int16_t)(((int32_t)*m + d % (int32_t)NRMODE + (int32_t)NRMODE) % (int32_t)NRMODE);
+            if (ui.kind != FOCUS_DEV || ui.dev != DEV_RESO)
+                focus_dev(DEV_RESO, 0);
+            ui.last = 0xFF;
+            ui.pg_used = 1;
         } else if (ui.home_held && ((fm1_in.buttons >> panel.btn[B_HOME]) & 1u)) {
             /* HOME held + SELECT, from any page: the track's source (TAPE, SYNTH, POLY, DRUM), shown on its first
              * page; each keeps its own knobs */

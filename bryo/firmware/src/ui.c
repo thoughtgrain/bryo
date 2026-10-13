@@ -589,8 +589,9 @@ static void draw_foot(void)
     else if (ui.pg_pad < NB && ((fm1_in.buttons >> panel.btn[ui.pg_pad]) & 1u) && ui.slot_held >= NSLOT)
         str_cpy(a, ui.pg_pad == B_HOME && ui.kind == FOCUS_DEV && ui.dev == DEV_SRC &&
                    (tp[sys.sel].src == SRC_TAPE || tp[sys.sel].src == SRC_POLY) && ui.page == 0u
-                   ? "KEYS:PAGES KNOB:ZOOM" : "KEYS: ITS PAGES", sizeof a);   /* a page's pad held: the keys
-                                                       * pick its pages (HOME on TAPE's or POLY's first: the zoom) */
+                   ? "KEYS:PAGES KNOB:ZOOM" : ui.pg_pad == B_EDIT ? "KEYS:PAGES SEL:FORM" : "KEYS: ITS PAGES", sizeof a);
+                                                      /* a page's pad held: the keys pick its pages (HOME on TAPE's or
+                                                       * POLY's first: the zoom; EDIT: SELECT RIPPLE's form) */
     else if (ui.slot_held < NSLOT) {                  /* a slot's pad held: what it does (the LFO pad: OP1-3 pick
                                                        * its slot; the SEQ's engine stays), and the slot's depths
                                                        * used of its dozen (mod.c MOD_SLOT_MAX) */
@@ -601,7 +602,8 @@ static void draw_foot(void)
     }                                                 /* (19 letters at most: DRUM's "T2 BAR 1/2" takes the right) */
     else if (ui.view == VIEW_PAGE && ui.kind == FOCUS_ARP && ui.page == 2u)   /* RIPL ARP: the keys the strings' */
         str_cpy(a, tp[sys.sel].dev[DEV_RESO][RP_AMODE] >= ARM_LTCH ? "POLY HELD: CLEAR"
-                   : tp[sys.sel].dev[DEV_RESO][RP_AMODE] != ARM_OFF ? "KEYS: STRINGS" : "MODE: OFF", sizeof a);
+                   : tp[sys.sel].dev[DEV_RESO][RP_AMODE] == ARM_OFF ? "MODE: OFF"
+                   : tp[sys.sel].dev[DEV_RESO][RP_KEYS] == RK_TUNE ? "KEYS: ITS TUNE" : "KEYS: PLUCKS", sizeof a);
     else if (ui.view == VIEW_PAGE && ui.kind == FOCUS_ARP)   /* the arpeggiator: the keys, and the latched notes' clear */
         str_cpy(a, tp[sys.sel].arp[AR_MODE] >= ARM_LTCH ? "POLY HELD: CLEAR" : tp[sys.sel].src == SRC_TAPE
                    ? "KEYS: SLICES" : tp[sys.sel].src == SRC_DRUM ? "KEYS: DRUMS" : "KEYS: ARP", sizeof a);
@@ -614,8 +616,9 @@ static void draw_foot(void)
                    ? "EDIT: KEY" : ui.chan ? "EDIT: MASTER" : "EDIT: CHANNEL", sizeof a);
     else if (ui.view == VIEW_ROUTE)
         str_cpy(a, "KNOBS: REC IN", sizeof a);
-    else if (tp[sys.sel].src == SRC_DRUM && ui.kind == FOCUS_DEV && ui.dev == DEV_RESO)   /* (the strings alone) */
-        str_cpy(a, "KEYS: PLUCK STRINGS", sizeof a);
+    else if ((tp[sys.sel].src == SRC_DRUM || tp[sys.sel].src == SRC_TAPE) && ui.kind == FOCUS_DEV &&
+             ui.dev == DEV_RESO)                      /* (RIPPLE alone: plucked, or retuned) */
+        str_cpy(a, tp[sys.sel].dev[DEV_RESO][RP_KEYS] == RK_TUNE ? "KEYS: ITS TUNE" : "KEYS: PLUCK", sizeof a);
     else if (tp[sys.sel].src == SRC_DRUM && ui.kind == FOCUS_DEV && ui.dev == DEV_SRC) {   /* DRUM: what a key does */
         static const char *const STEP[4] = {"KEYS: STEPS", "KEYS: ACCENTS", "KEYS: PLAY+WRITE", "HOLD KEY: ERASE"};
         uint32_t m = (uint32_t)clamp(tp[sys.sel].drm[DM_MODE], 0, 3);
@@ -627,8 +630,7 @@ static void draw_foot(void)
             str_cpy(a, ui.page == 3u ? STEP[m] : "KEYS:PLAY HOLD:EDIT", sizeof a);
     } else
         str_cpy(a, tp[sys.sel].src != SRC_TAPE ? "KEYS: NOTES" : ui.kind == FOCUS_DEV && ui.dev == DEV_GRAIN ?
-                   "KEYS: GRAIN CURSOR" : ui.kind == FOCUS_DEV && ui.dev == DEV_RESO ? "KEYS: PLUCK STRINGS" :
-                   "KEYS: SLICES", sizeof a);   /* (what the keys do on this page) */
+                   "KEYS: GRAIN CURSOR" : "KEYS: SLICES", sizeof a);   /* (what the keys do on this page) */
     str_cpy(b, "T", sizeof b);                        /* "T2 OCT 3": the track, its keys' octave (DRUM: "T2 BAR 1/2",
                                                        * the bar STEP shows, of the pattern's) */
     fmt_int(b + 1, (int32_t)sys.sel + 1);

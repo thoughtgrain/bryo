@@ -83,7 +83,7 @@ Every pad opens a page, and **pressing the same pad again goes to its next page*
 | Pad | Pages, in order |
 | --- | --- |
 | HOME | the source's pages (TAPE has 4; SYNTH 5; POLY 4; DRUM 4) |
-| EDIT | GRAIN 1-6, then RIPPLE 1-3 |
+| EDIT | GRAIN 1-6, then RIPPLE 1-4 |
 | FX | COLOR 1-3, then CHRONOS 1-4 |
 | ENV | the source's envelope: SYNTH's AMP, POLY's ENV, TAPE's slice envelope (each the second page), DRUM's KIT |
 | LFO, SEQ | a modulator's pages (LFO: M1, M2 or M3; SEQ: M4) |
@@ -544,7 +544,7 @@ stays. **Hold black key POLY** (on the ARP page) to clear it and start again.
 
 **RIPL ARP (the ARP pad's third page): an arpeggio for the strings.** Press ARP three times (or hold ARP and press
 white key 3). It's RIPPLE's own arpeggio, separate from the track's: each step plucks RIPPLE's four strings at
-that note, whatever the track plays. **MODE** turns it on (OFF, KEY, LTCH, ADD); **ORDR**, **RNGE** and **RATE** work
+that note (or, with RIPPLE's KEYS on TUNE, retunes it to that note), whatever the track plays. **MODE** turns it on (OFF, KEY, LTCH, ADD); **ORDR**, **RNGE** and **RATE** work
 as above. With MODE on, the white keys on this page play the strings' pattern and the track itself stays quiet; with
 MODE off they play the track as on the other ARP pages. A latched or piled-up pattern keeps plucking when you leave
 the page, and **hold POLY** here to clear it. You'll want RIPPLE's **WET** up (EDIT seven times, KNOB 4) to hear it.
@@ -686,44 +686,59 @@ grain somewhere inside it.
 
 <img src="img/grain6.png" width="240" alt="GRAIN 6: GRNS 12; 4 OF 12 HELD">
 
-### 6.5 RIPPLE: four strings
+### 6.5 RIPPLE: strings, combs, resonators
 
-The track rings four tuned strings, like a sitar's sympathetic strings.
+The track rings through something tuned: four strings like a sitar's sympathetic strings, or one of three other
+forms. Each track has its own.
 
 1. Press **EDIT seven times** for **RIPPLE**.
 2. Turn **KNOB 4 (WET)** up (KNOB 3 is ROUT, see 6.8).
-3. **The white keys set the strings' root note** (on a TAPE or DRUM track they pluck the strings alone, without
-   playing a slice or a drum). **PTCH** does the same with a knob. **DEC** is how long they ring.
-4. **RIPPLE 2**: a filter (CUT, RES, TYPE) and **SCAL**, the chord the four strings make: **HARM** (the root's
-   harmonics), **MAJ**, **MIN**, **PEN**, **SUS2**, **SUS4**, **DOM7**, **MAJ7**, **MIN7** (the sevenths leave out
-   the octave: the seventh's rub is the point), **DIM**, **AUG**, **5TH** (a power chord) and **OCT** (one note in
-   four octaves). The ring over the knob lights the notes the strings make.
-5. **RIPPLE 3**: **TONE**, how bright they ring, and how each pluck sounds (a white key on a TAPE or DRUM
-   track, or a RIPL ARP step):
-   - **PICK**: how hard the strings are struck. Turn it left for a soft mallet (dark and round), right for a pick
-     (bright and snappy). It changes the strike only; TONE still sets how they ring.
-   - **STRM**: strum. The four strings sound one after another, lowest first, this many milliseconds apart (0: all at
+3. **PTCH** sets the root note, and **DEC** how long it rings.
+4. **Hold EDIT and turn SELECT** to choose RIPPLE's form. Its name is in the header, and each form has its own
+   picture and labels:
+   - **RIPPLE**: four strings, a Karplus-Strong loop each.
+   - **COMB**: the same lines at half length, fed back inverted. Only the odd harmonics ring, giving a hollow,
+     clarinet-like body at the same pitch.
+   - **RESO**: four resonators, a resonant band on each of the chord's first four notes, as a filter rings. DEC
+     becomes **RING**, how sharp the bands are, and TONE becomes **TILT**, which takes the upper bands down.
+   - **12-BAND**: twelve of those bands over the chord's notes, climbing through the octaves: a filter bank that
+     sorts whatever comes in into the chord. The picture is a meter for each band.
+
+   All four forms ring the track's own sound. Switching clears what was ringing; the knobs stay as they are.
+5. **RIPPLE 2** is what rings:
+   - **SCAL**: the chord the strings (or bands) make. **HARM** is the root's harmonics; then **MAJ**, **MIN**,
+     **PEN**, **SUS2**, **SUS4**, **DOM7**, **MAJ7**, **MIN7** (the sevenths leave out the octave, because the
+     seventh's rub is the point), **DIM**, **AUG**, **5TH** (a power chord) and **OCT** (one note in four octaves).
+     The ring over the knob lights the notes.
+   - **TONE** (TILT on the resonators): how bright it rings.
+   - **DRV**: a saturation in the loop, the way a Polivoks filter overdrives its own feedback. A loud ring rounds
+     off and gains odd harmonics, warm and gritty. As it dies away it rings clean again, so DRV changes the attack
+     more than the tail. On the resonators it drives what reaches the bands. It starts at 25.
+   - **RIPL**: the pitches drift slowly, each a quarter turn behind the one below, so the drift runs across them
+     like a ripple on water. It reaches up to half a semitone either way at 100 and gets faster as it rises.
+6. **RIPPLE 3** is a filter in front (**CUT**, **RES**, **TYPE**): what of the track reaches it.
+7. **RIPPLE 4** is what the keys do:
+   - **KEYS**: **PLCK** or **TUNE**.
+     - **PLCK**: a white key on RIPPLE's page sets the root and plucks it. On a TAPE or DRUM track it plays without
+       a slice or a drum, as a sound of its own. A RIPL ARP step plucks too.
+     - **TUNE**: a key or a RIPL ARP step only sets the root, so what rings is the track's own sound, played in the
+       keys' tune.
+
+     On SYNTH and POLY the keys play the source either way, and RIPPLE follows its notes.
+   - **PICK**: how hard a pluck strikes. Turn it left for a soft mallet (dark and round), right for a pick (bright
+     and snappy).
+   - **STRM**: strum. The strings sound one after another, lowest first, this many milliseconds apart (0: all at
      once). A new pluck cuts a strum that hasn't finished.
-   - **VARY**: each pluck comes out a little different, in level and brightness, so a pattern sounds played rather
-     than repeated.
-6. To make the strings play a pattern of their own, use **RIPL ARP**, the ARP pad's third page ([5.8](#58-arp-the-arpeggiator)).
-7. **RIPPLE 4** is what rings and how it's driven:
-   - **MODE**: **STRG**, the four strings. **COMB**, the same lines at half length fed back inverted: only the odd
-     harmonics ring, a hollow, clarinet-like body at the same pitch. **BANK**, no strings at all but a resonant band
-     on each partial, the way a filter bank rings: DEC sets how sharp the bands are (the same ring time as the
-     strings), TONE tilts the upper ones down, and a pluck is a burst of noise into the bands. Switching modes
-     clears what was ringing.
-   - **DRV**: a saturation in the strings' loop, the way a Polivoks filter overdrives its own feedback. A loud ring
-     rounds off and gains odd harmonics, warm and gritty; as it dies away it rings clean again, so DRV changes the
-     attack more than the tail. In BANK it drives what reaches the bands. It starts at 25.
-   - **RIPL**: the strings drift in pitch, slowly, each a quarter turn behind the one below, so the drift runs
-     across them like a ripple on water; up to half a semitone either way at 100, faster as it rises. On BANK it
-     moves the bands' centres.
+   - **VARY**: each pluck comes out a little different, in level and brightness.
+8. To play a pattern on it, use **RIPL ARP**, the ARP pad's third page ([5.8](#58-arp-the-arpeggiator)).
 
 The picture shows it: while a string rings, the curve waves round its node in orange, as high as the string is
-loud and as tight as it is high, and the waves drift along with RIPL (slowly on their own when RIPL is 0).
+loud and as tight as it is high, and the waves drift along with RIPL. On 12-BAND each band's meter lights orange
+as it rings.
 
-<img src="img/resonator_wet.png" width="240" alt="RIPPLE ringing"> <img src="img/resonator2.png" width="240" alt="RIPPLE 2: CUT RES TYPE SCAL"> <img src="img/ripple4.png" width="240" alt="RIPPLE 4: MODE DRV RIPL">
+<img src="img/resonator_wet.png" width="240" alt="RIPPLE ringing"> <img src="img/ripple2.png" width="240" alt="RIPPLE 2: SCAL TONE DRV RIPL"> <img src="img/resonator2.png" width="240" alt="RIPPLE 3: CUT RES TYPE">
+
+<img src="img/ripple_comb.png" width="240" alt="COMB: the odd harmonics' teeth"> <img src="img/ripple_bank.png" width="240" alt="12-BAND: a meter a band">
 
 ### 6.6 COLOR: dirt and character
 
@@ -1045,6 +1060,7 @@ M-VAVE's updater puts the stock firmware back. Bryo's projects and tapes can't b
 | **OP5 / OP6** | the tape backwards / half speed |
 | **HOME** | the source's pages |
 | **HOME** held + SELECT | change the source |
+| **EDIT** held + SELECT | RIPPLE's form (RIPPLE, COMB, RESO, 12-BAND) |
 | **EDIT** | GRAIN, then RIPPLE |
 | **FX** | COLOR, then CHRONOS |
 | **ENV** | the source's envelope page |

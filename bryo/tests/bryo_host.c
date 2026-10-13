@@ -490,15 +490,18 @@ static void test_input(void)
     check("..again: RIPPLE, opening with ROUT WET", ui.dev == DEV_RESO && ui.page == 0u &&
           pdesc_at(DEV_P[DEV_RESO], 2u) == RP_ROUT && pdesc_at(DEV_P[DEV_RESO], 3u) == RP_WET);
     press(B_EDIT);
-    check("..again: RIPPLE's page 2 (CUT RES TYPE SCAL)", ui.dev == DEV_RESO && ui.page == 1u);
+    check("..again: RIPPLE's page 2, what rings (SCAL TONE DRV RIPL)", ui.dev == DEV_RESO && ui.page == 1u &&
+          pdesc_at(DEV_P[DEV_RESO], 4u) == RP_SCAL && pdesc_at(DEV_P[DEV_RESO], 5u) == RP_TONE &&
+          pdesc_at(DEV_P[DEV_RESO], 6u) == RP_DRV && pdesc_at(DEV_P[DEV_RESO], 7u) == RP_RIPL);
     press(B_EDIT);
-    check("..again: RIPPLE's page 3 (TONE; its arpeggio is the ARP pad's)", ui.dev == DEV_RESO && ui.page == 2u &&
-          pdesc_at(DEV_P[DEV_RESO], 8u) == RP_TONE && pdesc_pages(DEV_P[DEV_RESO]) == 4u);
+    check("..again: RIPPLE's page 3, the filter in front (CUT RES TYPE)", ui.dev == DEV_RESO && ui.page == 2u &&
+          pdesc_at(DEV_P[DEV_RESO], 8u) == RP_CUT && pdesc_empty(&DEV_P[DEV_RESO][pdesc_at(DEV_P[DEV_RESO], 11u)]) &&
+          pdesc_pages(DEV_P[DEV_RESO]) == 4u);
     press(B_EDIT);
-    check("..again: RIPPLE's page 4 (MODE DRV RIPL, stored 16-18 past the arpeggio's 12-15)", ui.dev == DEV_RESO &&
-          ui.page == 3u && pdesc_at(DEV_P[DEV_RESO], 12u) == RP_MODE && pdesc_at(DEV_P[DEV_RESO], 13u) == RP_DRV &&
-          pdesc_at(DEV_P[DEV_RESO], 14u) == RP_RIPL && pdesc_empty(&DEV_P[DEV_RESO][pdesc_at(DEV_P[DEV_RESO], 15u)]) &&
-          !strcmp(DEV_P[DEV_RESO][RP_MODE].label, "MODE") && !strcmp(DEV_P[DEV_RESO][RP_RIPL].label, "RIPL"));
+    check("..again: RIPPLE's page 4, the keys (KEYS PICK STRM VARY); MODE, its form, on no page (EDIT + SELECT)",
+          ui.dev == DEV_RESO && ui.page == 3u && pdesc_at(DEV_P[DEV_RESO], 12u) == RP_KEYS &&
+          pdesc_at(DEV_P[DEV_RESO], 13u) == RP_PICK && pdesc_at(DEV_P[DEV_RESO], 15u) == RP_VARY &&
+          !strcmp(DEV_P[DEV_RESO][RP_KEYS].label, "KEYS") && DEV_P[DEV_RESO][RP_MODE].max == 3);
     press(B_EDIT);
     check("..again: back to GRAIN, page 1", ui.dev == DEV_GRAIN && ui.page == 0u);
     press(B_FX);
@@ -920,28 +923,51 @@ static void screens_in(const char *pal)
     shot(pal, "resonator");
     turn(1, 35);                                         /* DEC 95: sharp peaks */
     turn(3, 80);                                         /* WET 80 (KNOB 3-4: ROUT WET, its mix) */
-    tp[0].dev[DEV_RESO][RP_TONE] = 90;                   /* TONE 90 (page 3): the upper partials kept */
+    tp[0].dev[DEV_RESO][RP_TONE] = 90;                   /* TONE 90 (page 2): the upper partials kept */
     shot(pal, "resonator_wet");
-    press(B_EDIT);                                       /* RIPPLE 2: CUT down, RES 60, BP, the major chord */
-    turn(0, -40);
-    turn(1, 60);
-    turn(2, 1);
-    turn(3, 1);
-    shot(pal, "resonator2");
+    press(B_EDIT);                                       /* RIPPLE 2, what rings: the major chord, DRV 60, RIPL 40 */
+    turn(0, 1);
+    turn(2, 35);                                         /* (from DRV's default, 25) */
+    turn(3, 40);
+    render(2, 0);
+    shot(pal, "ripple2");
+    check("RIPPLE 2 shot: SCAL MAJ, DRV 60, RIPL 40", tp[0].dev[DEV_RESO][RP_SCAL] == 1 &&
+          tp[0].dev[DEV_RESO][RP_DRV] == 60 && tp[0].dev[DEV_RESO][RP_RIPL] == 40 && ui.page == 1u);
     fm1_in.notes = note_bit_of_white(7);                 /* a key on the RIPPLE page: the root to G3, plucked */
     render(2, 0);
     fm1_in.notes = 0;
     shot(pal, "resonator_key");
-    press(B_EDIT);                                       /* RIPPLE 4: COMB, DRV 60, RIPL 40 */
-    press(B_EDIT);
-    turn(0, 1);
-    turn(1, 35);                                         /* (from DRV's default, 25) */
-    turn(2, 40);
-    render(2, 0);
-    shot(pal, "ripple4");
-    check("RIPPLE 4 shot: MODE COMB, DRV 60, RIPL 40", tp[0].dev[DEV_RESO][RP_MODE] == 1 &&
-          tp[0].dev[DEV_RESO][RP_DRV] == 60 && tp[0].dev[DEV_RESO][RP_RIPL] == 40 && ui.page == 3u);
-    tp[0].dev[DEV_RESO][RP_MODE] = 0;
+    {   /* the forms: EDIT held + SELECT, the page kept, each its name, labels and picture */
+        static const char *const SHOT[4] = {0, "ripple_comb", "ripple_reso", "ripple_bank"};
+        uint32_t m, ok = 1;
+        focus_dev(DEV_RESO, 1);
+        sys.playing = 1;
+        for (m = 1; m < 4u; m++) {
+            hold(B_EDIT);
+            host_enc[panel.enc[EN_SELECT]] = 1;
+            ui_input();
+            let_go(B_EDIT);
+            render(200, 0);
+            shot(pal, SHOT[m]);
+            ok &= tp[0].dev[DEV_RESO][RP_MODE] == (int16_t)m && ui.dev == DEV_RESO && ui.page == 1u &&
+                  !strcmp(dev_name(0, DEV_RESO), RS_FORM_NAME[m]) && pdesc_pages(dev_p(0, DEV_RESO)) == 4u;
+        }
+        ok &= !strcmp(dev_p(0, DEV_RESO)[RP_TONE].label, "TILT") && !strcmp(dev_p(0, DEV_RESO)[RP_DEC].label, "RING");
+        hold(B_EDIT);
+        host_enc[panel.enc[EN_SELECT]] = 1;
+        ui_input();
+        let_go(B_EDIT);
+        sys.playing = 0;
+        check("RIPPLE's form, EDIT held + SELECT: COMB, RESO, 12-BAND, round to RIPPLE, its page kept (the tempo "
+              "left alone)", ok && tp[0].dev[DEV_RESO][RP_MODE] == 0 && ui.page == 1u && ui.dev == DEV_RESO &&
+              !strcmp(dev_name(0, DEV_RESO), "RIPPLE") && sys.bpm == 120);
+    }
+    press(B_EDIT);                                       /* RIPPLE 3, the filter in front: CUT down, RES 60, BP */
+    turn(0, -40);
+    turn(1, 60);
+    turn(2, 1);
+    shot(pal, "resonator2");
+    tp[0].dev[DEV_RESO][RP_MODE] = 0;                    /* (SCAL stays MAJ, the filter as set: the screens after) */
     tp[0].dev[DEV_RESO][RP_DRV] = 25;
     tp[0].dev[DEV_RESO][RP_RIPL] = 0;
     focus_dev(DEV_RESO, 1);
@@ -3490,6 +3516,76 @@ static void test_reso_pluck(void)
 }
 
 static double goertzel(const int32_t *x, uint32_t from, uint32_t to, double hz);   /* (below, with SPACE's tests) */
+/* RIPPLE's forms and KEYS (2026-10-13): TUNE retunes what the track's sound rings without a pluck; 12-BAND sorts
+ * what comes in into its twelve bands; its bands three a string's chunk, shed three at a time */
+static void test_ripple_forms(void)
+{
+    enum { NB = 690 };
+    static int32_t s[NB * CTL], l[CTL], r[CTL];
+    int16_t *p;
+    char b[160];
+    uint32_t i, k;
+    int32_t rng = 77;
+    double on, off, pk;
+#define RF_RUN(keys0, in, buf) do {                                                                       \
+        for (k = 0; k < NB; k++) {                                                                    \
+            for (i = 0; i < CTL; i++)                                                                 \
+                l[i] = r[i] = (in) ? ((int32_t)(noise32(&rng) >> 17) - 16384) / 3 : 0;                \
+            reso_block(0, l, r, k == 2u ? (keys0) : 0u, 1, -1, CTL);                                   \
+            for (i = 0; i < CTL; i++)                                                                 \
+                (buf)[k * CTL + i] = l[i];                                                             \
+        }                                                                                             \
+    } while (0)
+    power_on();
+    p = tp[0].dev[DEV_RESO];
+    p[RP_WET] = 100;
+    p[RP_KEYS] = RK_TUNE;
+    chain_poll();
+    RF_RUN(1u << 9, 0, s);                               /* a key, A3, nothing coming in */
+    check("KEYS TUNE: a key sets the root (A3) and plucks nothing (silence in, silence out)",
+          reso[0].root16 == 57 * 16 && peak_of(s, NB * CTL) == 0);
+    RF_RUN(0u, 1, s);                                    /* noise in: it rings at the key's tune */
+    on = goertzel(s, 100 * CTL, NB * CTL, 220);
+    off = goertzel(s, 100 * CTL, NB * CTL, 246.9);
+    snprintf(b, sizeof b, "..what comes in rings at the key's root: A3 %.1f x B3", on / (off + 1));
+    check(b, on > 8 * off);
+    p[RP_KEYS] = RK_PLCK;
+    RF_RUN(0u, 0, s);
+    RF_RUN(1u << 9, 0, s);
+    check("KEYS PLCK: a key plucks (a sound from nothing)", peak_of(s, NB * CTL) > 2000);
+    p[RP_MODE] = RM_BANK;                                /* 12-BAND, on the major chord over A3 */
+    p[RP_SCAL] = 1;
+    p[RP_DEC] = 80;
+    p[RP_TONE] = 100;
+    RF_RUN(0u, 0, s);
+    RF_RUN(0u, 1, s);
+    {
+        static const double BAND[4] = {220, 277.2, 329.6, 880}, GAP[4] = {246.9, 311.1, 370, 783.99};
+        uint32_t ok = 1;
+        for (k = 0; k < 4u; k++)
+            ok &= goertzel(s, 100 * CTL, NB * CTL, BAND[k]) > 4 * goertzel(s, 100 * CTL, NB * CTL, GAP[k]);
+        pk = 0;
+        for (k = 0; k < RS_NB; k++)
+            pk += reso[0].lvl[k] > 0;
+        snprintf(b, sizeof b, "12-BAND: noise in sorted into the chord (A C# E, A5: the 9th band), %.0f of 12 bands lit", pk);
+        check(b, ok && pk == 12);
+    }
+    reso_cap = 2u;                                       /* shed to two chunks: six bands */
+    RF_RUN(0u, 1, s);
+    for (k = 6, i = 0; k < RS_NB; k++)
+        i |= reso[0].lvl[k];
+    check("..shed to two strings' worth: six bands, the top six quiet", i == 0 && reso[0].lvl[5] > 0);
+    reso_cap = RS_N;
+    p[RP_SCAL] = 12;                                     /* OCT over A3: the bands climb past C9, and stop there */
+    RF_RUN(0u, 1, s);
+    for (k = 0, i = 0; k < RS_NB; k++)
+        i += reso[0].lvl[k] > 0;
+    check("..OCT over A3: six bands to A8, none past C9 (half rate's ceiling)", i == 6u);
+    p[RP_MODE] = RM_STRG;
+    p[RP_SCAL] = 0;
+#undef RF_RUN
+}
+
 static void test_reso(void)
 {
     enum { NB = 690 };                                   /* 0.5 s */
@@ -6378,7 +6474,10 @@ static void test_mod(void)
             {DEV_P[DEV_SRC], 0, "LVL"}, {SYN_P, 0, "LVL"}, {POL_P, 0, "LVL"},
             {DRM_P, 0, "LVL"},
             {DEV_P[DEV_COLOR], 0, "LVL", 0, "ROUT", "WET"}, {DEV_P[DEV_GRAIN], 0, 0, 0, "ROUT", "WET"},
-            {DEV_P[DEV_RESO], 0, 0, 0xF000u, "ROUT", "WET"},   /* (12-15: RIPL ARP, the ARP pad's page 3) */
+            {DEV_P[DEV_RESO], 0, 0, 0x1F000u, "ROUT", "WET"},   /* (12-15: RIPL ARP, the ARP pad's page 3; 16:
+                                                                 * the form, EDIT held + SELECT) */
+            {RS_FORM_P[0], 0, 0, 0x1F000u, "ROUT", "WET"}, {RS_FORM_P[1], 0, 0, 0x1F000u, "ROUT", "WET"},
+            {RS_FORM_P[2], 0, 0, 0x1F000u, "ROUT", "WET"},
             {ME_P[ME_WAVE], "AMT", "OFS"}, {ME_P[ME_ADSR], "AMT", "OFS"}, {ME_P[ME_SEQ], "AMT", "OFS"},
             {ME_P[ME_FOLLOW], "AMT", "OFS"}, {DEV_P[DEV_SPACE], 0, 0, 0, "DLY", "VERB"}};
         uint32_t i, k, ok = 1, rule = 1;
@@ -9389,6 +9488,7 @@ int main(int argc, char **argv)
     test_grain_clicks();
     test_reso();
     test_reso_pluck();
+    test_ripple_forms();
     test_sleep();
     test_color();
     test_space();

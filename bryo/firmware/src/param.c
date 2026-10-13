@@ -78,7 +78,10 @@ static const char *const N_GRNS[1 + GR_GRNS_MAX] = {"AUTO", "1", "2", "3", "4", 
 static const char *const N_RSCAL[13] = {"HARM", "MAJ", "MIN", "PEN", "SUS2", "SUS4", "DOM7", "MAJ7", "MIN7", "DIM",
                                         "AUG", "5TH", "OCT"};   /* (the strings' chords: reso.c RS_PART16) */
 static const char *const N_SLOP[3] = {"LP", "BP", "HP"};
-static const char *const N_RMODE[3] = {"STRG", "COMB", "BANK"};   /* RIPPLE's MODE (reso.c RM_*) */
+static const char *const N_RMODE[4] = {"STRG", "COMB", "RESO", "BANK"};   /* RIPPLE's form (reso.c RM_*) */
+/* .. and its name in the header (EDIT held + SELECT picks it, as HOME held + SELECT the source) */
+static const char *const RS_FORM_NAME[4] = {"RIPPLE", "COMB", "RESO", "12-BAND"};
+static const char *const N_RKEYS[2] = {"PLCK", "TUNE"};   /* RIPPLE's KEYS (reso.c RK_*) */
 static const char *const N_CMOD[3] = {"BIT", "RATE", "BOTH"};
 static const char *const N_ROUT[2] = {"INS", "SEND"};
 /* ROUT (GRAIN, RIPPLE, COLOR): how WET mixes the device in. INS: in the track's line, WET crossfading the dry
@@ -94,6 +97,30 @@ static const char *const N_ARM[4] = {"OFF", "KEY", "LTCH", "ADD"};
 static const char *const N_ARO[5] = {"UP", "DOWN", "UPDN", "RND", "PLAY"};
 static const char *const N_ARATE[6] = {"1/4", "1/8", "8T", "1/16", "16T", "1/32"};
 static const char *const N_TSYNC[6] = {"OFF", "1BR", "2BR", "4BR", "8BR", "16BR"};   /* TAPE SYNC: the loop, in bars */
+
+/* RIPPLE's knobs, the same stored places in every form (MODE, the form: reso.c RM_*), the labels the form's (dec:
+ * DEC's, tone: TONE's; the resonators call DEC their RING and TONE their TILT) */
+#define RS_DESC(dec, tone) {                                                                                     \
+        {"PTCH", 33, 81, 45, F_NOTE}, {dec, 0, 100, 60, F_PCT},                                                    \
+        {tone, 0, 100, 45, F_PCT}, {"WET", 0, 100, 0, F_PCT},   /* (TONE 60 until 2026-10-13: too bright) */      \
+        /* 2: a filter before the strings (cutoff, resonance, its TYPE: low-, band- or high-pass, as POLY's), and the  \
+         * strings' tuning: the root's harmonics, or a chord's tones from the root */                              \
+        {"CUT", 0, 127, 127, F_HZ}, {"RES", 0, 100, 0, F_PCT},                                                     \
+        {"TYPE", 0, 2, 0, F_ENUM, N_SLOP}, {"SCAL", 0, 12, 0, F_ENUM, N_RSCAL},                                    \
+        /* 3: how WET mixes the strings in (ROUT: INS or SEND); a pluck's shape (reso.c rs_pluck): PICK, how hard     \
+         * (an offset on TONE for the burst: - a soft mallet, + a pick), STRM, the strings strummed STRM ms apart,    \
+         * VARY, each pluck a little different */                                                                   \
+        P_ROUT, {"PICK", -100, 100, 0, F_BIPCT}, {"STRM", 0, 100, 0, F_MS}, {"VARY", 0, 100, 0, F_PCT},             \
+        /* its own arpeggio, RIPL ARP (stored here, 12-15, shown on the ARP pad's page 3, not on RIPPLE's): the       \
+         * keys on that page into it, a step at each note (KEYS: a pluck, or a retune). As the ARP pad's knobs,       \
+         * with no GATE (a pluck rings by DEC) */                                                                   \
+        {"MODE", 0, 3, ARM_OFF, F_ENUM, N_ARM, 1}, {"ORDR", 0, 4, ARO_UP, F_ENUM, N_ARO, 1},                        \
+        {"RNGE", 1, 3, 1, F_NUM, 0, 1}, {"RATE", 0, 5, 3, F_ENUM, N_ARATE, 1},                                      \
+        /* 16: MODE, the form (EDIT held + SELECT, not on a page); DRV, a Polivoks-like saturation of what's fed     \
+         * back (the resonators: of what reaches the bands); RIPL, the pitches drifting slowly, each a quarter turn   \
+         * behind the last; KEYS, PLCK (a key or a step plucks) or TUNE (it retunes what the track's sound rings) */ \
+        {"MODE", 0, 3, 0, F_ENUM, N_RMODE, 1}, {"DRV", 0, 100, 25, F_PCT}, {"RIPL", 0, 100, 0, F_PCT},              \
+        {"KEYS", 0, 1, 0, F_ENUM, N_RKEYS, 1}}
 
 /* (each table in the order its knobs are stored; the "1:", "2:" notes are those blocks of four. Where a page shows
  * them otherwise, PLAYOUT below says so) */
@@ -149,27 +176,7 @@ static const pdesc_t DEV_P[NDEV][NPK] = {
         {"GRNS", 0, GR_GRNS_MAX, 0, F_ENUM, N_GRNS, 1},
         /* SYNC: RATE in the tempo's divisions (1 bar .. 1/64), the grains on that grid, PATN shaping it (grain.c) */
         {"SYNC", 0, 1, 0, F_ENUM, N_OFFON, 1}},
-    {   /* RIPPLE (the S-4's RING) */
-        {"PTCH", 33, 81, 45, F_NOTE}, {"DEC", 0, 100, 60, F_PCT},
-        {"TONE", 0, 100, 45, F_PCT}, {"WET", 0, 100, 0, F_PCT},   /* (TONE 60 until 2026-10-13: too bright) */
-        /* 2: a filter before the strings (cutoff, resonance, its TYPE: low-, band- or high-pass, as POLY's), and the
-         * strings' tuning: the root's harmonics, or a scale's chord tones from the root */
-        {"CUT", 0, 127, 127, F_HZ}, {"RES", 0, 100, 0, F_PCT},
-        {"TYPE", 0, 2, 0, F_ENUM, N_SLOP}, {"SCAL", 0, 12, 0, F_ENUM, N_RSCAL},
-        /* 3: how WET mixes the strings in (ROUT: INS or SEND); a pluck's shape (reso.c rs_pluck): PICK, how hard
-         * (an offset on TONE for the burst: - a soft mallet, + a pick), STRM, the strings strummed STRM ms apart,
-         * VARY, each pluck a little different. 0 on all three: the pluck as it was (a stored 0 from before them) */
-        P_ROUT, {"PICK", -100, 100, 0, F_BIPCT}, {"STRM", 0, 100, 0, F_MS}, {"VARY", 0, 100, 0, F_PCT},
-        /* its own arpeggio, RIPL ARP (stored here, 12-15, shown on the ARP pad's page 3, not on RIPPLE's): the
-         * keys on that page into it, a pluck of the strings each step at that note's root, whatever the source
-         * plays. As the ARP pad's knobs, with no GATE (a pluck rings by DEC) */
-        {"MODE", 0, 3, ARM_OFF, F_ENUM, N_ARM, 1}, {"ORDR", 0, 4, ARO_UP, F_ENUM, N_ARO, 1},
-        {"RNGE", 1, 3, 1, F_NUM, 0, 1}, {"RATE", 0, 5, 3, F_ENUM, N_ARATE, 1},
-        /* 4 (stored 16-18, 2026-10-13): MODE, what rings (STRG the strings; COMB half a line fed back inverted,
-         * the odd harmonics only, hollow; BANK a resonant band-pass a partial, DEC its Q, TONE a tilt); DRV, a
-         * Polivoks-like saturation of what's fed back (BANK: of what reaches the bands), warm and gritty; RIPL,
-         * the strings' pitch (the bands' centre) drifting slowly, each a quarter turn behind the last */
-        {"MODE", 0, 2, 0, F_ENUM, N_RMODE, 1}, {"DRV", 0, 100, 25, F_PCT}, {"RIPL", 0, 100, 0, F_PCT}, {""}},
+    RS_DESC("DEC", "TONE"),   /* RIPPLE (the S-4's RING): its first form's table; the others below (RS_FORM_P) */
     {   /* COLOR (the S-4's DEFORM) */
         {"DRV", 0, 100, 0, F_PCT}, {"CRSH", 0, 100, 0, F_PCT},
         {"NOIS", 0, 100, 0, F_PCT}, {"TILT", -100, 100, 0, F_BIPCT},
@@ -202,6 +209,8 @@ static const pdesc_t DEV_P[NDEV][NPK] = {
          * wavering slowly, a tail less metallic and more alive */
         {"TYPE", 0, 3, 0, F_ENUM, N_RTYPE, 1}, {"MOD", 0, 100, 0, F_PCT, 0, 1}},
 };
+/* RIPPLE's other forms (reso.c RM_COMB on): the same knobs, each form's labels, its own pages (PLAYOUT) */
+static const pdesc_t RS_FORM_P[3][NPK] = {RS_DESC("DEC", "TONE"), RS_DESC("RING", "TILT"), RS_DESC("RING", "TILT")};
 
 /* The source engines: what starts a track's chain (docs/bryo-architecture.md, "Source engines"). TAPE's knobs are
  * DEV_P[DEV_SRC]; each other source has its own table, and each track keeps every source's values, so switching
@@ -461,10 +470,14 @@ static const playout_t PLAYOUT[] = {
     {DEV_P[DEV_GRAIN], 6, {0, 1, 11, 4, 2, 3, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23}},
                                                     /* GRAIN: SIZE RATE ROUT WET, PTCH SPRD SPRY CONT, REV PATN SCAL
                                                      * PRND, SCAN.., BODY.., GRNS */
-    {DEV_P[DEV_RESO], 4, {0, 1, 8, 3, 4, 5, 6, 7, 2, 9, 10, 11, 16, 17, 18, 19, 12, 13, 14, 15, 20, 21, 22, 23}},
-                                                    /* RIPPLE: PTCH DEC ROUT WET, CUT RES TYPE SCAL, TONE PICK STRM
-                                                     * VARY, MODE DRV RIPL . (stored 12-15, RIPL ARP: the ARP pad's
-                                                     * page 3, past the pages here) */
+    /* RIPPLE, every form (2026-10-13): PTCH DEC ROUT WET, SCAL TONE DRV RIPL (what rings), CUT RES TYPE . (the
+     * filter in front), KEYS PICK STRM VARY (what the keys do; a pluck's shape). Stored 12-15, RIPL ARP: the ARP
+     * pad's page 3; 16, MODE: the form, EDIT held + SELECT; past the pages here */
+#define RS_AT {0, 1, 8, 3, 7, 2, 17, 18, 4, 5, 6, 20, 19, 9, 10, 11, 12, 13, 14, 15, 16, 21, 22, 23}
+    {DEV_P[DEV_RESO], 4, RS_AT},
+    {RS_FORM_P[0], 4, RS_AT},
+    {RS_FORM_P[1], 4, RS_AT},
+    {RS_FORM_P[2], 4, RS_AT},
     {DEV_P[DEV_COLOR], 3, {0, 1, 9, 7, 2, 3, 4, 5, 6, 10, 11, 8}},              /* COLOR: DRV CRSH ROUT WET, NOIS TILT
                                                                                  * NDEC NTON, CMOD . . LVL */
     {DEV_P[DEV_SPACE], 5, {0, 1, 4, 5, 2, 3, 8, 11, 6, 7, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19}},   /* CHRONOS:
@@ -573,6 +586,10 @@ static const pdesc_t RIN_P[NTRK] = {
 /* device d of track t as the pages see it: the source's knobs are the chosen source's */
 static const pdesc_t *dev_p(uint32_t t, uint32_t d)
 {
+    if (d == DEV_RESO) {                                 /* (RIPPLE: its form's) */
+        uint32_t m = (uint32_t)clamp(tp[t].dev[DEV_RESO][16], 0, 3);
+        return m ? RS_FORM_P[m - 1u] : DEV_P[DEV_RESO];
+    }
     if (d != DEV_SRC || tp[t].src == SRC_TAPE)
         return DEV_P[d];
     return tp[t].src == SRC_SYNTH ? SYN_P : tp[t].src == SRC_POLY ? POL_P : DRM_P;
@@ -583,7 +600,11 @@ static int16_t *dev_v(uint32_t t, uint32_t d)
         return tp[t].dev[d];
     return tp[t].src == SRC_SYNTH ? tp[t].syn : tp[t].src == SRC_POLY ? tp[t].pol : tp[t].drm;
 }
-static const char *dev_name(uint32_t t, uint32_t d) { return d == DEV_SRC ? SRC_NAME[tp[t].src % NSRC] : DEV_NAME[d]; }
+static const char *dev_name(uint32_t t, uint32_t d)
+{
+    return d == DEV_SRC ? SRC_NAME[tp[t].src % NSRC]
+           : d == DEV_RESO ? RS_FORM_NAME[clamp(tp[t].dev[DEV_RESO][16], 0, 3)] : DEV_NAME[d];
+}
 
 static void drm_defaults(uint32_t t);   /* drum.c: the pattern a DRUM track starts with */
 

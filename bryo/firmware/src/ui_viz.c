@@ -464,21 +464,43 @@ static int32_t reso_filter(const int16_t *v, int32_t n16)
     return clamp(g, 0, 1000) + pk;
 }
 
-/* peaks at the partials; the peak width narrows as DEC rises; TONE keeps the upper partials (dark at 0); the filter
- * shapes what reaches them; WET blends with the flat dry line (35 %), or (ROUT SEND) adds to it; 0..1000 */
+/* the form's partials (reso.c): RIPPLE's strings draw every partial of the chord (each string's overtones ring
+ * them), COMB its four, RESO its four bands, 12-BAND its twelve; TONE (TILT) takes the upper ones away, the
+ * twelve a third as fast */
+static int32_t reso_parts(const int16_t *v, int32_t sc)
+{
+    int32_t m = clamp(v[RP_MODE], 0, NRMODE - 1);
+    return m == RM_STRG ? PART_N[sc] : m == RM_BANK ? (int32_t)RS_NB : (int32_t)RS_N;
+}
+static int32_t reso_amp(const int16_t *v, int32_t k)
+{
+    return 1000 - k * (100 - v[2]) * (v[RP_MODE] == RM_BANK ? 3 : 9);
+}
+/* COMB's teeth: a comb rings its pitch's odd harmonics (1 3 5 7 9, 1/16 semitones over it), each fainter */
+static const int16_t RV_ODD16[5] = {0, 304, 446, 539, 608};
+
+/* peaks at the partials; the peak width narrows as DEC rises (the resonators' twice as narrow); TONE keeps the
+ * upper partials (dark at 0); the filter shapes what reaches them; WET blends with the flat dry line (35 %), or
+ * (ROUT SEND) adds to it; 0..1000 */
 static int32_t reso_at(const int16_t *v, int32_t x)
 {
     int32_t n16 = reso_n16(x), width16 = 4 + (100 - v[1]) * 28 / 100, best = 0, k, sc = clamp(v[7], 0, RS_SCALES);
-    for (k = 0; k < PART_N[sc]; k++) {
-        int32_t d = n16 - (v[0] * 16 + PART_16[sc][k]), amp = 1000 - k * (100 - v[2]) * 9, pk;
-        if (amp <= 0)
+    int32_t m = clamp(v[RP_MODE], 0, NRMODE - 1), kn = reso_parts(v, sc), j, nj = m == RM_COMB ? 5 : 1;
+    if (m >= RM_RESO)
+        width16 = 2 + width16 / 2;
+    for (k = 0; k < kn; k++) {
+        int32_t amp0 = reso_amp(v, k);
+        if (amp0 <= 0)
             break;
-        if (d < -width16 * 6 || d > width16 * 6)
-            continue;
-        d = d < 0 ? -d : d;
-        pk = amp * width16 * width16 / (width16 * width16 + d * d);   /* 1 / (1 + (d / w)^2) */
-        if (pk > best)
-            best = pk;
+        for (j = 0; j < nj; j++) {
+            int32_t d = n16 - (v[0] * 16 + rs_part16(sc, (uint32_t)k) + RV_ODD16[j]), amp = amp0 / (1 + 2 * j), pk;
+            if (d < -width16 * 6 || d > width16 * 6)
+                continue;
+            d = d < 0 ? -d : d;
+            pk = amp * width16 * width16 / (width16 * width16 + d * d);   /* 1 / (1 + (d / w)^2) */
+            if (pk > best)
+                best = pk;
+        }
     }
     best = clamp(best * reso_filter(v, n16) / 1000, 0, 1000);
     if (v[RP_ROUT])
@@ -497,7 +519,8 @@ static int32_t reso_ripple(const int16_t *v, int32_t sc, int32_t x, int *live)
     const reso_t *R = &reso[sys.sel];
     int32_t k, sum = 0;
     for (k = 0; k < (int32_t)RS_N && k < PART_N[sc]; k++) {
-        int32_t hx = DX0 + (v[0] * 16 + PART_16[sc][k] - 28 * 16) * DW / (96 * 16), lv = R->lvl[k], d, amp, lam, ph;
+        int32_t hx = DX0 + (v[0] * 16 + rs_part16(sc, (uint32_t)k) - 28 * 16) * DW / (96 * 16), lv = R->lvl[k], d, amp,
+                lam, ph;
         d = x > hx ? x - hx : hx - x;
         if (lv <= RV_RING || d >= 24)
             continue;
@@ -514,7 +537,8 @@ static int32_t reso_ripple(const int16_t *v, int32_t sc, int32_t x, int *live)
 
 static void viz_reso(const int16_t *v, uint32_t f)
 {
-    int32_t x, k, py = 0, top = DY0 + 6, base = DY1 + 2, sc = clamp(v[7], 0, RS_SCALES);
+    int32_t x, k, py = 0, top = DY0 + 6, base = DY1 + 2, sc = clamp(v[7], 0, RS_SCALES), kn = reso_parts(v, sc);
+    int bank = v[RP_MODE] == RM_BANK;
     px_line(DX0, base - 350 * (base - top) / 1000, DX1, base - 350 * (base - top) / 1000, px_dim, 2);   /* dry */
     px_line(DX0, base + 1, DX1, base + 1, px_dim, 2);
     if (v[4] < 127 || v[5] || v[6] || f == 4u || f == 5u || f == 6u)   /* the filter: dotted, once it does anything */
@@ -522,19 +546,27 @@ static void viz_reso(const int16_t *v, uint32_t f)
             px_dot(x, base - clamp(reso_filter(v, reso_n16(x)), 0, 1000) * (base - top) / 1000, px_ink);
     for (x = DX0; x <= DX1; x++) {                                     /* the curve, rippling where a string rings */
         int live = 0;
-        int32_t y = base - reso_at(v, x) * (base - top) / 1000 - reso_ripple(v, sc, x, &live);
+        int32_t y = base - reso_at(v, x) * (base - top) / 1000 - (bank ? 0 : reso_ripple(v, sc, x, &live));
         y = clamp(y, top - 4, base);
         if (x > DX0)
             px_line(x - 1, py, x, y, live ? px_live : px_ink, 1);
         py = y;
     }
-    for (k = 0; k < PART_N[sc]; k++) {                                 /* a node on each partial still sounding */
-        int32_t hx = DX0 + (v[0] * 16 + PART_16[sc][k] - 28 * 16) * DW / (96 * 16);
-        if (hx > DX1 - 1 || 1000 - k * (100 - v[2]) * 9 <= 0 ||
-            (k && hx - (DX0 + (v[0] * 16 + PART_16[sc][k - 1] - 28 * 16) * DW / (96 * 16)) < 3))
+    for (k = 0; k < kn; k++) {                                         /* a node on each partial still sounding */
+        int32_t hx = DX0 + (v[0] * 16 + rs_part16(sc, (uint32_t)k) - 28 * 16) * DW / (96 * 16);
+        if (hx > DX1 - 1 || reso_amp(v, k) <= 0 ||
+            (k && hx - (DX0 + (v[0] * 16 + rs_part16(sc, (uint32_t)k - 1u) - 28 * 16) * DW / (96 * 16)) < 3))
             break;                                                     /* (closer than 3 dots: the rest are a blur) */
-        if (k < (int32_t)RS_N && reso[sys.sel].lvl[k] > RV_RING) {   /* a string ringing now: a stem up to its
-                                                                        * node, both orange (the sound, alive) */
+        if (bank) {                                                    /* 12-BAND: a meter a band, its level now
+                                                                        * (a filter bank's lights), the node on top */
+            int32_t lv = clamp(reso[sys.sel].lvl[k], 0, 4096), ny = base - reso_at(v, hx) * (base - top) / 1000;
+            int32_t hy = base - (base - ny) * lv / 4096;   /* (full at -18 dB: a band rarely rings louder) */
+            px_box(hx - 1, ny, 3, base - ny + 1, px_dim);
+            if (lv > RV_RING)
+                px_box(hx - 1, hy, 3, base - hy + 1, px_live);
+            vz_node(hx, ny, k == 0);
+        } else if (k < (int32_t)RS_N && reso[sys.sel].lvl[k] > RV_RING) {   /* a string ringing now: a stem up to
+                                                                        * its node, both orange (the sound, alive) */
             px_line(hx, base, hx, base - reso_at(v, hx) * (base - top) / 1000, px_live, 1);
             px_box(hx - 1, base - reso_at(v, hx) * (base - top) / 1000 - 1, 3, 3, px_live);
         } else
@@ -544,7 +576,7 @@ static void viz_reso(const int16_t *v, uint32_t f)
         int32_t rx = DX0 + (v[0] * 16 - 28 * 16) * DW / (96 * 16);
         char b[8];
         const char *u;
-        param_format(&DEV_P[DEV_RESO][0], v[0], b, &u);
+        param_format(&dev_p(sys.sel, DEV_RESO)[0], v[0], b, &u);
         if (f == 0u)
             px_tag(clamp(rx - 3, 1, 110), 0, PXF_3, b, px_ink, px_bg);
         else
@@ -552,12 +584,15 @@ static void viz_reso(const int16_t *v, uint32_t f)
     }
     vz_label(DX0 + 8, "E1", 0);
     vz_label(DX1 - 8, "E9", 0);
-    vz_label((DX0 + DX1) / 2, f == RP_ROUT ? N_ROUT[clamp(v[RP_ROUT], 0, 1)]
-             : f == RP_MODE ? N_RMODE[clamp(v[RP_MODE], 0, 2)]
-             : f >= 1u && f < NPK && !pdesc_empty(&DEV_P[DEV_RESO][f]) ? DEV_P[DEV_RESO][f].label : N_RSCAL[sc],
-             f >= 1u && f != RP_MODE && f < NPK && !pdesc_empty(&DEV_P[DEV_RESO][f]));
-    if (f >= 4u && f < 8u)
-        vz_ktag(118, DY0 - 1, &DEV_P[DEV_RESO][f], v[f]);
+    {
+        const pdesc_t *P = dev_p(sys.sel, DEV_RESO);
+        vz_label((DX0 + DX1) / 2, f == RP_ROUT ? N_ROUT[clamp(v[RP_ROUT], 0, 1)]
+                 : f == RP_KEYS ? N_RKEYS[clamp(v[RP_KEYS], 0, 1)]
+                 : f >= 1u && f < NPK && !pdesc_empty(&P[f]) ? P[f].label : N_RSCAL[sc],
+                 f >= 1u && f != RP_KEYS && f < NPK && !pdesc_empty(&P[f]));
+        if (f >= 4u && f < 8u)
+            vz_ktag(118, DY0 - 1, &P[f], v[f]);
+    }
 }
 
 /* ------------------------------------------------------------- COLOR --- */
@@ -2505,8 +2540,9 @@ static uint32_t viz_sig(void)
     }
     if (ui.kind == FOCUS_DEV && ui.dev == DEV_RESO) {                  /* RIPPLE: a key's root, the strings ringing */
         uint32_t ring = 0;
-        for (k = 0; k < (int32_t)RS_N; k++)
-            ring |= (uint32_t)(reso[sys.sel].lvl[k] > RV_RING) << k;
+        for (k = 0; k < (int32_t)RS_NB; k++)            /* (12-BAND's meters: a level in eight steps a band) */
+            ring = ring * 9u + (tp[sys.sel].dev[DEV_RESO][RP_MODE] == RM_BANK ? (uint32_t)clamp(reso[sys.sel].lvl[k], 0,
+                   4095) >> 9 : (uint32_t)(reso[sys.sel].lvl[k] > RV_RING));
         h = (h ^ (uint32_t)reso_root16(sys.sel) ^ ring << 24) * 16777619u;
     }
     if (ui.kind == FOCUS_DEV && ui.dev == DEV_GRAIN)                   /* GRAIN draws TAPE's loop window too */

@@ -1113,6 +1113,41 @@ run 31, the scene, 2,608. **Project format 11, bank 4**: a knob's value is one b
 two bytes otherwise, since the biggest project there can be (every knob random) grew past its sector by 11 bytes with
 three knobs more; it's 3,212 bytes now, and eight of the densest tracks fit a bank where six did.
 
+### RIPPLE's forms and KEYS (2026-10-13)
+
+From playing it: "the keys when played act almost as a second synth engine which could be useful, but we'd like it
+also to be able to tied to the incoming audio", and "the resonator can be a comb, 12-band, etc." with "a press and
+rotate to change ... so each filter type can have a different UI". Every mode already rang the track's sound (a
+probe of drum-like bursts, no keys: out RMS about 1,000 for 1,200 in, STRG 1,035, COMB 776, BANK 769); what tied the
+modes to the keys was their place, MODE on the page after the pluck's.
+
+**The form** is chosen as the source is: **EDIT held + SELECT** (the rule "a page's pad held + SELECT picks that
+pad's thing"), from any page, showing RIPPLE (the page kept when RIPPLE's is up). It's stored in MODE (16, not on a
+page). `dev_p(t, DEV_RESO)` returns the form's own table (`RS_FORM_P`, from the `RS_DESC` macro: the same ranges and
+stored places, the form's labels; DEC is RING and TONE is TILT on the resonators) with its own PLAYOUT row, and
+`dev_name` the form's name (RIPPLE, COMB, RESO, 12-BAND), so the header and the labels follow it. Each form draws
+its own picture (`viz_reso`): the strings every partial with their ripples; COMB teeth on the odd harmonics of its
+four lines (`RV_ODD16`); RESO four narrow bands; 12-BAND a meter a band, its level now. The forms share the knobs
+(projects keep one set), and old projects weren't kept: MODE 2, the four-band BANK, is now RESO, and 3 the new one.
+
+**12-BAND** (`RM_BANK`) is RESO's resonator twelve times, over `rs_part16`: the chord's row, then the row again its
+span up (MAJ's 0..576 then 576 + 64 ..), no band past C9 (`RS_BANK_TOP`). It runs at half rate: a step a pair of
+samples, the pair's sum in (so a block's input, and with it the ring's build-up, is the same) and twice the angle,
+the output stepped halfway between (its last value kept in `lp`), so twelve bands cost about what six would, near
+two strings' work at four strings' a sample; the input is well over its bands' top (8.4 kHz < 11 kHz). The loss is
+still applied a block. TILT falls a third as fast as RESO's (12 bands, not 4), and each band's gain is half (Q15
+`tilt << 4`): the burst probe gave 990 RMS (RESO 769). Its bands take three a string's chunk, so shedding takes three
+at a time (`nstr *= 3`), the shed ones quiet with their meters down. Tested (`test_ripple_forms`): noise in rings
+A C# E and A5 at 4 x the notes between, all twelve lit; two chunks: six; OCT over A3: six (the seventh past C9).
+
+**KEYS** (19, page 4 with the pluck's knobs): **PLCK**, as it was (a key on RIPPLE's page plucks on a TAPE or DRUM
+track, RIPL ARP's steps pluck on any); **TUNE**, a key or a step sets the root and plucks nothing, so what rings is
+the track's sound in that key (a TAPE or DRUM track's keys still play no slice or drum there). Tested: a key with
+silence in leaves silence, and noise then rings at the key's A3 more than 8 x B3.
+
+**The pages**, every form: PTCH DEC ROUT WET; SCAL TONE DRV RIPL (what rings); CUT RES TYPE . (the filter in
+front); KEYS PICK STRM VARY (what the keys do, and a pluck's shape). The sound's fingerprints didn't move.
+
 ## COLOR, as built (2026-10-08)
 
 COLOR is the S-4's DEFORM after RIPPLE (`firmware/src/color.c`). It takes no memory, only a few numbers a track,
