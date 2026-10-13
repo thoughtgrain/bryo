@@ -104,6 +104,7 @@ static int rf_prog(uint32_t off, const void *src, uint32_t n)
     return 0;
 }
 #include "../firmware/src/reel.c"
+#include "../firmware/src/scene.c"
 #include "../firmware/src/project.c"
 #include "../firmware/src/tpreset.c"
 #include "../firmware/src/tpfactory.c"
@@ -3516,6 +3517,158 @@ static void test_reso_pluck(void)
 }
 
 static double goertzel(const int32_t *x, uint32_t from, uint32_t to, double hz);   /* (below, with SPACE's tests) */
+/* scenes (scene.c, 2026-10-13): GLO held + white 5-8. Stored, recalled with a glide, morphed by SELECT; a track
+ * whose source differs fades out, switches, fades in; choices switch at the midpoint; the playing isn't theirs;
+ * saved in the project as their differences */
+static void scn_key_down(uint32_t n)
+{
+    fm1_in.notes |= note_bit_of_white(3u + n);
+    host_note_edges |= note_bit_of_white(3u + n);
+    ui_input();
+}
+static void scn_key_up(uint32_t n) { fm1_in.notes &= ~note_bit_of_white(3u + n); ui_input(); }
+static void test_scenes(void)
+{
+    uint32_t i;
+    int16_t *gr;
+    char b[160];
+    power_on();
+    pj_wipe();
+    pj_new(0);
+    gr = tp[0].dev[DEV_GRAIN];
+    gr[GP_WET] = 0;
+    tp[0].dev[DEV_RESO][RP_MODE] = RM_STRG;
+    track[0].level = 100;
+    sys.bpm = 120;
+    hold(B_GLO);
+    {
+        uint32_t k, n = 0;
+        for (k = 0; k < 27u; k++)
+            n += KEY_WHITE[k] == 4u;
+        check("GLO held: the footer names the scenes' keys", n == 1u);
+    }
+    scn_key_down(1);                                     /* white 5 held + SAVE: scene 1 */
+    press(B_SAVE);
+    scn_key_up(1);
+    check("GLO + white 5 held + SAVE: scene 1 stored (no project save, no recall)", scn[0].used && scn_cur == 1u &&
+          !ui.save_held && !scn[1].used);
+    gr[GP_WET] = 80;                                     /* scene 2: GRAIN WET 80, RIPPLE COMB, the level 80, SYNTH on
+                                                          * track 2 */
+    tp[0].dev[DEV_RESO][RP_MODE] = RM_COMB;
+    track[0].level = 80;
+    tp[1].src = SRC_SYNTH;
+    scn_key_down(2);
+    press(B_SAVE);
+    scn_key_up(2);
+    tp[0].dev[DEV_SRC][TK_REEL] = 3;                     /* (the material isn't a scene's: it stays) */
+    sys.bpm = 97;
+    track[2].mute = 1;
+    fm1_ms = 10000;
+    scn_key_down(1);                                     /* tapped: scene 1 recalled, a glide */
+    scn_key_up(1);
+    fm1_ms = 10000 + SCN_GLIDE_MS / 4u;
+    ui_input();
+    snprintf(b, sizeof b, "white 5 tapped: scene 1 glides back (a quarter in: WET %d, the level %u; track 2's SYNTH fading "
+             "out at %u)", gr[GP_WET], track[0].level, track[1].level);
+    check(b, gr[GP_WET] == 60 && track[0].level == 85u && tp[0].dev[DEV_RESO][RP_MODE] == RM_COMB &&
+          tp[1].src == SRC_SYNTH && track[1].level == 50u);
+    fm1_ms = 10000 + SCN_GLIDE_MS * 3u / 4u;
+    ui_input();
+    check("..three quarters: the choice switched at the midpoint (RIPPLE STRG), track 2 back on TAPE fading in",
+          gr[GP_WET] == 20 && tp[0].dev[DEV_RESO][RP_MODE] == RM_STRG && tp[1].src == SRC_TAPE && track[1].level == 50u);
+    fm1_ms = 10000 + SCN_GLIDE_MS;
+    ui_input();
+    check("..the end: scene 1 as stored; the reel, the tempo and the mute left alone", gr[GP_WET] == 0 &&
+          track[0].level == 100u && track[1].level == 100u && tp[0].dev[DEV_SRC][TK_REEL] == 3 && sys.bpm == 97 &&
+          track[2].mute == 1u && scm.on == 0u);
+    scn_key_down(2);                                     /* white 6 held + SELECT: the morph, 5 % a detent */
+    host_enc[panel.enc[EN_SELECT]] = 10;
+    ui_input();
+    snprintf(b, sizeof b, "white 6 held + SELECT 10: the morph halfway to scene 2 (WET %d, the level %u), said: %s",
+             gr[GP_WET], track[0].level, ui.msg);
+    check(b, gr[GP_WET] == 40 && track[0].level == 90u && !strcmp(ui.msg, "MORPH TO 2: 50%") && sys.bpm == 97);
+    host_enc[panel.enc[EN_SELECT]] = -4;
+    ui_input();
+    check("..back 4: 30 %, the choice back too (below the midpoint)", gr[GP_WET] == 24 &&
+          tp[0].dev[DEV_RESO][RP_MODE] == RM_STRG);
+    scn_key_up(2);
+    check("..let go: the sound stays where the morph left it (no recall)", gr[GP_WET] == 24 && scm.on == 0u);
+    scn_key_down(2);                                     /* (the mixer under GLO: the scenes, 1 and 2 stored, 2 last) */
+    host_enc[panel.enc[EN_SELECT]] = 20;
+    ui_input();
+    scn_key_up(2);
+    ui.msg_t = 0;
+    shot("BRYO", "mixer_scenes");
+    let_go(B_GLO);
+    check("GLO let go: back to the page", ui.view == VIEW_PAGE);
+    hold(B_GLO);
+    scn_key_down(3);
+    scn_key_up(3);
+    check("an empty scene tapped: said, nothing moves", gr[GP_WET] == 80 && strstr(ui.msg, "EMPTY") != 0);
+    let_go(B_GLO);
+    for (i = 0; i < 40u; i++)                            /* (the glide doesn't run off the end) */
+        scn_poll();
+    {   /* saved and loaded: the scenes come back, as their differences */
+        scene_t s1 = scn[0], s2 = scn[1];
+        uint32_t len0;
+        check("a project with two scenes saves (both fit)", pj_save(0) == 0 && scn_lost == 0u);
+        {
+            pj_hdr_t h;
+            len0 = pj_current(0, &h) >= 0 ? h.len : 0u;
+        }
+        scn_clear();
+        gr[GP_WET] = 5;
+        check("..loaded: both scenes back as stored, the others empty",
+              pj_load(0) == 0 && !memcmp(&scn[0], &s1, sizeof s1) && !memcmp(&scn[1], &s2, sizeof s2) &&
+              !scn[2].used && !scn[3].used && gr[GP_WET] == 80);
+        snprintf(b, sizeof b, "..the project with them: %u bytes packed", len0);
+        check(b, len0 > 0u && len0 < 2500u);
+    }
+    {   /* four scenes each differing in every knob from the project: what doesn't fit is saved empty, said, and the
+         * save itself goes through */
+        uint32_t n, t, g, ok;
+        int32_t rng = 99;
+        for (n = 0; n < NSCN; n++) {
+            scn_take(&scn[n]);
+            scn[n].used = 1;
+            for (t = 0; t < NTRK; t++)
+                for (g = 0; g < MOD_NTGT; g++)
+                    if (scn_kind(g) == 1u) {
+                        const pdesc_t *d = scn_desc(g);
+                        scn[n].v[t][g] = (int16_t)(d->min + (int32_t)(noise32(&rng) % (uint32_t)(d->max - d->min + 1)));
+                    }
+        }
+        ok = pj_save(0) == 0;
+        snprintf(b, sizeof b, "four scenes as far from the project as can be: the save goes through, scenes %s%s%s%s "
+                 "saved empty and said", scn_lost & 1u ? "1" : "", scn_lost & 2u ? "2" : "", scn_lost & 4u ? "3" : "",
+                 scn_lost & 8u ? "4" : "");
+        check(b, ok && scn_lost != 0u && pj_load(0) == 0 && (uint32_t)!scn[3].used == ((scn_lost >> 3) & 1u));
+    }
+    {   /* a track's level moved between blocks: ramped across the next (chain.c rt->gv), not a step */
+        static int32_t a1[40 * CTL], a2[40 * CTL];
+        uint32_t k, j;
+        int32_t r0, r1;
+        for (k = 0; k < 2u; k++) {
+            int32_t *o = k ? a2 : a1;
+            power_on();
+            sys.playing = 1;
+            render(200, 0);
+            for (j = 0; j < 40u; j++) {
+                if (k && j == 20u)
+                    track[0].level = 60;                 /* (about -20 dB) */
+                render(1, 0);
+                memcpy(o + j * CTL, track_rt[0].last, sizeof track_rt[0].last);
+            }
+        }
+        r0 = a1[20 * CTL + 1] ? a2[20 * CTL + 1] * 100 / a1[20 * CTL + 1] : 100;
+        r1 = a1[20 * CTL + CTL - 1] ? a2[20 * CTL + CTL - 1] * 100 / a1[20 * CTL + CTL - 1] : 0;
+        snprintf(b, sizeof b, "a level moved: ramped across the block (%d %% of the sound at its start, %d %% at its end; "
+                 "the same level: to the bit)", r0, r1);
+        check(b, r0 > 90 && r1 < 20 && !memcmp(a1, a2, 20 * CTL * sizeof a1[0]));
+        sys.playing = 0;
+    }
+}
+
 /* RIPPLE's forms and KEYS (2026-10-13): TUNE retunes what the track's sound rings without a pluck; 12-BAND sorts
  * what comes in into its twelve bands; its bands three a string's chunk, shed three at a time */
 static void test_ripple_forms(void)
@@ -9493,6 +9646,7 @@ int main(int argc, char **argv)
     test_reso();
     test_reso_pluck();
     test_ripple_forms();
+    test_scenes();
     test_sleep();
     test_color();
     test_space();

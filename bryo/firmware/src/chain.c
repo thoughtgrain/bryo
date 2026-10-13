@@ -27,6 +27,8 @@ typedef struct {                     /* ISR only */
     int32_t last[CTL];               /* the last block's output, after level and mute (what REC hears) */
     int32_t src_g[NSRC];             /* each source's share of the track, Q15: 2 ms ramps when the source changes */
     int32_t src_lv[NSRC];            /* each source's LVL as last applied, Q10 (1024: 0 dB), ramped block to block */
+    int32_t gv;                      /* the level last block, Q12 + 1 (0: none yet): a new one is ramped across the
+                                      * block (a scene's fade, a fader moved; a mute stays a cut) */
 } track_rt_t;
 
 static track_rt_t track_rt[NTRK];
@@ -251,6 +253,21 @@ static void HOT_CODE chain_block(int32_t *out, uint32_t n)
                 gr[i] = (gr[i] >> 3) * (a >> 3) >> 9;
             }
         mix_channel(t, gl, gr, n);                      /* the channel strip: LOW HIGH FILT (mixer.c) */
+        {
+            int32_t gv = (int32_t)LEVEL_Q12[c->level & 127u], g0 = rt->gv - 1;
+            if (g && rt->gv && g0 != gv) {              /* the level moved: from the last block's, sample by sample,
+                                                         * here (the pan and the sum then take it at 1). The same
+                                                         * level as before: the path as it was, to the bit */
+                for (i = 0; i < n; i++) {
+                    int32_t gi = g0 + (((gv - g0) * (int32_t)i) >> CTL_LOG2);
+                    gl[i] = (clamp(gl[i], -131071, 131071) * gi) >> 12;   /* (under 2^31: the level is at
+                                                                             * most +7.5 dB, 9,715) */
+                    gr[i] = (clamp(gr[i], -131071, 131071) * gi) >> 12;
+                }
+                g = 4096;
+            }
+            rt->gv = gv + 1;
+        }
         if (mix_pan(t, gl, gr, g, n))                   /* the level and the pan (centred: the level below) */
             g = 4096;
         for (i = 0; i < n; i++) {

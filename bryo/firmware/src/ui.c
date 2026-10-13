@@ -45,6 +45,8 @@ static struct {
     uint8_t glo_held;                /* GLO held: the mixer is up, white keys 1..4 pick the track */
     uint8_t glo_used;                /* .. and something was done while it was held (so letting go closes it) */
     uint8_t glo_latched;             /* the mixer stays up (GLO tapped) */
+    uint8_t scn_key;                 /* GLO held: the scene key held (white 5-8: 1..4), 0 none */
+    uint8_t scn_used;                /* .. and it morphed or stored (letting go doesn't recall) */
     uint8_t poly_held, save_held;    /* the POLY key (clear the tape) and SAVE (undo) held, waiting for HOLD */
     uint32_t poly_t0, save_t0;
     uint8_t mono_held;               /* the MONO key (clear the track's modulation) held, waiting for half a second */
@@ -609,8 +611,10 @@ static void draw_foot(void)
                    ? "KEYS: SLICES" : tp[sys.sel].src == SRC_DRUM ? "KEYS: DRUMS" : "KEYS: ARP", sizeof a);
     else if (ui.view == VIEW_PAGE && ui.kind == FOCUS_SLOT && tp[sys.sel].engine[ui.slot] == ME_SEQ)
         str_cpy(a, "KEY+KNOB 1: STEP", sizeof a);
-    else if (ui.glo_held)                             /* the white keys pick the track; SELECT sets TRACKS */
-        str_cpy(a, "KEYS:TRK SEL:TRACKS", sizeof a);
+    else if (ui.glo_held && ui.scn_key)               /* a scene's key held: SELECT morphs, SAVE stores */
+        str_cpy(a, "SEL:MORPH SAVE:KEEP", sizeof a);
+    else if (ui.glo_held)                             /* keys 1-4 the track, 5-8 the scenes; SELECT: TRACKS */
+        str_cpy(a, "1-4:TRK 5-8:SCENE", sizeof a);
     else if (ui.view == VIEW_MIXER)
         str_cpy(a, ui.chan == CHAN_SETUP ? "EDIT: LEVELS" : ui.chan == CHAN_KEY ? "EDIT: SETUP" : ui.chan == CHAN_MASTER
                    ? "EDIT: KEY" : ui.chan ? "EDIT: MASTER" : "EDIT: CHANNEL", sizeof a);

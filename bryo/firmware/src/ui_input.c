@@ -185,6 +185,23 @@ static void ui_leds(void)
             }
         }
     }
+    if (ui.glo_held) {                                  /* GLO held: keys 1-TRACKS the tracks (dim, the focused lit),
+                                                         * 5-8 the scenes (stored dim, the last one lit) */
+        for (k = 0; k < 27u; k++) {
+            uint32_t w = KEY_WHITE[k];
+            if (w == KEY_NONE || w >= 4u + NSCN)
+                continue;
+            led_clear(nl, 14u + k);
+            led_clear(nd, 14u + k);
+            if (w < 4u) {
+                led_put(nd, 14u + k, w < sys.ntrk);
+                led_put(nl, 14u + k, w == sys.sel);
+            } else {
+                led_put(nd, 14u + k, scn[w - 4u].used);
+                led_put(nl, 14u + k, scn_cur == w - 3u);
+            }
+        }
+    }
     for (k = 0; k < NB; k++)
         led_put(nd, panel.btn[k], 1);
     if (sys.playing)                                    /* playing: PLAY's green, its own LED dark in every mode */
@@ -473,6 +490,14 @@ static void pj_do_save(uint32_t s)
                 str_cpy(m + str_len(m), tn, 4);
             }
     }
+    if (rc >= 0 && scn_lost) {                          /* (scenes that didn't fit what the sector had left: empty) */
+        str_cpy(m + 2, " SAVED. NO ROOM: SCENE", 24);
+        for (t = 0; t < NSCN; t++)
+            if ((scn_lost >> t) & 1u) {
+                char sn[3] = {' ', (char)('1' + t), 0};
+                str_cpy(m + str_len(m), sn, 3);
+            }
+    }
     ui_message(m);
 }
 
@@ -759,6 +784,15 @@ static void on_button(uint32_t b)
             rec_arm();
         break;
     case B_SAVE:                                        /* tap: save the project; held: undo the last clear */
+        if (ui.glo_held && ui.scn_key) {                /* GLO + a scene's key held + SAVE: the sound into it */
+            char m[24] = "SCENE 1 STORED";
+            scn_store(ui.scn_key - 1u);
+            m[6] = (char)('0' + ui.scn_key);
+            ui_message(m);
+            ui.scn_used = 1;
+            ui.last = 0xFF;
+            break;
+        }
         ui.save_held = 1;
         ui.save_t0 = fm1_ms;
         break;
@@ -1280,6 +1314,20 @@ static void ui_input(void)
                 focus_arp();
         }
     }
+    if (ui.scn_key && !((white_keys(fm1_in.notes) >> (ui.scn_key + 3u)) & 1u)) {   /* a scene's key let go: a tap
+                                                                                 * recalls it */
+        uint32_t n = ui.scn_key - 1u;
+        char m[32] = "SCENE ";
+        ui.scn_key = 0;
+        scn_morph_end();
+        m[6] = (char)('1' + n);
+        m[7] = 0;
+        if (!ui.scn_used)
+            str_cpy(m + 7, scn_recall(n) < 0 ? " IS EMPTY: HOLD IT + SAVE" : "", 26);
+        if (!ui.scn_used)
+            ui_message(m);
+    }
+    scn_poll();                                         /* (a recall's glide) */
     if (ui.home_held && !((fm1_in.buttons >> panel.btn[B_HOME]) & 1u)) {   /* HOME let go: the source's next page,
                                                                            * unless it was held for something */
         ui.home_held = 0;
@@ -1323,6 +1371,11 @@ static void ui_input(void)
         if ((notes >> k) & 1u) {
             if (KEY_BLACK[k] != KEY_NONE) {
                 on_black(KEY_BLACK[k]);
+            } else if (ui.glo_held && KEY_WHITE[k] >= 4u && KEY_WHITE[k] < 4u + NSCN) {
+                ui.scn_key = (uint8_t)(KEY_WHITE[k] - 3u);   /* GLO + white key 5..8: a scene (scene.c): tapped,
+                                                         * recalled as it's let go; held, SELECT morphs, SAVE stores */
+                ui.scn_used = 0;
+                ui.glo_used = 1;
             } else if (ui.glo_held && KEY_WHITE[k] < sys.ntrk) {
                 sys.sel = KEY_WHITE[k];                  /* GLO + white key 1..TRACKS: the track */
                 ui.glo_used = 1;
@@ -1406,6 +1459,20 @@ static void ui_input(void)
                 str_cpy(m, "REC: FREE (UNTIL REC AGAIN)", sizeof m);
             }
             ui_message(m);
+        } else if (ui.glo_held && ui.scn_key) {         /* GLO + a scene's key held + SELECT: the morph toward it */
+            int32_t pc = scn_morph(ui.scn_key - 1u, d);
+            char m[32] = "MORPH TO 1: ";
+            m[9] = (char)('0' + ui.scn_key);
+            if (pc < 0) {
+                str_cpy(m, "SCENE 1 IS EMPTY: HOLD IT + SAVE", sizeof m);
+                m[6] = (char)('0' + ui.scn_key);
+            } else {
+                fmt_int(m + 12, pc);
+                str_cpy(m + str_len(m), "%", 2);
+            }
+            ui_message(m);
+            ui.scn_used = 1;
+            ui.last = 0xFF;
         } else if (ui.glo_held) {                       /* GLO held + SELECT: TRACKS (how many are in use), as a pad
                                                          * held + SELECT picks that pad's thing elsewhere */
             chain_tracks((int32_t)sys.ntrk + d);

@@ -17,7 +17,7 @@ should hear. Do them in order the first time; after that, jump to what you need.
 0. [Before you start](#0-before-you-start): the panel, reading the screen, how pages work
 1. [First sounds](#1-first-sounds): power on, play, tempo, volume, mutes, picking a track
 2. [Playing with a tape](#2-playing-with-a-tape): slices, the loop, speed, reels
-3. [The mixer](#3-the-mixer): levels, tone and pan, the compressor, the key and scale, SETUP, the CPU meter
+3. [The mixer](#3-the-mixer): levels, tone and pan, the compressor, the key and scale, SETUP, the CPU meter, scenes
 4. [Recording](#4-recording): clear a track, record onto it, overdub, undo
 5. [Other sources](#5-other-sources): SYNTH, POLY and DRUM; the arpeggiator; the black keys as notes
 6. [The effects](#6-the-effects): GRAIN, RIPPLE, COLOR, CHRONOS
@@ -340,6 +340,36 @@ you turn it off.
 
 On the mixer, bottom right: **CPU**, how hard Bryo is working, in 5 % steps. It turns bright at 85 %. Past that,
 Bryo thins out grains and strings to keep the sound clean.
+
+### 3.9 Scenes: four sounds to jump or morph between
+
+A project has four **scenes**. Each one is a snapshot of how the project sounds: every track's source (TAPE,
+SYNTH, POLY or DRUM), every knob of its sound (the source's, GRAIN, RIPPLE, COLOR, CHRONOS, the channel strip), the
+track levels and the rooms. A scene doesn't hold what's playing: the tapes and reels, the drum patterns, the steps,
+the modulation, the mutes, the arpeggios, the tempo and the key all stay as they are when you change scenes.
+
+Hold **GLO**: white keys 1-4 still pick the track, and **white keys 5-8 are scenes 1-4**.
+
+- **Store:** hold GLO, hold a scene's key, tap **SAVE**. The sound as it is goes into that scene.
+- **Recall:** hold GLO and tap a scene's key. Everything glides there in about a third of a second.
+- **Morph:** hold GLO, hold a scene's key, and turn **SELECT**. Each detent moves 5 % of the way from where the
+  sound was toward the scene. Let go anywhere and it stays there, so you can sit halfway between two sounds.
+
+Track by track, a scene change does one of two things:
+
+- **The same source in both:** its knobs morph, every value moving smoothly. A choice that can't be halfway
+  (RIPPLE's form, ROUT, a filter's TYPE, a room's TYPE) switches at the midpoint.
+- **A different source:** there's no morph. The track fades out over the first half, switches to the scene's
+  source and sound while it's silent, and fades back in over the second half.
+
+On the mixer (GLO), **SCN 1 2 3 4** shows them: a stored scene bright, the one you last recalled, stored or morphed
+all the way to in a box, an empty one dim. While GLO is held, keys 5-8 light the same way.
+
+Scenes are saved with the project (**SAVE**). They're stored as only what differs from the project's own sound, so
+they usually take little room. If a project is so full that a scene doesn't fit, SAVE keeps the project and says
+which scene it couldn't keep (that one comes back empty).
+
+<img src="img/mixer_scenes.png" width="240" alt="The mixer with GLO held: scenes 1 and 2 stored, 2 the current one">
 
 ---
 
@@ -1054,6 +1084,7 @@ M-VAVE's updater puts the stock firmware back. Bryo's projects and tapes can't b
 | **SELECT** | tempo |
 | **MASTER** | volume |
 | **GLO** held + white key 1-4 | pick a track |
+| **GLO** held + white key 5-8 | recall scene 1-4 (held + SELECT: morph to it; held + SAVE: store it) |
 | **GLO** held + KNOB 1-4 | track levels |
 | **GLO** held + SELECT | how many tracks are on |
 | **GLO** tapped, then **EDIT** | CHANNEL, MASTER, KEY, SETUP |

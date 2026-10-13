@@ -1480,6 +1480,44 @@ cut; the Felucca record; the project view's every control, both questions, delet
 **Not yet:** the device itself (the run sheet has two rows for it), names (projects are P1 to P6), and p-locks (when
 they come, they're a new array in the stream: older projects just won't have them).
 
+## Scenes, as built (2026-10-13)
+
+From the S-4 comparison: "I like scenes and morph, let's only do 4 per project", then "the goal with scenes is that
+the same track type would be on each scene. If they aren't the same we don't morph, but the first scene fades out and
+the next scene fades in". `firmware/src/scene.c`, main loop only.
+
+**What a scene is.** Each track's source and every knob of its sound, by mod.c's numbering (devices, every source's
+knobs, the channel, the DRUM instruments: `MOD_NTGT`, 260 a track, whether a knob is a modulation target or not),
+each track's level, and the rooms. `scn_kind` sorts the knobs once: 1 a value that morphs (the targets), 2 a choice
+that switches at the midpoint (a `nomod` knob: RIPPLE's form and KEYS, ROUT, TYPEs, SYNC), 0 not a scene's (the
+reels, RIPL ARP's knobs, SPACE's places for its room's knobs, DRUM's pattern and editing knobs). Not the tapes,
+patterns, steps, depths, mutes, arpeggios, tempo or key: the playing stays the playing. A scene is whole in RAM
+(2,120 B; four and the morph's start: 10.6 KB of .bss, 96 KB there).
+
+**Between two.** `scn_mix(a, b, pos)` writes the knobs at pos of the way, track by track. The same source: values
+interpolated (rounded symmetrically, so 100 -> 80 at half is 90), choices a's below the midpoint and b's from it,
+each then softened by its own code as when turned by hand (the room retune, ROUT's ramp, RIPPLE's form clear).
+Another source: the track's level goes a's -> 0 over the first half, the source and every knob switch whole at the
+midpoint (silent), 0 -> b's over the second. A recall is that over `SCN_GLIDE_MS` (300, from `scn_poll` in
+`ui_input`); a morph is pos by SELECT, 5 % a detent, from the sound as it was at the first detent (`scn_from`), and
+the sound stays where the hand leaves it.
+
+**The level ramp** (`chain.c`, `rt->gv`): the level was applied as a step a block, and a main-loop fade (a step
+each ~15 ms pass) would have been a staircase. A moved level now ramps across the next block, sample by sample,
+before the pan and the sum (which then take it at 1); a mute is still a cut; an unmoved level runs the old path,
+so every fingerprint held. Tested: 97 % of the old level at the block's start, 12 % (the new -20 dB) at its end.
+
+**Gestures**: GLO held, white 5-8 (1-4 are the tracks): tapped, a recall (on the let-go, so a hold can morph or
+store); held + SELECT, the morph; held + SAVE, store. The mixer shows SCN 1 2 3 4 (stored ink, the current one in a
+tag, empty dim); keys 5-8 light the same under GLO, and 1-4 the tracks.
+
+**In a project** (format 12): after the rooms, each scene as a used byte and its differences from the state just
+written: (id u16, value as `pw_v`), the id t x MOD_NTGT + g, then levels, room knobs, sources. Read back, a scene
+is the loaded state with its differences, clamped by each knob's descriptor. A sector's payload is 3,840 B and the
+biggest project 3.2 KB, so before each scene the writer checks what's left against the scene's worst packed size; a
+scene that wouldn't fit is saved empty and SAVE says which (`scn_lost`). Tested: two scenes, a project of 1.5 KB or
+so; four scenes far from the project in every knob: the save goes through and says so.
+
 ## Track presets and SCL's reset, as built (2026-10-10)
 
 Two ways back from a sound that got away from me: put a knob (or a page) back to where it started, or save a track's

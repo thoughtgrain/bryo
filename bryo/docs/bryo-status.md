@@ -127,6 +127,7 @@ Felucca's `felucca.c` did); `tests/bryo_host.c` includes the same files for the 
 | `chain.c` | a control block of the whole instrument; TRACKS; shedding; the main loop's memory polls |
 | `reel.c`, `vdisk.c`, `msc.c` | user reels in flash; the FM-1 as a USB drive (FAT12, WAV in and out) |
 | `project.c` | projects: six A/B slots in flash, the packed stream, takes into reels, the last one at power-on |
+| `scene.c` | scenes: four snapshots of the sound a project (GLO + white 5-8), recalled with a glide, morphed by SELECT, a source change faded out and in; saved in the project as their differences |
 | `tpfactory.c` | the eight factory track presets (two a source): knob lists from the defaults, and their loader |
 | `tpreset.c` | track presets: eight tracks' sounds (A..H) in the seventh A/B pair, copied forward unparsed; the track snapshot SAVE held puts back (a preset load, SCL's reset) |
 | `ui.c`, `ui_input.c`, `ui_px.c`, `ui_viz.c` | the screen's regions; buttons, keys and knobs into actions; the dot grid and pictograms; the pictures |

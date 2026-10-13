@@ -10,7 +10,7 @@
  * Felucca sees an empty sector, never a project of the wrong shape.
  *
  * What: a byte stream, written and read field by field (no struct is dumped, so the layout of the RAM can change):
- * the version (only PJ_VERSION is read: no older format is kept up with), then every array as a count and its values
+ * the version (PJ_VERSION, and 11, the same without the scenes, read too), then every array as a count and its values
  * (an array stops at its last knob with a label); every value is clamped to its knob's range as it's read. The
  * modulation depths are stored sparsely, by array and knob (not by target number, which moved when DRUM came in).
  * The stream is packed (PackBits: runs of a byte, literals otherwise), written and read a byte at a time straight to
@@ -30,7 +30,7 @@
 #define PJ_N 6u                      /* project slots */
 #define PJ_TEST (PJ_N + 1u)          /* the project view past FACTORY (PJ_N): TEST, the scene to read the load on */
 #define PJ_MAGIC 0x50595242u         /* "BRYP" */
-#define PJ_VERSION 11u               /* one format: a project of another version reads as one this Bryo can't
+#define PJ_VERSION 12u               /* one format: a project of another version reads as one this Bryo can't
                                          * (nothing older is kept up with: projects started with this one) */
 static uint8_t pj_arpn[NTRK][ARP_MAXN];  /* the notes a project being read holds, until pj_load hands them over */
 static uint8_t pj_arpc[NTRK];
@@ -347,6 +347,7 @@ static uint32_t pj_hash(void)
         h = (h ^ (uint32_t)(uint16_t)keyp[i]) * 16777619u;
     for (i = 0; i < NROOM * NRM; i++)
         h = (h ^ (uint32_t)(uint16_t)rmp[i / NRM][i % NRM]) * 16777619u;
+    h = (h ^ scn_ver) * 16777619u;                      /* (a scene stored or cleared) */
     return (h ^ (sys.bpm | (uint32_t)sys.ntrk << 16)) * 16777619u;
 }
 
@@ -364,6 +365,94 @@ static const int16_t *pj_dev_out(const track_params_t *P, uint32_t s)
 }
 
 /* the whole state into the stream (the writer set up) */
+/* The scenes (scene.c, format 12), after everything else: a count, then each scene as a used byte and, when used,
+ * what it holds that differs from the state just written (a count, then each as an id and a value). The ids: track
+ * t's knob g (mod.c's numbering) t x MOD_NTGT + g; then a track's level, a room's knob, a track's source. A project
+ * packs to 2 KB or so and the biggest there can be to 3.2 KB of the 3,840 a sector holds, so a scene that wouldn't
+ * fit what's left is saved empty and SAVE says so (scn_lost) rather than the save failing */
+#define PJ_SC_LVL (NTRK * MOD_NTGT)
+#define PJ_SC_ROOM (PJ_SC_LVL + NTRK)
+#define PJ_SC_SRC (PJ_SC_ROOM + NROOM * NRM)
+#define PJ_SC_N (PJ_SC_SRC + NTRK)
+static uint8_t scn_lost;
+static uint32_t pj_ver;              /* the version of the project being read */             /* the scenes the last save couldn't hold, a bit each */
+/* scene s's value at id (and its live counterpart in *now) */
+static int32_t pj_sc_val(const scene_t *s, uint32_t id, int32_t *now)
+{
+    if (id < PJ_SC_LVL) {
+        uint32_t t = id / MOD_NTGT, g = id % MOD_NTGT;
+        *now = scn_kind(g) ? *scn_knob(t, g) : 0;
+        return s->v[t][g];
+    }
+    if (id < PJ_SC_ROOM) {
+        *now = track[id - PJ_SC_LVL].level;
+        return s->lvl[id - PJ_SC_LVL];
+    }
+    if (id < PJ_SC_SRC) {
+        *now = rmp[(id - PJ_SC_ROOM) / NRM][(id - PJ_SC_ROOM) % NRM];
+        return s->rm[(id - PJ_SC_ROOM) / NRM][(id - PJ_SC_ROOM) % NRM];
+    }
+    *now = tp[id - PJ_SC_SRC].src;
+    return s->src[id - PJ_SC_SRC];
+}
+static void pj_write_scenes(void)
+{
+    uint32_t n, id, c;
+    int32_t now;
+    scn_lost = 0;
+    pw_byte(NSCN);
+    for (n = 0; n < NSCN; n++) {
+        for (c = 0, id = 0; scn[n].used && id < PJ_SC_N; id++)
+            c += pj_sc_val(&scn[n], id, &now) != now;
+        if (scn[n].used && pw.off + pw.np + pw.nl + 8u + (3u + 5u * c) * 129u / 128u > PJ_PAYLOAD_MAX) {
+            scn_lost |= (uint8_t)(1u << n);              /* (wouldn't fit: saved empty) */
+            pw_byte(0);
+            continue;
+        }
+        pw_byte(scn[n].used);
+        if (!scn[n].used)
+            continue;
+        pw_u16(c);
+        for (id = 0; id < PJ_SC_N; id++) {
+            int32_t v = pj_sc_val(&scn[n], id, &now);
+            if (v != now) {
+                pw_u16(id);
+                pw_v(v);
+            }
+        }
+    }
+}
+/* the scenes read (the state already read: a scene is it, with its differences) */
+static void pj_read_scenes(void)
+{
+    uint32_t n = pr_byte(), i, c, j;
+    for (i = 0; i < n && !pr.bad; i++) {
+        scene_t *S = i < NSCN ? &scn[i] : &scn_from;     /* (past NSCN: read into the spare, dropped) */
+        if (!pr_byte())
+            continue;
+        scn_take(S);
+        S->used = i < NSCN;
+        c = pr_u16();
+        for (j = 0; j < c && !pr.bad; j++) {
+            uint32_t id = pr_u16();
+            int32_t v = pr_v();
+            if (id < PJ_SC_LVL) {
+                const pdesc_t *d = scn_desc(id % MOD_NTGT);
+                if (scn_kind(id % MOD_NTGT))
+                    S->v[id / MOD_NTGT][id % MOD_NTGT] = (int16_t)clamp(v, d->min, d->max);
+            } else if (id < PJ_SC_ROOM) {
+                S->lvl[id - PJ_SC_LVL] = (uint8_t)clamp(v, 0, 127);
+            } else if (id < PJ_SC_SRC) {
+                uint32_t k = (id - PJ_SC_ROOM) % NRM;
+                S->rm[(id - PJ_SC_ROOM) / NRM][k] = (int16_t)clamp(v, RM_P[k].min, RM_P[k].max);
+            } else if (id < PJ_SC_N) {
+                S->src[id - PJ_SC_SRC] = (uint8_t)(v >= 0 && v < (int32_t)NSRC ? v : SRC_TAPE);
+            }
+        }
+    }
+    scn_from.used = 0;
+}
+
 static void pj_write_state(void)
 {
     uint32_t t, s, b, n = 0, i;
@@ -426,6 +515,7 @@ static void pj_write_state(void)
     pw_byte(NROOM);                                      /* the rooms (8) */
     for (i = 0; i < NROOM; i++)
         pw_a16(rmp[i], NRM);
+    pj_write_scenes();
 }
 
 /* knob k of array a (MA_* / DEV_*) as a modulation target, or MOD_NTGT */
@@ -456,7 +546,9 @@ static int pj_read_state(void)
     uint32_t t, s, b, n, i, nt;
     if (pr_byte() != 'B' || pr_byte() != 'P' || pr.bad)
         return -1;
-    if (pr_byte() != PJ_VERSION || pr.bad)               /* (another version: not one this Bryo reads) */
+    pj_ver = pr_byte();
+    if ((pj_ver != PJ_VERSION && pj_ver != 11u) || pr.bad)   /* (another version: not one this Bryo reads; 11 is
+                                                          * this one before the scenes) */
         return -1;
     {                                                    /* (the track count, looked at before anything changes) */
         uint32_t at = pr.at, lit = (uint32_t)pr.lit, run = (uint32_t)pr.run, nt;
@@ -472,6 +564,7 @@ static int pj_read_state(void)
             return -1;
     }
     param_defaults();                                    /* (what it doesn't hold: as at power-on) */
+    scn_clear();
     for (t = 0; t < NTRK; t++) {
         mdl[t].n = 0;
         pj_arpc[t] = 0;
@@ -552,6 +645,8 @@ static int pj_read_state(void)
         int16_t junk[NRM];
         pr_a16(i < NROOM ? rmp[i] : junk, i < NROOM ? NRM : 0u, RM_P);
     }
+    if (pj_ver >= 12u)
+        pj_read_scenes();
     return 0;
 }
 
@@ -575,7 +670,7 @@ static void pj_scan(uint32_t s)
     pr.bad = 0;
     if (pr_byte() != 'B' || pr_byte() != 'P')
         return;
-    if (pr_byte() != PJ_VERSION)
+    if (pj_ver = pr_byte(), pj_ver != PJ_VERSION && pj_ver != 11u)
         return;
     m->bpm = (uint16_t)pr_u16();
     (void)pr_byte();
@@ -864,6 +959,7 @@ static void pj_new(uint32_t s)
         arp_clear(t);
     }
     sys.bpm = 120;
+    scn_clear();
     chain_tracks(NTRK);
     tape_undo.valid = 0;
     mod_undo_buf.valid = 0;

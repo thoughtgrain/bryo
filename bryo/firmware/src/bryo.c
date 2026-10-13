@@ -106,6 +106,7 @@ static void ui_redraw(void);
 #include "storage.c"
 #endif
 #include "reel.c"                /* user reels: your sounds in flash */
+#include "scene.c"               /* scenes: four snapshots of the sound a project, recalled and morphed */
 #include "project.c"             /* projects: save and recall the whole instrument */
 #include "tpreset.c"             /* track presets: one track's sound saved and recalled; the track snapshot */
 #include "tpfactory.c"           /* the factory track presets: two a source */

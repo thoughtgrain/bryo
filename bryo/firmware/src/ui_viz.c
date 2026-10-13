@@ -1819,6 +1819,19 @@ static void viz_memory(void)
     str_cpy(b, "TRACKS ", sizeof b);
     fmt_int(b + 7, sys.ntrk);
     px_tag(1, DLBL - 1, PXF_3, b, px_ink, px_bg);
+    {                                                   /* the scenes (GLO + white 5-8): stored ink, the one last
+                                                         * recalled or stored in a tag, empty dim */
+        int32_t x = px_text(px_text_w(PXF_3, b) + 6, DLBL, PXF_3, "SCN", px_dim) + 2;
+        uint32_t n;
+        for (n = 0; n < NSCN; n++) {
+            char d[2] = {(char)('1' + n), 0};
+            if (scn_cur == n + 1u)
+                px_tag(x - 1, DLBL - 1, PXF_3, d, px_ink, px_bg);
+            else
+                px_text(x, DLBL, PXF_3, d, scn[n].used ? px_ink : px_dim);
+            x += 6;
+        }
+    }
     str_cpy(b, "FREE ", sizeof b);                     /* the time free, at the ribbon's free end */
     vz_secs(b + 5, vz_chunk_tenths(mem_count(MEM_FREE)));
     str_cpy(b + str_len(b), " SEC", 5);
@@ -2420,7 +2433,9 @@ static void viz_tpr(void)
 static uint32_t viz_sig(void)
 {
     uint32_t h = 2166136261u + ui.view * 7u + ui.kind * 31u + ui.dev * 131u + ui.slot * 1009u + ui.glo_held * 3u +
-                 (ui.last < 4u ? ui.last + 1u : 0u) * 7919u + sys.sel * 104729u + ux.theme * 3u, k, t;
+                 (ui.last < 4u ? ui.last + 1u : 0u) * 7919u + sys.sel * 104729u + ux.theme * 3u +
+                 (scn_cur | (uint32_t)scn[0].used << 3 | (uint32_t)scn[1].used << 4 | (uint32_t)scn[2].used << 5 |
+                  (uint32_t)scn[3].used << 6) * 15485863u, k, t;
     if (ui.msg_t)
         return hash_str(h ^ 0x5A5Au, ui.msg);
     if (ui.view == VIEW_USBREC) {                                      /* the step, the time, the level, the room */
