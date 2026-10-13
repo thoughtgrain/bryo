@@ -591,10 +591,14 @@ static void draw_foot(void)
                    (tp[sys.sel].src == SRC_TAPE || tp[sys.sel].src == SRC_POLY) && ui.page == 0u
                    ? "KEYS:PAGES KNOB:ZOOM" : "KEYS: ITS PAGES", sizeof a);   /* a page's pad held: the keys
                                                        * pick its pages (HOME on TAPE's or POLY's first: the zoom) */
-    else if (ui.slot_held < NSLOT)                    /* a slot's pad held: what it does (the LFO pad: OP1-3 pick
-                                                       * its slot; the SEQ's engine stays) */
-        str_cpy(a, ui.slot_btn == B_LFO ? "KNOB:DEPTH OP1-3:M1-3" : ui.slot_held == SLOT_SEQ ? "KNOB:DEPTH"
-                   : "KNOB:DEPTH SEL:ENGINE", sizeof a);
+    else if (ui.slot_held < NSLOT) {                  /* a slot's pad held: what it does (the LFO pad: OP1-3 pick
+                                                       * its slot; the SEQ's engine stays), and the slot's depths
+                                                       * used of its dozen (mod.c MOD_SLOT_MAX) */
+        str_cpy(a, ui.slot_held == SLOT_SEQ ? "KNOB:DEPTH " : "DEPTH ", 12);
+        fmt_int(a + str_len(a), (int32_t)mod_slot_count(sys.sel, ui.slot_held));
+        str_cpy(a + str_len(a), "/12", 4);
+        str_cpy(a + str_len(a), ui.slot_btn == B_LFO ? " OP:M1-3" : ui.slot_held == SLOT_SEQ ? "" : " SEL:ENG", 9);
+    }                                                 /* (19 letters at most: DRUM's "T2 BAR 1/2" takes the right) */
     else if (ui.view == VIEW_PAGE && ui.kind == FOCUS_ARP && ui.page == 2u)   /* RIPL ARP: the keys the strings' */
         str_cpy(a, tp[sys.sel].dev[DEV_RESO][RP_AMODE] >= ARM_LTCH ? "POLY HELD: CLEAR"
                    : tp[sys.sel].dev[DEV_RESO][RP_AMODE] != ARM_OFF ? "KEYS: STRINGS" : "MODE: OFF", sizeof a);

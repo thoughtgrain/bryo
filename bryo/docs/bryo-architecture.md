@@ -2112,6 +2112,16 @@ switching it under the main loop's feet is how you get a tape playing a reel tha
 up to 32 depths; the 33rd is refused with a message. Not the levels or the master compressor: the PRD's
 modulation is per track, and those aren't.
 
+**A dozen a slot (2026-10-13).** On top of the 32 a track, one slot holds at most 12 depths (`MOD_SLOT_MAX`,
+`mod_slot_count()`; `mod_dep_set` says -2 and `mod_nudge` -127, a code of its own so the message can name the
+slot: "12 DEPTHS ON M1: PAD+MONO CLEARS"). Two reasons. A modulator on a dozen knobs is already everything moving
+at once; past that it's a wash, and the knobs' marks stop telling you anything. And without it one slot could take
+the whole track's 32 and leave the other three nothing. Twelve times four is 48, so the track's cap still binds
+when every slot is busy. While a slot's pad is held the footer counts its depths ("DEPTH 7/12 OP:M1-3", the SEQ
+"KNOB:DEPTH 7/12", the rest "DEPTH 7/12 SEL:ENG": 19 letters at most, since DRUM's "T2 BAR 1/2" takes the right
+end). Changing a slot's engine (its pad + SELECT) keeps its depths, it always did (`param_engine` resets the slot's
+own knobs, not the list), and the message now says so when another page is up: "M1 IS ADSR, 4 DEPTHS KEPT".
+
 **How it runs**, and why it's built this way:
 
 - The main loop owns the depths (`mdep`, a byte per slot per target: 144 targets). Every change rebuilds the track's list of the

@@ -777,6 +777,10 @@ Let's make COLOR's crush breathe.
 
 <img src="img/mod_depth.png" width="240" alt="Holding LFO: the depths">
 
+While the pad is held the footer counts the modulator's depths, **DEPTH 1/12**: each modulator can move up to
+twelve knobs, and a track holds thirty-two depths in all. Past a dozen the knob is refused with a message; hold the
+pad and **MONO** to clear that modulator's depths on the page, or turn one back to 0.
+
 **You'll hear:** the crush coming and going, slowly. That's it: **hold a slot, turn a knob**. It works on any page
 of the track: the source, the effects, the channel strip.
 
@@ -813,7 +817,8 @@ M1, M2 and M3 can each be **LFO**, **ADSR** (an envelope the keys, the arpeggiat
 1. **Hold LFO** (with the modulator you want chosen: hold LFO and tap OP1-OP3).
 2. **Turn SELECT** to pick the engine.
 
-Its depths stay where they were. M4 always stays the step sequencer.
+Its depths stay where they were (the message says how many: "M1 IS ADSR, 4 DEPTHS KEPT"). M4 always stays the
+step sequencer.
 
 <img src="img/mod2.png" width="240" alt="ADSR"> <img src="img/mod4_follow.png" width="240" alt="FOLLOW">
 

@@ -39,6 +39,9 @@
 #define MOD_NTGT (MOD_TDIN + 16u * NDIN)
 #define MOD_TG(d, k) (((d) - 1u) * NPK + (k))   /* device d's (GRAIN..SPACE) knob k as a target */
 #define MOD_MAX 32u                  /* depths that aren't 0, per track (the main loop refuses more) */
+#define MOD_SLOT_MAX 12u             /* .. and from one slot (2026-10-13): a modulator that reaches a dozen knobs is
+                                      * already a wash of everything moving at once; the cap keeps a track's 32 from
+                                      * being one slot's, so there's always room for the other three to do something */
 enum { MA_SYN = NDEV, MA_POL, MA_DRM, MA_CH, MA_DIN0, MOD_NARR = MA_DIN0 + 4 };   /* (MA_DIN0..3: DRUM's instruments,
                                                                                 * four to an array, NDIN knobs each) */   /* the knob arrays: dev[DEV_*], then SYNTH's, POLY's, DRUM's,
                                                              * the channel */
@@ -74,8 +77,17 @@ static int32_t mod_dep(uint32_t t, uint32_t s, uint32_t g)
     return 0;
 }
 
+/* main loop: the depths that aren't 0 from slot s on track t */
+static uint32_t mod_slot_count(uint32_t t, uint32_t s)
+{
+    uint32_t i, n = 0;
+    for (i = 0; t < NTRK && i < mdl[t].n; i++)
+        n += mdl[t].e[i].s == s;
+    return n;
+}
+
 /* main loop: slot s's depth to target g on track t set to v (0: removed). 0, or -1: a new depth and the track has
- * MOD_MAX already. (The list only: mod_rebuild publishes it.) */
+ * MOD_MAX already, -2: the slot has MOD_SLOT_MAX. (The list only: mod_rebuild publishes it.) */
 static int mod_dep_set(uint32_t t, uint32_t s, uint32_t g, int32_t v)
 {
     mod_deps_t *L = &mdl[t % NTRK];
@@ -96,6 +108,8 @@ static int mod_dep_set(uint32_t t, uint32_t s, uint32_t g, int32_t v)
         return 0;
     if (L->n >= MOD_MAX)
         return -1;
+    if (mod_slot_count(t, s) >= MOD_SLOT_MAX)
+        return -2;
     for (j = L->n; j > i; j--)                           /* a new one, in its place */
         L->e[j] = L->e[j - 1u];
     L->e[i].s = (uint8_t)s;
@@ -219,7 +233,7 @@ static uint32_t mod_count(uint32_t t) { return t < NTRK ? mdl[t].n : 0u; }
 /* main loop: slot s's depth to target g on track t, nudged by d (%). A depth that would reach or cross 0 stops at 0
  * (it's gone: the catch, so a turn back down can't overshoot into the other sign; the UI holds a turn that keeps
  * going there for a moment). Returns the new depth, or -128 when g can't be modulated or the track already has
- * MOD_MAX depths */
+ * MOD_MAX depths, -127 when the slot already has MOD_SLOT_MAX */
 static int32_t mod_nudge(uint32_t t, uint32_t s, uint32_t g, int32_t d)
 {
     int32_t v, o;
@@ -231,6 +245,8 @@ static int32_t mod_nudge(uint32_t t, uint32_t s, uint32_t g, int32_t d)
         v = 0;
     if (!o && v && mod_count(t) >= MOD_MAX)
         return -128;
+    if (!o && v && mod_slot_count(t, s) >= MOD_SLOT_MAX)
+        return -127;
     mod_dep_set(t, s, g, v);
     mod_rebuild(t);
     return v;

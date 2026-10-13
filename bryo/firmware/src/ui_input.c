@@ -1105,7 +1105,12 @@ static void on_knob(uint32_t c, int32_t d)
             ui.catch_dir = (int8_t)(d < 0 ? -1 : 1);
             ui.catch_t = fm1_ms;
         }
-        if (v == -128)
+        if (v == -127) {                                /* the slot's dozen: its pad + MONO clears this page's */
+            char m[40] = "12 DEPTHS ON M";
+            m[14] = (char)('0' + SLOT_NUM[ui.slot_held % NSLOT]);
+            str_cpy(m + 15, ": PAD+MONO CLEARS", 18);
+            ui_message(m);
+        } else if (v == -128)
             ui_message(pdesc_empty(p) ? "NO KNOB THERE" : mod_tdesc(page_target(c)) ? "32 DEPTHS ON THIS TRACK: MONO CLEARS"
                        : p->names == N_REEL ? "THE REEL CAN'T BE MODULATED"
                        : ui.dev == DEV_SPACE ? "THE ROOM IS SHARED: NO DEPTHS" : "THIS KNOB CAN'T BE MODULATED");
@@ -1337,7 +1342,7 @@ static void ui_input(void)
             /* a slot's pad held + SELECT: its engine (LFO ADSR SEQ FOLLOW), from its defaults; its depths stay. The
              * SEQ pad's stays the sequencer */
             uint32_t s = ui.slot_held, i, e;
-            char m[24] = "M";
+            char m[40] = "M";
             ui.slot_used = 1;
             for (i = 0; i < 4u && SWAP_ENGINE[i] != tp[sys.sel].engine[s]; i++)
                 ;
@@ -1349,10 +1354,17 @@ static void ui_input(void)
                 if (ui.view == VIEW_PAGE && ui.kind == FOCUS_SLOT && ui.slot == s) {
                     ui.page = 0;
                     ui.last = 0xFF;
-                } else {                                /* (another page up: say what it is now) */
+                } else {                                /* (another page up: say what it is now, and that its
+                                                         * depths are still there: the new engine drives them) */
+                    uint32_t nd = mod_slot_count(sys.sel, s);
                     fmt_int(m + 1, SLOT_NUM[s % NSLOT]);
                     str_cpy(m + str_len(m), " IS ", 5);
                     str_cpy(m + str_len(m), ME_NAME[e], 8);
+                    if (nd) {
+                        str_cpy(m + str_len(m), ", ", 3);
+                        fmt_int(m + str_len(m), (int32_t)nd);
+                        str_cpy(m + str_len(m), nd == 1u ? " DEPTH KEPT" : " DEPTHS KEPT", 13);
+                    }
                     ui_message(m);
                 }
             }

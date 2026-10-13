@@ -5823,6 +5823,43 @@ static void test_mod(void)
     press(B_HOME);
     check("..and KNOB 3 on TAPE: slot 2's depth to SPD", mod_dep(0, 1, MOD_TSRC + TK_SPD) == -10);
     check("..depths stay when the engine changes", mod_dep(0, 0, MOD_TG(DEV_COLOR, 1)) == 5);
+    hold(B_LFO);                                         /* M1 (one depth, CRSH) to ADSR from another page */
+    host_enc[panel.enc[EN_SELECT]] = 1;
+    ui_input();
+    let_go(B_LFO);
+    check("..and the message says so (another page up): M1 IS ADSR, 1 DEPTH KEPT", tp[0].engine[0] == ME_ADSR &&
+          !strcmp(ui.msg, "M1 IS ADSR, 1 DEPTH KEPT") && mod_dep(0, 0, MOD_TG(DEV_COLOR, 1)) == 5);
+    hold(B_LFO);
+    host_enc[panel.enc[EN_SELECT]] = -1;
+    ui_input();
+    let_go(B_LFO);
+    check("..back to the LFO, the depth still there", tp[0].engine[0] == ME_WAVE &&
+          !strcmp(ui.msg, "M1 IS LFO, 1 DEPTH KEPT"));
+    {                                                    /* M1's dozen: the 13th on a page is refused with a message */
+        uint32_t g, n = 1;
+        for (g = 0; g < MOD_NTGT && n < MOD_SLOT_MAX; g++)
+            if (mod_tdesc(g) && g != MOD_TG(DEV_COLOR, 1) && g != MOD_TSRC + TK_SPD && mod_nudge(0, 0, g, 10) > 0)
+                n++;
+        focus_dev(DEV_SPACE, 0);                         /* SPACE 1: TIME FDBK (ROUT) DLY VERB */
+        hold(B_LFO);
+        turn(0, 5);                                      /* TIME (not a depth of M1's) */
+        let_go(B_LFO);
+        check("slot pad held + a knob with the slot's 12 depths used: refused, 12 DEPTHS ON M1: PAD+MONO CLEARS",
+              mod_slot_count(0, 0) == MOD_SLOT_MAX && mod_dep(0, 0, MOD_TG(DEV_SPACE, SP_TIME)) == 0 &&
+              !strcmp(ui.msg, "12 DEPTHS ON M1: PAD+MONO CLEARS"));
+        hold(B_LFO);                                     /* M2 (the LFO pad on M2): its own dozen, room there */
+        key_edge(black_note(BK_OP2));
+        turn(0, 5);
+        let_go(B_LFO);
+        check("..another slot still has room: M2's depth to TIME", mod_dep(0, 1, MOD_TG(DEV_SPACE, SP_TIME)) == 5);
+        hold(B_LFO);
+        key_edge(black_note(BK_OP1));
+        let_go(B_LFO);
+        mod_clear(0);
+        mod_nudge(0, 0, MOD_TG(DEV_COLOR, 1), 5);
+        mod_nudge(0, 1, MOD_TSRC + TK_SPD, -10);         /* (as they were for what follows) */
+        press(B_HOME);
+    }
     hold(B_LFO);
     turn(0, 3);                                          /* TAPE's REEL is on page 3: page 1 knob 1 is STRT */
     let_go(B_LFO);
@@ -6153,14 +6190,31 @@ static void test_mod(void)
         }
     }
 
-    /* the limit: 32 depths a track */
+    /* the limits: 12 depths a slot, 32 a track */
     power_on();
     {
-        uint32_t g, n = 0;
+        uint32_t g, n = 0, last = 0, rc = 0;
         for (g = 0; g < MOD_NTGT && n < 40u; g++)
-            if (mod_tdesc(g) && mod_nudge(0, 0, g, 10) != -128)
+            if (mod_tdesc(g)) {
+                int32_t v = mod_nudge(0, 0, g, 10);
+                if (v == -127)
+                    rc++;
+                else if (v != -128) {
+                    n++;
+                    last = g;
+                }
+            }
+        check("mod: at most 12 depths from one slot (the 13th is refused with its own code, the track not full)",
+              n == MOD_SLOT_MAX && rc > 0 && mod_slot_count(0, 0) == MOD_SLOT_MAX && mod_count(0) == MOD_SLOT_MAX);
+        check("..a depth the slot has can still be turned, and to 0", mod_nudge(0, 0, last, 10) == 20 &&
+              mod_nudge(0, 0, last, -30) == 0 && mod_slot_count(0, 0) == MOD_SLOT_MAX - 1u);
+        check("..mod_dep_set says -2 for a slot's 13th", mod_dep_set(0, 0, last, 10) == 0 &&
+              mod_dep_set(0, 0, last + 1u, 10) == -2 && mod_slot_count(0, 0) == MOD_SLOT_MAX);
+        for (g = 0, n = MOD_SLOT_MAX; g < MOD_NTGT && n < 40u; g++)   /* the other slots fill the track */
+            if (mod_tdesc(g) && mod_nudge(0, 1u + g % 3u, g, 10) > 0)
                 n++;
-        check("mod: at most 32 depths a track (the 33rd is refused)", n == MOD_MAX && mod_count(0) == MOD_MAX);
+        check("..at most 32 depths a track (the 33rd is refused)", n == MOD_MAX && mod_count(0) == MOD_MAX &&
+              mod_slot_count(0, 1) + mod_slot_count(0, 2) + mod_slot_count(0, 3) == MOD_MAX - MOD_SLOT_MAX);
         render(2, 0);
         check("..and they all run", TPD(0, DEV_GRAIN) == mda[0][DEV_GRAIN] && TPD(0, DEV_RESO) == mda[0][DEV_RESO]);
     }
