@@ -10,7 +10,7 @@
 
 enum { DEV_SRC, DEV_GRAIN, DEV_RESO, DEV_COLOR, DEV_SPACE, NDEV };
 #define NSLOT 4u                 /* modulator slots per track */
-enum { F_PCT, F_BIPCT, F_ST, F_NOTE, F_MS, F_NUM, F_DB, F_ENUM, F_CT, F_HZ, F_TIME, F_PCT100 };   /* how a value prints
+enum { F_PCT, F_BIPCT, F_ST, F_NOTE, F_MS, F_NUM, F_DB, F_ENUM, F_CT, F_HZ, F_TIME, F_PCT100, F_RATIO };   /* how a value prints
                                                                                          * (F_PCT100: hundredths of a
                                                                                          * percent, shown whole) */
 
@@ -33,7 +33,7 @@ static const char *const N_ROOT[1] = {"RES"};          /* BODY's ROOT at its bot
                                                         * names: the name of its lowest value, if it has one) */
 static const char *const N_SHAPE[5] = {"SIN", "TRI", "SQR", "SAW", "RND"};
 static const char *const N_SRC[6] = {"SELF", "T1", "T2", "T3", "T4", "USB"};
-static const char *const N_OSC[5] = {"SIN", "TRI", "SQR", "SAW", "PLS"};
+static const char *const N_OSC[6] = {"SIN", "TRI", "SQR", "SAW", "PLS", "FM"};   /* (FM: synth.c's 2-op) */
 static const char *const N_HOLD[5] = {"OFF", "1/32", "1/16", "1/8", "1/4"};
 static const char *const N_SRATE[6] = {"1", "1/2", "1/4", "1/8", "1/16", "1/32"};   /* SEQ: a step's length, in bars */
 #include "bryo_reels.h"              /* the factory reels' names (tools/gen_reels.py) */
@@ -222,11 +222,19 @@ static const char *const SRC_NAME[NSRC] = {"TAPE", "SYNTH", "POLY", "DRUM"};
  * the oscillators, the filter, the envelope (one ADSR for the level and, by ENV, the cutoff), how the keys play it
  * and the level; the pages show them in POLY's order (OSC, AMP, FILTER, VOICE, LEVEL: PLAYOUT below). */
 enum { SY_WAVE, SY_DTUN, SY_MIX, SY_NOIS, SY_CUT, SY_RES, SY_ENV, SY_KTRK, SY_ATK, SY_DEC, SY_SUS, SY_REL, SY_VOIC,
-       SY_GLID, SY_DRV, SY_TUNE, SY_LVL, SY_FINE };
+       SY_GLID, SY_DRV, SY_TUNE, SY_LVL, SY_FINE, SY_IENV };
+#define SY_FM 5                      /* WAVE FM: the 2-op FM voice (synth.c); DTUN is its RATI, MIX INDX, NOIS FDBK */
+/* FM's RATI: the modulator's frequency over the carrier's, Q8, 16 steps over RATI's 0..100 (syn_ratio); whole
+ * numbers harmonic, 1.41 and the halves bell-like */
+static const uint16_t SYN_RATIO8[16] = {128, 256, 362, 384, 512, 640, 768, 896, 1024, 1280, 1536, 1792, 2048, 2304,
+                                        2816, 3584};
+static const char *const N_RATIO[16] = {"0.5", "1", "1.41", "1.5", "2", "2.5", "3", "3.5", "4", "5", "6", "7", "8",
+                                        "9", "11", "14"};
+static inline __attribute__((always_inline)) uint32_t syn_ratio(int32_t v) { return (uint32_t)clamp(v, 0, 100) * 16u / 101u; }
 #define SYN_NV 3u                /* voices per track */
 static const pdesc_t SYN_P[NPK] = {
     /* OSC: two oscillators of the same wave, the second DTUN cents up and MIX of the blend; white noise */
-    {"WAVE", 0, 4, 3, F_ENUM, N_OSC}, {"DTUN", 0, 100, 8, F_CT}, {"MIX", 0, 100, 50, F_PCT}, {"NOIS", 0, 100, 0, F_PCT},
+    {"WAVE", 0, 5, 3, F_ENUM, N_OSC}, {"DTUN", 0, 100, 8, F_CT}, {"MIX", 0, 100, 50, F_PCT}, {"NOIS", 0, 100, 0, F_PCT},
     /* FILTER: a resonant low-pass; ENV opens (or, below 0, closes) it with the envelope; KTRK follows the keys */
     {"CUT", 0, 127, 72, F_HZ}, {"RES", 0, 100, 25, F_PCT}, {"ENV", -100, 100, 45, F_BIPCT}, {"KTRK", 0, 100, 50, F_PCT},
     /* AMP: the envelope's times (1 ms .. 10 s) and its sustain level */
@@ -237,7 +245,20 @@ static const pdesc_t SYN_P[NPK] = {
     {"TUNE", -24, 24, 0, F_ST},
     /* LEVEL: what the track hears of the synth (every source's last page, as the S-4's LEVEL); FINE: the tuning in
      * cents, on top of TUNE (page 4, beside it) */
-    {"LVL", -24, 6, 0, F_DB}, {"FINE", -50, 50, 0, F_CT}, {""}, {""}};
+    {"LVL", -24, 6, 0, F_DB}, {"FINE", -50, 50, 0, F_CT},
+    /* IENV (WAVE FM only, 2026-10-13): how far the envelope pushes INDX (the FM pluck: bright at the strike) */
+    {"IENV", -100, 100, 40, F_BIPCT}, {""}};
+/* SYNTH with WAVE FM: the same knobs, FM's labels (a modulator sine bending a carrier's phase): RATI, the modulator's
+ * pitch over the carrier's (DTUN's place); INDX, how hard it bends it (MIX's); FDBK, the modulator into itself (NOIS's,
+ * sine to saw-ish to noise); IENV. Its own pages (PLAYOUT): WAVE RATI INDX IENV first, FDBK beside DRV */
+static const pdesc_t SYN_FM_P[NPK] = {
+    {"WAVE", 0, 5, 3, F_ENUM, N_OSC}, {"RATI", 0, 100, 8, F_RATIO}, {"INDX", 0, 100, 50, F_PCT},
+    {"FDBK", 0, 100, 0, F_PCT},
+    {"CUT", 0, 127, 72, F_HZ}, {"RES", 0, 100, 25, F_PCT}, {"ENV", -100, 100, 45, F_BIPCT}, {"KTRK", 0, 100, 50, F_PCT},
+    {"ATK", 0, 127, 0, F_TIME}, {"DEC", 0, 127, 60, F_TIME}, {"SUS", 0, 100, 60, F_PCT}, {"REL", 0, 127, 45, F_TIME},
+    {"VOIC", 1, SYN_NV, SYN_NV, F_NUM}, {"GLID", 0, 127, 0, F_TIME}, {"DRV", 0, 100, 0, F_PCT},
+    {"TUNE", -24, 24, 0, F_ST},
+    {"LVL", -24, 6, 0, F_DB}, {"FINE", -50, 50, 0, F_CT}, {"IENV", -100, 100, 40, F_BIPCT}, {""}};
 
 /* POLY (poly.c): a sound played at the keys' pitches, up to four at once, each through its own envelope and filter.
  * The sound is any reel choice: a factory reel, one of yours, or this track's own tape (record into it, then play it
@@ -485,8 +506,11 @@ static const playout_t PLAYOUT[] = {
                                                                                  * PRE, TONE SPRD RTON QUAL, SYNC AGE
                                                                                  * DIFF DUCK, TYPE MOD (2-3, 8-11 and
                                                                                  * 16-17: the room's, SP_RMK) */
-    {SYN_P, 5, {0, 1, 2, 3, 8, 9, 10, 11, 4, 5, 6, 7, 12, 13, 15, 17, 14, 18, 19, 16}},   /* OSC AMP FILTER, VOIC GLID
-                                                                                       * TUNE FINE, DRV . . LVL */
+    {SYN_P, 5, {0, 1, 2, 3, 8, 9, 10, 11, 4, 5, 6, 7, 12, 13, 15, 17, 14, 19, 20, 16, 18, 21, 22, 23}},
+                                                    /* SYNTH: OSC AMP FILTER, VOIC GLID TUNE FINE, DRV . . LVL (18,
+                                                     * IENV: FM's alone, past the pages) */
+    {SYN_FM_P, 5, {0, 1, 2, 18, 8, 9, 10, 11, 4, 5, 6, 7, 12, 13, 15, 17, 14, 3, 19, 16, 20, 21, 22, 23}},
+                                                    /* FM: WAVE RATI INDX IENV, AMP, FILTER, VOICE, DRV FDBK . LVL */
     {POL_P, 4, {0, 1, 13, 2, 4, 5, 6, 7, 8, 9, 10, 11, 3, 14, 15, 12}},         /* POLY: REEL STRT END TUNE, ..., VOIC
                                                                                  * ROOT FINE LVL */
     {ME_P[ME_WAVE], 4, {0, 1, 2, 3, 4, 5, 6, 7, 12, 13, 14, 15, 10, 11, 8, 9}},  /* LFO: timing, then PHAS SPRD AMT OFS */
@@ -586,6 +610,8 @@ static const pdesc_t RIN_P[NTRK] = {
 /* device d of track t as the pages see it: the source's knobs are the chosen source's */
 static const pdesc_t *dev_p(uint32_t t, uint32_t d)
 {
+    if (d == DEV_SRC && tp[t].src == SRC_SYNTH && tp[t].syn[SY_WAVE] == SY_FM)
+        return SYN_FM_P;                                 /* (SYNTH on FM: its labels, its pages) */
     if (d == DEV_RESO) {                                 /* (RIPPLE: its form's) */
         uint32_t m = (uint32_t)clamp(tp[t].dev[DEV_RESO][16], 0, 3);
         return m ? RS_FORM_P[m - 1u] : DEV_P[DEV_RESO];
@@ -602,7 +628,7 @@ static int16_t *dev_v(uint32_t t, uint32_t d)
 }
 static const char *dev_name(uint32_t t, uint32_t d)
 {
-    return d == DEV_SRC ? SRC_NAME[tp[t].src % NSRC]
+    return d == DEV_SRC ? (tp[t].src == SRC_SYNTH && tp[t].syn[SY_WAVE] == SY_FM ? "FM SYNTH" : SRC_NAME[tp[t].src % NSRC])
            : d == DEV_RESO ? RS_FORM_NAME[clamp(tp[t].dev[DEV_RESO][16], 0, 3)] : DEV_NAME[d];
 }
 
@@ -724,6 +750,9 @@ static void param_format(const pdesc_t *d, int32_t v, char *val, const char **un
         break;
     case F_ENUM:
         str_cpy(val, d->names[v - d->min], 6);
+        break;
+    case F_RATIO:                                       /* FM's RATI: the ratio it plays */
+        str_cpy(val, N_RATIO[syn_ratio(v)], 6);
         break;
     case F_CT:
         if (d->min < 0 && v > 0) {                      /* (FINE: signed, as TUNE) */

@@ -13,7 +13,14 @@
  * phases and filter state and attacks from its current level, so taking it over doesn't click. Every block's
  * level is ramped from the last block's, so the envelope never steps.
  *
+ * WAVE FM (2026-10-13): two operators instead, a modulator sine bending a carrier sine's phase (the DX's 2-op
+ * algorithm). RATI (DTUN's place) the modulator's frequency over the carrier's, 0.5 to 14 (SYN_RATIO8); INDX (MIX's)
+ * how far it bends it, to two cycles; IENV the envelope's push on INDX (bright at the strike, then mellow); FDBK
+ * (NOIS's) the modulator fed into itself through the mean of its last two outputs (sine, then saw-ish, then noise).
+ * The filter, drive, envelope, voices and glide as for every wave.
+ *
  * Cost: per voice per sample, two oscillators, one noise step when NOIS is up, one filter; coefficients per block.
+ * FM: two sine reads and their phase offsets, about what the band-limited oscillators cost.
  * Everything runs in the audio ISR; the main loop only writes the knobs (tp[t].syn) and the source (tp[t].src). */
 
 typedef struct {
@@ -23,6 +30,8 @@ typedef struct {
     int32_t env;                 /* the envelope, Q24 */
     int32_t amp;                 /* the last block's level, Q15 (the next block ramps from it) */
     int32_t p16, to16;           /* the pitch now and where it glides to, 1/16 semitone */
+    int32_t fm1, fm2;            /* FM: the modulator's last two outputs (its feedback) */
+    int32_t gi;                  /* FM: the index last block, 0..1024 (the next block ramps from it) */
     uint32_t age;                /* when its note started (the oldest is stolen first) */
     uint8_t key, stage;          /* the white key; 0 silent, 1 attack, 2 decay and sustain, 3 release */
 } syn_voice_t;
@@ -78,6 +87,9 @@ static void syn_start(uint32_t t, uint32_t k, uint32_t nv)
         v->ph[1] = 0x40000000u;
         v->ic1 = v->ic2 = 0;
         v->env = 0;
+        v->fm1 = v->fm2 = 0;
+        if (TPD(t, MA_SYN)[SY_WAVE] == SY_FM)
+            v->ph[1] = 0;                               /* (FM: the modulator from 0 with the carrier) */
         if (!v->nst)
             v->nst = 0x1234567 + (int32_t)(t * 7919u + k);
     }
@@ -134,6 +146,38 @@ static void syn_voice(uint32_t t, syn_voice_t *v, int32_t *out, uint32_t n)
     cut = mod_fine8(t, FN_SCUT, p[SY_CUT]) + p[SY_ENV] * 96 * (e15 >> 7) / 100 + p[SY_KTRK] * (pp - 60 * 16) * 16 / 100;
                                                             /* (CUT finer than its semitones when modulated: mod.c) */
     tsvf_coef(&flt, cut, p[SY_RES] * 127 / 100);
+    if (wave == SY_FM) {                                /* FM: the modulator's increment, the index ramped from last
+                                                         * block's, the feedback's gain */
+        uint32_t r8 = SYN_RATIO8[syn_ratio(p[SY_DTUN])], ib = inc1 >> 8;
+        int32_t g1 = clamp(p[SY_MIX] + p[SY_IENV] * (e15 >> 7) / 255, 0, 100) * 1024 / 100, g0 = v->gi;
+        int32_t fb8 = p[SY_NOIS] * 256 / 100, m1 = v->fm1, mm2 = v->fm2, dgi = ((g1 - g0) * 2) >> CTL_LOG2;
+        uint32_t incm = ib > 0x7FFFFFFFu / r8 ? 0x7FFFFFFFu : ib * r8;   /* (past half the rate: held there) */
+        g0 <<= 1;                                       /* (Q1: the ramp's step keeps its half) */
+        v->gi = g1;
+        inc2 = incm;
+        for (i = 0; i < n; i++, g0 += dgi) {
+            int32_t m, a, s, y, k;
+            m = sine_i(ph1 + ((uint32_t)(((m1 + mm2) >> 1) * fb8) << 8));   /* (the feedback: up to half a cycle) */
+            mm2 = m1;
+            m1 = m;
+            a = sine_i(ph0 + ((uint32_t)(m * (g0 >> 1)) << 8));   /* (the index: up to two cycles; the phases wrap) */
+            ph0 += inc1;
+            ph1 += incm;
+            s = a;
+            if (drv)
+                s = softclip((s * dg) >> 12);
+            y = tsvf_lp(&flt, s >> 1, &ic1, &ic2);
+            k = y < 0 ? -y : y;
+            if (k > 16000) {
+                k = 16000 + (softclip((k - 16000) * 2) >> 1);
+                y = y < 0 ? -k : k;
+            }
+            out[i] += mulq15(mulq15(y << 1, a0 + (((a1 - a0) * (int32_t)i) >> CTL_LOG2)), VOICE_FS);
+        }
+        v->fm1 = m1;
+        v->fm2 = mm2;
+        n = 0;                                          /* (done: the loop below runs no samples) */
+    }
     for (i = 0; i < n; i++) {
         int32_t a, b, s, y, k;
         switch (wave) {

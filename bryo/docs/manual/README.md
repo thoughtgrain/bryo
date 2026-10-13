@@ -465,7 +465,7 @@ Press **HOME** again to go through its five pages:
 
 | Page | Knobs |
 | --- | --- |
-| 1, the oscillator | **WAVE** (SIN TRI SQR SAW PLS), **DTUN** (a second oscillator, detuned), **MIX** of the two, **NOIS** |
+| 1, the oscillator | **WAVE** (SIN TRI SQR SAW PLS, and FM: below), **DTUN** (a second oscillator, detuned), **MIX** of the two, **NOIS** |
 | 2, AMP | **ATK DEC SUS REL**: how a note starts, falls, holds and fades |
 | 3, FILTER | **CUT** (cutoff), **RES** (resonance), **ENV** (how much the envelope opens it), **KTRK** (follows the note) |
 | 4, VOICE | **VOIC** (1-3 notes), **GLID** (slides between notes), **TUNE** (semitones), **FINE** (cents) |
@@ -475,6 +475,22 @@ Press **HOME** again to go through its five pages:
 <img src="img/synth_tuning.png" width="240" alt="SYNTH's VOICE page: TUNE and FINE over a cents meter">
 
 **Try:** play a note, then turn **CUT** on the FILTER page while it sounds.
+
+**FM.** Turn **WAVE** past PLS to **FM** and SYNTH becomes a two-operator FM synth (the header says **FM SYNTH**): a
+second sine, the modulator, bends the first one's phase, so one knob takes it from a pure tone to bells, electric
+pianos, plucks and growls. The pages relabel:
+
+| Page | Knobs |
+| --- | --- |
+| 1, the operators | **WAVE** (FM), **RATI** (the modulator's pitch against the note's: 0.5, 1, 1.41, 1.5, 2 ... 14; whole numbers sound harmonic, 1.41 and the halves like bells), **INDX** (how hard it bends: 0 a sine, up for brighter and gnarlier), **IENV** (how far the envelope pushes INDX: up for a pluck, bright at the strike and mellower after) |
+| 5, LEVEL | **DRV**, **FDBK** (the modulator fed back into itself: a new edge, then grit, then noise), **LVL** |
+
+AMP, FILTER and VOICE work as on every wave (open **CUT** to hear all of it). The picture draws the wave as INDX
+bends it now, and dotted as it's bent at the strike.
+
+**Try:** RATI 1, INDX 20, IENV +60, a short DEC and SUS at 0: an electric piano. RATI 3.5 or 1.41, INDX 40: a bell.
+
+<img src="img/synth_fm.png" width="240" alt="FM SYNTH: WAVE RATI INDX IENV">
 
 ### 5.3 POLY: play a sound across the keys
 

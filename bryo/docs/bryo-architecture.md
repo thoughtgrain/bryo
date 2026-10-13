@@ -653,6 +653,25 @@ and the fourth taking one; VOIC 1's glide up and back; the filter darkening a sa
 the tape (220.0 Hz back off it); and the crossfade from SYNTH to TAPE with no step bigger than the note's own.
 The five screens are in the golden set.
 
+### SYNTH's FM (2026-10-13)
+
+"What would it take to have one 2 op FM synth?", then "go fm without" (no one-track limit). WAVE's sixth value,
+FM, rather than a source of its own: a new source would have meant a knob table in every track, a new project
+format, and every modulation target and scene number after the sources moving, for the same sound. As RIPPLE's
+forms do, `dev_p` hands SYNTH on FM its own table (`SYN_FM_P`: the same stored places, FM's labels) and PLAYOUT row,
+and `dev_name` says FM SYNTH. RATI is DTUN's place (0..100 over 16 ratios, `SYN_RATIO8`, Q8, printed by F_RATIO),
+INDX MIX's, FDBK NOIS's; IENV is a new knob at 18, labelled in SYN_P too (so it's stored, a target and a scene's)
+but placed past the plain synth's pages.
+
+The voice (`syn_voice`, a loop of its own): the modulator `sine_i(ph1 + fb)`, fb the mean of its last two outputs
+(the DX's way of keeping feedback from buzzing) times FDBK to half a cycle; the carrier `sine_i(ph0 + m x index)`,
+the index INDX + IENV x the envelope to two cycles, ramped across the block from the last one's (`gi`). The phase
+offsets are formed unsigned so they wrap as phases do. The modulator's increment is the carrier's x RATI, held under
+half the rate. Then the drive, filter and level as every wave. Tested (`test_fm`): INDX 0 a sine (2nd and 3rd under
+0.3 %); INDX 60 every harmonic; RATI 2 the odd ones only (2nd 0.05 %); IENV 100 bright at the strike (3rd/1st 0.31,
+then 0.03); FDBK moves the spectrum (in 2-op FM it reshapes the modulator, so it isn't simply brighter: checked in a
+float model too). Cost on the host, three voices: 24-29 ns a sample against the saw's 18-24, about a quarter more.
+
 ## POLY, as built (2026-10-07)
 
 POLY is the third source engine: a sound played across the keys, up to four notes at once.

@@ -3525,6 +3525,97 @@ static void test_reso_pluck(void)
 }
 
 static double goertzel(const int32_t *x, uint32_t from, uint32_t to, double hz);   /* (below, with SPACE's tests) */
+/* SYNTH's FM (2026-10-13): WAVE FM, a modulator sine bending a carrier's phase. A3 held (220 Hz), the filter open:
+ * INDX 0 a sine; INDX up, the harmonics; RATI 2, the odd ones only (the sidebands at 220 +- 2 x 220 k); IENV, bright
+ * at the strike and mellower after; FDBK more again */
+static double fm_h(const int32_t *x, uint32_t a, uint32_t b, uint32_t h) { return sqrt(goertzel(x, a, b, 220.0 * h)); }
+static double fm_rich(const int32_t *x)                  /* harmonics 2-8 over the 1st, A3 over 300 blocks */
+{
+    double r = 0;
+    uint32_t h;
+    for (h = 2; h <= 8u; h++)
+        r += fm_h(x, 100 * CTL, 400 * CTL, h);
+    return r / (fm_h(x, 100 * CTL, 400 * CTL, 1) + 1);
+}
+static void test_fm(void)
+{
+    enum { NB = 400 };
+    static int32_t s[NB * CTL];
+    int16_t *p;
+    char b[200];
+    double h1, h2, h3, e1, e2, f1;
+    power_on();
+    tp[0].src = SRC_SYNTH;
+    p = tp[0].syn;
+    p[SY_WAVE] = SY_FM;
+    p[SY_CUT] = 127;
+    p[SY_ENV] = 0;
+    p[SY_RES] = 0;
+    p[SY_SUS] = 100;
+    p[SY_DTUN] = 8;                                      /* RATI 1 */
+    p[SY_MIX] = 0;                                       /* INDX 0, IENV 0: the carrier alone */
+    p[SY_IENV] = 0;
+    p[SY_NOIS] = 0;
+    focus_dev(DEV_SRC, 0);
+    check("WAVE FM: the header says FM SYNTH, page 1 is WAVE RATI INDX IENV, the last DRV FDBK . LVL, RATI 1 at 8",
+          !strcmp(dev_name(0, DEV_SRC), "FM SYNTH") && dev_p(0, DEV_SRC) == SYN_FM_P &&
+          pdesc_at(SYN_FM_P, 1) == SY_DTUN && pdesc_at(SYN_FM_P, 3) == SY_IENV && pdesc_at(SYN_FM_P, 17) == SY_NOIS &&
+          N_RATIO[syn_ratio(8)][0] == '1' && N_RATIO[syn_ratio(8)][1] == 0 && N_RATIO[syn_ratio(100)][1] == '4');
+    fm1_in.notes = note_bit_of_white(9);
+    render(NB, s);
+    h1 = fm_h(s, 100 * CTL, NB * CTL, 1);
+    h2 = fm_h(s, 100 * CTL, NB * CTL, 2);
+    h3 = fm_h(s, 100 * CTL, NB * CTL, 3);
+    snprintf(b, sizeof b, "FM, INDX 0: a sine at A3 (2nd %.4f, 3rd %.4f of the 1st)", h2 / h1, h3 / h1);
+    check(b, h1 > 0 && h2 < h1 / 100 && h3 < h1 / 100);
+    p[SY_MIX] = 60;                                      /* INDX 60, RATI 1: every harmonic */
+    render(NB, s);
+    h1 = fm_h(s, 100 * CTL, NB * CTL, 1);
+    h2 = fm_h(s, 100 * CTL, NB * CTL, 2);
+    h3 = fm_h(s, 100 * CTL, NB * CTL, 3);
+    snprintf(b, sizeof b, "..INDX 60, RATI 1: the harmonics (2nd %.2f, 3rd %.2f of the 1st)", h2 / h1, h3 / h1);
+    check(b, h2 > h1 / 10 && h3 > h1 / 20);
+    p[SY_DTUN] = 28;                                     /* RATI 2: the odd harmonics alone */
+    render(NB, s);
+    h1 = fm_h(s, 100 * CTL, NB * CTL, 1);
+    h2 = fm_h(s, 100 * CTL, NB * CTL, 2);
+    h3 = fm_h(s, 100 * CTL, NB * CTL, 3);
+    snprintf(b, sizeof b, "..RATI %s: the odd harmonics only (2nd %.4f, 3rd %.2f of the 1st)", N_RATIO[syn_ratio(28)],
+             h2 / h1, h3 / h1);
+    check(b, !strcmp(N_RATIO[syn_ratio(28)], "2") && h3 > h1 / 10 && h2 < h3 / 30);
+    p[SY_DTUN] = 8;
+    p[SY_MIX] = 0;                                       /* IENV 100, DEC short, SUS 0: the pluck's brightness */
+    p[SY_IENV] = 100;
+    p[SY_SUS] = 0;
+    p[SY_DEC] = 70;
+    fm1_in.notes = 0;
+    render(NB, 0);
+    fm1_in.notes = note_bit_of_white(9);
+    render(NB, s);
+    e1 = fm_h(s, 4 * CTL, 40 * CTL, 3) / (fm_h(s, 4 * CTL, 40 * CTL, 1) + 1);
+    e2 = fm_h(s, 200 * CTL, 236 * CTL, 3) / (fm_h(s, 200 * CTL, 236 * CTL, 1) + 1);
+    snprintf(b, sizeof b, "..IENV 100: bright at the strike, mellower as the envelope falls (3rd over 1st %.3f, then %.3f)",
+             e1, e2);
+    check(b, e1 > 3 * e2);
+    p[SY_IENV] = 0;
+    p[SY_SUS] = 100;
+    p[SY_MIX] = 30;
+    render(NB, s);
+    f1 = fm_rich(s);
+    p[SY_NOIS] = 80;                                     /* FDBK 80 */
+    render(NB, s);
+    snprintf(b, sizeof b, "..FDBK 80: another timbre (harmonics 2-8 over the 1st %.3f, %.3f without; the modulator "
+             "saw-ish: it moves the spectrum, not only up), bounded", fm_rich(s), f1);
+    check(b, (fm_rich(s) > 1.25 * f1 || fm_rich(s) < f1 / 1.25) && peak_of(s, NB * CTL) < 32767);
+    p[SY_NOIS] = 0;
+    p[SY_MIX] = 50;
+    p[SY_IENV] = 60;
+    ui.msg_t = 0;
+    shot("BRYO", "synth_fm");
+    fm1_in.notes = 0;
+    render(NB, 0);
+}
+
 /* scenes (scene.c, 2026-10-13): the mixer's SCENES page (GLO, then EDIT): white keys 1-4 recall (held + SAVE:
  * store), KNOB 1-4 morph. A track whose source differs fades out, switches, fades in; choices switch at the
  * midpoint; the playing isn't theirs; saved in the project as their differences */
@@ -6652,7 +6743,7 @@ static void test_mod(void)
     {
         static const struct { const pdesc_t *p; const char *a, *b; uint32_t away; const char *f3, *f4; } R[] = {
             /* (a b: KNOB 3-4 of the last page; f3 f4: of the first; away: knobs another pad's page shows) */
-            {DEV_P[DEV_SRC], 0, "LVL"}, {SYN_P, 0, "LVL"}, {POL_P, 0, "LVL"},
+            {DEV_P[DEV_SRC], 0, "LVL"}, {SYN_P, 0, "LVL", 1u << SY_IENV}, {SYN_FM_P, 0, "LVL"}, {POL_P, 0, "LVL"},
             {DRM_P, 0, "LVL"},
             {DEV_P[DEV_COLOR], 0, "LVL", 0, "ROUT", "WET"}, {DEV_P[DEV_GRAIN], 0, 0, 0, "ROUT", "WET"},
             {DEV_P[DEV_RESO], 0, 0, 0x1F000u, "ROUT", "WET"},   /* (12-15: RIPL ARP, the ARP pad's page 3; 16:
@@ -9673,6 +9764,7 @@ int main(int argc, char **argv)
     test_reso_pluck();
     test_ripple_forms();
     test_scenes();
+    test_fm();
     test_sleep();
     test_color();
     test_space();

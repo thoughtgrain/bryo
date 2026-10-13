@@ -1049,7 +1049,31 @@ static void viz_synth(const int16_t *v, uint32_t f)
     uint32_t bp = ui.page >= 4u ? 4u : pdesc_at(SYN_P, 4u * ui.page) / 4u;   /* the stored block the page shows (page
                                                                               * 5, DRV . . LVL: 4) */
     int32_t x, k;
-    if (bp == 0u) {
+    if (v[SY_WAVE] == SY_FM && (bp == 0u || f == SY_NOIS)) {   /* FM: three of the carrier's cycles as bent now (INDX,
+                                                         * RATI, FDBK), and dotted as bent at the strike (+ IENV) */
+        int32_t r8 = SYN_RATIO8[syn_ratio(v[SY_DTUN])], j;
+        for (j = 1; j >= 0; j--) {
+            int32_t ix = clamp(v[SY_MIX] + (j ? v[SY_IENV] : 0), 0, 100), py = 0, fbm = 0;
+            for (x = DX0; x <= DX1; x++) {
+                int32_t p = (x - DX0) * 192 / DW, pm = p * r8 / 256, m, o, yy;
+                m = px_sin(pm + fbm * v[SY_NOIS] * 16 / 100 / 1000);
+                fbm = m;
+                o = px_sin(p + m * ix * 128 / 100 / 1000);   /* (INDX 100: two cycles, 128 of 64 a cycle) */
+                yy = DMID - o * (DH / 2 - 2) / 1000;
+                if (j) {
+                    if ((x & 1) == 0 && v[SY_IENV])
+                        px_dot(x, yy, px_dim);
+                } else if (x > DX0) {
+                    px_line(x - 1, py, x, yy, px_ink, 1);
+                }
+                py = yy;
+            }
+        }
+        vz_label(14, "FM", f == 0u);
+        vz_label(45, N_RATIO[syn_ratio(v[SY_DTUN])], f == SY_DTUN);
+        vz_label(75, "INDX", f == SY_MIX);
+        vz_label(105, f == SY_NOIS ? "FDBK" : "IENV", f == SY_IENV || f == SY_NOIS);
+    } else if (bp == 0u) {
         uint32_t w = (uint32_t)clamp(v[SY_WAVE], 0, 4);
         int32_t py = 0, m2 = v[SY_MIX], dr = v[SY_DTUN];
         vz_seed = 77u;
