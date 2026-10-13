@@ -290,7 +290,7 @@ page pad, to leave.
 
 ### 3.5 Fewer tracks, more memory
 
-The four tracks share one memory (28 seconds of sound in all). You can switch tracks off to give the others more:
+The four tracks share one memory (about 20 seconds of sound in all). You can switch tracks off to give the others more:
 
 1. **Hold GLO** and turn **SELECT**: TRACKS 4, 3, 2 or 1.
 2. The tracks above the number go silent and **OFF**, and their memory is free for the others.
