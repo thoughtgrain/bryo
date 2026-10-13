@@ -672,6 +672,20 @@ half the rate. Then the drive, filter and level as every wave. Tested (`test_fm`
 then 0.03); FDBK moves the spectrum (in 2-op FM it reshapes the modulator, so it isn't simply brighter: checked in a
 float model too). Cost on the host, three voices: 24-29 ns a sample against the saw's 18-24, about a quarter more.
 
+### SYNTH's PD (2026-10-13)
+
+"Then what about a phase synth engine", then "build it": the CZ's phase distortion, WAVE's seventh value, PD, built
+as FM was (`SYN_PD_P`, its own labels and pages, "PD SYNTH"): SHAP in DTUN's place (eight shapes over 0..100,
+`syn_pdsh`, printed by F_PDSH), AMT in MIX's, AENV in IENV's, NOIS as it is. `syn_pd` reads one cosine (`sine_i` a
+quarter turn back, so an unbent phase is a sine) at a bent phase p + d x (T(p) - p), T the shape's full bend in Q16
+(SAW a knee at 1 %, SQR each half a sweep and a hold, PLS one sweep in 5 %, DSIN two cycles, SPLS a sweep and a
+hold then as it was), the divides done ahead as constants. The resonant three read the cosine 1 + 15 x AMT times
+faster under a window that ends at 0 (a saw's, a triangle's, a trapezoid's), the CZ's resonance. The bend is AMT +
+AENV x the envelope, ramped across the block. The picture draws the voice's own `syn_pd`. Tested (`test_pd`): AMT 0
+a sine (2nd 0.3 %); SAW at 100 a saw's spectrum (2nd 0.40, 3rd 0.26); SQR odd harmonics (2nd 0.3 %); AENV's sweep
+(3rd/1st 0.17 at the strike, 0.05 after); RSAW's AMT 10 -> 90 moves its energy up (8th-16th over 1st-4th 0.27 ->
+69). Host cost, three voices: 22-23 ns a sample, about FM's (the saw 17-23).
+
 ## POLY, as built (2026-10-07)
 
 POLY is the third source engine: a sound played across the keys, up to four notes at once.

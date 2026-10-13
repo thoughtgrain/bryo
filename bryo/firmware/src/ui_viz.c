@@ -1049,7 +1049,29 @@ static void viz_synth(const int16_t *v, uint32_t f)
     uint32_t bp = ui.page >= 4u ? 4u : pdesc_at(SYN_P, 4u * ui.page) / 4u;   /* the stored block the page shows (page
                                                                               * 5, DRV . . LVL: 4) */
     int32_t x, k;
-    if (v[SY_WAVE] == SY_FM && (bp == 0u || f == SY_NOIS)) {   /* FM: three of the carrier's cycles as bent now (INDX,
+    if (v[SY_WAVE] == SY_PD && bp == 0u) {             /* PD: two cycles as bent now (AMT), dotted as bent at the
+                                                         * strike (+ AENV), through the voice's own syn_pd */
+        uint32_t sh = syn_pdsh(v[SY_DTUN]);
+        int32_t j;
+        for (j = 1; j >= 0; j--) {
+            int32_t am = clamp(v[SY_MIX] + (j ? v[SY_IENV] : 0), 0, 100) * 16384 / 100, py = 0;
+            for (x = DX0; x <= DX1; x++) {
+                uint32_t ph = (uint32_t)((x - DX0) * 2 * 65536 / (DW + 1)) << 16;   /* (two cycles) */
+                int32_t yy = DMID - syn_pd(ph, am, sh) * (DH / 2 - 2) / 32767;
+                if (j) {
+                    if ((x & 1) == 0 && v[SY_IENV])
+                        px_dot(x, yy, px_dim);
+                } else if (x > DX0) {
+                    px_line(x - 1, py, x, yy, px_ink, 1);
+                }
+                py = yy;
+            }
+        }
+        vz_label(14, "PD", f == 0u);
+        vz_label(45, N_PDSH[sh], f == SY_DTUN);
+        vz_label(75, "AMT", f == SY_MIX);
+        vz_label(105, "AENV", f == SY_IENV);
+    } else if (v[SY_WAVE] == SY_FM && (bp == 0u || f == SY_NOIS)) {   /* FM: three of the carrier's cycles as bent now (INDX,
                                                          * RATI, FDBK), and dotted as bent at the strike (+ IENV) */
         int32_t r8 = SYN_RATIO8[syn_ratio(v[SY_DTUN])], j;
         for (j = 1; j >= 0; j--) {

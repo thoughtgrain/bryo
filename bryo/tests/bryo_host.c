@@ -3616,6 +3616,98 @@ static void test_fm(void)
     render(NB, 0);
 }
 
+/* SYNTH's PD (2026-10-13): WAVE PD, the CZ's phase distortion. A3 held, the filter open: AMT 0 a sine; SAW at 100 a
+ * saw's harmonics (the nth about 1/n), SQR the odd ones; AENV the sweep; a resonant shape's AMT moves its peak up */
+static double pd_band(const int32_t *x, uint32_t a, uint32_t b, uint32_t lo, uint32_t hi)
+{
+    double e = 0;
+    uint32_t h;
+    for (h = lo; h <= hi; h++)
+        e += fm_h(x, a, b, h);
+    return e;
+}
+static void test_pd(void)
+{
+    enum { NB = 400 };
+    static int32_t s[NB * CTL];
+    int16_t *p;
+    char b[200];
+    double h1, h2, h3, lo, hi, lo2, hi2;
+    power_on();
+    tp[0].src = SRC_SYNTH;
+    p = tp[0].syn;
+    p[SY_WAVE] = SY_PD;
+    p[SY_CUT] = 127;
+    p[SY_ENV] = 0;
+    p[SY_RES] = 0;
+    p[SY_SUS] = 100;
+    p[SY_DTUN] = 0;                                      /* SHAP SAW */
+    p[SY_MIX] = 0;                                       /* AMT 0, AENV 0 */
+    p[SY_IENV] = 0;
+    p[SY_NOIS] = 0;
+    focus_dev(DEV_SRC, 0);
+    check("WAVE PD: the header says PD SYNTH, page 1 WAVE SHAP AMT AENV, SHAP's eight shapes",
+          !strcmp(dev_name(0, DEV_SRC), "PD SYNTH") && dev_p(0, DEV_SRC) == SYN_PD_P && pdesc_at(SYN_PD_P, 3) == SY_IENV &&
+          !strcmp(N_PDSH[syn_pdsh(0)], "SAW") && !strcmp(N_PDSH[syn_pdsh(100)], "RTRP") && !strcmp(N_PDSH[syn_pdsh(8)], "SAW"));
+    fm1_in.notes = note_bit_of_white(9);
+    render(NB, s);
+    h1 = fm_h(s, 100 * CTL, NB * CTL, 1);
+    h2 = fm_h(s, 100 * CTL, NB * CTL, 2);
+    snprintf(b, sizeof b, "PD, AMT 0: a sine (2nd %.4f of the 1st)", h2 / h1);
+    check(b, h1 > 0 && h2 < h1 / 100);
+    p[SY_MIX] = 100;                                     /* SAW, AMT 100 */
+    render(NB, s);
+    h1 = fm_h(s, 100 * CTL, NB * CTL, 1);
+    h2 = fm_h(s, 100 * CTL, NB * CTL, 2);
+    h3 = fm_h(s, 100 * CTL, NB * CTL, 3);
+    snprintf(b, sizeof b, "..SAW, AMT 100: a saw's harmonics (2nd %.2f, 3rd %.2f of the 1st; a saw's 0.50 0.33)", h2 / h1,
+             h3 / h1);
+    check(b, h2 / h1 > 0.3 && h2 / h1 < 0.7 && h3 / h1 > 0.18 && h3 / h1 < 0.5);
+    p[SY_DTUN] = 13;                                     /* SQR */
+    render(NB, s);
+    h1 = fm_h(s, 100 * CTL, NB * CTL, 1);
+    h2 = fm_h(s, 100 * CTL, NB * CTL, 2);
+    h3 = fm_h(s, 100 * CTL, NB * CTL, 3);
+    snprintf(b, sizeof b, "..%s, AMT 100: the odd harmonics (2nd %.4f, 3rd %.2f of the 1st)", N_PDSH[syn_pdsh(13)], h2 / h1,
+             h3 / h1);
+    check(b, !strcmp(N_PDSH[syn_pdsh(13)], "SQR") && h3 > h1 / 10 && h2 < h3 / 20);
+    p[SY_DTUN] = 0;                                      /* AENV 100, AMT 0, a short DEC to SUS 0: the sweep */
+    p[SY_MIX] = 0;
+    p[SY_IENV] = 100;
+    p[SY_SUS] = 0;
+    p[SY_DEC] = 70;
+    fm1_in.notes = 0;
+    render(NB, 0);
+    fm1_in.notes = note_bit_of_white(9);
+    render(NB, s);
+    lo = fm_h(s, 4 * CTL, 40 * CTL, 3) / (fm_h(s, 4 * CTL, 40 * CTL, 1) + 1);
+    hi = fm_h(s, 200 * CTL, 236 * CTL, 3) / (fm_h(s, 200 * CTL, 236 * CTL, 1) + 1);
+    snprintf(b, sizeof b, "..AENV 100: bent at the strike, a sine again as the envelope falls (3rd over 1st %.3f, then %.3f)",
+             lo, hi);
+    check(b, lo > 0.15 && hi < lo / 3);
+    p[SY_IENV] = 0;
+    p[SY_SUS] = 100;
+    p[SY_DTUN] = 70;                                     /* RSAW: AMT 10, then 90: its peak moves up */
+    p[SY_MIX] = 10;
+    render(NB, s);
+    lo = pd_band(s, 100 * CTL, NB * CTL, 1, 4);
+    hi = pd_band(s, 100 * CTL, NB * CTL, 8, 16);
+    p[SY_MIX] = 90;
+    render(NB, s);
+    lo2 = pd_band(s, 100 * CTL, NB * CTL, 1, 4);
+    hi2 = pd_band(s, 100 * CTL, NB * CTL, 8, 16);
+    snprintf(b, sizeof b, "..%s: AMT 10 -> 90 moves its resonance up (8th-16th over 1st-4th %.2f -> %.2f), bounded",
+             N_PDSH[syn_pdsh(70)], hi / (lo + 1), hi2 / (lo2 + 1));
+    check(b, !strcmp(N_PDSH[syn_pdsh(70)], "RSAW") && hi2 / (lo2 + 1) > 4 * hi / (lo + 1) && peak_of(s, NB * CTL) < 32767);
+    p[SY_DTUN] = 0;
+    p[SY_MIX] = 60;
+    p[SY_IENV] = 30;
+    ui.msg_t = 0;
+    shot("BRYO", "synth_pd");
+    fm1_in.notes = 0;
+    render(NB, 0);
+}
+
 /* scenes (scene.c, 2026-10-13): the mixer's SCENES page (GLO, then EDIT): white keys 1-4 recall (held + SAVE:
  * store), KNOB 1-4 morph. A track whose source differs fades out, switches, fades in; choices switch at the
  * midpoint; the playing isn't theirs; saved in the project as their differences */
@@ -6743,7 +6835,8 @@ static void test_mod(void)
     {
         static const struct { const pdesc_t *p; const char *a, *b; uint32_t away; const char *f3, *f4; } R[] = {
             /* (a b: KNOB 3-4 of the last page; f3 f4: of the first; away: knobs another pad's page shows) */
-            {DEV_P[DEV_SRC], 0, "LVL"}, {SYN_P, 0, "LVL", 1u << SY_IENV}, {SYN_FM_P, 0, "LVL"}, {POL_P, 0, "LVL"},
+            {DEV_P[DEV_SRC], 0, "LVL"}, {SYN_P, 0, "LVL", 1u << SY_IENV}, {SYN_FM_P, 0, "LVL"}, {SYN_PD_P, 0, "LVL"},
+            {POL_P, 0, "LVL"},
             {DRM_P, 0, "LVL"},
             {DEV_P[DEV_COLOR], 0, "LVL", 0, "ROUT", "WET"}, {DEV_P[DEV_GRAIN], 0, 0, 0, "ROUT", "WET"},
             {DEV_P[DEV_RESO], 0, 0, 0x1F000u, "ROUT", "WET"},   /* (12-15: RIPL ARP, the ARP pad's page 3; 16:
@@ -9765,6 +9858,7 @@ int main(int argc, char **argv)
     test_ripple_forms();
     test_scenes();
     test_fm();
+    test_pd();
     test_sleep();
     test_color();
     test_space();

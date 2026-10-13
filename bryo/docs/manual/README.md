@@ -465,7 +465,7 @@ Press **HOME** again to go through its five pages:
 
 | Page | Knobs |
 | --- | --- |
-| 1, the oscillator | **WAVE** (SIN TRI SQR SAW PLS, and FM: below), **DTUN** (a second oscillator, detuned), **MIX** of the two, **NOIS** |
+| 1, the oscillator | **WAVE** (SIN TRI SQR SAW PLS, and FM and PD: below), **DTUN** (a second oscillator, detuned), **MIX** of the two, **NOIS** |
 | 2, AMP | **ATK DEC SUS REL**: how a note starts, falls, holds and fades |
 | 3, FILTER | **CUT** (cutoff), **RES** (resonance), **ENV** (how much the envelope opens it), **KTRK** (follows the note) |
 | 4, VOICE | **VOIC** (1-3 notes), **GLID** (slides between notes), **TUNE** (semitones), **FINE** (cents) |
@@ -491,6 +491,20 @@ bends it now, and dotted as it's bent at the strike.
 **Try:** RATI 1, INDX 20, IENV +60, a short DEC and SUS at 0: an electric piano. RATI 3.5 or 1.41, INDX 40: a bell.
 
 <img src="img/synth_fm.png" width="240" alt="FM SYNTH: WAVE RATI INDX IENV">
+
+**PD.** One more turn of **WAVE** gives **PD**, phase distortion, the way Casio's CZ synths made their sound (the
+header says **PD SYNTH**). A single cosine is read through a bent phase: unbent it's a pure sine, and the more it
+bends the more it becomes the shape you've picked. It sounds like a filter sweep without a filter, warm and vocal.
+
+| Page | Knobs |
+| --- | --- |
+| 1, the shape | **WAVE** (PD), **SHAP** (SAW, SQR, PLS, DSIN a double sine, SPLS a saw-pulse, and three resonant ones, RSAW RTRI RTRP), **AMT** (how far the phase bends: 0 a sine, 100 the whole shape; on the resonant shapes, how high the resonance sits), **AENV** (how far the envelope moves AMT: the CZ's sweep) |
+| 5, LEVEL | **DRV**, **NOIS**, **LVL** |
+
+**Try:** SAW, AMT 0, AENV +80, a medium DEC and SUS at 0: the classic CZ bass sweep. RSAW with AMT turned slowly:
+the resonant "wah" that made the CZ famous.
+
+<img src="img/synth_pd.png" width="240" alt="PD SYNTH: WAVE SHAP AMT AENV">
 
 ### 5.3 POLY: play a sound across the keys
 

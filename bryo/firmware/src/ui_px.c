@@ -622,6 +622,8 @@ static void px_picto(uint32_t kind, int32_t x, int32_t y, const pdesc_t *d, int3
                 o = (p & 63) < 16 ? 1000 : -1000;
             } else if (kind == PK_OSC && v == SY_FM) {   /* FM: a sine bent by one twice as fast */
                 o = px_sin(p + px_sin(p * 2) * 10 / 1000);
+            } else if (kind == PK_OSC && v == SY_PD) {   /* PD: a cosine's phase bent toward a saw */
+                o = syn_pd((uint32_t)(p & 63) << 26, 12000, 0) * 1000 / 32767;
             } else if (kind == PK_BODY) {                /* (the source's low end: two slow partials) */
                 o = v == 1 ? px_wave(1u, p) : v == 2 ? px_wave(0u, p) : (px_sin(p) * 6 + px_sin(p * 2 + 9) * 3) / 10;
             } else if (kind == PK_SHAPE || kind == PK_OSC) {
@@ -1061,6 +1063,12 @@ static const uint8_t SYN_FM_PK[NPK] = {
     PK_ATTACK, PK_DECAY, PK_SUSTAIN, PK_RELEASE,     /*           ATK DEC SUS REL */
     PK_VOICES, PK_SLEW, PK_DRIVE, PK_KNOB,           /*           VOIC GLID DRV TUNE */
     PK_FADER, PK_DETUNE, PK_ENVAMT};                 /*           LVL FINE IENV */
+static const uint8_t SYN_PD_PK[NPK] = {
+    PK_OSC, PK_SHAPE, PK_MIX, PK_NOISE,              /* PD SYNTH: WAVE SHAP AMT NOIS */
+    PK_CUTOFF, PK_RES, PK_ENVAMT, PK_KTRK,           /*           CUT RES ENV KTRK */
+    PK_ATTACK, PK_DECAY, PK_SUSTAIN, PK_RELEASE,     /*           ATK DEC SUS REL */
+    PK_VOICES, PK_SLEW, PK_DRIVE, PK_KNOB,           /*           VOIC GLID DRV TUNE */
+    PK_FADER, PK_DETUNE, PK_ENVAMT};                 /*           LVL FINE AENV */
 static const uint8_t POL_PK[NPK] = {
     PK_SRC, PK_START, PK_KNOB, PK_VOICES,            /* POLY: REEL STRT TUNE VOIC */
     PK_ATTACK, PK_DECAY, PK_SUSTAIN, PK_RELEASE,     /*       ATK DEC SUS REL */
@@ -1077,7 +1085,8 @@ static const uint8_t *dev_pk(uint32_t t, uint32_t d)
 {
     if (d != DEV_SRC || tp[t].src == SRC_TAPE)
         return DEV_PK[d];
-    return tp[t].src == SRC_SYNTH ? (tp[t].syn[SY_WAVE] == SY_FM ? SYN_FM_PK : SYN_PK) : tp[t].src == SRC_POLY ? POL_PK
+    return tp[t].src == SRC_SYNTH ? (tp[t].syn[SY_WAVE] == SY_FM ? SYN_FM_PK : tp[t].syn[SY_WAVE] == SY_PD ? SYN_PD_PK
+                                                                                                          : SYN_PK) : tp[t].src == SRC_POLY ? POL_PK
                                                                                                          : DRM_PK;
 }
 static const uint8_t CH_PK[NCH] = {PK_SHELF_LO, PK_SHELF_HI, PK_FILTER, PK_PAN};

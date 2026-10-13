@@ -19,6 +19,12 @@
  * (NOIS's) the modulator fed into itself through the mean of its last two outputs (sine, then saw-ish, then noise).
  * The filter, drive, envelope, voices and glide as for every wave.
  *
+ * WAVE PD (2026-10-13): the CZ's phase distortion. One cosine read through a bent phase (syn_pd): SHAP the shape
+ * (DTUN's place), AMT how far the phase bends, 0 a sine (MIX's), AENV the envelope's push on AMT (IENV's place);
+ * NOIS as it is. Five shapes bend the phase toward a full bend (a knee, a hold); the three resonant ones read the
+ * cosine 1 + 15 x AMT times faster under a window (a saw's, a triangle's, a trapezoid's) that ends at 0, the CZ's
+ * resonance.
+ *
  * Cost: per voice per sample, two oscillators, one noise step when NOIS is up, one filter; coefficients per block.
  * FM: two sine reads and their phase offsets, about what the band-limited oscillators cost.
  * Everything runs in the audio ISR; the main loop only writes the knobs (tp[t].syn) and the source (tp[t].src). */
@@ -31,7 +37,8 @@ typedef struct {
     int32_t amp;                 /* the last block's level, Q15 (the next block ramps from it) */
     int32_t p16, to16;           /* the pitch now and where it glides to, 1/16 semitone */
     int32_t fm1, fm2;            /* FM: the modulator's last two outputs (its feedback) */
-    int32_t gi;                  /* FM: the index last block, 0..1024 (the next block ramps from it) */
+    int32_t gi;                  /* FM: the index last block, 0..1024; PD: the bend, 0..16384 (the next block ramps
+                                  * from it) */
     uint32_t age;                /* when its note started (the oldest is stolen first) */
     uint8_t key, stage;          /* the white key; 0 silent, 1 attack, 2 decay and sustain, 3 release */
 } syn_voice_t;
@@ -101,6 +108,31 @@ static void syn_start(uint32_t t, uint32_t k, uint32_t nv)
     s->last16 = note;
 }
 
+/* PD: the voice's sample at phase ph, the bend d (0..16384: 0 a sine, 16384 the whole shape), shape sh (N_PDSH);
+ * Q15. The full bend of each phase shape is a map T of the phase (Q16; its constants the divides done ahead), and the
+ * phase read is p + d x (T(p) - p) */
+static inline __attribute__((always_inline)) int32_t syn_pd(uint32_t ph, int32_t d, uint32_t sh)
+{
+    int32_t p = (int32_t)(ph >> 16), q;
+    if (sh >= 5u) {                                     /* resonant: the cosine 1..16 times faster under a window */
+        uint32_t r = 65536u + (uint32_t)d * 60u, w;      /* (Q16: d 16384 x 60 is 15 x 65536) */
+        int32_t c = sine_i((uint32_t)p * r + 0xC0000000u);
+        w = sh == 5u ? 65535u - (uint32_t)p : sh == 6u ? (p < 32768 ? (uint32_t)p * 2u : (65535u - (uint32_t)p) * 2u)
+          : (p < 32768 ? 65535u : (65535u - (uint32_t)p) * 2u);
+        return (c * (int32_t)(w >> 1)) >> 15;
+    }
+    switch (sh) {
+    case 0: q = p < 655 ? p * 50 : 32768 + (((p - 655) * 33099) >> 16); break;   /* SAW: a knee at 1 % */
+    case 1: q = (p & 32768) + ((p & 32767) < 655 ? (p & 32767) * 50 : 32768); break;   /* SQR: each half a sweep
+                                                                                     * then a hold */
+    case 2: q = p < 3277 ? p * 20 : 65535; break;        /* PLS: one sweep in 5 %, then the hold */
+    case 3: q = p * 2; break;                            /* DSIN: two cycles */
+    default: q = p < 32768 ? (p < 655 ? p * 50 : 32768) : p; break;   /* SPLS: a sweep and a hold, then as it was */
+    }
+    q = p + (((q - p) * d) >> 14);
+    return sine_i(((uint32_t)q << 16) + 0xC0000000u);  /* (-cos: a sine from its trough, so 0 is a sine) */
+}
+
 /* one block of one voice, added into out */
 static void syn_voice(uint32_t t, syn_voice_t *v, int32_t *out, uint32_t n)
 {
@@ -146,6 +178,29 @@ static void syn_voice(uint32_t t, syn_voice_t *v, int32_t *out, uint32_t n)
     cut = mod_fine8(t, FN_SCUT, p[SY_CUT]) + p[SY_ENV] * 96 * (e15 >> 7) / 100 + p[SY_KTRK] * (pp - 60 * 16) * 16 / 100;
                                                             /* (CUT finer than its semitones when modulated: mod.c) */
     tsvf_coef(&flt, cut, p[SY_RES] * 127 / 100);
+    if (wave == SY_PD) {                                /* PD: the bend ramped from last block's, the shape */
+        int32_t d1 = clamp(p[SY_MIX] + p[SY_IENV] * (e15 >> 7) / 255, 0, 100) * 16384 / 100, d0 = v->gi;
+        int32_t dd = (d1 - d0) >> CTL_LOG2;
+        uint32_t sh = syn_pdsh(p[SY_DTUN]);
+        v->gi = d1;
+        for (i = 0; i < n; i++, d0 += dd) {
+            int32_t s, y, k;
+            s = syn_pd(ph0, d0, sh);
+            ph0 += inc1;
+            if (nz)
+                s += mulq15((int32_t)(noise32(&nst) >> 17) - 16384, nz);
+            if (drv)
+                s = softclip((s * dg) >> 12);
+            y = tsvf_lp(&flt, s >> 1, &ic1, &ic2);
+            k = y < 0 ? -y : y;
+            if (k > 16000) {
+                k = 16000 + (softclip((k - 16000) * 2) >> 1);
+                y = y < 0 ? -k : k;
+            }
+            out[i] += mulq15(mulq15(y << 1, a0 + (((a1 - a0) * (int32_t)i) >> CTL_LOG2)), VOICE_FS);
+        }
+        n = 0;
+    }
     if (wave == SY_FM) {                                /* FM: the modulator's increment, the index ramped from last
                                                          * block's, the feedback's gain */
         uint32_t r8 = SYN_RATIO8[syn_ratio(p[SY_DTUN])], ib = inc1 >> 8;
