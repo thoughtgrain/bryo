@@ -707,6 +707,21 @@ ratio of 0.7 to 1.5), with no logarithm in the audio. Three `tsvf_coef_k` a voic
 loud at 600-900 Hz, I at 2-2.6 kHz (the band ratio 5.6 against 0.1); SHFT +100 moves A's first formant up (1.59
 against 0.50); VENV +50 at the strike (0.98, then 0.16). Host cost, three voices: 34 ns a sample, twice the saw's.
 
+### SYNTH's WT (2026-10-13)
+
+WAVE's ninth value, WT, a wavetable (`SYN_WT_P`, "WT SYNTH"): TABL a new knob at 20 (nomod; the built tables BASC
+HARM FORM, then every reel choice: `N_WTAB`), POS in DTUN's place, PENV in IENV's. A table is eight frames of 256
+samples, one cycle each, four to a chunk of the shared memory read as int16 (as RIPPLE's strings read theirs): two
+chunks a track (`MEM_WT + t`), taken by `wt_poll` (chain_poll) while the track is in use and its SYNTH is on WT,
+given back otherwise. A change of TABL rebuilds in the main loop with `ready` down (the ISR plays silence for those
+milliseconds). The built tables are additive, 24 harmonics (BASC: sine, triangle, saw, square, 25 % pulse and the
+blends between; HARM: one harmonic swept up the frames; FORM: a saw under a resonance swept up), normalised; a reel
+gives eight windows evenly through it, each made to loop (its last 32 samples crossfaded into the 32 before its
+start), centred and normalised. The voice reads a frame linearly between samples and between the two frames POS
+(+ PENV x the envelope) falls between, a frame pair a block. Tested (`test_wt`): two chunks, built; BASC POS 0 a
+sine, POS 58 the saw (2nd 0.48, 3rd 0.33); PENV's sweep; BELL's frames played as cycles at A3 (harmonics of 220
+over the in-betweens 126 x); WAVE back to SAW gives the chunks back. Host cost, three voices: about the saw's.
+
 ## POLY, as built (2026-10-07)
 
 POLY is the third source engine: a sound played across the keys, up to four notes at once.

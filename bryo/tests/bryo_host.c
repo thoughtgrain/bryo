@@ -3846,6 +3846,79 @@ static void test_vox(void)
     track[0].octave = 3;
 }
 
+/* SYNTH's WT (2026-10-13): a wavetable of eight frames in two chunks of the shared memory, taken while WAVE is WT */
+static void test_wt(void)
+{
+    enum { NB = 300 };
+    static int32_t s[NB * CTL];
+    int16_t *p;
+    char b[220];
+    double h1, h2, h3, off;
+    power_on();
+    tp[0].src = SRC_SYNTH;
+    p = tp[0].syn;
+    p[SY_WAVE] = SY_WT;
+    p[SY_TABL] = 0;                                      /* BASC */
+    p[SY_DTUN] = 0;                                      /* POS 0: its first frame, a sine */
+    p[SY_IENV] = 0;
+    p[SY_CUT] = 127;
+    p[SY_ENV] = 0;
+    p[SY_SUS] = 100;
+    chain_poll();
+    focus_dev(DEV_SRC, 0);
+    check("WAVE WT: two chunks of the shared memory, the table built, the header WT SYNTH, page 1 WAVE TABL POS PENV",
+          mem_count(MEM_WT) == 2u && wt[0].ready && wt[0].built == 0 && !strcmp(dev_name(0, DEV_SRC), "WT SYNTH") &&
+          pdesc_at(SYN_WT_P, 1) == SY_TABL && pdesc_at(SYN_WT_P, 2) == SY_DTUN && pdesc_at(SYN_WT_P, 3) == SY_IENV);
+    fm1_in.notes = note_bit_of_white(9);
+    render(NB, s);
+    h1 = fm_h(s, 100 * CTL, NB * CTL, 1);
+    h2 = fm_h(s, 100 * CTL, NB * CTL, 2);
+    snprintf(b, sizeof b, "WT BASC, POS 0: a sine at A3 (2nd %.4f of the 1st)", h2 / h1);
+    check(b, h1 > 0 && h2 < h1 / 50);
+    p[SY_DTUN] = 58;                                     /* POS 58: frame 4, the saw */
+    render(NB, s);
+    h1 = fm_h(s, 100 * CTL, NB * CTL, 1);
+    h2 = fm_h(s, 100 * CTL, NB * CTL, 2);
+    h3 = fm_h(s, 100 * CTL, NB * CTL, 3);
+    snprintf(b, sizeof b, "..POS 58: the saw's frame (2nd %.2f, 3rd %.2f of the 1st)", h2 / h1, h3 / h1);
+    check(b, h2 / h1 > 0.35 && h2 / h1 < 0.65 && h3 / h1 > 0.2);
+    p[SY_DTUN] = 0;                                      /* PENV +100, SUS 0: the strike far into the table */
+    p[SY_IENV] = 100;
+    p[SY_SUS] = 0;
+    p[SY_DEC] = 70;
+    fm1_in.notes = 0;
+    render(NB, 0);
+    fm1_in.notes = note_bit_of_white(9);
+    render(NB, s);
+    h1 = fm_h(s, 4 * CTL, 40 * CTL, 2) / (fm_h(s, 4 * CTL, 40 * CTL, 1) + 1);
+    h2 = fm_h(s, 200 * CTL, 236 * CTL, 2) / (fm_h(s, 200 * CTL, 236 * CTL, 1) + 1);
+    snprintf(b, sizeof b, "..PENV +100: the strike far into the table, back toward the sine (2nd over 1st %.3f, then %.3f)",
+             h1, h2);
+    check(b, h1 > 3 * h2);
+    p[SY_IENV] = 0;
+    p[SY_SUS] = 100;
+    p[SY_TABL] = (int16_t)(WT_NBUILT + 2u);              /* BELL: a reel cut into frames */
+    chain_poll();
+    render(NB, s);
+    h1 = fm_h(s, 100 * CTL, NB * CTL, 1) + fm_h(s, 100 * CTL, NB * CTL, 2) + fm_h(s, 100 * CTL, NB * CTL, 3);
+    off = sqrt(goertzel(s, 100 * CTL, NB * CTL, 330.0)) + sqrt(goertzel(s, 100 * CTL, NB * CTL, 550.0)) +
+          sqrt(goertzel(s, 100 * CTL, NB * CTL, 770.0));
+    snprintf(b, sizeof b, "..TABL %s: a reel's frames, played as cycles at A3 (220 440 660 over 330 550 770: %.1f)",
+             N_WTAB[WT_NBUILT + 2u], h1 / (off + 1));
+    check(b, !strcmp(N_WTAB[WT_NBUILT + 2u], "BELL") && wt[0].built == (int16_t)(WT_NBUILT + 2u) && h1 > 4 * off);
+    p[SY_TABL] = 0;
+    p[SY_DTUN] = 40;
+    p[SY_IENV] = 40;
+    chain_poll();
+    ui.msg_t = 0;
+    shot("BRYO", "synth_wt");
+    fm1_in.notes = 0;
+    render(NB, 0);
+    p[SY_WAVE] = 3;
+    chain_poll();
+    check("..WAVE back to SAW: the table's chunks given back", mem_count(MEM_WT) == 0u && !wt[0].ready);
+}
+
 /* scenes (scene.c, 2026-10-13): the mixer's SCENES page (GLO, then EDIT): white keys 1-4 recall (held + SAVE:
  * store), KNOB 1-4 morph. A track whose source differs fades out, switches, fades in; choices switch at the
  * midpoint; the playing isn't theirs; saved in the project as their differences */
@@ -6973,7 +7046,8 @@ static void test_mod(void)
     {
         static const struct { const pdesc_t *p; const char *a, *b; uint32_t away; const char *f3, *f4; } R[] = {
             /* (a b: KNOB 3-4 of the last page; f3 f4: of the first; away: knobs another pad's page shows) */
-            {DEV_P[DEV_SRC], 0, "LVL"}, {SYN_P, 0, "LVL", 1u << SY_IENV}, {SYN_FM_P, 0, "LVL"}, {SYN_PD_P, 0, "LVL"}, {SYN_VX_P, 0, "LVL"},
+            {DEV_P[DEV_SRC], 0, "LVL"}, {SYN_P, 0, "LVL", 1u << SY_IENV | 1u << SY_TABL}, {SYN_FM_P, 0, "LVL"}, {SYN_PD_P, 0, "LVL"},
+            {SYN_VX_P, 0, "LVL"}, {SYN_WT_P, 0, "LVL"},
             {POL_P, 0, "LVL"},
             {DRM_P, 0, "LVL"},
             {DEV_P[DEV_COLOR], 0, "LVL", 0, "ROUT", "WET"}, {DEV_P[DEV_GRAIN], 0, 0, 0, "ROUT", "WET"},
@@ -9999,6 +10073,7 @@ int main(int argc, char **argv)
     test_pd();
     test_chord();
     test_vox();
+    test_wt();
     test_sleep();
     test_color();
     test_space();

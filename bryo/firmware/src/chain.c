@@ -357,6 +357,7 @@ static void chain_poll(void)
     drm_poll();
     grain_poll();
     reso_poll();
+    wt_poll();                                          /* (SYNTH WT: its tables' memory, synth.c) */
     space_poll();
     usbrec_poll();
 }

@@ -1049,7 +1049,39 @@ static void viz_synth(const int16_t *v, uint32_t f)
     uint32_t bp = ui.page >= 4u ? 4u : pdesc_at(SYN_P, 4u * ui.page) / 4u;   /* the stored block the page shows (page
                                                                               * 5, DRV . . LVL: 4) */
     int32_t x, k;
-    if (v[SY_WAVE] == SY_VOX && bp == 0u) {            /* VOX: the vowel's spectrum, 30 Hz .. 16 kHz across: its
+    if (v[SY_WAVE] == SY_WT && bp == 0u) {             /* WT: the table's eight frames stacked back to front (each a
+                                                         * step up and right), the one POS is nearest in ink, the
+                                                         * rest dim; dotted where PENV's strike takes it */
+        const wt_t *W = &wt[sys.sel];
+        int32_t fp = clamp(v[SY_DTUN], 0, 100) * (int32_t)(WT_NF - 1u) / 100;
+        int32_t fs = clamp(v[SY_DTUN] + v[SY_IENV], 0, 100) * (int32_t)(WT_NF - 1u) / 100, fr;
+        char tb[8];
+        const char *u;
+        if (!W->ready || W->nch < 2u) {
+            px_text_c(0, 120, DMID - 2, PXF_5, W->nch < 2u && tp[sys.sel].src == SRC_SYNTH ? "NO MEMORY FREE" : "...",
+                      px_dim);
+        } else {
+            for (fr = (int32_t)WT_NF - 1; fr >= 0; fr--) {
+                const int16_t *d = wt_frame(sys.sel, (uint32_t)fr);
+                int32_t ox = fr * 4, oy = -fr * 3, w = 84, py = 0;
+                for (x = 0; x <= w; x++) {
+                    int32_t yy = DMID + 4 + oy - d[(uint32_t)x * (WT_FR - 1u) / (uint32_t)w] * 9 / 32767;
+                    if (fr == fp) {
+                        if (x)
+                            px_line(DX0 + 4 + ox + x - 1, py, DX0 + 4 + ox + x, yy, px_ink, 1);
+                    } else if ((x & 1) == 0) {
+                        px_dot(DX0 + 4 + ox + x, yy, fr == fs && v[SY_IENV] ? px_ink : px_dim);
+                    }
+                    py = yy;
+                }
+            }
+        }
+        param_format(&SYN_WT_P[SY_TABL], v[SY_TABL], tb, &u);
+        vz_label(14, "WT", f == 0u);
+        vz_label(45, tb, f == SY_TABL);
+        vz_label(75, "POS", f == SY_DTUN);
+        vz_label(105, "PENV", f == SY_IENV);
+    } else if (v[SY_WAVE] == SY_VOX && bp == 0u) {            /* VOX: the vowel's spectrum, 30 Hz .. 16 kHz across: its
                                                          * three formants' peaks (as now, and dotted as at the strike,
                                                          * + VENV), the vowel named */
         int32_t j;
@@ -1904,7 +1936,7 @@ static void viz_memory(void)
     px_line(DX0, 27, DX1, 27, px_dim, 2);              /* the ribbon: free memory dotted under the rest */
     for (t = 0; t < NTRK; t++) {
         uint32_t nt = mem_count(MEM_TAPE + t), ng = mem_count(MEM_GRAIN + t) + mem_count(MEM_RESO + t) +
-                 mem_count(MEM_SPACE + t), w0 = x0;
+                 mem_count(MEM_SPACE + t) + mem_count(MEM_WT + t), w0 = x0;
         uint32_t wt = nt * (uint32_t)DW / MEM_NC, wg = ng * (uint32_t)DW / MEM_NC;
         if (nt && !wt)
             wt = 1;

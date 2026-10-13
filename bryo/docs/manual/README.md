@@ -465,7 +465,7 @@ Press **HOME** again to go through its five pages:
 
 | Page | Knobs |
 | --- | --- |
-| 1, the oscillator | **WAVE** (SIN TRI SQR SAW PLS, and FM, PD and VOX: below), **DTUN** (a second oscillator, detuned), **MIX** of the two, **NOIS** |
+| 1, the oscillator | **WAVE** (SIN TRI SQR SAW PLS, and FM, PD, VOX and WT: below), **DTUN** (a second oscillator, detuned), **MIX** of the two, **NOIS** |
 | 2, AMP | **ATK DEC SUS REL**: how a note starts, falls, holds and fades |
 | 3, FILTER | **CUT** (cutoff), **RES** (resonance), **ENV** (how much the envelope opens it), **KTRK** (follows the note) |
 | 4, VOICE | **VOIC** (1-3 notes), **GLID** (slides between notes), **TUNE** (semitones), **FINE** (cents) |
@@ -523,6 +523,21 @@ says **VOX SYNTH**).
 **Try:** VOWL on U, VENV +50, a slow DEC: "ooh-wah". Turn on **CHRD MIN7** for a choir pad, and **RIPPLE** after it.
 
 <img src="img/synth_vox.png" width="240" alt="VOX SYNTH: WAVE VOWL SHFT VENV">
+
+**WT.** The last wave, **WT**, is a wavetable: eight single cycles in a row, and **POS** chooses where you are
+among them, morphing smoothly from one to the next (the header says **WT SYNTH**).
+
+| Page | Knobs |
+| --- | --- |
+| 1, the table | **WAVE** (WT), **TABL** (the table: **BASC** sine, triangle, saw, square, pulse; **HARM** one harmonic swept up; **FORM** a resonance swept up; or any reel, **TAPE** included, cut into eight cycles), **POS** (where in it), **PENV** (how far the envelope moves POS) |
+| 5, LEVEL | **DRV**, **NOIS**, **CHRD**, **LVL** |
+
+A reel as a table: Bryo takes eight short windows evenly through it, makes each one loop, and plays them as the
+cycles of a tone, so a drum loop or a voice becomes an oscillator with its grain. Record something onto the track's
+tape and pick **TAPE** to play your own recording that way. The table takes a little of the shared memory (0.4 s of
+the 20) while WT is on; the picture shows the eight frames stacked, the one you're on in bright ink.
+
+<img src="img/synth_wt.png" width="240" alt="WT SYNTH: WAVE TABL POS PENV">
 
 ### 5.3 POLY: play a sound across the keys
 

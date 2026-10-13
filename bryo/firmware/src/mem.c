@@ -29,7 +29,8 @@
 /* owners: a track's tape (MEM_TAPE + t), its GRAIN buffer (MEM_GRAIN + t), a WAV arriving over USB (MEM_IMPORT),
  * its RIPPLE's strings (MEM_RESO + t), its SPACE's delay (MEM_SPACE + t), the shared rooms A and B (MEM_ROOM + r) */
 /* (SPARE: kept ready for a WAV, vdisk.c) */
-enum { MEM_TAPE = 0, MEM_GRAIN = 4, MEM_IMPORT = 8, MEM_SPARE = 9, MEM_RESO = 10, MEM_SPACE = 14, MEM_ROOM = 18 };
+enum { MEM_TAPE = 0, MEM_GRAIN = 4, MEM_IMPORT = 8, MEM_SPARE = 9, MEM_RESO = 10, MEM_SPACE = 14, MEM_ROOM = 18,
+       MEM_WT = 20 };                /* (MEM_WT + t: SYNTH's wavetable, two chunks while WAVE is WT: synth.c) */
 
 typedef struct {
     uint8_t data[MEM_CB][128];       /* 16 blocks of 256 samples, 4 bits each */

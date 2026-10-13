@@ -33,7 +33,7 @@ static const char *const N_ROOT[1] = {"RES"};          /* BODY's ROOT at its bot
                                                         * names: the name of its lowest value, if it has one) */
 static const char *const N_SHAPE[5] = {"SIN", "TRI", "SQR", "SAW", "RND"};
 static const char *const N_SRC[6] = {"SELF", "T1", "T2", "T3", "T4", "USB"};
-static const char *const N_OSC[8] = {"SIN", "TRI", "SQR", "SAW", "PLS", "FM", "PD", "VOX"};   /* (FM: synth.c's 2-op; PD:
+static const char *const N_OSC[9] = {"SIN", "TRI", "SQR", "SAW", "PLS", "FM", "PD", "VOX", "WT"};   /* (FM: synth.c's 2-op; PD:
                                                                                          * its phase distortion) */
 static const char *const N_HOLD[5] = {"OFF", "1/32", "1/16", "1/8", "1/4"};
 static const char *const N_SRATE[6] = {"1", "1/2", "1/4", "1/8", "1/16", "1/32"};   /* SEQ: a step's length, in bars */
@@ -223,7 +223,7 @@ static const char *const SRC_NAME[NSRC] = {"TAPE", "SYNTH", "POLY", "DRUM"};
  * the oscillators, the filter, the envelope (one ADSR for the level and, by ENV, the cutoff), how the keys play it
  * and the level; the pages show them in POLY's order (OSC, AMP, FILTER, VOICE, LEVEL: PLAYOUT below). */
 enum { SY_WAVE, SY_DTUN, SY_MIX, SY_NOIS, SY_CUT, SY_RES, SY_ENV, SY_KTRK, SY_ATK, SY_DEC, SY_SUS, SY_REL, SY_VOIC,
-       SY_GLID, SY_DRV, SY_TUNE, SY_LVL, SY_FINE, SY_IENV, SY_CHRD };
+       SY_GLID, SY_DRV, SY_TUNE, SY_LVL, SY_FINE, SY_IENV, SY_CHRD, SY_TABL };
 /* CHRD (2026-10-13): a key plays a chord, SYNTH's three voices on its tones (any wave): semitones over the key. The
  * sevenths leave out the fifth (root, third, seventh: three voices, the shell a pianist plays) */
 static const char *const N_CHRD[12] = {"OFF", "MAJ", "MIN", "SUS2", "SUS4", "DOM7", "MAJ7", "MIN7", "DIM", "AUG",
@@ -237,6 +237,12 @@ static const int8_t SYN_CHORD[12][3] = {{0, 0, 0}, {0, 4, 7}, {0, 3, 7}, {0, 2, 
  * AMT x 16 faster under a window, the CZ's resonance) */
 static const char *const N_PDSH[8] = {"SAW", "SQR", "PLS", "DSIN", "SPLS", "RSAW", "RTRI", "RTRP"};
 static inline __attribute__((always_inline)) uint32_t syn_pdsh(int32_t v) { return (uint32_t)clamp(v, 0, 100) * 8u / 101u; }
+#define SY_WT 8                      /* WAVE WT: a wavetable (synth.c): TABL its table, DTUN its POS, IENV PENV */
+/* WT's tables: three built (synth.c wt_build), then every reel choice cut into eight frames */
+#define WT_NBUILT 3u
+static const char *const N_WTAB[WT_NBUILT + 1u + NREEL + USLOT_N] = {
+    "BASC", "HARM", "FORM", "TAPE", REEL_NAMES_INIT, uslot_name[0], uslot_name[1], uslot_name[2], uslot_name[3],
+    uslot_name[4], uslot_name[5]};
 #define SY_VOX 7                     /* WAVE VOX: a voice through three formants (synth.c); DTUN is its VOWL, MIX SHFT,
                                       * IENV VENV, NOIS BRTH */
 /* VOX's vowels, A E I O U: their three formants (a man's: 730 1090 2440 Hz for A ...) as the cutoff scale's index,
@@ -253,7 +259,7 @@ static inline __attribute__((always_inline)) uint32_t syn_ratio(int32_t v) { ret
 #define SYN_NV 3u                /* voices per track */
 static const pdesc_t SYN_P[NPK] = {
     /* OSC: two oscillators of the same wave, the second DTUN cents up and MIX of the blend; white noise */
-    {"WAVE", 0, 7, 3, F_ENUM, N_OSC}, {"DTUN", 0, 100, 8, F_CT}, {"MIX", 0, 100, 50, F_PCT}, {"NOIS", 0, 100, 0, F_PCT},
+    {"WAVE", 0, 8, 3, F_ENUM, N_OSC}, {"DTUN", 0, 100, 8, F_CT}, {"MIX", 0, 100, 50, F_PCT}, {"NOIS", 0, 100, 0, F_PCT},
     /* FILTER: a resonant low-pass; ENV opens (or, below 0, closes) it with the envelope; KTRK follows the keys */
     {"CUT", 0, 127, 72, F_HZ}, {"RES", 0, 100, 25, F_PCT}, {"ENV", -100, 100, 45, F_BIPCT}, {"KTRK", 0, 100, 50, F_PCT},
     /* AMP: the envelope's times (1 ms .. 10 s) and its sustain level */
@@ -267,12 +273,14 @@ static const pdesc_t SYN_P[NPK] = {
     {"LVL", -24, 6, 0, F_DB}, {"FINE", -50, 50, 0, F_CT},
     /* IENV (WAVE FM only, 2026-10-13): how far the envelope pushes INDX (the FM pluck: bright at the strike); CHRD
      * (every wave): a key plays a chord */
-    {"IENV", -100, 100, 40, F_BIPCT}, {"CHRD", 0, 11, 0, F_ENUM, N_CHRD, 1}};
+    {"IENV", -100, 100, 40, F_BIPCT}, {"CHRD", 0, 11, 0, F_ENUM, N_CHRD, 1},
+    /* TABL (WAVE WT only): its table */
+    {"TABL", 0, WT_NBUILT + NREEL + USLOT_N, 0, F_ENUM, N_WTAB, 1}};
 /* SYNTH with WAVE FM: the same knobs, FM's labels (a modulator sine bending a carrier's phase): RATI, the modulator's
  * pitch over the carrier's (DTUN's place); INDX, how hard it bends it (MIX's); FDBK, the modulator into itself (NOIS's,
  * sine to saw-ish to noise); IENV. Its own pages (PLAYOUT): WAVE RATI INDX IENV first, FDBK beside DRV */
 static const pdesc_t SYN_FM_P[NPK] = {
-    {"WAVE", 0, 7, 3, F_ENUM, N_OSC}, {"RATI", 0, 100, 8, F_RATIO}, {"INDX", 0, 100, 50, F_PCT},
+    {"WAVE", 0, 8, 3, F_ENUM, N_OSC}, {"RATI", 0, 100, 8, F_RATIO}, {"INDX", 0, 100, 50, F_PCT},
     {"FDBK", 0, 100, 0, F_PCT},
     {"CUT", 0, 127, 72, F_HZ}, {"RES", 0, 100, 25, F_PCT}, {"ENV", -100, 100, 45, F_BIPCT}, {"KTRK", 0, 100, 50, F_PCT},
     {"ATK", 0, 127, 0, F_TIME}, {"DEC", 0, 127, 60, F_TIME}, {"SUS", 0, 100, 60, F_PCT}, {"REL", 0, 127, 45, F_TIME},
@@ -284,7 +292,7 @@ static const pdesc_t SYN_FM_P[NPK] = {
  * phase bends, a sine at 0 to the whole shape (the CZ's DCW; on the resonant shapes the resonance's sweep); AENV
  * (IENV's) the envelope's push on AMT, the CZ's sweep; NOIS as it is. Its own pages: WAVE SHAP AMT AENV first */
 static const pdesc_t SYN_PD_P[NPK] = {
-    {"WAVE", 0, 7, 3, F_ENUM, N_OSC}, {"SHAP", 0, 100, 8, F_PDSH}, {"AMT", 0, 100, 50, F_PCT},
+    {"WAVE", 0, 8, 3, F_ENUM, N_OSC}, {"SHAP", 0, 100, 8, F_PDSH}, {"AMT", 0, 100, 50, F_PCT},
     {"NOIS", 0, 100, 0, F_PCT},
     {"CUT", 0, 127, 72, F_HZ}, {"RES", 0, 100, 25, F_PCT}, {"ENV", -100, 100, 45, F_BIPCT}, {"KTRK", 0, 100, 50, F_PCT},
     {"ATK", 0, 127, 0, F_TIME}, {"DEC", 0, 127, 60, F_TIME}, {"SUS", 0, 100, 60, F_PCT}, {"REL", 0, 127, 45, F_TIME},
@@ -292,11 +300,22 @@ static const pdesc_t SYN_PD_P[NPK] = {
     {"TUNE", -24, 24, 0, F_ST},
     {"LVL", -24, 6, 0, F_DB}, {"FINE", -50, 50, 0, F_CT}, {"AENV", -100, 100, 40, F_BIPCT},
     {"CHRD", 0, 11, 0, F_ENUM, N_CHRD, 1}};
+/* SYNTH with WAVE WT (2026-10-13): a wavetable, eight single cycles in a row. TABL the table (BASC sine to pulse,
+ * HARM a harmonic swept up, FORM a resonance swept up, or a reel cut into eight frames); POS (DTUN's place) where in
+ * it, a morph between frames; PENV (IENV's) the envelope's push on POS; NOIS as it is */
+static const pdesc_t SYN_WT_P[NPK] = {
+    {"WAVE", 0, 8, 3, F_ENUM, N_OSC}, {"POS", 0, 100, 8, F_PCT}, {""}, {"NOIS", 0, 100, 0, F_PCT},
+    {"CUT", 0, 127, 72, F_HZ}, {"RES", 0, 100, 25, F_PCT}, {"ENV", -100, 100, 45, F_BIPCT}, {"KTRK", 0, 100, 50, F_PCT},
+    {"ATK", 0, 127, 0, F_TIME}, {"DEC", 0, 127, 60, F_TIME}, {"SUS", 0, 100, 60, F_PCT}, {"REL", 0, 127, 45, F_TIME},
+    {"VOIC", 1, SYN_NV, SYN_NV, F_NUM}, {"GLID", 0, 127, 0, F_TIME}, {"DRV", 0, 100, 0, F_PCT},
+    {"TUNE", -24, 24, 0, F_ST},
+    {"LVL", -24, 6, 0, F_DB}, {"FINE", -50, 50, 0, F_CT}, {"PENV", -100, 100, 40, F_BIPCT},
+    {"CHRD", 0, 11, 0, F_ENUM, N_CHRD, 1}, {"TABL", 0, WT_NBUILT + NREEL + USLOT_N, 0, F_ENUM, N_WTAB, 1}};
 /* SYNTH with WAVE VOX (2026-10-13): a saw through three formant bands, a vowel. VOWL (DTUN's place) A E I O U, a
  * morph between; SHFT (MIX's) the formants down or up, a big voice to a small one (0 at 50: a man's); VENV (IENV's)
  * the envelope's push on VOWL ("wah", "ow"); BRTH (NOIS's) breath into the formants. Its own pages, as FM's */
 static const pdesc_t SYN_VX_P[NPK] = {
-    {"WAVE", 0, 7, 3, F_ENUM, N_OSC}, {"VOWL", 0, 100, 8, F_VOWL}, {"SHFT", 0, 100, 50, F_C50},
+    {"WAVE", 0, 8, 3, F_ENUM, N_OSC}, {"VOWL", 0, 100, 8, F_VOWL}, {"SHFT", 0, 100, 50, F_C50},
     {"BRTH", 0, 100, 0, F_PCT},
     {"CUT", 0, 127, 72, F_HZ}, {"RES", 0, 100, 25, F_PCT}, {"ENV", -100, 100, 45, F_BIPCT}, {"KTRK", 0, 100, 50, F_PCT},
     {"ATK", 0, 127, 0, F_TIME}, {"DEC", 0, 127, 60, F_TIME}, {"SUS", 0, 100, 60, F_PCT}, {"REL", 0, 127, 45, F_TIME},
@@ -551,15 +570,17 @@ static const playout_t PLAYOUT[] = {
                                                                                  * PRE, TONE SPRD RTON QUAL, SYNC AGE
                                                                                  * DIFF DUCK, TYPE MOD (2-3, 8-11 and
                                                                                  * 16-17: the room's, SP_RMK) */
-    {SYN_P, 5, {0, 1, 2, 3, 8, 9, 10, 11, 4, 5, 6, 7, 12, 13, 15, 17, 14, 19, 20, 16, 18, 21, 22, 23}},
-                                                    /* SYNTH: OSC AMP FILTER, VOIC GLID TUNE FINE, DRV CHRD . LVL (18,
-                                                     * IENV: FM's alone, past the pages) */
+    {SYN_P, 5, {0, 1, 2, 3, 8, 9, 10, 11, 4, 5, 6, 7, 12, 13, 15, 17, 14, 19, 21, 16, 18, 20, 22, 23}},
+                                                    /* SYNTH: OSC AMP FILTER, VOIC GLID TUNE FINE, DRV CHRD . LVL (18
+                                                     * IENV and 20 TABL: the other waves', past the pages) */
     {SYN_FM_P, 5, {0, 1, 2, 18, 8, 9, 10, 11, 4, 5, 6, 7, 12, 13, 15, 17, 14, 3, 19, 16, 20, 21, 22, 23}},
                                                     /* FM: WAVE RATI INDX IENV, AMP, FILTER, VOICE, DRV FDBK CHRD LVL */
     {SYN_PD_P, 5, {0, 1, 2, 18, 8, 9, 10, 11, 4, 5, 6, 7, 12, 13, 15, 17, 14, 3, 19, 16, 20, 21, 22, 23}},
                                                     /* PD: WAVE SHAP AMT AENV, AMP, FILTER, VOICE, DRV NOIS CHRD LVL */
     {SYN_VX_P, 5, {0, 1, 2, 18, 8, 9, 10, 11, 4, 5, 6, 7, 12, 13, 15, 17, 14, 3, 19, 16, 20, 21, 22, 23}},
                                                     /* VOX: WAVE VOWL SHFT VENV, AMP, FILTER, VOICE, DRV BRTH CHRD LVL */
+    {SYN_WT_P, 5, {0, 20, 1, 18, 8, 9, 10, 11, 4, 5, 6, 7, 12, 13, 15, 17, 14, 3, 19, 16, 2, 21, 22, 23}},
+                                                    /* WT: WAVE TABL POS PENV, AMP, FILTER, VOICE, DRV NOIS CHRD LVL */
     {POL_P, 4, {0, 1, 13, 2, 4, 5, 6, 7, 8, 9, 10, 11, 3, 14, 15, 12}},         /* POLY: REEL STRT END TUNE, ..., VOIC
                                                                                  * ROOT FINE LVL */
     {ME_P[ME_WAVE], 4, {0, 1, 2, 3, 4, 5, 6, 7, 12, 13, 14, 15, 10, 11, 8, 9}},  /* LFO: timing, then PHAS SPRD AMT OFS */
@@ -661,7 +682,8 @@ static const pdesc_t *dev_p(uint32_t t, uint32_t d)
 {
     if (d == DEV_SRC && tp[t].src == SRC_SYNTH && tp[t].syn[SY_WAVE] >= SY_FM)   /* (SYNTH on FM, PD or VOX: its
                                                                                    * labels, its pages) */
-        return tp[t].syn[SY_WAVE] == SY_FM ? SYN_FM_P : tp[t].syn[SY_WAVE] == SY_PD ? SYN_PD_P : SYN_VX_P;
+        return tp[t].syn[SY_WAVE] == SY_FM ? SYN_FM_P : tp[t].syn[SY_WAVE] == SY_PD ? SYN_PD_P
+             : tp[t].syn[SY_WAVE] == SY_VOX ? SYN_VX_P : SYN_WT_P;
     if (d == DEV_RESO) {                                 /* (RIPPLE: its form's) */
         uint32_t m = (uint32_t)clamp(tp[t].dev[DEV_RESO][16], 0, 3);
         return m ? RS_FORM_P[m - 1u] : DEV_P[DEV_RESO];
@@ -680,7 +702,7 @@ static const char *dev_name(uint32_t t, uint32_t d)
 {
     return d == DEV_SRC ? (tp[t].src == SRC_SYNTH && tp[t].syn[SY_WAVE] >= SY_FM
                            ? (tp[t].syn[SY_WAVE] == SY_FM ? "FM SYNTH" : tp[t].syn[SY_WAVE] == SY_PD ? "PD SYNTH"
-                                                                                                  : "VOX SYNTH")
+                              : tp[t].syn[SY_WAVE] == SY_VOX ? "VOX SYNTH" : "WT SYNTH")
                            : SRC_NAME[tp[t].src % NSRC])
            : d == DEV_RESO ? RS_FORM_NAME[clamp(tp[t].dev[DEV_RESO][16], 0, 3)] : DEV_NAME[d];
 }

@@ -30,6 +30,10 @@
  * spectrum (5, 8, 10), weighted 1, 0.7, 0.4. VOWL morphs A E I O U, VENV pushes it with the envelope, SHFT moves all
  * three by a ratio of 0.7 to 1.5. Coefficients a block, three tsvf_coef a voice.
  *
+ * WAVE WT (2026-10-13): a wavetable (wt_t below): the phase reads a frame, linearly between its samples, and POS
+ * (DTUN's place) + PENV x the envelope a point between two frames, so a turn morphs the cycle. Silent while its table
+ * is being built or has no memory.
+ *
  * Cost: per voice per sample, two oscillators, one noise step when NOIS is up, one filter; coefficients per block.
  * FM: two sine reads and their phase offsets, about what the band-limited oscillators cost.
  * Everything runs in the audio ISR; the main loop only writes the knobs (tp[t].syn) and the source (tp[t].src). */
@@ -59,6 +63,145 @@ typedef struct {
 } syn_t;
 
 static syn_t syn[NTRK];
+
+/* WAVE WT's tables (2026-10-13): eight frames of 256 samples, a single cycle each, four to a chunk of the shared
+ * memory (a chunk read as 1,056 samples, as RIPPLE's strings read theirs), two chunks a track while WAVE is WT and
+ * the track is in use (wt_poll), given back otherwise. The main loop builds a table when TABL changes: ready drops
+ * first (the ISR plays silence while it's 0), the frames are written, ready comes back */
+#define WT_FR 256u                   /* a frame's samples: one cycle */
+#define WT_NF 8u                     /* frames a table */
+typedef struct {
+    uint8_t map[2];                  /* the two chunks (the main loop's) */
+    volatile uint8_t nch;
+    volatile uint8_t ready;          /* the frames hold table `built` */
+    int16_t built;                   /* the table built (TABL; -1: none) */
+} wt_t;
+static wt_t wt[NTRK];
+
+/* frame f of track t's table */
+static inline __attribute__((always_inline)) int16_t *wt_frame(uint32_t t, uint32_t f)
+{
+    return (int16_t *)(void *)mem_at(wt[t].map[f >> 2]) + (f & 3u) * WT_FR;
+}
+
+/* main loop: frame f of a built table from harmonic amplitudes a[1..WT_NH] (Q8), its peak at 28,000 */
+#define WT_NH 24u
+static void wt_additive(int16_t *d, const int32_t *a)
+{
+    static int32_t acc[WT_FR];
+    int32_t pk = 1, i, h;
+    for (i = 0; i < (int32_t)WT_FR; i++) {
+        int32_t x = 0;
+        for (h = 1; h <= (int32_t)WT_NH; h++)
+            if (a[h])
+                x += (sine_i((uint32_t)(h * i) << 24) * a[h]) >> 8;
+        acc[i] = x;
+        pk = x > pk ? x : -x > pk ? -x : pk;
+    }
+    for (i = 0; i < (int32_t)WT_FR; i++)
+        d[i] = (int16_t)((acc[i] >> 4) * 28000 / ((pk >> 4) + 1));   /* (a sixteenth first: under 2^31) */
+}
+
+/* main loop: track t's table `tab` into its frames. BASC: sine, triangle, saw, square and a 25 % pulse, each shape a
+ * frame with the halfway blends between (band-limited: 24 harmonics); HARM: the fundamental with one harmonic
+ * swept up through the frames (2nd .. 23rd); FORM: a saw's harmonics under a resonance swept up. A reel (TAPE, a
+ * factory reel, one of yours): eight windows evenly through it, each made to loop (its last 32 samples crossfaded
+ * into the 32 before its start) and centred */
+static void wt_build(uint32_t t, uint32_t tab)
+{
+    uint32_t f, i;
+    int32_t a[WT_NH + 1u];
+    if (tab < WT_NBUILT) {
+        for (f = 0; f < WT_NF; f++) {
+            uint32_t h;
+            for (h = 0; h <= WT_NH; h++)
+                a[h] = 0;
+            for (h = 1; h <= WT_NH; h++) {
+                int32_t sin1 = h == 1u ? 256 : 0, tri = h & 1u ? ((h & 2u) ? -256 : 256) / (int32_t)(h * h) : 0;
+                int32_t saw = 256 / (int32_t)h, sq = h & 1u ? 256 / (int32_t)h : 0;
+                int32_t pls = (sine_i(h * 0x20000000u) >> 7) / (int32_t)h;   /* (sin(pi h / 4) / h: 25 %) */
+                if (tab == 0u) {
+                    static const uint8_t SH[8][2] = {{0, 0}, {0, 1}, {1, 1}, {1, 2}, {2, 2}, {2, 3}, {3, 3}, {4, 4}};
+                    int32_t v[5] = {sin1, tri, saw, sq, pls};
+                    a[h] = (v[SH[f][0]] + v[SH[f][1]]) / 2;
+                } else if (tab == 1u) {
+                    a[h] = h == 1u ? 256 : h == 2u + f * 3u ? 220 : h == 3u + f * 3u ? 110 : 0;
+                } else {
+                    int32_t c = 2 + (int32_t)f * 2, d = (int32_t)h - c;
+                    a[h] = saw * 4 / (4 + d * d);
+                }
+            }
+            wt_additive(wt_frame(t, f), a);
+        }
+        return;
+    }
+    {
+        tape_view_t vw;
+        static tape_rd_t rd;
+        tape_view_of(t, tab - WT_NBUILT, &vw);
+        rd.ok = 0;
+        for (f = 0; f < WT_NF; f++) {
+            int16_t *d = wt_frame(t, f);
+            int32_t st = vw.len > WT_FR + 64u ? (int32_t)(32u + (vw.len - WT_FR - 64u) / 7u * f) : 32, sum = 0, pk = 1, x;
+            for (i = 0; i < WT_FR; i++) {
+                x = vw.len ? tape_read(&vw, &rd, (st + (int32_t)i) << 12) : 0;
+                if (i >= WT_FR - 32u) {                  /* (the loop: the end becomes what leads into the start) */
+                    int32_t pre = vw.len ? tape_read(&vw, &rd, (st - 32 + (int32_t)(i - (WT_FR - 32u))) << 12) : 0;
+                    int32_t w = (int32_t)(i - (WT_FR - 32u));
+                    x = (x * (32 - w) + pre * w) / 32;
+                }
+                d[i] = (int16_t)clamp(x, -32767, 32767);
+                sum += d[i];
+            }
+            sum /= (int32_t)WT_FR;
+            for (i = 0; i < WT_FR; i++) {
+                x = d[i] - sum;
+                pk = x > pk ? x : -x > pk ? -x : pk;
+            }
+            for (i = 0; i < WT_FR; i++)
+                d[i] = (int16_t)((d[i] - sum) * 28000 / pk);
+        }
+    }
+}
+
+static int trk_live(uint32_t t);
+/* main loop, every pass: each track's wavetable memory (two chunks while its SYNTH plays WT and it's in use, none
+ * otherwise), and its table built when TABL moves */
+static void wt_poll(void)
+{
+    uint32_t t;
+    for (t = 0; t < NTRK; t++) {
+        wt_t *W = &wt[t];
+        int on = trk_live(t) && tp[t].src == SRC_SYNTH && tp[t].syn[SY_WAVE] == SY_WT;
+        int16_t tab = (int16_t)clamp(tp[t].syn[SY_TABL], 0, (int32_t)(WT_NBUILT + NREEL + USLOT_N));
+        while (on && W->nch < 2u) {
+            int32_t c = tape_alloc(MEM_WT + t, NTRK, 1);
+            if (c < 0)
+                break;
+            W->map[W->nch] = (uint8_t)c;
+            RING_PUBLISH();
+            W->nch++;
+            W->built = -1;
+        }
+        if (on && W->nch == 2u && W->built != tab) {
+            W->ready = 0;
+            RING_PUBLISH();
+            wt_build(t, (uint32_t)tab);
+            W->built = tab;
+            RING_PUBLISH();
+            W->ready = 1;
+        }
+        if (!on && W->nch) {
+            W->ready = 0;
+            RING_PUBLISH();
+            while (W->nch) {
+                W->nch--;
+                mem_free(W->map[W->nch]);
+            }
+            W->built = -1;
+        }
+    }
+}
 
 /* key bit k of track t as a pitch, 1/16 semitone, before TUNE (added as the voice plays, so a modulated TUNE
  * moves a held note too: mod.c). The bit's note is key_base's (bryo.h), held to the project's scale (key_snap) */
@@ -217,6 +360,35 @@ static void syn_voice(uint32_t t, syn_voice_t *v, int32_t *out, uint32_t n)
     cut = mod_fine8(t, FN_SCUT, p[SY_CUT]) + p[SY_ENV] * 96 * (e15 >> 7) / 100 + p[SY_KTRK] * (pp - 60 * 16) * 16 / 100;
                                                             /* (CUT finer than its semitones when modulated: mod.c) */
     tsvf_coef(&flt, cut, p[SY_RES] * 127 / 100);
+    if (wave == SY_WT) {                                /* WT: the two frames POS falls between, this block */
+        int32_t fp = clamp(p[SY_DTUN] + p[SY_IENV] * (e15 >> 7) / 255, 0, 100) * (int32_t)((WT_NF - 1u) * 256u) / 100;
+        uint32_t fi = (uint32_t)fp >> 8, ff = (uint32_t)fp & 255u;
+        const int16_t *fa, *fb;
+        if (!wt[t].ready || wt[t].nch < 2u) {           /* (no table: silence, the envelope still runs) */
+            n = 0;
+        } else {
+            fa = wt_frame(t, fi);
+            fb = wt_frame(t, fi < WT_NF - 1u ? fi + 1u : fi);
+            for (i = 0; i < n; i++) {
+                uint32_t j = ph0 >> 24, j1 = (j + 1u) & 255u, fr = (ph0 >> 16) & 255u;
+                int32_t xa = fa[j] + (((fa[j1] - fa[j]) * (int32_t)fr) >> 8), xb = fb[j] + (((fb[j1] - fb[j]) * (int32_t)fr) >> 8);
+                int32_t s = xa + (((xb - xa) * (int32_t)ff) >> 8), y, k;
+                ph0 += inc1;
+                if (nz)
+                    s += mulq15((int32_t)(noise32(&nst) >> 17) - 16384, nz);
+                if (drv)
+                    s = softclip((s * dg) >> 12);
+                y = tsvf_lp(&flt, s >> 1, &ic1, &ic2);
+                k = y < 0 ? -y : y;
+                if (k > 16000) {
+                    k = 16000 + (softclip((k - 16000) * 2) >> 1);
+                    y = y < 0 ? -k : k;
+                }
+                out[i] += mulq15(mulq15(y << 1, a0 + (((a1 - a0) * (int32_t)i) >> CTL_LOG2)), VOICE_FS);
+            }
+            n = 0;
+        }
+    }
     if (wave == SY_VOX) {                               /* VOX: the vowel now, its three bands' coefficients */
         tsvf_t fb[3];
         static const int16_t QK[3] = {820, 512, 410};   /* (damping Q12: Q 5, 8, 10) */
