@@ -73,7 +73,7 @@ typedef struct {                     /* a track's SPACE */
     int16_t mdly, mfb;               /* DLY and FDBK as their gains were last worked out (0 at power-on: their gains */
     int32_t mgd, mfbg;               /* .. 0, right for 0), and the gains: a divide each only when the knob moves */
     /* the echoes' character (sp_delay; all at rest at 0) */
-    uint32_t wph, fph;               /* AGE: the wow's and the flutter's phases */
+    uint32_t wph, fph, dph;          /* AGE: the wow's, the flutter's and the drift's phases */
     int32_t wob;                     /* .. the read point's offset last block, Q8 samples (each block ramps from it) */
     int32_t alp;                     /* .. its low-pass in the feedback */
     int32_t dpk, denv;               /* DUCK: the input's peak last block, and its envelope */
@@ -339,6 +339,8 @@ static void HOT_CODE sp_delay(space_t *S, uint8_t *const *db, int dlb, uint32_t 
         if (ch->wob1 || wob) {                          /* AGE: the read point wavers (wow and flutter), ramped */
             wob += dwob;
             qq = q - wob < (2 << 8) ? 2 << 8 : q - wob;
+            qq = qq > (int32_t)(dl - 4u) << 8 ? (int32_t)(dl - 4u) << 8 : qq;   /* (TIME at its longest: the
+                                                                                 * swing stays inside the line) */
         } else
             qq = q;
         ix = w - (qq >> 8);                             /* (a tape echo's bend: within a fifth) */
@@ -630,14 +632,19 @@ static void HOT_CODE space_block(uint32_t t, int32_t *l, int32_t *r, uint32_t n,
             S->difs += clamp(PCT_Q15[clamp(v[SP_DIFF], 0, 100)] - S->difs, -656, 656);   /* (2 % a block) */
             a8 = S->ages;
             if (a8) {                                   /* AGE: up to 2x drive into the tanh, a low-pass down to
-                                                         * ~1.4 kHz a pass, wow (0.7 Hz) to +-47 samples, flutter
-                                                         * (6 Hz) to +-2.3: ~16 and 7 cents at 100 */
+                                                         * ~1.4 kHz a pass; the warble, at 100: wow (0.7 Hz) to +-80
+                                                         * samples, ~27 cents; a drift under it (0.27 Hz, +-40, ~5
+                                                         * cents: the wow wanders, not a clean cycle); flutter (6.3
+                                                         * Hz) to +-5, ~15 cents (2026-10-13: "warble a bit more";
+                                                         * were 16 and 7 cents) */
                 ch.dr = 4096 + ((a8 * 41) >> 8);
                 ch.dri = (4096 << 12) / ch.dr;
                 ch.ka = 32767 - ((a8 * 200) >> 8);
                 S->wph += 136348u * h;
-                S->fph += 1168700u * h;
-                ch.wob1 = (sine_i(S->wph) * ((a8 * 120) >> 8) + sine_i(S->fph) * ((a8 * 6) >> 8)) >> 15;
+                S->fph += 1227135u * h;
+                S->dph += 52590u * h;
+                ch.wob1 = (sine_i(S->wph) * ((a8 * 204) >> 8) + sine_i(S->dph) * ((a8 * 102) >> 8) +
+                           sine_i(S->fph) * ((a8 * 13) >> 8)) >> 15;
             }
             if (S->difs) {                              /* DIFF: the allpasses mixed in */
                 ch.dg = S->difs;

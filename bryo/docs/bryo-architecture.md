@@ -1245,8 +1245,11 @@ them sounds the same.
 
 - **AGE** (tape): in the feedback, the repeat driven into the tanh at up to 2x with its small signal kept at 1x
   (softclip, then the drive's inverse), then a one-pole low-pass down to about 1.4 kHz a pass, so each repeat is
-  warmer and duller than the last; and the read point wavers, wow (0.7 Hz, to 47 samples at 22.05 kHz, about 16
-  cents) and flutter (6 Hz, to 2.3 samples, about 7 cents), set once a block and ramped across it.
+  warmer and duller than the last; and the read point wavers, wow (0.7 Hz, to 80 samples at 22.05 kHz, about 27
+  cents), a drift under it (0.27 Hz, to 40, about 5 cents, so the wow wanders rather than cycling clean) and flutter
+  (6.3 Hz, to 5 samples, about 15 cents), set once a block and ramped across it, the read point kept inside the line
+  at TIME's longest. (Until 2026-10-13, "can we have age warble a bit more": wow 47 samples, 16 cents, and flutter 2.3,
+  7 cents, no drift.)
 - **DIFF**: two allpasses in the feedback (113 and 199 samples, 5.1 and 9.0 ms; gain to 0.7), so each repeat is
   smeared more than the last, toward a wash. Their lines are in main RAM (2.5 KB, four tracks).
 - **DUCK**: the echoes' level times one minus DUCK times the track's envelope (last block's input peak: up at once,

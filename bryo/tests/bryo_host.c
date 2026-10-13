@@ -4208,14 +4208,18 @@ static void test_chronos_character(void)
     b1 = ch_bright(CH_AT + 3 * 4410 - 500, CHN);
     snprintf(b, sizeof b, "CHRONOS AGE 100: the repeats from the third on darker (%.3f a sample per level, %.3f at AGE 0)", b1, b0);
     check(b, b1 < 0.8 * b0 && b1 > 0);
-    for (k = 0; k < 200u; k++) {                         /* (the read point's wavering: blocks of a silent delay) */
-        int32_t z[CTL] = {0}, z2[CTL] = {0};
+    for (k = 0; k < 4200u; k++) {                        /* (the read point's wavering: 3 s of a silent delay,
+                                                         * the wow and its drift through their cycles; a tone
+                                                         * in, so it doesn't rest) */
+        int32_t z[CTL], z2[CTL], i;
+        for (i = 0; i < (int32_t)CTL; i++)
+            z[i] = z2[i] = (int32_t)lrint(4000 * sin(2 * M_PI * 1000 * (k * CTL + (uint32_t)i) / 44100.0));
         sp_run(0, z, z2, CTL);
         wmax = abs(space[0].wob) > wmax ? abs(space[0].wob) : wmax;
     }
-    snprintf(b, sizeof b, "..and its time wavers (wow and flutter: the read point off by up to %.1f samples, 47 at most)",
-             wmax / 256.0);
-    check(b, wmax > 256 && wmax <= 47 * 256 + 2 * 256);
+    snprintf(b, sizeof b, "..and its time wavers (wow, drift and flutter: the read point off by up to %.1f samples, "
+             "125 at most; 47 until 2026-10-13)", wmax / 256.0);
+    check(b, wmax > 80 * 256 && wmax <= 125 * 256);
     ch_delay(0, 0, 0, 0);
     s0 = ch_spread(CH_AT + 2 * 4410 - 300, CH_AT + 2 * 4410 + 1500);
     ch_delay(0, 100, 0, 0);
