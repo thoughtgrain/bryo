@@ -1049,7 +1049,42 @@ static void viz_synth(const int16_t *v, uint32_t f)
     uint32_t bp = ui.page >= 4u ? 4u : pdesc_at(SYN_P, 4u * ui.page) / 4u;   /* the stored block the page shows (page
                                                                               * 5, DRV . . LVL: 4) */
     int32_t x, k;
-    if (v[SY_WAVE] == SY_PD && bp == 0u) {             /* PD: two cycles as bent now (AMT), dotted as bent at the
+    if (v[SY_WAVE] == SY_VOX && bp == 0u) {            /* VOX: the vowel's spectrum, 30 Hz .. 16 kHz across: its
+                                                         * three formants' peaks (as now, and dotted as at the strike,
+                                                         * + VENV), the vowel named */
+        int32_t j;
+        char vb[8];
+        const char *u;
+        for (j = 1; j >= 0; j--) {
+            int32_t vw = clamp(v[SY_DTUN] + (j ? v[SY_IENV] : 0), 0, 100) * 1024 / 100, vi = vw >> 8, vf = vw & 255, f, py = 0;
+            int32_t c[3];
+            static const int32_t W[3] = {1000, 700, 400}, QW[3] = {2 * 256, 256 + 128, 256};
+            for (f = 0; f < 3; f++) {
+                c[f] = VOX_F8[vi > 4 ? 4 : vi][f] + (vi < 4 ? ((VOX_F8[vi + 1][f] - VOX_F8[vi][f]) * vf) >> 8 : 0) +
+                       (v[SY_MIX] - 50) * 40;
+            }
+            for (x = DX0; x <= DX1; x++) {
+                int32_t i8 = (x - DX0) * (127 * 256) / DW, best = 0, yy;
+                for (f = 0; f < 3; f++) {
+                    int32_t d = (i8 - c[f]) / 64, pk = W[f] * (QW[f] / 64) * (QW[f] / 64) / ((QW[f] / 64) * (QW[f] / 64) + d * d);
+                    best = pk > best ? pk : best;
+                }
+                yy = DY1 - best * (DY1 - DY0 - 4) / 1000;
+                if (j) {
+                    if ((x & 1) == 0 && v[SY_IENV])
+                        px_dot(x, yy, px_dim);
+                } else if (x > DX0) {
+                    px_line(x - 1, py, x, yy, px_ink, 1);
+                }
+                py = yy;
+            }
+        }
+        param_format(&SYN_VX_P[SY_DTUN], v[SY_DTUN], vb, &u);
+        vz_label(14, "VOX", f == 0u);
+        vz_label(45, vb, f == SY_DTUN);
+        vz_label(75, "SHFT", f == SY_MIX);
+        vz_label(105, "VENV", f == SY_IENV);
+    } else if (v[SY_WAVE] == SY_PD && bp == 0u) {             /* PD: two cycles as bent now (AMT), dotted as bent at the
                                                          * strike (+ AENV), through the voice's own syn_pd */
         uint32_t sh = syn_pdsh(v[SY_DTUN]);
         int32_t j;

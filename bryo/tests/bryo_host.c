@@ -3757,6 +3757,95 @@ static void test_chord(void)
     render(NB, 0);
 }
 
+/* SYNTH's VOX (2026-10-13): a saw through three formants. A2 held (110 Hz: harmonics every 110), the filter open: the
+ * energy where each vowel's formants are */
+static double vx_band(const int32_t *x, uint32_t a, uint32_t b, double lo, double hi)
+{
+    double e = 0, hz;
+    for (hz = 110; hz <= hi; hz += 110)
+        if (hz >= lo)
+            e += sqrt(goertzel(x, a, b, hz));
+    return e;
+}
+static void test_vox(void)
+{
+    enum { NB = 300 };
+    static int32_t s[NB * CTL];
+    int16_t *p;
+    char b[220];
+    double a1, a2, i1, i2, u1, u2;
+    power_on();
+    tp[0].src = SRC_SYNTH;
+    p = tp[0].syn;
+    p[SY_WAVE] = SY_VOX;
+    p[SY_CUT] = 127;
+    p[SY_ENV] = 0;
+    p[SY_RES] = 0;
+    p[SY_SUS] = 100;
+    p[SY_DTUN] = 0;                                      /* VOWL A */
+    p[SY_MIX] = 50;                                      /* SHFT 0 */
+    p[SY_IENV] = 0;
+    track[0].octave = 2;
+    focus_dev(DEV_SRC, 0);
+    {
+        char v1[8], v2[8], v3[8];
+        const char *u;
+        param_format(&SYN_VX_P[SY_DTUN], 0, v1, &u);
+        param_format(&SYN_VX_P[SY_DTUN], 50, v2, &u);
+        param_format(&SYN_VX_P[SY_DTUN], 37, v3, &u);
+        check("WAVE VOX: the header says VOX SYNTH, page 1 WAVE VOWL SHFT VENV, VOWL reads A, I, and E-I between",
+              !strcmp(dev_name(0, DEV_SRC), "VOX SYNTH") && dev_p(0, DEV_SRC) == SYN_VX_P && !strcmp(v1, "A") &&
+              !strcmp(v2, "I") && !strcmp(v3, "E-I"));
+    }
+    fm1_in.notes = note_bit_of_white(9);                 /* A2 */
+    render(NB, s);
+    a1 = vx_band(s, 100 * CTL, NB * CTL, 600, 900);      /* (A's first formant, 730) */
+    a2 = vx_band(s, 100 * CTL, NB * CTL, 2000, 2600);    /* (I's second, 2290) */
+    p[SY_DTUN] = 50;                                     /* VOWL I */
+    render(NB, s);
+    i1 = vx_band(s, 100 * CTL, NB * CTL, 600, 900);
+    i2 = vx_band(s, 100 * CTL, NB * CTL, 2000, 2600);
+    snprintf(b, sizeof b, "VOX: A is strong at 600-900 Hz against 2-2.6 kHz (%.1f), I the other way (%.1f)", a1 / (a2 + 1),
+             i1 / (i2 + 1));
+    check(b, a1 / (a2 + 1) > 2 * i1 / (i2 + 1) && i2 > a2);
+    p[SY_DTUN] = 0;
+    p[SY_MIX] = 100;                                     /* SHFT +100: A's formants a ratio of 1.5 up */
+    render(NB, s);
+    u1 = vx_band(s, 100 * CTL, NB * CTL, 1000, 1250);    /* (730 x 1.5: 1,095) */
+    u2 = vx_band(s, 100 * CTL, NB * CTL, 600, 800);
+    {
+        double up = u1 / (u2 + 1);
+        p[SY_MIX] = 50;
+        render(NB, s);
+        u1 = vx_band(s, 100 * CTL, NB * CTL, 1000, 1250);
+        u2 = vx_band(s, 100 * CTL, NB * CTL, 600, 800);
+        snprintf(b, sizeof b, "..SHFT +100: A's first formant moves up (1-1.25 kHz over 600-800 Hz: %.2f, %.2f at 0)", up,
+                 u1 / (u2 + 1));
+        check(b, up > 2 * u1 / (u2 + 1));
+    }
+    p[SY_IENV] = 50;                                     /* VENV +50: the vowel moves from A toward I at the strike */
+    p[SY_SUS] = 0;
+    p[SY_DEC] = 70;
+    fm1_in.notes = 0;
+    render(NB, 0);
+    fm1_in.notes = note_bit_of_white(9);
+    render(NB, s);
+    snprintf(b, sizeof b, "..VENV +50: at the strike higher up (2-2.6 kHz over 600-900 Hz %.2f, then %.2f)",
+             vx_band(s, 4 * CTL, 40 * CTL, 2000, 2600) / (vx_band(s, 4 * CTL, 40 * CTL, 600, 900) + 1),
+             vx_band(s, 200 * CTL, 236 * CTL, 2000, 2600) / (vx_band(s, 200 * CTL, 236 * CTL, 600, 900) + 1));
+    check(b, vx_band(s, 4 * CTL, 40 * CTL, 2000, 2600) / (vx_band(s, 4 * CTL, 40 * CTL, 600, 900) + 1) >
+             2 * vx_band(s, 200 * CTL, 236 * CTL, 2000, 2600) / (vx_band(s, 200 * CTL, 236 * CTL, 600, 900) + 1) &&
+             peak_of(s, NB * CTL) < 32767);
+    p[SY_IENV] = 30;
+    p[SY_SUS] = 100;
+    p[SY_DTUN] = 20;
+    ui.msg_t = 0;
+    shot("BRYO", "synth_vox");
+    fm1_in.notes = 0;
+    render(NB, 0);
+    track[0].octave = 3;
+}
+
 /* scenes (scene.c, 2026-10-13): the mixer's SCENES page (GLO, then EDIT): white keys 1-4 recall (held + SAVE:
  * store), KNOB 1-4 morph. A track whose source differs fades out, switches, fades in; choices switch at the
  * midpoint; the playing isn't theirs; saved in the project as their differences */
@@ -6884,7 +6973,7 @@ static void test_mod(void)
     {
         static const struct { const pdesc_t *p; const char *a, *b; uint32_t away; const char *f3, *f4; } R[] = {
             /* (a b: KNOB 3-4 of the last page; f3 f4: of the first; away: knobs another pad's page shows) */
-            {DEV_P[DEV_SRC], 0, "LVL"}, {SYN_P, 0, "LVL", 1u << SY_IENV}, {SYN_FM_P, 0, "LVL"}, {SYN_PD_P, 0, "LVL"},
+            {DEV_P[DEV_SRC], 0, "LVL"}, {SYN_P, 0, "LVL", 1u << SY_IENV}, {SYN_FM_P, 0, "LVL"}, {SYN_PD_P, 0, "LVL"}, {SYN_VX_P, 0, "LVL"},
             {POL_P, 0, "LVL"},
             {DRM_P, 0, "LVL"},
             {DEV_P[DEV_COLOR], 0, "LVL", 0, "ROUT", "WET"}, {DEV_P[DEV_GRAIN], 0, 0, 0, "ROUT", "WET"},
@@ -9909,6 +9998,7 @@ int main(int argc, char **argv)
     test_fm();
     test_pd();
     test_chord();
+    test_vox();
     test_sleep();
     test_color();
     test_space();

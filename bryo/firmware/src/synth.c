@@ -25,6 +25,11 @@
  * cosine 1 + 15 x AMT times faster under a window (a saw's, a triangle's, a trapezoid's) that ends at 0, the CZ's
  * resonance.
  *
+ * WAVE VOX (2026-10-13): a band-limited saw (and BRTH's noise) through three band-passes at a vowel's formants
+ * (VOX_F8, the cutoff scale's index: no logarithm a block), each at unity gain at its peak and a narrower Q up the
+ * spectrum (5, 8, 10), weighted 1, 0.7, 0.4. VOWL morphs A E I O U, VENV pushes it with the envelope, SHFT moves all
+ * three by a ratio of 0.7 to 1.5. Coefficients a block, three tsvf_coef a voice.
+ *
  * Cost: per voice per sample, two oscillators, one noise step when NOIS is up, one filter; coefficients per block.
  * FM: two sine reads and their phase offsets, about what the band-limited oscillators cost.
  * Everything runs in the audio ISR; the main loop only writes the knobs (tp[t].syn) and the source (tp[t].src). */
@@ -37,6 +42,7 @@ typedef struct {
     int32_t amp;                 /* the last block's level, Q15 (the next block ramps from it) */
     int32_t p16, to16;           /* the pitch now and where it glides to, 1/16 semitone */
     int32_t fm1, fm2;            /* FM: the modulator's last two outputs (its feedback) */
+    int32_t vs1[3], vs2[3];      /* VOX: the three formants' filter states */
     int32_t gi;                  /* FM: the index last block, 0..1024; PD: the bend, 0..16384 (the next block ramps
                                   * from it) */
     uint32_t age;                /* when its note started (the oldest is stolen first) */
@@ -97,6 +103,7 @@ static void syn_start(uint32_t t, uint32_t k, uint32_t nv)
         v->ic1 = v->ic2 = 0;
         v->env = 0;
         v->fm1 = v->fm2 = 0;
+        v->vs1[0] = v->vs1[1] = v->vs1[2] = v->vs2[0] = v->vs2[1] = v->vs2[2] = 0;
         if (TPD(t, MA_SYN)[SY_WAVE] == SY_FM)
             v->ph[1] = 0;                               /* (FM: the modulator from 0 with the carrier) */
         if (!v->nst)
@@ -154,6 +161,7 @@ static void syn_chord_voice(uint32_t t, uint32_t j, uint32_t k, int32_t note16, 
         v->ic1 = v->ic2 = 0;
         v->env = 0;
         v->fm1 = v->fm2 = 0;
+        v->vs1[0] = v->vs1[1] = v->vs1[2] = v->vs2[0] = v->vs2[1] = v->vs2[2] = 0;
         if (!v->nst)
             v->nst = 0x1234567 + (int32_t)(t * 7919u + k + j);
     }
@@ -209,6 +217,44 @@ static void syn_voice(uint32_t t, syn_voice_t *v, int32_t *out, uint32_t n)
     cut = mod_fine8(t, FN_SCUT, p[SY_CUT]) + p[SY_ENV] * 96 * (e15 >> 7) / 100 + p[SY_KTRK] * (pp - 60 * 16) * 16 / 100;
                                                             /* (CUT finer than its semitones when modulated: mod.c) */
     tsvf_coef(&flt, cut, p[SY_RES] * 127 / 100);
+    if (wave == SY_VOX) {                               /* VOX: the vowel now, its three bands' coefficients */
+        tsvf_t fb[3];
+        static const int16_t QK[3] = {820, 512, 410};   /* (damping Q12: Q 5, 8, 10) */
+        static const int16_t GW[3] = {32767, 22938, 13107};   /* (1, 0.7, 0.4) */
+        int32_t vw = clamp(p[SY_DTUN] + p[SY_IENV] * (e15 >> 7) / 255, 0, 100) * 1024 / 100, vi = vw >> 8, vf = vw & 255;
+        int32_t sh = (p[SY_MIX] - 50) * 40, f, s1[3], s2[3];   /* (SHFT: +-2,000 of the scale, a ratio 0.7..1.5) */
+        for (f = 0; f < 3; f++) {
+            int32_t c = VOX_F8[vi > 4 ? 4 : vi][f];
+            if (vi < 4)
+                c += ((VOX_F8[vi + 1][f] - c) * vf) >> 8;
+            tsvf_coef_k(&fb[f], c + sh, QK[f]);
+            s1[f] = v->vs1[f];
+            s2[f] = v->vs2[f];
+        }
+        for (i = 0; i < n; i++) {
+            int32_t x = osc_saw(ph0, inc1) >> 1, s = 0, y, k;
+            ph0 += inc1;
+            if (nz)
+                x += mulq15((int32_t)(noise32(&nst) >> 17) - 16384, nz);
+            for (f = 0; f < 3; f++)                     /* (k x the band: unity at the peak) */
+                s += mulq15((tsvf_mode(&fb[f], x, &s1[f], &s2[f], 1u) * fb[f].k) >> 12, GW[f]);
+            s <<= 1;
+            if (drv)
+                s = softclip((s * dg) >> 12);
+            y = tsvf_lp(&flt, s >> 1, &ic1, &ic2);
+            k = y < 0 ? -y : y;
+            if (k > 16000) {
+                k = 16000 + (softclip((k - 16000) * 2) >> 1);
+                y = y < 0 ? -k : k;
+            }
+            out[i] += mulq15(mulq15(y << 1, a0 + (((a1 - a0) * (int32_t)i) >> CTL_LOG2)), VOICE_FS);
+        }
+        for (f = 0; f < 3; f++) {
+            v->vs1[f] = s1[f];
+            v->vs2[f] = s2[f];
+        }
+        n = 0;
+    }
     if (wave == SY_PD) {                                /* PD: the bend ramped from last block's, the shape */
         int32_t d1 = clamp(p[SY_MIX] + p[SY_IENV] * (e15 >> 7) / 255, 0, 100) * 16384 / 100, d0 = v->gi;
         int32_t dd = (d1 - d0) >> CTL_LOG2;

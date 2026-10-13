@@ -695,6 +695,18 @@ with a key still held retunes the sounding voices legato (gliding by GLID), no k
 The root is snapped to the project's scale, the tones aren't (a chord is its own intervals). Tested (`test_chord`):
 MAJ on A3 sounds A C# E; DOM7 has G and no E; a lower key held moves the chord legato.
 
+### SYNTH's VOX (2026-10-13)
+
+The formant engine, WAVE's eighth value, built as FM and PD were (`SYN_VX_P`, "VOX SYNTH"): VOWL in DTUN's place
+(printed by F_VOWL: A, E-I between, I), SHFT in MIX's (F_C50: 50 the middle), VENV in IENV's, BRTH in NOIS's. The
+voice: a band-limited saw (with BRTH's noise) through three band-passes of the filter POLY and SYNTH already use
+(`tsvf_mode` 1), each scaled by its own damping so its peak is unity, at Q 5, 8 and 10, weighted 1, 0.7, 0.4. The
+formants of A E I O U (a man's: 730 1090 2440 Hz for A ...) are stored as the cutoff scale's index, Q8 (`VOX_F8`,
+from `CUTOFF_HZ`'s own formula), so a vowel between two is a straight line and SHFT a constant added (+-2,000: a
+ratio of 0.7 to 1.5), with no logarithm in the audio. Three `tsvf_coef_k` a voice a block. Tested (`test_vox`): A
+loud at 600-900 Hz, I at 2-2.6 kHz (the band ratio 5.6 against 0.1); SHFT +100 moves A's first formant up (1.59
+against 0.50); VENV +50 at the strike (0.98, then 0.16). Host cost, three voices: 34 ns a sample, twice the saw's.
+
 ## POLY, as built (2026-10-07)
 
 POLY is the third source engine: a sound played across the keys, up to four notes at once.

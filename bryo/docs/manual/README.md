@@ -465,7 +465,7 @@ Press **HOME** again to go through its five pages:
 
 | Page | Knobs |
 | --- | --- |
-| 1, the oscillator | **WAVE** (SIN TRI SQR SAW PLS, and FM and PD: below), **DTUN** (a second oscillator, detuned), **MIX** of the two, **NOIS** |
+| 1, the oscillator | **WAVE** (SIN TRI SQR SAW PLS, and FM, PD and VOX: below), **DTUN** (a second oscillator, detuned), **MIX** of the two, **NOIS** |
 | 2, AMP | **ATK DEC SUS REL**: how a note starts, falls, holds and fades |
 | 3, FILTER | **CUT** (cutoff), **RES** (resonance), **ENV** (how much the envelope opens it), **KTRK** (follows the note) |
 | 4, VOICE | **VOIC** (1-3 notes), **GLID** (slides between notes), **TUNE** (semitones), **FINE** (cents) |
@@ -511,6 +511,18 @@ bends the more it becomes the shape you've picked. It sounds like a filter sweep
 the resonant "wah" that made the CZ famous.
 
 <img src="img/synth_pd.png" width="240" alt="PD SYNTH: WAVE SHAP AMT AENV">
+
+**VOX.** Past PD, **VOX** is a voice: a buzz through three formants, the resonances that make a vowel (the header
+says **VOX SYNTH**).
+
+| Page | Knobs |
+| --- | --- |
+| 1, the vowel | **WAVE** (VOX), **VOWL** (A E I O U, and the sounds between), **SHFT** (every formant down or up: below 0 a bigger voice, above it a smaller one), **VENV** (how far the envelope moves the vowel: "wah", "ow") |
+| 5, LEVEL | **DRV**, **BRTH** (breath: noise through the same formants, a whisper at 100), **CHRD**, **LVL** |
+
+**Try:** VOWL on U, VENV +50, a slow DEC: "ooh-wah". Turn on **CHRD MIN7** for a choir pad, and **RIPPLE** after it.
+
+<img src="img/synth_vox.png" width="240" alt="VOX SYNTH: WAVE VOWL SHFT VENV">
 
 ### 5.3 POLY: play a sound across the keys
 
