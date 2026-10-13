@@ -1060,6 +1060,49 @@ saved before them stored 0 in those slots. They're modulation targets like any k
 PICK's burst brighter at +60 than -60; STRM 50's strings 50 ms apart, the top one waiting until 150 ms; a new pluck
 dropping a strum under way; VARY 0 full level, VARY 100 every pluck and string its own, none under a quarter.
 
+### RIPPLE 4: MODE, DRV, RIPL (2026-10-13)
+
+From playing it: "the resonators still don't sound very unique, I was hoping for more warmth and less brightness,
+other filter types like comb, and have them affect the playing", with the Erica Synths filter banks (the Polivoks
+VCF's gritty, saturating feedback) as the reference. Three knobs on a fourth page, stored 16-18 (12-15 are the
+arpeggio's, shown on the ARP pad; the layout row puts 16-18 at page 4 and the arpeggio's past the pages).
+
+**MODE** (not a modulation target: a change clears the lines and the states, since what rang in one mode read by
+the next is a burst of nonsense). STRG is the strings. COMB is the same loop with the line at half the period and
+the feedback inverted (`g` and `g3` negated: the toward-zero rounding goes by the product's sign, so it holds either
+way): a loop that inverts every half period rings at the full period with the odd harmonics only, hollow, a
+clarinet's body; the pluck's burst is half a period too. BANK has no lines: each partial is a resonator fed by the
+track (and a pluck's noise burst, an eighth of a string's, since a resonator stores what it's given), its ring time
+DEC's, the same milliseconds as a string's (`rs_t60`, applied once a block as a loss on both states), TONE a tilt
+over the bands as the picture draws it. The resonator is the "magic circle" (a rotation of two states by the
+band's angle a sample, the second step using the first's result, so it keeps its area): the first try was the
+POLY filter's SVF at its band output, and its Q12 coefficients can't hold a Q of 400 at 220 Hz (its g^2 term rounds
+to 1). The states are Q23 and read 10 bits down into a 15-bit angle whose shift is chosen a block, so every product
+stays under 2^31 without a 64-bit type; a 2^26 clamp bounds them. Tested: a pluck rings the band at A3 27 x over
+440 Hz; DEC 30 is gone in 0.4 s, DEC 95 keeps 82 %.
+
+**DRV** is a cubic on what the loop feeds back: 3u - u^3 after a gain of 1 + DRV / 50 and before its inverse (Q14;
+at Q8 the round trip was 0.4 % off, which shortened a ring), the third folded into the loop gain (`g3`) so it's one
+multiply fewer a sample. A small signal passes as it is, so a quiet string rings clean and the tail dies at the
+rate DEC says (tested: within 20 % of DRV 0's); a loud one rounds off at two thirds and gains odd harmonics while it
+does, warm and gritty, what the Polivoks does to its feedback. In BANK it shapes what reaches the bands. When the
+strings settle (silence in) both of its steps round toward 0, as the loop always has, else a residue of a few units
+stuck for good and COLOR's NOIS followed it (the same hiss as 2026-10-11, found by the resting tests). Every term is
+passed by value: a struct read through a pointer in the loop would be re-read after each store into the line.
+DRV 0 in STRG is the loop as it always was, bit for bit.
+
+**RIPL**: each string's pitch moves on a slow triangle, up to +-50 cents at 100, at 0.2 Hz + RIPL / 100 Hz, string
+k a quarter turn behind string k - 1, so the drift runs across the four like a ripple; the period takes the cents
+through `cents_inc` and the lines follow sample by sample (the moving-delay loop), which now also rounds toward 0
+when the input is silent, since with RIPL on it's the loop that runs. On BANK it moves the bands' centres.
+
+**Defaults.** TONE 60 -> 45 (the brightness the request was about), DRV 25. Both change the factory scene's sound
+on purpose; the fingerprints were rewritten. **Cost**: the scene went from 2,924 to 2,999 instructions a sample
+(about 2 % of the FM-1): the cubic, on four strings every sample; the loop's own path costs one branch more with
+DRV at 0. **Project format 11, bank 4**: a knob's value is one byte when it's small either side of 0 (zigzag), 255 and
+two bytes otherwise, since the biggest project there can be (every knob random) grew past its sector by 11 bytes with
+three knobs more; it's 3,212 bytes now, and eight of the densest tracks fit a bank where six did.
+
 ## COLOR, as built (2026-10-08)
 
 COLOR is the S-4's DEFORM after RIPPLE (`firmware/src/color.c`). It takes no memory, only a few numbers a track,
@@ -1968,6 +2011,7 @@ the chords move by TUNE, which is added after the snap.
 
 **Formats.** Projects are version 10 (KEY and SCAL after the master's knobs), the track presets' bank version 3 (a
 POLY preset's ROOT would read as nothing in a bank 2). Nothing older is read, as since "Compatibility dropped".
+(Since 2026-10-13: version 11 and bank 4, a knob's value a byte when it's small: "RIPPLE 4" above.)
 
 **Cost.** One `key_snap` a note start, and per POLY voice per block a `cents_inc` in place of `pitch_inc`: one more
 divide by 100 and a multiply, a block. SYNTH pays it only with FINE off 0. The load tables didn't move.

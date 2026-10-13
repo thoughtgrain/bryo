@@ -707,8 +707,20 @@ The track rings four tuned strings, like a sitar's sympathetic strings.
    - **VARY**: each pluck comes out a little different, in level and brightness, so a pattern sounds played rather
      than repeated.
 6. To make the strings play a pattern of their own, use **RIPL ARP**, the ARP pad's third page ([5.8](#58-arp-the-arpeggiator)).
+7. **RIPPLE 4** is what rings and how it's driven:
+   - **MODE**: **STRG**, the four strings. **COMB**, the same lines at half length fed back inverted: only the odd
+     harmonics ring, a hollow, clarinet-like body at the same pitch. **BANK**, no strings at all but a resonant band
+     on each partial, the way a filter bank rings: DEC sets how sharp the bands are (the same ring time as the
+     strings), TONE tilts the upper ones down, and a pluck is a burst of noise into the bands. Switching modes
+     clears what was ringing.
+   - **DRV**: a saturation in the strings' loop, the way a Polivoks filter overdrives its own feedback. A loud ring
+     rounds off and gains odd harmonics, warm and gritty; as it dies away it rings clean again, so DRV changes the
+     attack more than the tail. In BANK it drives what reaches the bands. It starts at 25.
+   - **RIPL**: the strings drift in pitch, slowly, each a quarter turn behind the one below, so the drift runs
+     across them like a ripple on water; up to half a semitone either way at 100, faster as it rises. On BANK it
+     moves the bands' centres.
 
-<img src="img/resonator_wet.png" width="240" alt="RIPPLE ringing"> <img src="img/resonator2.png" width="240" alt="RIPPLE 2: CUT RES TYPE SCAL">
+<img src="img/resonator_wet.png" width="240" alt="RIPPLE ringing"> <img src="img/resonator2.png" width="240" alt="RIPPLE 2: CUT RES TYPE SCAL"> <img src="img/ripple4.png" width="240" alt="RIPPLE 4: MODE DRV RIPL">
 
 ### 6.6 COLOR: dirt and character
 

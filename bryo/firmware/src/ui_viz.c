@@ -525,8 +525,10 @@ static void viz_reso(const int16_t *v, uint32_t f)
     }
     vz_label(DX0 + 8, "E1", 0);
     vz_label(DX1 - 8, "E9", 0);
-    vz_label((DX0 + DX1) / 2, f == RP_ROUT ? N_ROUT[clamp(v[RP_ROUT], 0, 1)] : f >= 1u && f < 9u ? DEV_P[DEV_RESO][f].label : N_RSCAL[sc],
-             f >= 1u && f < 9u);
+    vz_label((DX0 + DX1) / 2, f == RP_ROUT ? N_ROUT[clamp(v[RP_ROUT], 0, 1)]
+             : f == RP_MODE ? N_RMODE[clamp(v[RP_MODE], 0, 2)]
+             : f >= 1u && f < NPK && !pdesc_empty(&DEV_P[DEV_RESO][f]) ? DEV_P[DEV_RESO][f].label : N_RSCAL[sc],
+             f >= 1u && f != RP_MODE && f < NPK && !pdesc_empty(&DEV_P[DEV_RESO][f]));
     if (f >= 4u && f < 8u)
         vz_ktag(118, DY0 - 1, &DEV_P[DEV_RESO][f], v[f]);
 }

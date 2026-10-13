@@ -23,7 +23,7 @@ The rest of the hardware checkpoint (`docs/hardware-checkpoint.md`) is under way
 | 2 TAPE + reels | done: ADPCM tapes, factory reels, slices, REC and overdub, clear and undo |
 | 3 USB audio in + SYNTH + POLY | done: the USB record mode, the SYNTH and POLY sources |
 | 3b GRAIN, 3c memory by usage | done: the live buffer, one grain pool shared by demand; tapes that grow, TRACKS, REC IN |
-| 4 RIPPLE (RESONATOR until 2026-10-13) | done: four strings, keys set the root |
+| 4 RIPPLE (RESONATOR until 2026-10-13) | done: four strings, keys set the root; MODE STRG COMB BANK, DRV, RIPL (2026-10-13) |
 | 5 COLOR + SPACE | done |
 | 6 Mixer + routing | done: channel strips (LOW HIGH FILT PAN), master compressor; routing is REC IN |
 | 7 Modulation | done but p-locks: LFO ADSR SEQ FOLLOW, hold-and-turn depths, MONO's clear and undo |
@@ -260,7 +260,8 @@ number.
 - **2026-10-12: tuning and a key, for SYNTH and POLY only.** TAPE's pitch stays its speed. KEY and SCAL are the
   project's (one for every track, the mixer's KEY page), and a note outside the scale snaps to the nearest one in it
   rather than the keys skipping to scale notes, so the keyboard stays a piano. POLY's ROOT replaced setting TUNE to 48
-  minus a sound's note; FINE is in cents on both. Projects format 10, presets bank 3. A new project and the
+  minus a sound's note; FINE is in cents on both. Projects format 10, presets bank 3 (11 and 4 since 2026-10-13: a
+  knob's value a byte when it's small). A new project and the
   factory scene start on A MIN (every factory reel is in A) and ROOT on A3 (BELL, POLY's first reel), so the keys
   play the note they're named for and stay in key out of the box.
 - **2026-10-11, round 3 from playing it.** The rooms' knobs went back to SPACE's pages (ROOM picks A or B; the

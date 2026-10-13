@@ -300,7 +300,7 @@ enum {
     PK_SHAPE, PK_FOLD, PK_SKEW, PK_SMOOTH, PK_STEPS, PK_SLEW, PK_SWING, PK_KEYS, PK_SHELF_LO, PK_SHELF_HI, PK_FILTER,
     PK_PAN, PK_TOGGLE, PK_FADE, PK_WINDOW, PK_GATE, PK_PRE, PK_MODE, PK_DIR, PK_STEPAT, PK_NONE,
     PK_CURVE, PK_VAR, PK_SRC, PK_OSC, PK_DETUNE, PK_CUTOFF, PK_RES, PK_ENVAMT, PK_KTRK, PK_VOICES, PK_PATTERN,
-    PK_SCALE, PK_SLOPE, PK_CMOD, PK_SCAN, PK_ROUTE, PK_BODY, PK_GRNS
+    PK_SCALE, PK_SLOPE, PK_CMOD, PK_SCAN, PK_ROUTE, PK_BODY, PK_GRNS, PK_RMODE, PK_RIPPLE
 };
 
 /* the waveform shapes WAVE's SHAPE picks, at phase p (0..63 a cycle), x1000 */
@@ -867,6 +867,36 @@ static void px_picto(uint32_t kind, int32_t x, int32_t y, const pdesc_t *d, int3
             px_box(x + AT[v & 3][k], y + 6, 2, 9, c);
         break;
     }
+    case PK_RMODE: {                                     /* RIPPLE's MODE: STRG a string between two bridges, COMB
+                                                          * a comb's teeth, BANK three band peaks */
+        int32_t k;
+        if (v == 0) {
+            px_line(x + 2, y + 2, x + 2, b, c, 1);
+            px_line(x + 19, y + 2, x + 19, b, c, 1);
+            for (k = 0; k <= 16; k++)                    /* (one bow of the string) */
+                px_dot(x + 3 + k, y + 11 - ((k * (16 - k)) >> 3), c);
+        } else if (v == 1) {
+            px_line(x + 1, b, x + 20, b, c, 1);
+            for (k = 0; k < 6; k++)
+                px_line(x + 2 + k * 4, y + 3, x + 2 + k * 4, b, c, 1);
+        } else {
+            px_line(x + 1, b, x + 20, b, m, 1);
+            for (k = 0; k < 3; k++) {
+                int32_t px = x + 4 + k * 6, h = 15 - k * 4;
+                px_line(px - 2, b, px, b - h, c, 1);
+                px_line(px, b - h, px + 2, b, c, 1);
+            }
+        }
+        break;
+    }
+    case PK_RIPPLE: {                                    /* RIPL: a wave that fades as it goes, taller as RIPL rises */
+        int32_t k, amp = 2 + (v * 7) / 100;
+        for (k = 0; k < 20; k++) {
+            int32_t ph = (k * 64 / 10) & 63, sn = px_px(0, 16, ph) * amp / 16, fade = 20 - k;
+            px_dot(x + 1 + k, y + 10 - sn * fade / 20, k < 10 ? c : m);
+        }
+        break;
+    }
     case PK_SCALE: {                                     /* 12 semitones round a ring, the scale's lit: GRAIN's
                                                           * (none at OFF), or the notes RIPPLE's four strings make */
         uint32_t set = gr_mask(v);
@@ -1006,7 +1036,8 @@ static const uint8_t DEV_PK[NDEV][NPK] = {
     {PK_KEYS, PK_DECAY, PK_TONE, PK_MIX,             /* RIPPLE: PTCH DEC TONE WET */
      PK_CUTOFF, PK_RES, PK_SLOPE, PK_SCALE,          /*            CUT RES TYPE SCAL */
      PK_ROUTE, PK_ATTACK, PK_STEPAT, PK_VAR,         /*            ROUT PICK STRM VARY */
-     PK_TOGGLE, PK_DIR, PK_VOICES, PK_CLOCK},        /*            its arpeggio: MODE ORDR RNGE RATE */
+     PK_TOGGLE, PK_DIR, PK_VOICES, PK_CLOCK,         /*            its arpeggio: MODE ORDR RNGE RATE */
+     PK_RMODE, PK_DRIVE, PK_RIPPLE},                 /*            MODE DRV RIPL */
     {PK_DRIVE, PK_STAIRS, PK_NOISE, PK_TONE,         /* COLOR: DRV CRSH NOIS TILT */
      PK_DECAY, PK_TONE, PK_CMOD, PK_MIX,             /*        NDEC NTON CMOD WET */
      PK_FADER, PK_ROUTE, PK_NONE, PK_NONE},          /*        LVL ROUT */

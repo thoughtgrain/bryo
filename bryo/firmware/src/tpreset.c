@@ -21,7 +21,7 @@
 
 #define TPR_N 8u                     /* presets A..H */
 #define TPR_BANK PJ_N                /* the bank's sector pair (pj_sector) */
-#define TPR_VERSION 3u               /* one format: a bank of another version reads as empty (nothing older is kept
+#define TPR_VERSION 4u               /* one format: a bank of another version reads as empty (nothing older is kept
                                       * up with: presets started with this one) */
 
 typedef struct {                     /* what the view shows of a preset without loading it */

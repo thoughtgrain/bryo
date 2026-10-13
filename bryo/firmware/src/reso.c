@@ -24,7 +24,10 @@
 #define RS_N 4u                      /* strings a track */
 #define RS_LEN (sizeof(mem_chunk_t) / 2u)   /* a string's delay line: a chunk as samples (1,056) */
 enum { RP_PTCH, RP_DEC, RP_TONE, RP_WET, RP_CUT, RP_RES, RP_SLOP, RP_SCAL, RP_ROUT, RP_PICK, RP_STRM, RP_VARY,
-       RP_AMODE, RP_AORD, RP_ARNG, RP_ARAT };   /* (12-15: its arpeggio) */
+       RP_AMODE, RP_AORD, RP_ARNG, RP_ARAT, RP_MODE, RP_DRV, RP_RIPL };   /* (12-15: its arpeggio; 16-18: page 4) */
+enum { RM_STRG, RM_COMB, RM_BANK };  /* MODE: the strings, combs (half the line, fed back inverted: the odd harmonics
+                                      * only, hollow), a bank (a resonant band-pass a partial, no line: a sitar's
+                                      * strings, a Polivoks-like filter bank) */
 
 /* the partials above the root, 1/16 semitones, by SCAL: the strings take the first four (RS_N), the picture
  * (ui_viz.c viz_reso) draws every one. HARM is the root's harmonics (12 log2 k); the rest are a chord's tones
@@ -78,6 +81,13 @@ typedef struct {
     uint32_t pend[RS_N];             /* a strum: samples until string k is plucked (0: not waiting) */
     int32_t proot, pa, plv[RS_N];    /* .. the pluck it belongs to: its root, brightness, each string's level */
     int32_t psc;                     /* .. and its SCAL */
+    int32_t bs1[RS_N], bs2[RS_N];    /* BANK: each band's filter state */
+    uint32_t burst[RS_N];            /* BANK: a pluck's noise still to feed band k, samples (0: none) */
+    int32_t by[RS_N], blv[RS_N];     /* .. its one-pole (the pluck's brightness) and its level */
+    uint32_t rph;                    /* RIPL's phase (string k a quarter turn on from string k - 1) */
+    int32_t rc[RS_N];                /* RIPL: each string's pitch offset this block, cents */
+    uint8_t mode_seen;               /* MODE last block: a change clears the lines (what rang in the old one would
+                                      * be read wrong by the new) */
 } reso_t;
 
 static reso_t reso[NTRK];
@@ -99,6 +109,55 @@ static uint32_t rs_period_q8(int32_t n16)
     uint32_t inc = pitch_inc((uint32_t)clamp(n16, 29 * 16, 2047)) >> 8, p;
     p = inc ? 0xFFFFFFFFu / inc : (RS_LEN - 2u) << 8;
     return p > (RS_LEN - 2u) << 8 ? (RS_LEN - 2u) << 8 : p;
+}
+
+/* a period, Q8 samples, for pitch n16 and ct cents more (RIPL: the strings' slow drift; cents_inc has two divides,
+ * so rs_period_q8 is kept for the still case) */
+static uint32_t rs_period_q8c(int32_t n16, int32_t ct)
+{
+    uint32_t inc = cents_inc(clamp(n16, 29 * 16, 2047), ct, 0) >> 8, p;
+    p = inc ? 0xFFFFFFFFu / inc : (RS_LEN - 2u) << 8;
+    return p > (RS_LEN - 2u) << 8 ? (RS_LEN - 2u) << 8 : p;
+}
+
+/* MODE now (a choice the main loop makes: not modulated) */
+static inline __attribute__((always_inline)) int32_t rs_mode(const reso_t *R)
+{
+    return clamp(tp[R - reso].dev[DEV_RESO][RP_MODE], 0, 2);
+}
+
+/* DRV's shaper: x through a cubic, x - x^3 / 3, after a gain of 1 + DRV / 50 (gq, Q8) and before its inverse (ig,
+ * Q14: at Q8 the round trip was 0.4 % off, enough to shorten a ring), so a small signal passes as it is and a big
+ * one rounds off (the top at 2/3 of full scale over the gain):
+ * what a Polivoks does to its feedback, the op amps running out of swing. In the loop (STRG, COMB) it's on what's
+ * fed back, so a loud string compresses and gains its odd harmonics while it rings and a quiet one rings clean;
+ * in BANK it's on what reaches the bands */
+static inline __attribute__((always_inline)) int32_t rs_shape(int32_t x, int32_t gq, int32_t ig)
+{
+    int32_t u = (x * gq) >> 8, s;
+    u = u > 32767 ? 32767 : u < -32767 ? -32767 : u;
+    s = u - (((((u * u) >> 15) * u) >> 15) * 10923 >> 15);   /* (10923: 1/3, Q15) */
+    return (s * ig) >> 14;
+}
+
+/* what the loop feeds back for its low-passed sample lp: times the gain g (Q15; settle: rounded toward 0,
+ * rs_settle, at both of the shaper's steps too, so a residue shrinks every pass), through DRV's shaper when it's
+ * on: gq its gain (Q8), g3 the loop gain over three times it, since the cubic is taken as 3u - u^3 (one multiply
+ * fewer a sample than u - u^3 / 3). COMB passes g and g3 negated: the toward-zero rounding goes by the product's
+ * sign, so it holds either way. DRV 0 in STRG is the loop as it always was. Every term is a value, not a field: a
+ * store into the line or the sum would make the compiler read a field back each sample */
+static inline __attribute__((always_inline)) int32_t rs_fb(int32_t lp, int32_t g, int32_t g3, int32_t drv, int32_t gq,
+                                                           int settle)
+{
+    int32_t t;
+    if (drv) {
+        int32_t u = settle ? (lp * gq + ((lp >> 31) & 255)) >> 8 : (lp * gq) >> 8;
+        u = u > 32767 ? 32767 : u < -32767 ? -32767 : u;
+        t = (u * 3 - ((((u * u) >> 15) * u) >> 15)) * g3;   /* (|3u - u^3| < 2^17, g3 < 2^14: under 2^31) */
+    } else {
+        t = lp * g;
+    }
+    return settle ? (t + ((t >> 31) & 32767)) >> 15 : t >> 15;
 }
 
 /* the loop gain for a period of p samples to ring t60 ms to -60 dB: 2^-(9.97 p / (44.1 t60)), Q15 */
@@ -140,9 +199,17 @@ static uint32_t rs_t60(int32_t dec)
 static void HOT_CODE rs_pluck1(reso_t *R, uint32_t k, int32_t root16, int32_t a, int32_t lv, int32_t sc)
 {
     int16_t *d = rs_line(R, k);
-    uint32_t p = rs_period_q8(root16 + RS_PART16[sc][k]) >> 8, at = R->w, i;
+    int32_t mode = rs_mode(R);
+    uint32_t p = rs_period_q8(root16 + RS_PART16[sc][k]) >> (mode == RM_COMB ? 9 : 8), at = R->w, i;
     int32_t y = 0;
     R->quiet = 0;                                       /* (awake: something to ring) */
+    if (mode == RM_BANK) {                              /* no line: the burst goes into the band, sample by sample */
+        R->burst[k] = p + 2u;
+        R->by[k] = 0;
+        R->blv[k] = lv;
+        R->bs1[k] = R->bs2[k] = 0;
+        return;
+    }
     for (i = 0; i < p + 2u; i++) {
         int32_t x = (int32_t)(noise32(&R->rng) >> 17) - 16384;
         y += (a * (x - y)) >> 15;
@@ -235,6 +302,19 @@ static void HOT_CODE reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t key
     int32_t wet1 = clamp(p[RP_WET], 0, 100), wet0 = R->wet, e[CTL], acc_e[CTL], acc_o[CTL], heard = 0;
     int32_t a = RS_TONE_A[clamp(p[RP_TONE], 0, 100)], sc = clamp(p[RP_SCAL], 0, RS_SCALES), root16;
     uint32_t k, i, press = keys & ~R->keys, nstr = R->nch < reso_cap ? R->nch : reso_cap, t60 = rs_t60(p[RP_DEC]);
+    int32_t mode = rs_mode(R), drv = clamp(p[RP_DRV], 0, 100), ripl = clamp(p[RP_RIPL], 0, 100), ig = 16384;
+    int32_t comb = mode == RM_COMB, gq = 256 + ((drv * 1311) >> 8);   /* (DRV's gain, 1 + DRV / 50: to 3 x) */
+    if (drv)
+        ig = (int32_t)((1u << 22) / (uint32_t)gq);      /* (1 / gq, Q14) */
+    if (mode != R->mode_seen) {                         /* MODE changed: the lines and the states cleared */
+        R->mode_seen = (uint8_t)mode;
+        for (k = 0; k < R->nch; k++)
+            memset(rs_line(R, k), 0, RS_LEN * 2u);
+        for (k = 0; k < RS_N; k++) {
+            R->lp[k] = R->bs1[k] = R->bs2[k] = 0;
+            R->dq[k] = R->burst[k] = 0;
+        }
+    }
     R->keys = keys;
     R->wet = wet1;
     rs_strum(R, nstr, n);
@@ -268,10 +348,10 @@ static void HOT_CODE reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t key
         R->rs16 += sdiv2(root16 - R->rs16, 1);
     root16 = R->rs16;
     {   /* what excites the strings: the track, mono, through the filter in front (when it does anything) */
-        int32_t mode = clamp(p[RP_SLOP], 0, 2);
+        int32_t slope = clamp(p[RP_SLOP], 0, 2);
         tsvf_t flt = {0};                                 /* (set when filt; zero keeps the compiler's warning off) */
         int32_t c8 = mod_fine8(t, FN_RCUT, p[RP_CUT]);   /* (CUT finer than its semitones when modulated: mod.c) */
-        int filt = c8 < 127 << 8 || p[RP_RES] || mode;
+        int filt = c8 < 127 << 8 || p[RP_RES] || slope;
         /* the input's share, by the root string's ring: less as the ring gets longer, so a long DEC rings louder but
          * not without bound (the loop clamps besides); applied as the input is read, not in a pass of its own */
         int32_t in = clamp((32768 - rs_gain(rs_period_q8(root16) >> 8, t60)) * 16, 4096, 16384);
@@ -288,9 +368,12 @@ static void HOT_CODE reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t key
         for (i = 0; i < n; i++) {
             int32_t x = (l[i] + r[i]) >> 1;
             heard |= x;
-            e[i] = ((filt ? tsvf_mode(&flt, x >> 1, &ic1, &ic2, (uint32_t)mode) << 1 : x) * in) >> 15;
+            e[i] = ((filt ? tsvf_mode(&flt, x >> 1, &ic1, &ic2, (uint32_t)slope) << 1 : x) * in) >> 15;
             acc_e[i] = acc_o[i] = 0;
         }
+        if (mode == RM_BANK && drv)                     /* (BANK: DRV on what reaches the bands) */
+            for (i = 0; i < n; i++)
+                e[i] = rs_shape(e[i], gq, ig);
         R->ic1 = ic1;
         R->ic2 = ic2;
         if (!heard && R->ic1 > -256 && R->ic1 < 256 && R->ic2 > -256 && R->ic2 < 256)
@@ -304,15 +387,92 @@ static void HOT_CODE reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t key
                                                          * half the CPU with nothing playing). A pluck or sound in
                                                          * wakes them, carrying on from their lines as they are */
         nstr = 0;
-    {
+    if (ripl && nstr) {                                  /* RIPL: each string drifts, a slow triangle of up to +-50
+                                                         * cents at 100, 0.2 Hz + RIPL / 100 Hz, a quarter turn
+                                                         * apart, so the drift runs across the strings like a wave;
+                                                         * the lines follow sample by sample (the moving loop) */
+        R->rph += 623306u + (uint32_t)ripl * 31165u;    /* (2^32 x 32 / 44100 a Hz) */
+        for (k = 0; k < RS_N; k++) {
+            int32_t tri = (int32_t)((R->rph + (uint32_t)k * 0x40000000u) >> 16);
+            tri = tri < 32768 ? tri * 2 - 32768 : 98304 - tri * 2;
+            R->rc[k] = (tri * ripl) >> 16;
+        }
+    } else {
+        for (k = 0; k < RS_N; k++)
+            R->rc[k] = 0;
+    }
+    if (mode == RM_BANK) {                               /* a bank: each partial a resonator (below), DEC its ring
+                                                         * (the same ms as a string's), TONE a tilt over the bands
+                                                         * (the picture's), a pluck a burst of noise into it. The
+                                                         * track feeds it scaled by the ring's loss (as the strings'
+                                                         * input share: a long ring builds up, not without bound) */
+        uint32_t tone = (uint32_t)clamp(p[RP_TONE], 0, 100);
+        for (k = 0; k < nstr; k++) {
+            int32_t n16 = root16 + RS_PART16[sc][k], tilt = 1000 - (int32_t)k * (100 - (int32_t)tone) * 9;
+            uint32_t inc = R->rc[k] ? cents_inc(clamp(n16, 29 * 16, 2047), R->rc[k], 0)
+                                    : pitch_inc((uint32_t)clamp(n16, 29 * 16, 2047));
+            int32_t th = (int32_t)((inc >> 16) * 1608u) + (int32_t)((((inc >> 8) & 255u) * 1608u) >> 8);   /* 2 pi f / fs,
+                                                                                                           * Q24 */
+            int32_t th2 = (th >> 12) * (th >> 12), eps = th - ((((th2 >> 12) * (th >> 12)) * 2731) >> 16);   /* 2 sin(th/2) */
+            int32_t gb = rs_gain(CTL, t60), dq = 32768 - gb, ins = clamp(dq * 4, 2048, 16384), eq, sh = 14;
+            int32_t s1 = R->bs1[k], s2 = R->bs2[k], by = R->by[k], *acc = k & 1u ? acc_o : acc_e, last = 0, gain;
+            uint32_t burst = R->burst[k];
+            while ((eps >> (14 - sh)) >= 32768 && sh)   /* (eps in 15 bits: the shift takes the rest) */
+                sh--;
+            eq = eps >> (14 - sh);
+            tilt = tilt < 0 ? 0 : tilt;
+            gain = tilt << 5;                           /* (Q15, near enough) */
+            for (i = 0; i < n; i++) {
+                int32_t x = (e[i] * ins) >> 15;
+                if (burst) {                            /* (a period of noise, an eighth of a string's: the
+                                                         * resonator stores it, so that lands near full scale) */
+                    int32_t nz = (int32_t)(noise32(&R->rng) >> 17) - 16384;
+                    by += (R->pa * (nz - by)) >> 15;
+                    x += (by * R->blv[k]) >> 18;
+                    burst--;
+                }
+                /* the resonator: a rotation of (s1, s2) by th a sample, the "magic circle" (area-preserving: the
+                 * second step uses the first's result), the states Q23 so the small steps keep their precision.
+                 * Products stay under 2^31: |s| < 2^26 (the clamp), eq < 2^15, the state read 10 bits down */
+                s1 += ((s2 >> 10) * eq) >> sh;
+                s2 -= ((s1 >> 10) * eq) >> sh;
+                s1 += x << 8;
+                s1 = s1 > (1 << 26) ? 1 << 26 : s1 < -(1 << 26) ? -(1 << 26) : s1;
+                s2 = s2 > (1 << 26) ? 1 << 26 : s2 < -(1 << 26) ? -(1 << 26) : s2;
+                last = ((s2 >> 8) * gain) >> 15;
+                acc[i] += last;
+            }
+            s1 -= ((s1 >> 10) * dq) >> 5;              /* (the ring's loss, once a block: 2^-(32 x 9.97 / (44.1 t60))) */
+            s2 -= ((s2 >> 10) * dq) >> 5;
+            R->bs1[k] = s1;
+            R->bs2[k] = s2;
+            R->by[k] = by;
+            R->burst[k] = burst;
+            R->lp[k] = last;
+            {                                           /* (its level for the screen, as a string's) */
+                uint32_t lv = (uint32_t)(last < 0 ? -last : last), l0 = R->lvl[k];
+                l0 -= l0 >> 3;
+                R->lvl[k] = (uint16_t)(lv > l0 ? (lv > 65535u ? 65535u : lv) : l0);
+            }
+            R->dq[k] = 0;
+        }
+    } else {
     uint32_t comp = ((uint32_t)(32768 - a) << 8) / (uint32_t)a;   /* (the same for every string: once a block) */
+    int settle = !heard;                                 /* (silence in: the moving loop rounds toward 0 as the
+                                                          * settling one does; RIPL keeps the delay moving) */
     for (k = 0; k < nstr; k++) {                         /* each string: read a period back, damp, ring, write */
         int16_t *d = rs_line(R, k);
-        uint32_t pq8 = rs_period_q8(root16 + RS_PART16[sc][k]);
+        int32_t n16 = root16 + RS_PART16[sc][k];
+        uint32_t pq8 = (R->rc[k] ? rs_period_q8c(n16, R->rc[k]) : rs_period_q8(n16)) >> comb;
         uint32_t dq8 = pq8 > comp + 512u ? pq8 - comp : 512u, di = dq8 >> 8, df = dq8 & 255u, w = R->w;
-        int32_t g = rs_gain(pq8 >> 8, t60), lp = R->lp[k], *acc = k & 1u ? acc_o : acc_e;
+        int32_t g = rs_gain(pq8 >> 8, t60), lp = R->lp[k], *acc = k & 1u ? acc_o : acc_e, g3 = (g * ig) >> 14;
         uint32_t rd = w >= di ? w - di : w + RS_LEN - di, d0 = R->dq[k] ? R->dq[k] : dq8;
         int32_t dd = (int32_t)dq8 - (int32_t)d0;
+        g3 = (g3 * 10923) >> 15;                        /* (over 3: the cubic's) */
+        if (comb) {
+            g = -g;
+            g3 = -g3;
+        }
         R->dq[k] = dq8;
         if (dd) {                                       /* the delay moving: each sample's own read point */
             int32_t cq = (int32_t)d0 << CTL_LOG2;       /* (n is CTL) */
@@ -325,8 +485,11 @@ static void HOT_CODE reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t key
                 rd = w >= di ? w - di : w + RS_LEN - di;
                 rp = rd ? rd - 1u : RS_LEN - 1u;
                 x = d[rd] + (((d[rp] - d[rd]) * (int32_t)(cur & 255u)) >> 8);
-                lp += (a * (x - lp)) >> 15;
-                y = (lp * g) >> 15;
+                z = a * (x - lp);
+                lp += z >> 15;
+                if (settle)
+                    lp += (lp >> 31) & (int32_t)((uint32_t)-(z & 32767) >> 31);
+                y = rs_fb(lp, g, g3, drv, gq, settle);
                 z = y + e[i];
                 d[w] = (int16_t)(z > 32767 ? 32767 : z < -32767 ? -32767 : z);
                 acc[i] += y;
@@ -349,7 +512,7 @@ static void HOT_CODE reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t key
                 for (j = 0; j < run; j++, i++) {
                     int32_t cur = d[rd], x = cur + (((prev - cur) * (int32_t)df) >> 8), y, z;
                     lp += (a * (x - lp)) >> 15;
-                    y = (lp * g) >> 15;
+                    y = rs_fb(lp, g, g3, drv, gq, 0);
                     z = y + e[i];
                     d[w] = (int16_t)(z > 32767 ? 32767 : z < -32767 ? -32767 : z);
                     acc[i] += y;
@@ -372,7 +535,7 @@ static void HOT_CODE reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t key
                 z = a * (x - lp);
                 lp += z >> 15;
                 lp += (lp >> 31) & (int32_t)((uint32_t)-(z & 32767) >> 31);
-                y = (lp * g + ((lp >> 31) & 32767)) >> 15;
+                y = rs_fb(lp, g, g3, drv, gq, 1);
                 z = y + e[i];
                 d[w] = (int16_t)(z > 32767 ? 32767 : z < -32767 ? -32767 : z);
                 acc[i] += y;
@@ -401,7 +564,7 @@ static void HOT_CODE reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t key
             R->quiet = 0;
         else if ((R->quiet += n) > RS_LEN + CTL)
             for (k = 0; k < RS_N; k++)
-                R->lp[k] = 0;
+                R->lp[k] = R->bs1[k] = R->bs2[k] = 0;
     } else {
         for (k = 0; k < RS_N; k++)                      /* (resting, or off: nothing ringing) */
             R->lvl[k] = 0;

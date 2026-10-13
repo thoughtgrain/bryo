@@ -30,7 +30,7 @@
 #define PJ_N 6u                      /* project slots */
 #define PJ_TEST (PJ_N + 1u)          /* the project view past FACTORY (PJ_N): TEST, the scene to read the load on */
 #define PJ_MAGIC 0x50595242u         /* "BRYP" */
-#define PJ_VERSION 10u               /* one format: a project of another version reads as one this Bryo can't
+#define PJ_VERSION 11u               /* one format: a project of another version reads as one this Bryo can't
                                          * (nothing older is kept up with: projects started with this one) */
 static uint8_t pj_arpn[NTRK][ARP_MAXN];  /* the notes a project being read holds, until pj_load hands them over */
 static uint8_t pj_arpc[NTRK];
@@ -197,12 +197,26 @@ static void pw_u16(uint32_t v)
     pw_byte((uint8_t)v);
     pw_byte((uint8_t)(v >> 8));
 }
+/* a knob's value: one byte when it's small either side of 0 (zigzag: 0 -1 1 -2 .. 126 -127, 0..253), else 255 and
+ * the two bytes (2026-10-13, format 11: a value was two bytes whatever it was, and the biggest project there can be,
+ * every knob random, grew past its sector by 11 bytes when RIPPLE got three knobs; most knobs run 0..100 or -100..100,
+ * so most are a byte now. The reader needs no descriptor to know a value's width, so a summary can skip through) */
+static void pw_v(int32_t v)
+{
+    uint32_t z = v >= 0 ? (uint32_t)v << 1 : ((uint32_t)(-v) << 1) - 1u;
+    if (z < 255u) {
+        pw_byte((uint8_t)z);
+    } else {
+        pw_byte(255);
+        pw_u16((uint16_t)v);
+    }
+}
 static void pw_a16(const int16_t *a, uint32_t n)        /* an array: its count, its values */
 {
     uint32_t i;
     pw_u16(n);
     for (i = 0; i < n; i++)
-        pw_u16((uint16_t)a[i]);
+        pw_v(a[i]);
 }
 static void pw_a8(const int8_t *a, uint32_t n)
 {
@@ -274,11 +288,18 @@ static uint32_t pr_u16(void)
 }
 /* an array into a of nmax, clamped by d (a descriptor per value, 0: as read): as many as were saved and fit; the
  * ones a newer project has past nmax are read and dropped */
+static int32_t pr_v(void)
+{
+    uint32_t z = pr_byte();
+    if (z == 255u)
+        return (int16_t)pr_u16();
+    return z & 1u ? -(int32_t)((z + 1u) >> 1) : (int32_t)(z >> 1);
+}
 static void pr_a16(int16_t *a, uint32_t nmax, const pdesc_t *d)
 {
     uint32_t n = pr_u16(), i;
     for (i = 0; i < n && !pr.bad; i++) {
-        int16_t v = (int16_t)pr_u16();
+        int16_t v = (int16_t)pr_v();
         if (i >= nmax)
             continue;
         if (d)

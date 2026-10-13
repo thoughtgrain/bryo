@@ -76,6 +76,7 @@ static const char *const N_GRNS[1 + GR_GRNS_MAX] = {"AUTO", "1", "2", "3", "4", 
 static const char *const N_RSCAL[13] = {"HARM", "MAJ", "MIN", "PEN", "SUS2", "SUS4", "DOM7", "MAJ7", "MIN7", "DIM",
                                         "AUG", "5TH", "OCT"};   /* (the strings' chords: reso.c RS_PART16) */
 static const char *const N_SLOP[3] = {"LP", "BP", "HP"};
+static const char *const N_RMODE[3] = {"STRG", "COMB", "BANK"};   /* RIPPLE's MODE (reso.c RM_*) */
 static const char *const N_CMOD[3] = {"BIT", "RATE", "BOTH"};
 static const char *const N_ROUT[2] = {"INS", "SEND"};
 /* ROUT (GRAIN, RIPPLE, COLOR): how WET mixes the device in. INS: in the track's line, WET crossfading the dry
@@ -148,7 +149,7 @@ static const pdesc_t DEV_P[NDEV][NPK] = {
         {"SYNC", 0, 1, 0, F_ENUM, N_OFFON, 1}},
     {   /* RIPPLE (the S-4's RING) */
         {"PTCH", 33, 81, 45, F_NOTE}, {"DEC", 0, 100, 60, F_PCT},
-        {"TONE", 0, 100, 60, F_PCT}, {"WET", 0, 100, 0, F_PCT},
+        {"TONE", 0, 100, 45, F_PCT}, {"WET", 0, 100, 0, F_PCT},   /* (TONE 60 until 2026-10-13: too bright) */
         /* 2: a filter before the strings (cutoff, resonance, its TYPE: low-, band- or high-pass, as POLY's), and the
          * strings' tuning: the root's harmonics, or a scale's chord tones from the root */
         {"CUT", 0, 127, 127, F_HZ}, {"RES", 0, 100, 0, F_PCT},
@@ -161,7 +162,12 @@ static const pdesc_t DEV_P[NDEV][NPK] = {
          * keys on that page into it, a pluck of the strings each step at that note's root, whatever the source
          * plays. As the ARP pad's knobs, with no GATE (a pluck rings by DEC) */
         {"MODE", 0, 3, ARM_OFF, F_ENUM, N_ARM, 1}, {"ORDR", 0, 4, ARO_UP, F_ENUM, N_ARO, 1},
-        {"RNGE", 1, 3, 1, F_NUM, 0, 1}, {"RATE", 0, 5, 3, F_ENUM, N_ARATE, 1}},
+        {"RNGE", 1, 3, 1, F_NUM, 0, 1}, {"RATE", 0, 5, 3, F_ENUM, N_ARATE, 1},
+        /* 4 (stored 16-18, 2026-10-13): MODE, what rings (STRG the strings; COMB half a line fed back inverted,
+         * the odd harmonics only, hollow; BANK a resonant band-pass a partial, DEC its Q, TONE a tilt); DRV, a
+         * Polivoks-like saturation of what's fed back (BANK: of what reaches the bands), warm and gritty; RIPL,
+         * the strings' pitch (the bands' centre) drifting slowly, each a quarter turn behind the last */
+        {"MODE", 0, 2, 0, F_ENUM, N_RMODE, 1}, {"DRV", 0, 100, 25, F_PCT}, {"RIPL", 0, 100, 0, F_PCT}, {""}},
     {   /* COLOR (the S-4's DEFORM) */
         {"DRV", 0, 100, 0, F_PCT}, {"CRSH", 0, 100, 0, F_PCT},
         {"NOIS", 0, 100, 0, F_PCT}, {"TILT", -100, 100, 0, F_BIPCT},
@@ -444,10 +450,10 @@ static const playout_t PLAYOUT[] = {
     {DEV_P[DEV_GRAIN], 6, {0, 1, 11, 4, 2, 3, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23}},
                                                     /* GRAIN: SIZE RATE ROUT WET, PTCH SPRD SPRY CONT, REV PATN SCAL
                                                      * PRND, SCAN.., BODY.., GRNS */
-    {DEV_P[DEV_RESO], 3, {0, 1, 8, 3, 4, 5, 6, 7, 2, 9, 10, 11, 12, 13, 14, 15}},   /* RIPPLE: PTCH DEC ROUT WET,
-                                                                                      * CUT RES TYPE SCAL, TONE PICK
-                                                                                      * STRM VARY (12-15,
-                                                                                      * RIPL ARP: the ARP pad's) */
+    {DEV_P[DEV_RESO], 4, {0, 1, 8, 3, 4, 5, 6, 7, 2, 9, 10, 11, 16, 17, 18, 19, 12, 13, 14, 15, 20, 21, 22, 23}},
+                                                    /* RIPPLE: PTCH DEC ROUT WET, CUT RES TYPE SCAL, TONE PICK STRM
+                                                     * VARY, MODE DRV RIPL . (stored 12-15, RIPL ARP: the ARP pad's
+                                                     * page 3, past the pages here) */
     {DEV_P[DEV_COLOR], 3, {0, 1, 9, 7, 2, 3, 4, 5, 6, 10, 11, 8}},              /* COLOR: DRV CRSH ROUT WET, NOIS TILT
                                                                                  * NDEC NTON, CMOD . . LVL */
     {DEV_P[DEV_SPACE], 4, {0, 1, 4, 5, 2, 3, 8, 11, 6, 7, 9, 10, 12, 13, 14, 15}},   /* SPACE: TIME FDBK DLY VERB,

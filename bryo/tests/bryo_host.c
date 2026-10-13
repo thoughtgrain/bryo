@@ -167,6 +167,21 @@ static void power_on(void)
     pj_seq = 0;
     pj_hash_at = 0;
     pj_pre_off = 0xFFFFFFFFu;                            /* (no erase ahead pending) */
+    memset(room, 0, sizeof room);                        /* (the shared rooms: their chunks go with the pool) */
+    lim_env = LIM_T;                                     /* (the master's states: the limiter, the DC blocks, the
+                                                          * speaker EQ, the output gain: as at boot. Left over from
+                                                          * a run before, they bled its last tenth of a second into
+                                                          * the next run's fingerprint, 2026-10-13) */
+    lc_l1 = lc_l2 = lc_r1 = lc_r2 = dc_l = dc_r = dce_l = dce_r = 0;
+    memset(lce, 0, sizeof lce);
+    sb_lp1 = sb_lp2 = sb_lp3 = sb_lp4 = sb_env = sb_h1 = sb_h2 = sb_hl = 0;
+    out_g = 32767;
+    reso_cap = RS_N;                                     /* (shedding's caps, back to full) */
+    reso_calm = 0;
+    grain_cap = GR_CAP;
+    grain_calm = 0;
+    drm_cap = DRM_NV;
+    chain_shed_count = 0;
     out_mute_req = 0;                                    /* (the output's fade: playing) */
     out_g = 32767;
     out_quiet = 0;
@@ -424,7 +439,8 @@ static void test_input(void)
     press(B_EDIT);
     press(B_EDIT);
     press(B_EDIT);
-    check("EDIT again, past RIPPLE's pages 2 and 3: GRAIN", ui.dev == DEV_GRAIN && ui.page == 0u);
+    press(B_EDIT);
+    check("EDIT again, past RIPPLE's pages 2 to 4: GRAIN", ui.dev == DEV_GRAIN && ui.page == 0u);
     press(B_FX);
     check("FX: COLOR", ui.dev == DEV_COLOR);
     press(B_FX);
@@ -477,7 +493,12 @@ static void test_input(void)
     check("..again: RIPPLE's page 2 (CUT RES TYPE SCAL)", ui.dev == DEV_RESO && ui.page == 1u);
     press(B_EDIT);
     check("..again: RIPPLE's page 3 (TONE; its arpeggio is the ARP pad's)", ui.dev == DEV_RESO && ui.page == 2u &&
-          pdesc_at(DEV_P[DEV_RESO], 8u) == RP_TONE && pdesc_pages(DEV_P[DEV_RESO]) == 3u);
+          pdesc_at(DEV_P[DEV_RESO], 8u) == RP_TONE && pdesc_pages(DEV_P[DEV_RESO]) == 4u);
+    press(B_EDIT);
+    check("..again: RIPPLE's page 4 (MODE DRV RIPL, stored 16-18 past the arpeggio's 12-15)", ui.dev == DEV_RESO &&
+          ui.page == 3u && pdesc_at(DEV_P[DEV_RESO], 12u) == RP_MODE && pdesc_at(DEV_P[DEV_RESO], 13u) == RP_DRV &&
+          pdesc_at(DEV_P[DEV_RESO], 14u) == RP_RIPL && pdesc_empty(&DEV_P[DEV_RESO][pdesc_at(DEV_P[DEV_RESO], 15u)]) &&
+          !strcmp(DEV_P[DEV_RESO][RP_MODE].label, "MODE") && !strcmp(DEV_P[DEV_RESO][RP_RIPL].label, "RIPL"));
     press(B_EDIT);
     check("..again: back to GRAIN, page 1", ui.dev == DEV_GRAIN && ui.page == 0u);
     press(B_FX);
@@ -911,6 +932,19 @@ static void screens_in(const char *pal)
     render(2, 0);
     fm1_in.notes = 0;
     shot(pal, "resonator_key");
+    press(B_EDIT);                                       /* RIPPLE 4: COMB, DRV 60, RIPL 40 */
+    press(B_EDIT);
+    turn(0, 1);
+    turn(1, 35);                                         /* (from DRV's default, 25) */
+    turn(2, 40);
+    render(2, 0);
+    shot(pal, "ripple4");
+    check("RIPPLE 4 shot: MODE COMB, DRV 60, RIPL 40", tp[0].dev[DEV_RESO][RP_MODE] == 1 &&
+          tp[0].dev[DEV_RESO][RP_DRV] == 60 && tp[0].dev[DEV_RESO][RP_RIPL] == 40 && ui.page == 3u);
+    tp[0].dev[DEV_RESO][RP_MODE] = 0;
+    tp[0].dev[DEV_RESO][RP_DRV] = 25;
+    tp[0].dev[DEV_RESO][RP_RIPL] = 0;
+    focus_dev(DEV_RESO, 1);
     press(B_FX);
     shot(pal, "color");
     turn(0, 60);                                         /* DRIVE 60: the transfer curve */
@@ -3455,6 +3489,7 @@ static void test_reso_pluck(void)
     power_on();
 }
 
+static double goertzel(const int32_t *x, uint32_t from, uint32_t to, double hz);   /* (below, with SPACE's tests) */
 static void test_reso(void)
 {
     enum { NB = 690 };                                   /* 0.5 s */
@@ -3535,6 +3570,116 @@ static void test_reso(void)
         check("..OCT: each string half the period of the one below", ok);
     }
     p[RP_SCAL] = 0;
+    /* RIPPLE 4 (2026-10-13): MODE (STRG COMB BANK), DRV, RIPL */
+    {
+        double e1, e2, e3, c1, c2, c3, b1, b2, early, late, early2, late2, pk0, pk1;
+        uint32_t i;
+        power_on();
+        p = tp[0].dev[DEV_RESO];
+        for (t = 1; t < NTRK; t++)
+            track[t].mute = 1;
+        focus_dev(DEV_RESO, 0);
+        ui_input();
+        p[RP_WET] = 100;
+        p[RP_DEC] = 60;
+        p[RP_TONE] = 60;
+        p[RP_DRV] = 0;
+        chain_poll();
+        render(4, 0);
+#define RS_PLUCK(buf) do { fm1_in.notes = note_bit_of_white(9); render(1, 0); fm1_in.notes = 0; render(NB - 1, buf); } while (0)
+        RS_PLUCK(s);                                     /* STRG: A3 and its harmonics, even ones too */
+        e1 = goertzel(s, 100 * CTL, NB * CTL, 220);
+        e2 = goertzel(s, 100 * CTL, NB * CTL, 440);
+        e3 = goertzel(s, 100 * CTL, NB * CTL, 660);
+        pk0 = peak_of(s, NB * CTL);
+        p[RP_MODE] = 1;
+        render(2, 0);
+        check("MODE COMB: the switch clears the lines (what rang as strings isn't read as combs)",
+              rs_line(&reso[0], 0)[0] == 0 && rs_line(&reso[0], 0)[RS_LEN / 2u] == 0 && reso[0].lp[0] == 0);
+        RS_PLUCK(s);
+        c1 = goertzel(s, 100 * CTL, NB * CTL, 220);
+        c2 = goertzel(s, 100 * CTL, NB * CTL, 440);
+        c3 = goertzel(s, 100 * CTL, NB * CTL, 660);
+        snprintf(b, sizeof b, "COMB: the pitch stays A3 (half the line, fed back inverted), the even harmonics gone: 2nd/1st "
+                 "%.4f (STRG %.4f), 3rd above 2nd", c2 / (c1 + 1), e2 / (e1 + 1));
+        check(b, c1 > 0 && c1 > c2 * 10 && c2 / (c1 + 1) < e2 / (e1 + 1) / 10 && c3 > c2 && e2 > e1 / 1000);
+        p[RP_MODE] = 2;                                  /* BANK: a band a partial, DEC its ring */
+        p[RP_DEC] = 30;
+        render(2, 0);
+        RS_PLUCK(s);
+        b1 = goertzel(s, 20 * CTL, NB * CTL, 220);
+        b2 = goertzel(s, 20 * CTL, NB * CTL, 440);
+        early = buf_rms(s, 20 * CTL, 100 * CTL);
+        late = buf_rms(s, (NB - 100) * CTL, (NB - 1) * CTL);
+        p[RP_DEC] = 95;
+        render(2, 0);
+        RS_PLUCK(s);
+        early2 = buf_rms(s, 20 * CTL, 100 * CTL);
+        late2 = buf_rms(s, (NB - 100) * CTL, (NB - 1) * CTL);
+        snprintf(b, sizeof b, "BANK: a pluck rings the band at A3 (220 over 440: %.1f x) and dies away (DEC 30: %.0f%% left after "
+                 "0.4 s; DEC 95: %.0f%%)", b1 / (b2 + 1), 100 * late / (early + 1), 100 * late2 / (early2 + 1));
+        check(b, b1 > b2 * 4 && early > 50 && late < early / 4 && late2 / (early2 + 1) > 4 * late / (early + 1));
+        p[RP_MODE] = 0;
+        p[RP_DEC] = 60;
+        render(2, 0);
+        {                                                /* DRV's shaper: a sine gains its odd harmonics, nothing even */
+            static int32_t w[4096];
+            int32_t gq = 256 + ((100 * 1311) >> 8), ig = (int32_t)((1u << 22) / (uint32_t)gq);
+            double h1, h2, h3;
+            for (i = 0; i < 4096u; i++)                  /* (41 cycles in the window: no leak between the bins) */
+                w[i] = rs_shape((int32_t)(20000 * sin(2 * M_PI * 41 * i / 4096.0)), gq, ig);
+            h1 = goertzel(w, 0, 4096, 41 * 44100.0 / 4096);
+            h2 = goertzel(w, 0, 4096, 82 * 44100.0 / 4096);
+            h3 = goertzel(w, 0, 4096, 123 * 44100.0 / 4096);
+            snprintf(b, sizeof b, "DRV 100's shaper on a sine: the third harmonic at %.1f%% of the first, the second none, small signals as "
+                     "they are", 100 * sqrt(h3 / h1));
+            check(b, h3 > h1 / 1000 && h2 < h3 / 20 && rs_shape(100, gq, ig) >= 97 && rs_shape(100, gq, ig) <= 100 &&
+                  abs(rs_shape(-100, gq, ig) + rs_shape(100, gq, ig)) <= 2);
+        }
+        p[RP_DRV] = 100;
+        RS_PLUCK(s);
+        pk1 = peak_of(s, NB * CTL);
+        early = buf_rms(s, (NB - 300) * CTL, (NB - 200) * CTL);
+        late = buf_rms(s, (NB - 100) * CTL, (NB - 1) * CTL);
+        p[RP_DRV] = 0;
+        RS_PLUCK(s);
+        early2 = buf_rms(s, (NB - 300) * CTL, (NB - 200) * CTL);
+        late2 = buf_rms(s, (NB - 100) * CTL, (NB - 1) * CTL);
+        snprintf(b, sizeof b, "DRV 100 on the strings: the pluck no louder (peak %.0f against %.0f), the quiet tail dying at the "
+                 "same rate (%.0f%% a 0.15 s against %.0f%%: a small signal passes as it is)", pk1, pk0,
+                 100 * late / (early + 1), 100 * late2 / (early2 + 1));
+        check(b, pk1 <= pk0 * 1.1 && late > 0 && late / (early + 1) > 0.8 * late2 / (early2 + 1) &&
+              late / (early + 1) < 1.25 * late2 / (early2 + 1));
+        p[RP_RIPL] = 0;
+        render(8, 0);
+        {
+            uint32_t d0 = reso[0].dq[0], d1;
+            render(8, 0);
+            check("RIPL 0: a string's delay stands still", reso[0].dq[0] == d0 && reso[0].rc[0] == 0);
+            p[RP_RIPL] = 100;
+            render(8, 0);
+            d0 = reso[0].dq[0];
+            render(8, 0);
+            d1 = reso[0].dq[0];
+            check("RIPL 100: it drifts, block by block, each string a quarter turn behind the last",
+                  d1 != d0 && reso[0].rc[0] != reso[0].rc[1] && reso[0].rc[1] != reso[0].rc[2]);
+            p[RP_RIPL] = 0;
+        }
+#undef RS_PLUCK
+        power_on();
+        p = tp[0].dev[DEV_RESO];
+        for (t = 1; t < NTRK; t++)
+            track[t].mute = 1;
+        focus_dev(DEV_RESO, 0);
+        ui_input();
+        p[RP_WET] = 100;                                 /* (as the flow above left it) */
+        chain_poll();
+        render(2, 0);
+        fm1_in.notes = note_bit_of_white(9);
+        render(2, 0);
+        fm1_in.notes = 0;
+        p[RP_DEC] = 60;
+    }
     p[RP_PTCH] = 50;
     render(2, 0);
     check("PTCH turned after a key: it's the root again", reso[0].root16 == 0 && reso_root16(0) == 50 * 16);
@@ -3550,7 +3695,9 @@ static void test_reso(void)
             break;
     }
     check("the reel ringing the strings at DEC 100, TONE 100 for 2 s: loud, and it never runs away (under full scale)",
-          k == 4u && peak_of(s, NB * CTL) > 3000 && peak_of(s, NB * CTL) <= 32767);
+          k == 4u && peak_of(s, NB * CTL) > 2500 && peak_of(s, NB * CTL) <= 32767);   /* (2500: DRV 25, the default
+                                                                                       * since 2026-10-13, rounds the
+                                                                                       * loud ring off by a sixth) */
     p[RP_DEC] = 60;
     p[RP_TONE] = 60;
     p[RP_CUT] = 40;                                      /* the filter in front: dark */
