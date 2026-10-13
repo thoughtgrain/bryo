@@ -215,7 +215,7 @@ static double run(int n, char *say, size_t sz)
                  grain_count(0));
         return 8;
     }
-    case 11: case 12: {                                  /* RESONATOR on all four (12: with GRAIN at its cap too) */
+    case 11: case 12: {                                  /* RIPPLE on all four (12: with GRAIN at its cap too) */
         uint32_t t;
         for (t = 0; t < NTRK; t++) {
             tp[t].dev[DEV_RESO][RP_WET] = 60;
@@ -228,7 +228,7 @@ static double run(int n, char *say, size_t sz)
             all_grain(GP_SIZE, 500);
         }
         play(6);
-        snprintf(say, sz, "RESONATOR WET 60 on all four (HARM and MAJ, four roots)%s: %u strings, %u grains",
+        snprintf(say, sz, "RIPPLE WET 60 on all four (HARM and MAJ, four roots)%s: %u strings, %u grains",
                  n == 12 ? " with GRAIN at the cap" : "", reso[0].nch + reso[1].nch + reso[2].nch + reso[3].nch, sounding());
         return 6;
     }
@@ -278,7 +278,7 @@ static double run(int n, char *say, size_t sz)
         snprintf(say, sz, "%s: SPACE %u chunks (%u lines 8-bit), %u grains, %u strings, %.1f s free",
                  n == 13 ? "COLOR on all four (DRV 60, CRSH 40 BOTH, NOIS 30, TILT 30)" :
                  n == 14 ? "SPACE on all four (DLY 50, VERB 40)" :
-                 n == 15 ? "everything on all four (GRAIN at the cap, RESONATOR, COLOR, SPACE)" :
+                 n == 15 ? "everything on all four (GRAIN at the cap, RIPPLE, COLOR, SPACE)" :
                            "TRACKS 3, GRAIN WET 100, DRV 40, SPACE",
                  nsp, n8, sounding(), reso[0].nch + reso[1].nch + reso[2].nch + reso[3].nch,
                  mem_count(MEM_FREE) * 4096.0 / 22050);
@@ -313,7 +313,7 @@ static double run(int n, char *say, size_t sz)
         tp[2].dev[DEV_RESO][RP_WET] = 40;                /* T3: a reel ringing the strings */
         mst[MS_AMT] = 40;
         play_phrase(0, 6);
-        snprintf(say, sz, "three tracks: a played synth through GRAIN and SPACE, a driven reel, a reel on RESONATOR, "
+        snprintf(say, sz, "three tracks: a played synth through GRAIN and SPACE, a driven reel, a reel on RIPPLE, "
                  "the compressor (%u grains)", sounding());
         return 6;
     }
@@ -322,7 +322,7 @@ static double run(int n, char *say, size_t sz)
                                                           * 24: modulated as I'd play it; 25: every slot on every
                                                           * track, 32 depths each, the most there can be; 29: all of
                                                           * 21 on, the transport stopped; 30: T1 alone heard, dense
-                                                          * grains, strings with RES ARP, a room, the others muted) */
+                                                          * grains, strings with RIPL ARP, a room, the others muted) */
         uint32_t t;
         tp[0].dev[DEV_COLOR][CP_CRSH] = 30;              /* T1 drums: crushed a little */
         tp[1].dev[DEV_GRAIN][GP_WET] = 50;               /* T2: grains */
@@ -394,7 +394,7 @@ static double run(int n, char *say, size_t sz)
         } else
             play_phrase(2, 6);
         snprintf(say, sz, "%s (%u grains, %u strings%s)", n == 29 ? "the busiest groove's devices all on, the transport "
-                 "stopped, nothing played" : n == 30 ? "T1 alone heard (dense grains, strings with RES ARP, a room), "
+                 "stopped, nothing played" : n == 30 ? "T1 alone heard (dense grains, strings with RIPL ARP, a room), "
                  "the other three muted, their devices on" : n == 19 ? "a four-track groove: crushed drums, grains, a filtered "
                  "synth bass, a reverb, the compressor" : n == 21 ? "the groove's busiest moment: denser grains, strings, "
                  "a delay, every channel filtered" : n == 22 ? "the groove, bounced onto track 4 as it plays" : n == 24 ?
@@ -718,7 +718,7 @@ static int stress(double secs)
             sys.bpm = (uint16_t)(60 + st_rand(140));
         } else if (a < 50) {                             /* a clear */
             tape_clear(st_rand(NTRK));
-        } else if (a < 62) {                             /* RESONATOR's WET, SPACE's DLY, VERB, TIME, ROOM (memory */
+        } else if (a < 62) {                             /* RIPPLE's WET, SPACE's DLY, VERB, TIME, ROOM (memory */
             static const uint8_t K[5] = {RP_WET, SP_DLY, SP_VERB, SP_TIME, SP_ROOM};   /* taken and given back), */
             uint32_t t = st_rand(NTRK), k = st_rand(5), dv = k ? DEV_SPACE : DEV_RESO;   /* a room's knob (QUAL: */
             const pdesc_t *d = &DEV_P[dv][K[k]];                                         /* its rate) */

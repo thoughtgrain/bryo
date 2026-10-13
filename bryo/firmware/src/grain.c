@@ -731,16 +731,16 @@ static int32_t gr_pace(const gr_buf_t *B, int32_t len)
  * side's): the source low-passed (SRC), or a wave (TRI SIN, -12 dBFS at 100) playing the grains' notes, through TONE's
  * one-pole low-pass, its level ramped across the block. The wave follows the pitch of the last grain started (PTCH,
  * PRND, SCAL's note) in the octave over ROOT: the grains' sound at its own pitch is ROOT, a fifth up is ROOT's fifth,
- * so it plays their scale, folded low enough to stay a floor. ROOT RES (its lowest value) takes RESONATOR's root
- * instead (PTCH, a white key, RES ARP's note): strings only ring at the notes they're tuned to, so BODY on its own
- * ROOT under a moving RES ARP rarely rang them (2026-10-11, from playing it: "the body sound is not flowing into the
+ * so it plays their scale, folded low enough to stay a floor. ROOT RES (its lowest value) takes RIPPLE's root
+ * instead (PTCH, a white key, RIPL ARP's note): strings only ring at the notes they're tuned to, so BODY on its own
+ * ROOT under a moving RIPL ARP rarely rang them (2026-10-11, from playing it: "the body sound is not flowing into the
  * resonator"); on RES it always does. The wave sounds while the grains do (sounding: any of
  * the track's grains this block): with none, stopped or silent, it closes in about 0.3 s (it droned on its own with
  * the transport stopped, 2026-10-11). SRC needs no gate: it is the source, silent with it. It glides there (1/16 of the way a block, about 12 ms):
  * a fast RATE blurs into a moving line, not a buzz of steps. Before any grain, ROOT itself; coming on from 0, straight
  * to the note. A new MODE: the old one down to 0 this block, the new from 0 the next (a 0.7 ms dip, no step). Returns 1 when it added something. Out of line: off (the default), grain_block's loops compile as
  * they did without it */
-#define GR_ROOT_RES 23                /* ROOT's lowest, RES: RESONATOR's root (reso.c, after this file) */
+#define GR_ROOT_RES 23                /* ROOT's lowest, RES: RIPPLE's root (reso.c, after this file) */
 static int32_t reso_root16(uint32_t t);
 static uint32_t HOT_CODE gr_body(grain_trk_t *G, const int16_t *p, const int32_t *dry, int32_t *xl,
                                                   int32_t *xr, uint32_t h2, uint32_t sounding)
@@ -790,7 +790,7 @@ static uint32_t HOT_CODE gr_body(grain_trk_t *G, const int16_t *p, const int32_t
                     x = sine_i(ph) >> 2;
                 }
             }
-            x = (x - lp) * kq;                          /* (TONE's new value toward 0, as RESONATOR's strings: a
+            x = (x - lp) * kq;                          /* (TONE's new value toward 0, as RIPPLE's strings: a
                                                          * shift alone left a small offset for good after the sound
                                                          * stopped, and DEC 100's strings rang it up: reso.c rs_settle) */
             lp += x >> 15;

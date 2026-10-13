@@ -2,7 +2,7 @@
 # The Bryo manual
 
 Bryo turns the M-VAVE FM-1 into a four-track instrument for sculpting sound. Each track has a **source** (a tape
-loop, a synth, a sampler or a drum machine) and runs through four effects in a fixed order: **GRAIN, RESONATOR,
+loop, a synth, a sampler or a drum machine) and runs through four effects in a fixed order: **GRAIN, RIPPLE,
 COLOR, SPACE**. Four **modulators** per track can move any knob, and an **arpeggiator** can play your chords for
 you. There are no menus: you hold a pad and turn a knob.
 
@@ -20,7 +20,7 @@ should hear. Do them in order the first time; after that, jump to what you need.
 3. [The mixer](#3-the-mixer): levels, tone and pan, the compressor, the key and scale, SETUP, the CPU meter
 4. [Recording](#4-recording): clear a track, record onto it, overdub, undo
 5. [Other sources](#5-other-sources): SYNTH, POLY and DRUM; the arpeggiator; the black keys as notes
-6. [The effects](#6-the-effects): GRAIN, RESONATOR, COLOR, SPACE
+6. [The effects](#6-the-effects): GRAIN, RIPPLE, COLOR, SPACE
 7. [Modulation](#7-modulation): make knobs move by themselves
 8. [Getting back](#8-getting-back): reset a knob or a page, undo
 9. [Saving](#9-saving): projects, a blank project, the factory scene, track presets
@@ -40,7 +40,7 @@ should hear. Do them in order the first time; after that, jump to what you need.
   **ALGORITHM** (what REC records). Under them, **OCT−** and **OCT+**.
 - **Top right**, **KNOB 1 to 4**: they always change the four values on the screen.
 - **The pads**, two rows:
-  - **Blue: the pages.** HOME (the track's source), EDIT (GRAIN, RESONATOR), FX (COLOR, SPACE), GLO (the mixer).
+  - **Blue: the pages.** HOME (the track's source), EDIT (GRAIN, RIPPLE), FX (COLOR, SPACE), GLO (the mixer).
   - **Purple: the modulators and the envelope.** LFO holds three you can swap around (M1, M2, M3), SEQ is M4, the
     step sequencer. **ENV** is the track's own envelope: SYNTH's and POLY's, TAPE's slices', DRUM's KIT.
   - **ARP** is the arpeggiator.
@@ -74,7 +74,7 @@ Everything it says is also said by a shape or a word, so you never need to tell 
 | **Red** | recording (the tempo bar, the REC tag); the CPU reading near its limit |
 | **Yellow** | something to know: not saved (the ✱), FROZEN, grains HELD |
 
-<img src="img/space_live.png" width="240" alt="SPACE sounding: its tail and echoes in orange"> <img src="img/reso_live.png" width="240" alt="RESONATOR: the strings ringing, orange stems on their notes">
+<img src="img/space_live.png" width="240" alt="SPACE sounding: its tail and echoes in orange"> <img src="img/reso_live.png" width="240" alt="RIPPLE: the strings ringing, orange stems on their notes">
 
 ### 0.3 How pages work
 
@@ -83,19 +83,19 @@ Every pad opens a page, and **pressing the same pad again goes to its next page*
 | Pad | Pages, in order |
 | --- | --- |
 | HOME | the source's pages (TAPE has 4; SYNTH 5; POLY 4; DRUM 4) |
-| EDIT | GRAIN 1-6, then RESONATOR 1-3 |
+| EDIT | GRAIN 1-6, then RIPPLE 1-3 |
 | FX | COLOR 1-3, then SPACE 1-4 |
 | ENV | the source's envelope: SYNTH's AMP, POLY's ENV, TAPE's slice envelope (each the second page), DRUM's KIT |
 | LFO, SEQ | a modulator's pages (LFO: M1, M2 or M3; SEQ: M4) |
-| ARP | the arpeggiator: 2 pages, then RES ARP (RESONATOR's own arpeggio) |
+| ARP | the arpeggiator: 2 pages, then RIPL ARP (RIPPLE's own arpeggio) |
 | GLO | the mixer (EDIT then steps CHANNEL, MASTER, KEY, SETUP) |
 
 KNOB 1 to 4 always change the four values you see. There's nothing hidden.
 
 **Jump straight to a page: hold its pad and press a white key.** While you hold a pad (HOME, EDIT, FX, ENV, LFO,
 SEQ or ARP), the white keys show its pages: one glows for each page, the page on screen is lit, and every other key
-goes dark. Press white key 3 to go to the third page. EDIT's keys run through GRAIN's pages and then RESONATOR's
-(key 8 is RESONATOR 2); FX's through COLOR's and then SPACE's. Every effect's first page ends with its mix:
+goes dark. Press white key 3 to go to the third page. EDIT's keys run through GRAIN's pages and then RIPPLE's
+(key 8 is RIPPLE 2); FX's through COLOR's and then SPACE's. Every effect's first page ends with its mix:
 **ROUT** on KNOB 3 and **WET** on KNOB 4 (SPACE: **DLY** and **VERB**, its two sends), so one press of EDIT or FX
 and KNOB 4 brings an effect in. Holding LFO also lights OP1-OP3, the one it's on
 bright. Let go without pressing a key and the pad turns its page as usual.
@@ -327,7 +327,7 @@ you turn it off.
 4. **HOLD**: how long a pad must be held to count as held. **LEDS**: how the idle pads glow.
 5. Under the two lines about the keys and knobs, two lines show **where the CPU goes**, in % of the time the FM-1
    has, averaged over the last second:
-   - **SRC GRN RES COL SPC**: the four tracks' sources, GRAIN, RESONATOR, COLOR, and SPACE with the channel strip.
+   - **SRC GRN RES COL SPC**: the four tracks' sources, GRAIN, RIPPLE, COLOR, and SPACE with the channel strip.
    - **PRE ROOM MST**: the work before the tracks (keys, arpeggiators, modulators), the two rooms, and the master.
    - **R/F**: how fast a fixed loop runs from fast RAM and from flash, measured once at power-on. It's there for
      tuning Bryo; together with **TEST** ([9.4](#94-back-to-the-factory-scene)) it shows what a new build changed.
@@ -540,14 +540,14 @@ stays. **Hold black key POLY** (on the ARP page) to clear it and start again.
 
 <img src="img/arp_add.png" width="240" alt="ARP in ADD mode, four notes piled up"> <img src="img/arp_drum.png" width="240" alt="ARP on a DRUM track: three drums, up and down">
 
-**RES ARP (the ARP pad's third page): an arpeggio for the strings.** Press ARP three times (or hold ARP and press
-white key 3). It's RESONATOR's own arpeggio, separate from the track's: each step plucks RESONATOR's four strings at
+**RIPL ARP (the ARP pad's third page): an arpeggio for the strings.** Press ARP three times (or hold ARP and press
+white key 3). It's RIPPLE's own arpeggio, separate from the track's: each step plucks RIPPLE's four strings at
 that note, whatever the track plays. **MODE** turns it on (OFF, KEY, LTCH, ADD); **ORDR**, **RNGE** and **RATE** work
 as above. With MODE on, the white keys on this page play the strings' pattern and the track itself stays quiet; with
 MODE off they play the track as on the other ARP pages. A latched or piled-up pattern keeps plucking when you leave
-the page, and **hold POLY** here to clear it. You'll want RESONATOR's **WET** up (EDIT seven times, KNOB 4) to hear it.
+the page, and **hold POLY** here to clear it. You'll want RIPPLE's **WET** up (EDIT seven times, KNOB 4) to hear it.
 
-<img src="img/arp_res.png" width="240" alt="RES ARP: two notes held, the strings plucked in turn">
+<img src="img/arp_res.png" width="240" alt="RIPL ARP: two notes held, the strings plucked in turn">
 
 Keys you hold play straight away, transport or not. A latched or piled-up pattern keeps playing when you move to
 another track, and follows the transport: **STOP** quiets it (the notes are kept), **PLAY** starts it again from the
@@ -572,7 +572,7 @@ OP1–OP3 still works ([7.4](#74-choose-which-modulator-the-lfo-pad-controls)). 
 
 ## 6. The effects
 
-Every track goes through GRAIN, RESONATOR, COLOR and SPACE, in that order. They start switched off (WET at 0, DLY
+Every track goes through GRAIN, RIPPLE, COLOR and SPACE, in that order. They start switched off (WET at 0, DLY
 and VERB at 0), so turn them up to hear them.
 
 ### 6.1 GRAIN: turn it on
@@ -653,8 +653,8 @@ floor back under them:
   note, so when **PTCH** (GRAIN 2), **PRND** and **SCAL** (GRAIN 3) send the grains around a scale, the wave walks the same
   scale over ROOT, gliding from note to note. It always stays in the octave above ROOT, so it's a floor however high
   or low the grains go. With PTCH and PRND at 0 it holds ROOT.
-- **ROOT RES** (turn ROOT all the way down, below C1): the wave takes RESONATOR's root instead (its PTCH, the white
-  key you played on its page, or RES ARP's note), so BODY always rings the strings. RESONATOR's strings only answer
+- **ROOT RES** (turn ROOT all the way down, below C1): the wave takes RIPPLE's root instead (its PTCH, the white
+  key you played on its page, or RIPL ARP's note), so BODY always rings the strings. RIPPLE's strings only answer
   the notes they're tuned to: a BODY a third away from them passes through without ringing them.
 - **TONE**: how much top end the floor keeps, from a deep rumble to a full low-mid.
 
@@ -682,26 +682,26 @@ grain somewhere inside it.
 
 <img src="img/grain6.png" width="240" alt="GRAIN 6: GRNS 12; 4 OF 12 HELD">
 
-### 6.5 RESONATOR: four strings
+### 6.5 RIPPLE: four strings
 
 The track rings four tuned strings, like a sitar's sympathetic strings.
 
-1. Press **EDIT seven times** for **RESONATOR**.
+1. Press **EDIT seven times** for **RIPPLE**.
 2. Turn **KNOB 4 (WET)** up (KNOB 3 is ROUT, see 6.8).
 3. **The white keys set the strings' root note** (on a TAPE or DRUM track they pluck the strings alone, without
    playing a slice or a drum). **PTCH** does the same with a knob. **DEC** is how long they ring.
-4. **RESONATOR 2**: a filter (CUT, RES, TYPE) and **SCAL**, the chord the four strings make (HARM, MAJ, MIN, PEN).
-5. **RESONATOR 3**: **TONE**, how bright they ring, and how each pluck sounds (a white key on a TAPE or DRUM
-   track, or a RES ARP step):
+4. **RIPPLE 2**: a filter (CUT, RES, TYPE) and **SCAL**, the chord the four strings make (HARM, MAJ, MIN, PEN).
+5. **RIPPLE 3**: **TONE**, how bright they ring, and how each pluck sounds (a white key on a TAPE or DRUM
+   track, or a RIPL ARP step):
    - **PICK**: how hard the strings are struck. Turn it left for a soft mallet (dark and round), right for a pick
      (bright and snappy). It changes the strike only; TONE still sets how they ring.
    - **STRM**: strum. The four strings sound one after another, lowest first, this many milliseconds apart (0: all at
      once). A new pluck cuts a strum that hasn't finished.
    - **VARY**: each pluck comes out a little different, in level and brightness, so a pattern sounds played rather
      than repeated.
-6. To make the strings play a pattern of their own, use **RES ARP**, the ARP pad's third page ([5.8](#58-arp-the-arpeggiator)).
+6. To make the strings play a pattern of their own, use **RIPL ARP**, the ARP pad's third page ([5.8](#58-arp-the-arpeggiator)).
 
-<img src="img/resonator_wet.png" width="240" alt="RESONATOR ringing"> <img src="img/resonator2.png" width="240" alt="RESONATOR 2: CUT RES TYPE SCAL">
+<img src="img/resonator_wet.png" width="240" alt="RIPPLE ringing"> <img src="img/resonator2.png" width="240" alt="RIPPLE 2: CUT RES TYPE SCAL">
 
 ### 6.6 COLOR: dirt and character
 
@@ -738,7 +738,7 @@ be modulated (the room is shared). A track preset keeps the track's room choice.
 
 ### 6.8 Insert or send
 
-GRAIN, RESONATOR and COLOR have **ROUT** on KNOB 3 of their first page, next to WET:
+GRAIN, RIPPLE and COLOR have **ROUT** on KNOB 3 of their first page, next to WET:
 
 - **INS** (insert): **WET** fades from the dry sound to the effect.
 - **SEND**: the dry sound stays at full and WET adds the effect on top.
@@ -1009,14 +1009,14 @@ M-VAVE's updater puts the stock firmware back. Bryo's projects and tapes can't b
 | **OP5 / OP6** | the tape backwards / half speed |
 | **HOME** | the source's pages |
 | **HOME** held + SELECT | change the source |
-| **EDIT** | GRAIN, then RESONATOR |
+| **EDIT** | GRAIN, then RIPPLE |
 | **FX** | COLOR, then SPACE |
 | **ENV** | the source's envelope page |
 | **LFO SEQ** tapped | that modulator's pages (LFO: M1-M3, SEQ: M4) |
 | **LFO SEQ** held + a knob | how much that modulator moves the knob |
 | **LFO** held + OP1 / OP2 / OP3 | which modulator LFO is: M1, M2, M3 |
 | **LFO** held + SELECT | the modulator's engine (LFO, ADSR, SEQ, FOLLOW) |
-| **ARP** | the arpeggiator (notes on SYNTH and POLY, slices on TAPE, drums on DRUM); its page 3, RES ARP, plays RESONATOR's strings |
+| **ARP** | the arpeggiator (notes on SYNTH and POLY, slices on TAPE, drums on DRUM); its page 3, RIPL ARP, plays RIPPLE's strings |
 | **GLO** held + OCT+ | black keys: shortcuts or notes |
 | **GLO** tapped, **EDIT** ×3 | SETUP: keys, knob speed, hold time, LEDs |
 | **REC** | record onto the track |

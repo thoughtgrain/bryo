@@ -10,7 +10,7 @@ search results that quote the official device pages, the Sound On Sound review, 
 community MIDI CC list at midi.guide. Where those disagree, I say so. Anything marked *(unverified)* needs a look
 at the real manual before it's built.
 
-When I wrote this, none of GRAIN, RESONATOR, COLOR or SPACE made sound yet (all four do now). Changing their knobs then only touched
+When I wrote this, none of GRAIN, RIPPLE, COLOR or SPACE made sound yet (all four do now). Changing their knobs then only touched
 `param.c`, the pictograms and the screens. Once the DSP existed, the same change would cost a rewrite, so that was
 the time to settle them.
 
@@ -35,7 +35,7 @@ tables below, and the tables now say so:
 | Source | TAPE, DISC, POLY, BYPASS (input) | TAPE | SYNTH and POLY are planned; no input; no DISC | Build SYNTH now (the PRD's), POLY next. Skip DISC (no storage to stream from). The input arrives with USB audio in. |
 | TAPE | SPEED, START, LENGTH, ROTATE, XFADE, SOS (bipolar), LEVEL; FREE / SYNC timing | STRT LEN SPD DUB / FADE REV HALF GAIN / REEL | ROTATE, bipolar SOS, sync timing | Add ROTATE; make DUB bipolar like SOS; rename FADE to XFADE; sync mode with the sequencer clock (phase 7) |
 | GRAIN (MOSAIC) | PITCH, RATE, SIZE, CONTOUR, WARP, SPRAY, PATTERN, WET; pitch scale; random pitch, level, reverse | SIZE DENS TUNE SPRD / MIX JIT WIN REV | WARP, PATTERN, scale quantize, random pitch | Rename to S-4 words; add a page 3 with WARP, PATN, SCAL, PRND |
-| RESONATOR (RING) | CUTOFF, RES, DECAY, PITCH, SLOPE, TONE, SCALE, WET | ROOT FDBK DAMP MIX, no page 2 | the whole filter half, the scale | Rename to PITCH DEC TONE WET; add page 2: CUT RES SLOP SCAL |
+| RIPPLE (RING) | CUTOFF, RES, DECAY, PITCH, SLOPE, TONE, SCALE, WET | ROOT FDBK DAMP MIX, no page 2 | the whole filter half, the scale | Rename to PITCH DEC TONE WET; add page 2: CUT RES SLOP SCAL |
 | COLOR (DEFORM) | DRIVE, CRUSH (BIT / REDUX / both), TILT, NOISE, NOISE DECAY, NOISE TONE, WET | DRIV CRSH NOIS TONE / LVL MIX SRR GATE | noise decay and tone; crush as one knob with modes | Rename TONE to TILT; turn GATE into NDEC, add NTON; fold SRR into CRSH modes |
 | SPACE (VAST) | DELAY, TIME, REVERB, SIZE, FEEDBACK, SPREAD (modes), TONE (bipolar), DECAY | TIME FDBK SIZE DEC / DMIX RMIX PRE WIDE | TONE | Add a bipolar TONE in PRE's place; PRE moves to page 3 |
 | Mixer | level, pan, DJ filter, 4 sends per track, master compressor, main level | level + meter; LOW HIGH FILT PAN | sends, master compressor | Sends are phase 6's routing; put the compressor on the master (it's an open question in the PRD) |
@@ -90,7 +90,7 @@ architecture doc already plans TAPE, SYNTH and POLY.
 So four pages: SIZE RATE PTCH SPRD / WET SPRY CONT REV / PATN SCAL PRND ROUT / SCAN WARP OFST FDBK (ROUT, 2026-10-09: INS or SEND, not the S-4's). Not taken from OS
 2.2 yet: RAND RATE, RAND SIZE and RAND AMP (GRAIN's pages are full now: ROUT took the last knob; a fifth page if they come).
 
-## RESONATOR (the S-4's RING)
+## RIPPLE (the S-4's RING)
 
 The S-4's RING is a tuned filter bank (48 bands) with a resonator. Bryo's PRD resonator is a comb or modal
 resonator tuned to a root note. Same family, different engine. The knob names can still match.
@@ -155,7 +155,7 @@ master compressor to the main level. Each track also has four sends into any tra
 
 ## What I'd change, and when
 
-1. **Done (2026-10-07):** the renames and the new knobs above, for GRAIN, RESONATOR, COLOR and
+1. **Done (2026-10-07):** the renames and the new knobs above, for GRAIN, RIPPLE, COLOR and
    SPACE (`param.c`, `ui_px.c` pictograms, `ui_viz.c`, the golden screens, `docs/controls.tsv`).
 2. **Done (2026-10-07):** TAPE's ROTATE, bipolar DUB and XFADE (`tape.c`, its tests).
 3. **Phase 4–5:** the DSP behind the new knobs (WARP, PATTERN, the resonator's filter and scale, noise decay,

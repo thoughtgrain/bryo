@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
-/* Bryo: COLOR, the device after RESONATOR (docs/bryo-architecture.md, "COLOR, as built"): the S-4's DEFORM. What
+/* Bryo: COLOR, the device after RIPPLE (docs/bryo-architecture.md, "COLOR, as built"): the S-4's DEFORM. What
  * it does to a sound, in order:
  *
  *   DRV   gain 1..16 into a tanh soft clip (0: no clip at all, so the default is the sound untouched)

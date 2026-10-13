@@ -6,7 +6,7 @@
  * white keys play the kit), at the source's LVL. REC records onto
  * the tape either way.
  * Then GRAIN (grain.c: grains of a live buffer of the source, or of the tape, blended by WET), from which the track
- * is stereo. Then RESONATOR (reso.c: four tuned strings the track rings through), COLOR (color.c: drive, crush,
+ * is stereo. Then RIPPLE (reso.c: four tuned strings the track rings through), COLOR (color.c: drive, crush,
  * noise, tilt) and SPACE (space.c: the delay and the room). Then the track's channel strip, its level and its pan
  * (mixer.c), and the four tracks' sum through the master compressor (mixer.c) to the output stage (master.c).
  *
@@ -144,7 +144,7 @@ static void HOT_CODE chain_block(int32_t *out, uint32_t n)
         }
         if (t == sel && ((sys.keys_reso && !notes) || (sys.keys_rarp && tp[t].dev[DEV_RESO][RP_AMODE] != ARM_OFF) ||
                          (sys.keys_grain && src == SRC_TAPE)))
-            in = 0;                                    /* (the keys are RESONATOR's, RES ARP's or GRAIN's cursor on
+            in = 0;                                    /* (the keys are RIPPLE's, RIPL ARP's or GRAIN's cursor on
                                                         * this page) */
         nb = base;
         play[t] = arp_block(t, in, base, n, &nb);
@@ -198,7 +198,7 @@ static void HOT_CODE chain_block(int32_t *out, uint32_t n)
             gk = white;
             k = 0;
         }
-        if (tp[t].dev[DEV_RESO][RP_AMODE] != ARM_OFF) {   /* RESONATOR's own arpeggio: the keys on its page into it,
+        if (tp[t].dev[DEV_RESO][RP_AMODE] != ARM_OFF) {   /* RIPPLE's own arpeggio: the keys on its page into it,
                                                          * a pluck at each step's note (whatever the source plays) */
             ra = reso_arp_block(t, t == sel && sys.keys_rarp ? white : 0u, 12u * ((uint32_t)track[t].octave + 1u), n,
                                 &rn);
@@ -206,7 +206,7 @@ static void HOT_CODE chain_block(int32_t *out, uint32_t n)
                 anote = (int32_t)rn;
             reso_arp_on[t] = (uint8_t)ra;
         }
-        if (t == sel && white && sys.keys_reso) {   /* the RESONATOR page: the white keys set its root; on a
+        if (t == sel && white && sys.keys_reso) {   /* the RIPPLE page: the white keys set its root; on a
                                                          * TAPE or DRUM track they pluck it alone (no slice, no drum),
                                                          * on SYNTH or POLY they still play the source too */
             rk = white;
@@ -216,7 +216,7 @@ static void HOT_CODE chain_block(int32_t *out, uint32_t n)
         sleep = c->mute && !((sys.rec >> t) & 1u);   /* asleep: muted and not recording. Its source keeps its time
                                                          * (tape heads, the drum pattern, keys, arpeggios; the
                                                          * modulators run on) and makes no sound, GRAIN neither
-                                                         * records nor plays, RES ARP doesn't pluck: a mute is a cut,
+                                                         * records nor plays, RIPL ARP doesn't pluck: a mute is a cut,
                                                          * so at waking notes start fresh and GRAIN's buffer holds the
                                                          * bars from before until it's written over (2026-10-12: a
                                                          * muted track had rendered everything, then been zeroed: a
@@ -232,7 +232,7 @@ static void HOT_CODE chain_block(int32_t *out, uint32_t n)
             grain_block(t, s, gk, (int)zero, gl, gr, n);   /* from here the track is stereo */
         }
         if (c->mute)                                    /* muted: nothing after GRAIN is heard, so it hears silence
-                                                         * too: RESONATOR, COLOR, SPACE and the channel ring down
+                                                         * too: RIPPLE, COLOR, SPACE and the channel ring down
                                                          * and rest (their work given back: a muted track cost as
                                                          * much as a playing one, 2026-10-11). Unmuted, they start
                                                          * from rest on the track's sound, as a mute is a cut */
@@ -302,7 +302,7 @@ static void HOT_CODE chain_block(int32_t *out, uint32_t n)
 }
 
 /* audio ISR, the half after two overloaded halves: take load away. GRAIN's sounding cap goes first (grain.c), down
- * to half; then RESONATOR's strings (reso.c), down to two; then DRUM's voices (drum.c), down to two a track (the
+ * to half; then RIPPLE's strings (reso.c), down to two; then DRUM's voices (drum.c), down to two a track (the
  * voices above the cap fade out in 1.5 ms); the tape is never shed. */
 static void chain_shed(void)
 {

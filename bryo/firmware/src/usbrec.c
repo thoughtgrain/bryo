@@ -3,7 +3,7 @@
  * the cable (usb.c, BRYO_UAC_OUT: the FM-1 is one of its sound outputs) and Bryo records it onto a track.
  *
  * REC held a second, the transport stopped, opens it. Nothing else runs while it's up: the transport stops, every
- * track's REC lets go, the four tracks stop rendering (their GRAIN buffers, RESONATOR strings and SPACE lines go back
+ * track's REC lets go, the four tracks stop rendering (their GRAIN buffers, RIPPLE strings and SPACE lines go back
  * to the shared memory, so the take can have them), and the FM-1's output plays what the computer sends, so you hear
  * what's being recorded. The FM-1's own USB input (what the computer can record from it) sends silence meanwhile, so
  * nothing loops round. Then:

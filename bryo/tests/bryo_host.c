@@ -420,11 +420,11 @@ static void test_input(void)
     press(B_EDIT);
     check("..again: GRAIN 6 (GRNS)", ui.dev == DEV_GRAIN && ui.page == 5u && !strcmp(dev_p(0, DEV_GRAIN)[pdesc_at(dev_p(0, DEV_GRAIN), 20u)].label, "GRNS"));
     press(B_EDIT);
-    check("EDIT again, past GRAIN's pages 2 to 6: RESONATOR", ui.dev == DEV_RESO);
+    check("EDIT again, past GRAIN's pages 2 to 6: RIPPLE", ui.dev == DEV_RESO);
     press(B_EDIT);
     press(B_EDIT);
     press(B_EDIT);
-    check("EDIT again, past RESONATOR's pages 2 and 3: GRAIN", ui.dev == DEV_GRAIN && ui.page == 0u);
+    check("EDIT again, past RIPPLE's pages 2 and 3: GRAIN", ui.dev == DEV_GRAIN && ui.page == 0u);
     press(B_FX);
     check("FX: COLOR", ui.dev == DEV_COLOR);
     press(B_FX);
@@ -471,12 +471,12 @@ static void test_input(void)
     press(B_EDIT);
     check("..again: GRAIN's page 6 (GRNS)", ui.dev == DEV_GRAIN && ui.page == 5u);
     press(B_EDIT);
-    check("..again: RESONATOR, opening with ROUT WET", ui.dev == DEV_RESO && ui.page == 0u &&
+    check("..again: RIPPLE, opening with ROUT WET", ui.dev == DEV_RESO && ui.page == 0u &&
           pdesc_at(DEV_P[DEV_RESO], 2u) == RP_ROUT && pdesc_at(DEV_P[DEV_RESO], 3u) == RP_WET);
     press(B_EDIT);
-    check("..again: RESONATOR's page 2 (CUT RES TYPE SCAL)", ui.dev == DEV_RESO && ui.page == 1u);
+    check("..again: RIPPLE's page 2 (CUT RES TYPE SCAL)", ui.dev == DEV_RESO && ui.page == 1u);
     press(B_EDIT);
-    check("..again: RESONATOR's page 3 (TONE; its arpeggio is the ARP pad's)", ui.dev == DEV_RESO && ui.page == 2u &&
+    check("..again: RIPPLE's page 3 (TONE; its arpeggio is the ARP pad's)", ui.dev == DEV_RESO && ui.page == 2u &&
           pdesc_at(DEV_P[DEV_RESO], 8u) == RP_TONE && pdesc_pages(DEV_P[DEV_RESO]) == 3u);
     press(B_EDIT);
     check("..again: back to GRAIN, page 1", ui.dev == DEV_GRAIN && ui.page == 0u);
@@ -494,7 +494,7 @@ static void test_input(void)
     press(B_ARP);
     check("..again: its page 2", ui.kind == FOCUS_ARP && ui.page == 1u);
     press(B_ARP);
-    check("..again: page 3, RES ARP (RESONATOR's arpeggio: its MODE is RESONATOR's knob 12)", ui.kind == FOCUS_ARP &&
+    check("..again: page 3, RIPL ARP (RIPPLE's arpeggio: its MODE is RIPPLE's knob 12)", ui.kind == FOCUS_ARP &&
           ui.page == 2u && ({ int16_t *vp; const pdesc_t *d = ui_page(0, &vp); vp == &tp[0].dev[DEV_RESO][RP_AMODE] &&
           !strcmp(d->label, "MODE"); }));
     press(B_ARP);
@@ -901,13 +901,13 @@ static void screens_in(const char *pal)
     turn(3, 80);                                         /* WET 80 (KNOB 3-4: ROUT WET, its mix) */
     tp[0].dev[DEV_RESO][RP_TONE] = 90;                   /* TONE 90 (page 3): the upper partials kept */
     shot(pal, "resonator_wet");
-    press(B_EDIT);                                       /* RESONATOR 2: CUT down, RES 60, BP, the major chord */
+    press(B_EDIT);                                       /* RIPPLE 2: CUT down, RES 60, BP, the major chord */
     turn(0, -40);
     turn(1, 60);
     turn(2, 1);
     turn(3, 1);
     shot(pal, "resonator2");
-    fm1_in.notes = note_bit_of_white(7);                 /* a key on the RESONATOR page: the root to G3, plucked */
+    fm1_in.notes = note_bit_of_white(7);                 /* a key on the RIPPLE page: the root to G3, plucked */
     render(2, 0);
     fm1_in.notes = 0;
     shot(pal, "resonator_key");
@@ -2336,7 +2336,7 @@ static void test_grain_clicks(void)
 static int32_t body_on[BODY_N * CTL], body_off[BODY_N * CTL];
 static int32_t body_hf = 6000;                           /* the source's 3 kHz (0: only its 100 Hz) */
 static int16_t body_ptch, body_prnd, body_scal;          /* the grains' PTCH PRND SCAL (0: the defaults) */
-static int16_t body_rptch = 45, body_rwet;               /* RESONATOR's PTCH and WET (ROOT RES follows it) */
+static int16_t body_rptch = 45, body_rwet;               /* RIPPLE's PTCH and WET (ROOT RES follows it) */
 static int16_t body_seen[BODY_N], body_to[BODY_N];       /* the wave's pitch over ROOT each block, 1/16 semitone, and
                                                           * the grain's note it glides to */
 static void body_run(int32_t *o, int body, int mode, int note, int tone, int wet, int sw_at, int sw_mode)
@@ -2405,7 +2405,7 @@ static int32_t body_jump(void)                            /* the difference's la
 }
 /* nothing left running once the sound stops: every device's integer state settles to 0, so COLOR's NOIS (which
  * follows its input's level) closes, and BODY's wave stops with the grains. From playing it (2026-10-11): a steady
- * hiss with the transport stopped, a RESONATOR at DEC 100 holding an offset of about 740 for good */
+ * hiss with the transport stopped, a RIPPLE at DEC 100 holding an offset of about 740 for good */
 static int32_t settle_env(void (*setup)(void), int32_t *lp_max, int32_t *ic_max)
 {
     uint32_t b, k;
@@ -2657,7 +2657,7 @@ static void test_resting(void)
           space_sounding(0) && (reso[0].lvl[0] > RV_RING || reso[0].lvl[1] > RV_RING || reso[0].lvl[2] > RV_RING));
     track[0].mute = 1;                                   /* muted: its devices hear silence and rest too */
     render(1378 * 6, 0);
-    check("muted (the transport playing): RESONATOR, SPACE and the channel ring down and rest (they cost nothing)",
+    check("muted (the transport playing): RIPPLE, SPACE and the channel ring down and rest (they cost nothing)",
           reso[0].quiet > RS_LEN + CTL && space[0].quiet > sp_len(&space[0].dly) && !chan[0].f1[0]);
     track[0].mute = 0;
     render(4, 0);
@@ -2675,7 +2675,7 @@ static void test_settle(void)
     int32_t e, lp, ic;
     char m[200];
     e = settle_env(st_reso, &lp, &ic);
-    snprintf(m, sizeof m, "RESONATOR DEC 100, 20 s after the sound stopped: every string at 0 (largest %d), so COLOR's "
+    snprintf(m, sizeof m, "RIPPLE DEC 100, 20 s after the sound stopped: every string at 0 (largest %d), so COLOR's "
              "NOIS is closed (its envelope %d, was 733: a steady hiss)", lp, e);
     check(m, lp == 0 && e == 0);
     e = settle_env(st_reso_res, &lp, &ic);
@@ -2751,7 +2751,7 @@ static void test_grain_body(void)
     body_ptch = 0;
     body_prnd = 0;
     body_scal = 0;
-    body_rptch = 57;                                     /* ROOT RES: RESONATOR's root, PTCH A3 (its WET 0: the wave
+    body_rptch = 57;                                     /* ROOT RES: RIPPLE's root, PTCH A3 (its WET 0: the wave
                                                           * alone measured) */
     body_run(body_off, 0, BODY_TRI, GR_ROOT_RES, 60, 100, -1, -1);
     body_run(body_on, 100, BODY_TRI, GR_ROOT_RES, 60, 100, -1, -1);
@@ -2759,11 +2759,11 @@ static void test_grain_body(void)
         char v[8];
         const char *u;
         param_format(&DEV_P[DEV_GRAIN][GP_ROOT], GR_ROOT_RES, v, &u);
-        snprintf(m, sizeof m, "BODY ROOT RES (it reads \"%s\"): the wave on RESONATOR's root, PTCH A3, 220 Hz (%u cycles)",
+        snprintf(m, sizeof m, "BODY ROOT RES (it reads \"%s\"): the wave on RIPPLE's root, PTCH A3, 220 Hz (%u cycles)",
                  v, body_xings(200));
         check(m, !strcmp(v, "RES") && body_xings(200) >= 186u && body_xings(200) <= 189u);
     }
-    body_rptch = 48;                                     /* the strings on C3, RESONATOR's WET 100 (only them heard) */
+    body_rptch = 48;                                     /* the strings on C3, RIPPLE's WET 100 (only them heard) */
     body_rwet = 100;
     {
         double a2, res;
@@ -3288,7 +3288,7 @@ static double buf_rms(const int32_t *x, uint32_t from, uint32_t n)
     return sqrt(a / (n - from + 1));
 }
 
-/* RESONATOR 3's pluck shape: a fresh track 1 with the strings up, PICK STRM VARY set, and one key on its page (A3) */
+/* RIPPLE 3's pluck shape: a fresh track 1 with the strings up, PICK STRM VARY set, and one key on its page (A3) */
 static void rpk_setup(int pick, int strm, int vary)
 {
     int16_t *p;
@@ -3390,7 +3390,7 @@ static void test_reso_pluck(void)
     rpk_setup(60, 0, 0);
     rpk_key();
     hard = rpk_bright(0);
-    snprintf(b, sizeof b, "RESONATOR PICK: -60 plucks soft (a string's burst moves %.2f a sample per level), +60 hard "
+    snprintf(b, sizeof b, "RIPPLE PICK: -60 plucks soft (a string's burst moves %.2f a sample per level), +60 hard "
              "(%.2f)", soft, hard);
     check(b, hard > 1.5 * soft && soft > 0);
     rpk_setup(0, 50, 0);
@@ -3444,9 +3444,9 @@ static void test_reso(void)
         track[t].mute = 1;
     focus_dev(DEV_RESO, 0);
     ui_input();
-    check("the RESONATOR page up: the keys go to it", sys.keys_reso == 1 && sys.keys_grain == 0);
+    check("the RIPPLE page up: the keys go to it", sys.keys_reso == 1 && sys.keys_grain == 0);
     chain_poll();
-    check("RESONATOR at WET 0 (the default): no strings, no memory taken", !reso[0].nch && !mem_count(MEM_RESO));
+    check("RIPPLE at WET 0 (the default): no strings, no memory taken", !reso[0].nch && !mem_count(MEM_RESO));
     fm1_in.notes = note_bit_of_white(9);
     render(NB, s);
     fm1_in.notes = 0;
@@ -3535,9 +3535,9 @@ static void test_reso(void)
     }
     chain_tracks(1);
     p = tp[1].dev[DEV_RESO];
-    p[RP_WET] = 100;                                     /* (track 2's RESONATOR on, track 2 parked) */
+    p[RP_WET] = 100;                                     /* (track 2's RIPPLE on, track 2 parked) */
     chain_poll();
-    check("a parked track's RESONATOR holds no strings", !reso[1].nch && mem_count(MEM_RESO + 1) == 0);
+    check("a parked track's RIPPLE holds no strings", !reso[1].nch && mem_count(MEM_RESO + 1) == 0);
     chain_tracks(4);
     tp[0].dev[DEV_RESO][RP_WET] = 0;
     chain_poll();
@@ -5932,7 +5932,7 @@ static void test_mod(void)
             {DEV_P[DEV_SRC], 0, "LVL"}, {SYN_P, 0, "LVL"}, {POL_P, 0, "LVL"},
             {DRM_P, 0, "LVL"},
             {DEV_P[DEV_COLOR], 0, "LVL", 0, "ROUT", "WET"}, {DEV_P[DEV_GRAIN], 0, 0, 0, "ROUT", "WET"},
-            {DEV_P[DEV_RESO], 0, 0, 0xF000u, "ROUT", "WET"},   /* (12-15: RES ARP, the ARP pad's page 3) */
+            {DEV_P[DEV_RESO], 0, 0, 0xF000u, "ROUT", "WET"},   /* (12-15: RIPL ARP, the ARP pad's page 3) */
             {ME_P[ME_WAVE], "AMT", "OFS"}, {ME_P[ME_ADSR], "AMT", "OFS"}, {ME_P[ME_SEQ], "AMT", "OFS"},
             {ME_P[ME_FOLLOW], "AMT", "OFS"}, {DEV_P[DEV_SPACE], 0, 0, 0, "DLY", "VERB"}};
         uint32_t i, k, ok = 1, rule = 1;
@@ -6004,7 +6004,7 @@ static void test_mod(void)
     let_go(B_HOME);
     check("..let go after SELECT: the page stays", ui.dev == DEV_SRC && ui.page == 0u && sys.bpm == 120);
 
-    /* OCT on a DRUM track: the bar on DRUM's own pages, the octave elsewhere (RESONATOR's root) */
+    /* OCT on a DRUM track: the bar on DRUM's own pages, the octave elsewhere (RIPPLE's root) */
     power_on();
     tp[0].src = SRC_DRUM;
     press(B_HOME);
@@ -6016,9 +6016,9 @@ static void test_mod(void)
     press(B_EDIT);
     press(B_EDIT);
     press(B_EDIT);
-    press(B_EDIT);                                       /* RESONATOR (past GRAIN's six) */
+    press(B_EDIT);                                       /* RIPPLE (past GRAIN's six) */
     press(B_OCTUP);
-    check("..on the track's RESONATOR page: the octave", ui.dev == DEV_RESO && track[0].octave == 4u &&
+    check("..on the track's RIPPLE page: the octave", ui.dev == DEV_RESO && track[0].octave == 4u &&
                                                          tp[0].drm[DM_BAR] == 2);
 
     /* the catch at 0: a depth turned back through 0 stops there; a turn that keeps going stays until the knob rests */
@@ -6237,7 +6237,7 @@ static void drum_count(uint32_t t, uint32_t *n)
                 n[i] += (tp[t].dpat[b][s] >> i) & 1u;
 }
 
-/* hardware notes, 2026-10-11: DRUM's STEP keeps the bar OCT picked while playing; a DRUM track's RESONATOR keys pluck
+/* hardware notes, 2026-10-11: DRUM's STEP keeps the bar OCT picked while playing; a DRUM track's RIPPLE keys pluck
  * the strings alone */
 static void test_drum_play_fixes(void)
 {
@@ -6268,7 +6268,7 @@ static void test_drum_play_fixes(void)
     sys.playing = 0;
     render(4, 0);
 
-    /* the RESONATOR page: the keys pluck the strings, the drums stay quiet (WET 0: what comes out is the dry) */
+    /* the RIPPLE page: the keys pluck the strings, the drums stay quiet (WET 0: what comes out is the dry) */
     power_on();
     tp[0].src = SRC_DRUM;
     track[1].mute = track[2].mute = track[3].mute = 1;
@@ -6285,7 +6285,7 @@ static void test_drum_play_fixes(void)
     fm1_in.notes = 0;
     ui_input();
     render(400, 0);
-    check("a DRUM track's RESONATOR page: a key doesn't strike the kit (WET 0: silence)", pk == 0);
+    check("a DRUM track's RIPPLE page: a key doesn't strike the kit (WET 0: silence)", pk == 0);
     focus_dev(DEV_SRC, 0);
     ui_input();
     fm1_in.notes = k5;
@@ -6552,10 +6552,10 @@ static void test_sends(void)
 {
     static int32_t ins[CTL * 600], snd[CTL * 600], dry[CTL * 600];
     static const uint32_t DEV[3] = {DEV_GRAIN, DEV_RESO, DEV_COLOR};
-    static const char *const NAME[3] = {"GRAIN", "RESONATOR", "COLOR"};
+    static const char *const NAME[3] = {"GRAIN", "RIPPLE", "COLOR"};
     uint32_t k, i, n = CTL * 600u, from = CTL * 200u;
     char m[128];
-    check("ROUT (INS, SEND) on GRAIN, RESONATOR and COLOR; not a modulation target; SPACE has none",
+    check("ROUT (INS, SEND) on GRAIN, RIPPLE and COLOR; not a modulation target; SPACE has none",
           !strcmp(DEV_P[DEV_GRAIN][GP_ROUT].label, "ROUT") && !strcmp(DEV_P[DEV_RESO][RP_ROUT].label, "ROUT") &&
           !strcmp(DEV_P[DEV_COLOR][CP_ROUT].label, "ROUT") && !mod_tdesc(MOD_TG(DEV_GRAIN, GP_ROUT)) &&
           !mod_tdesc(MOD_TG(DEV_RESO, RP_ROUT)) && !mod_tdesc(MOD_TG(DEV_COLOR, CP_ROUT)));
@@ -7353,9 +7353,9 @@ static void test_page_keys(void)
     hold(B_EDIT);
     key_edge(note_of_white(7));
     let_go(B_EDIT);
-    check("EDIT held + key 8: RESONATOR page 2 (GRAIN's six, then RESONATOR's)", ui.dev == DEV_RESO && ui.page == 1u);
+    check("EDIT held + key 8: RIPPLE page 2 (GRAIN's six, then RIPPLE's)", ui.dev == DEV_RESO && ui.page == 1u);
     press(B_EDIT);
-    check("..EDIT tapped still turns pages (on the let-go): RESONATOR page 3", ui.dev == DEV_RESO && ui.page == 2u);
+    check("..EDIT tapped still turns pages (on the let-go): RIPPLE page 3", ui.dev == DEV_RESO && ui.page == 2u);
     hold(B_FX);
     key_edge(note_of_white(4));
     let_go(B_FX);
@@ -8276,11 +8276,11 @@ static void test_mod_engines(void)
         check("..a SEQ on TUNE lands on semitones (a step is a note)", fine == 0u && f % 16u == 0u);
     }
     /* the filters' cutoffs modulate finer than their semitones: a slow sweep moves a little every block, never in
-     * whole-step jumps (SYNTH's CUT, POLY's, RESONATOR's, the channel's FILT) */
+     * whole-step jumps (SYNTH's CUT, POLY's, RIPPLE's, the channel's FILT) */
     {
         static const uint32_t FNS[4] = {FN_SCUT, FN_PCUT, FN_RCUT, FN_FILT};
         static const char *const NAME[4] = {"mod: SYNTH's CUT sweeps in 1/256 steps (no semitone staircase)",
-                                            "..POLY's CUT", "..RESONATOR's CUT", "..the channel's FILT (1/256 of its 1 % steps)"};
+                                            "..POLY's CUT", "..RIPPLE's CUT", "..the channel's FILT (1/256 of its 1 % steps)"};
         uint32_t w, b;
         for (w = 0; w < 4u; w++) {
             uint32_t g = w == 0u ? MOD_TSRC + SRC_SYNTH * NPK + SY_CUT : w == 1u ? MOD_TSRC + SRC_POLY * NPK + PL_CUT
@@ -8309,7 +8309,7 @@ static void test_mod_engines(void)
         check("..and a cutoff reads as the knob x 256 when nothing modulates it", mod_fine8(1, FN_SCUT, 64) == 64 * 256);
         power_on();
     }
-    /* RESONATOR's root glides when PTCH moves (half the way a block), so the strings' read point never jumps */
+    /* RIPPLE's root glides when PTCH moves (half the way a block), so the strings' read point never jumps */
     {
         int32_t r0, r1;
         power_on();
@@ -8325,7 +8325,7 @@ static void test_mod_engines(void)
         render(1, 0);
         r1 = reso[0].rs16;
         render(30, 0);
-        check("RESONATOR: PTCH +12 glides there (half the way in a block, all of it soon after)",
+        check("RIPPLE: PTCH +12 glides there (half the way in a block, all of it soon after)",
               reso[0].nch > 0u && r1 > r0 && r1 < r0 + 12 * 16 && reso[0].rs16 >= r0 + 12 * 16 - 1);
         power_on();
     }
@@ -8406,7 +8406,7 @@ static uint32_t arp_steps(uint32_t t, uint32_t blocks, uint8_t *seq, uint32_t ma
     return n;
 }
 
-/* the ARP pad's arpeggio on TAPE (its slices) and DRUM (its drums), and RESONATOR's own (its page 3) */
+/* the ARP pad's arpeggio on TAPE (its slices) and DRUM (its drums), and RIPPLE's own (its page 3) */
 static void test_arp_sources(void)
 {
     uint8_t seq[32];
@@ -8464,25 +8464,25 @@ static void test_arp_sources(void)
     render(4, 0);
     tp[0].arp[AR_MODE] = ARM_OFF;
 
-    {                                                    /* RES ARP's page shows RESONATOR's knobs 12-15 */
+    {                                                    /* RIPL ARP's page shows RIPPLE's knobs 12-15 */
         uint32_t k, same = pdesc_pages(ARP_P) == 3u;
         for (k = 0; k < 4u; k++) {
             const pdesc_t *a = &ARP_P[ARP_RES + k], *d = &DEV_P[DEV_RESO][RP_AMODE + k];
             same &= !strcmp(a->label, d->label) && a->min == d->min && a->max == d->max && a->def == d->def &&
                     a->fmt == d->fmt;
         }
-        check("RES ARP (the ARP pad's page 3) describes RESONATOR's knobs 12-15 as they're stored", same);
+        check("RIPL ARP (the ARP pad's page 3) describes RIPPLE's knobs 12-15 as they're stored", same);
     }
-    power_on();                                          /* RESONATOR's arpeggio on a TAPE track */
+    power_on();                                          /* RIPPLE's arpeggio on a TAPE track */
     sys.bpm = 120;
     tp[0].src = SRC_TAPE;
     tp[0].dev[DEV_SRC][TK_LEN] = 2500;                     /* (slices: a key would start one, but not here) */
     tp[0].dev[DEV_RESO][RP_WET] = 100;
     tp[0].dev[DEV_RESO][RP_AMODE] = ARM_KEY;
-    hold(B_ARP);                                         /* ARP held + key 3: RES ARP */
+    hold(B_ARP);                                         /* ARP held + key 3: RIPL ARP */
     key_edge(note_of_white(2));
     let_go(B_ARP);
-    check("ARP held + key 3: RES ARP, RESONATOR's arpeggio; the keys its", ui.kind == FOCUS_ARP && ui.page == 2u &&
+    check("ARP held + key 3: RIPL ARP, RIPPLE's arpeggio; the keys its", ui.kind == FOCUS_ARP && ui.page == 2u &&
           sys.keys_rarp && !sys.keys_reso);
     fm1_in.notes = w1 | w5;
     for (b = 0; b < 172u * 5u; b++) {
@@ -8496,10 +8496,10 @@ static void test_arp_sources(void)
     }
     check("..KEY, two keys held: the strings plucked at C3 and E3 in turn", roots == 3u && reso_arp[0].n == 2u);
     shot("BRYO", "arp_res");
-    hold(B_SCL);                                         /* (SCL + the ARP pad: RES ARP to its defaults: off) */
+    hold(B_SCL);                                         /* (SCL + the ARP pad: RIPL ARP to its defaults: off) */
     press(B_ARP);
     let_go(B_SCL);
-    check("..SCL held + ARP on RES ARP: its knobs to their defaults (MODE OFF), the track's ARP left alone",
+    check("..SCL held + ARP on RIPL ARP: its knobs to their defaults (MODE OFF), the track's ARP left alone",
           tp[0].dev[DEV_RESO][RP_AMODE] == ARM_OFF && tp[0].dev[DEV_RESO][RP_ARAT] == 3 && ui.page == 2u);
     tp[0].dev[DEV_RESO][RP_AMODE] = ARM_KEY;
     check("..the tape stays quiet (the keys are the strings' on this page)", !ran && arp_rt[0].n == 0u);
@@ -8528,8 +8528,8 @@ static void test_arp_sources(void)
     ui_input();
     fm1_in.notes = 0;
     render(2, 0);
-    check("..POLY held on RES ARP: its notes cleared, the track's arpeggio left alone", reso_arp[0].n == 0u &&
-          !strcmp(ui.msg, "RES ARP NOTES CLEARED"));
+    check("..POLY held on RIPL ARP: its notes cleared, the track's arpeggio left alone", reso_arp[0].n == 0u &&
+          !strcmp(ui.msg, "RIPL ARP NOTES CLEARED"));
     tp[0].dev[DEV_RESO][RP_AMODE] = ARM_OFF;
     render(4, 0);
 }

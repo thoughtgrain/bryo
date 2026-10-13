@@ -15,7 +15,7 @@ sees each as one instruction. `sdiv2()` (dsp.c) is the shift form that rounds th
 | Part | Host/sample | What it is |
 | --- | ---: | --- |
 | ADPCM decode and read (8 POLY voices, DRON, the grains) | ~600 | per nibble a call with its state through memory, three branches, two clamps; per sample two bounds checks and a block lookup |
-| RESONATOR, four strings | ~250 | two line reads and two wrap tests a string-sample |
+| RIPPLE, four strings | ~250 | two line reads and two wrap tests a string-sample |
 | DRUM voices | ~330 | four passes over the metal cluster, a copy pass into the mix |
 | the SVF (`tsvf_mode`) | ~200 | called per sample through pointers, its bypass test re-evaluated per sample |
 | GRAIN | ~255 | two 40-slot scans a track a block; a whole-block decode when recording at FDBK 0 |
@@ -48,18 +48,18 @@ identity value (AMT 100, SKEW 0, FOLD 0, SMTH 0, SWNG 0, ENV 0, FDBK 0, DUB 0).
 | POLY per voice per block: the pitch step, RES, ENV, the filter coefficients | 1.25 | cache per voice and per track; guard ENV 0 |
 | `db_q10` (every rendered source, COLOR, LOW and HIGH) | 0.3-1.25 | the table |
 | GRAIN: `gr_cdist`'s `% len`, the seam, the envelope ramp, `gr_plan`, knob maths | ~1.2 | fold loops, shifts, a reciprocal at grain start, the table |
-| RESONATOR per block: TONE, DEC, WET, each string's period and gain | 0.8 | sdiv2, hoist, memoize by knob and root |
+| RIPPLE per block: TONE, DEC, WET, each string's period and gain | 0.8 | sdiv2, hoist, memoize by knob and root |
 | SPACE and COLOR: knob maths computed before their early returns | 1.0-1.3 | below the returns; cache per knob |
 | the compressor, `src % NSRC`, the limiter's divide a sample while limiting | ~0.3 | caches, `& 3u`; the limiter: a Newton-updated reciprocal (near-identical: see below) |
 
 ## Tier C: resting on silence (identical output; nothing for the scene, ~130 a sample when nothing plays)
 
-The output stage and the compressor's gain loop on all-zero blocks once their states are settled; a RESONATOR with
+The output stage and the compressor's gain loop on all-zero blocks once their states are settled; a RIPPLE with
 its input filter set, filtering silence while it rests.
 
 ## Tier D: spikes and layout
 
-- `rs_pluck` puts 20-75k instructions into one block on every RES ARP step: at 75 % that block can pass 100 %.
+- `rs_pluck` puts 20-75k instructions into one block on every RIPL ARP step: at 75 % that block can pass 100 %.
   Spreading the burst over the following blocks is near-identical, not identical.
 - `gr_pitch` with SCAL on: 146 divides in one block at every grain start; a running index.
 - The hot-code layout (the cache simulation of 2026-10-12): only a device reading can confirm it.
@@ -114,7 +114,7 @@ the I-cache misses didn't move (31-33 a sample at 16 KB), so the layout question
 **Tier C and the two items outside the interrupt, later the same day.** The compressor's gain loop returns on a
 block whose peak is 0 (0 times any gain is 0; its envelope still runs); `master_block` writes silence on an all-zero
 block when its DC blockers hold 0, the limiter sits at its floor and the low-cut is off (every state as running it
-would leave it); a RESONATOR with its input filter set skips the filter on silence while the filter's state is 0.
+would leave it); a RIPPLE with its input filter set skips the filter on silence while the filter's state is 0.
 `mod_peak_dev` keeps the depths' part of a peak per track and target for the list it was summed on (`mod_gen`,
 bumped by `mod_rebuild`), the knob's part read live: the polls had asked four times a track every pass, a scan and
 three divides each. The 1/3-beat LFO fix: `fr` is the exact fraction of the division where the division isn't a
@@ -131,7 +131,7 @@ everywhere), then A6-A9, then C. D and the two items outside the interrupt as th
 ## Round 2 (2026-10-12, evening): one track heard at 70-75 %
 
 From playing it: 70-75 % with only T2 playing, the rest muted. Five read-only audits of the whole path (sources,
-GRAIN and RESONATOR, COLOR SPACE mixer master, the chain and the modulators, the platform), and timing on the host,
+GRAIN and RIPPLE, COLOR SPACE mixer master, the chain and the modulators, the platform), and timing on the host,
 put it this way:
 
 | Where | Share of that 70-75 % | How sure |
@@ -156,7 +156,7 @@ The plan, agreed: optimize before thinning features.
    FM-1-transporter to recover: built and checked here, flashed only when asked.
 4. **The bit-identical trims** from the audits (~6-9 %): the room loop split into per-stage passes, the master's
    state in locals, the delay's 16-bit path, divides ahead of early returns, TAPE's fast path, POLY's second loop,
-   the drum loops, GRAIN's recording, mixing and decoding, RESONATOR's per-string caches, the modulators' divides.
+   the drum loops, GRAIN's recording, mixing and decoding, RIPPLE's per-string caches, the modulators' divides.
 5. **Thinning, only if needed**: voices ending at -60 dB, modulators every second block, a LO-LO room, and last of
    all 64-sample blocks.
 
@@ -166,7 +166,7 @@ the device are the overload's shedding (a drum voice cut in 1.5 ms), not a chang
 **The first device readings (8da385f, TEST as first built):** R/F 239/239, so a loop runs from flash exactly as fast
 as from RAM once it's in the cache: flash costs only on misses, which this loop can't show. TEST read SRC 37, GRN 21,
 RES 10, COL 8 % and was over 100 % (noise: the shedding). The host's shares of TEST were SRC 28, GRN 20, RES 19, COL
-8, SPC 11, ROOM 5, MST 3, PRE 5 %: no stage costs the FM-1 far more than its instructions say (RESONATOR's 10 is
+8, SPC 11, ROOM 5, MST 3, PRE 5 %: no stage costs the FM-1 far more than its instructions say (RIPPLE's 10 is
 likely its strings shed), the sources a little more. TEST cut down to FACTORY plus T1's drums through GRAIN (1.06 x
 FACTORY on the host, where the first was 1.3 x), and the load lines drawn bright.
 
@@ -195,7 +195,7 @@ the cache's way, the sources' loops stayed in it. The cache is the cost.
 reach of all of .text), RAMTEXT takes in the old debug area up to the boot probe (0x01C07F00), and `.lowpool` takes four
 more pool objects (`drm_rt`, `mod_l`, `mrt`, `mda`); seven chunks of sound memory go too (143, 26.6 s, from 150 and
 27.9). In `.hot`: `chain_block`, every engine's block and its per-sample routines (POLY's voice, TAPE's block and
-reads, the drum voices and their setup, GRAIN's block, decode, mix, recording and planning, RESONATOR, COLOR, SPACE's
+reads, the drum voices and their setup, GRAIN's block, decode, mix, recording and planning, RIPPLE, COLOR, SPACE's
 delay and rooms, the mixer, the master): 38.6 KB. What stays in flash is cold (REC's writes, USB's record mode, a
 slice's jump, a sleeping track) or tiny and shared. One lesson: the compiler won't inline a function from one
 section into another, so moving a caller made its small helpers calls; the per-sample ones (`clamp`, `sdiv2`,

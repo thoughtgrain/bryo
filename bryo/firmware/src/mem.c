@@ -25,7 +25,7 @@
 #define MEM_NC (MEM_NC_POOL + MEM_NC_RAM)   /* 143: 26.6 s of tape-format sound in all */
 #define MEM_FREE 0xFFu               /* owner: nobody */
 /* owners: a track's tape (MEM_TAPE + t), its GRAIN buffer (MEM_GRAIN + t), a WAV arriving over USB (MEM_IMPORT),
- * its RESONATOR's strings (MEM_RESO + t), its SPACE's delay (MEM_SPACE + t), the shared rooms A and B (MEM_ROOM + r) */
+ * its RIPPLE's strings (MEM_RESO + t), its SPACE's delay (MEM_SPACE + t), the shared rooms A and B (MEM_ROOM + r) */
 /* (SPARE: kept ready for a WAV, vdisk.c) */
 enum { MEM_TAPE = 0, MEM_GRAIN = 4, MEM_IMPORT = 8, MEM_SPARE = 9, MEM_RESO = 10, MEM_SPACE = 14, MEM_ROOM = 18 };
 

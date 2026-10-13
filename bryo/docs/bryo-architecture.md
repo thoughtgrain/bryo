@@ -14,7 +14,7 @@ to build, test and measure, the decisions and the open questions on one page.
 | Question | Decision |
 | --- | --- |
 | Where audio comes from | All of it: reels (factory + uploaded), resampling inside Bryo, **and USB audio in from the computer, early** (phase 3), **plus synth engines**. |
-| What starts a track's chain | **A source engine per track**, picked like a modulator engine: TAPE, SYNTH, POLY, and engines still to be decided. The source flows into GRAIN, RESONATOR, COLOR and SPACE. |
+| What starts a track's chain | **A source engine per track**, picked like a modulator engine: TAPE, SYNTH, POLY, and engines still to be decided. The source flows into GRAIN, RIPPLE, COLOR and SPACE. |
 | Tape format | IMA ADPCM, mono, 22.05 kHz; tapes take what they record from one shared memory (28 s in all; see "Memory by usage"). |
 | Gestures where the hardware differs | Adapt what makes sense; **ask before changing anything else**. The remaps below stand. |
 | MONO and POLY keys | Hold for 0.5 s with a countdown ring, plus one level of undo. |
@@ -116,10 +116,10 @@ With no input, a tape records what the instrument makes. That's still a lot:
   samples are already here), plus your own audio uploaded over USB with `tools/fm1_sample_upload.py` or the
   browser (record in the browser, upload, as Felucca does today). Any reel loads into any tape.
 - **Resampling inside Bryo:** REC records the track's own chain output (sound on sound through
-  RESONATOR, COLOR and SPACE back onto the tape). ALGORITHM routes another track's output into this track's
+  RIPPLE, COLOR and SPACE back onto the tape). ALGORITHM routes another track's output into this track's
   tape, which is the PRD's live overdub between tracks.
-- **Sources that make sound from nothing:** RESONATOR played from the keys (Karplus-Strong excited by a
-  noise burst) and COLOR's noise generator. A blank tape plus RESONATOR plus REC is a way to start from
+- **Sources that make sound from nothing:** RIPPLE played from the keys (Karplus-Strong excited by a
+  noise burst) and COLOR's noise generator. A blank tape plus RIPPLE plus REC is a way to start from
   silence.
 - **USB audio from the computer (decided: early).** A UAC1 OUT endpoint (computer to FM-1), 44.1 kHz
   16-bit stereo, into a ring buffer the audio ISR reads. The work: a second streaming interface in the
@@ -146,7 +146,7 @@ Why:
 - **Overdub that readers can't catch half-written.** The write head decodes the old block, mixes in the new
   audio, re-encodes it into a 128-byte staging block, and commits the block and its index entry together.
   A grain reading the same spot sees either the old block or the new one, never a mix.
-- **Stereo comes later in the chain.** GRAIN's spread, RESONATOR and SPACE are stereo; the tape itself is
+- **Stereo comes later in the chain.** GRAIN's spread, RIPPLE and SPACE are stereo; the tape itself is
   mono. That's the trade for length.
 
 ## Budgets
@@ -155,8 +155,8 @@ Why:
 
 | Use | Bytes | How it's sized |
 | --- | ---: | --- |
-| Shared sound memory | 251,328 pool + 50,688 main RAM | 143 chunks of tape-format sound (26.6 s in all), handed out by usage: tapes as long as what's on them, GRAIN's live buffers while GRAIN is on, RESONATOR's strings and SPACE's lines while they're on. See "Memory by usage" |
-| RESONATOR | 4 chunks a track, while on | 4 strings × 1,056 samples × 2 B (lowest string F1, 43.7 Hz), from the shared memory while WET is up |
+| Shared sound memory | 251,328 pool + 50,688 main RAM | 143 chunks of tape-format sound (26.6 s in all), handed out by usage: tapes as long as what's on them, GRAIN's live buffers while GRAIN is on, RIPPLE's strings and SPACE's lines while they're on. See "Memory by usage" |
+| RIPPLE | 4 chunks a track, while on | 4 strings × 1,056 samples × 2 B (lowest string F1, 43.7 Hz), from the shared memory while WET is up |
 | SPACE delay | 8 chunks a track, while DLY is up | 8,192 samples × 2 B at 22.05 kHz (TIME's 370 ms); 4 chunks at 8 bits when memory is short |
 | SPACE rooms | 10 chunks a room (two: A and B), while a track sends to it | the room (a comb a chunk, the allpasses in a fifth) and the pre-delay's line (5 chunks; 3 at 8 bits); see "The shared rooms, as built" |
 | COLOR | 0 | 64 B of state a track |
@@ -240,7 +240,7 @@ with its mixes. My target for all four tracks, everything on, is **at most 2,000
 | --- | ---: | --- |
 | TAPE read | 20 | ADPCM decode at 22.05 kHz, linear interpolation to 44.1 kHz |
 | GRAIN | 240 | 8 sounding grains × about 30 (decoding, window ramp, interpolation, pan), plus about 100 recording its buffer (measured: see "GRAIN, as built") |
-| RESONATOR | 60 | 4 strings (measured nearer 240 a track on the host: see "RESONATOR, as built") |
+| RIPPLE | 60 | 4 strings (measured nearer 240 a track on the host: see "RIPPLE, as built") |
 | COLOR | 30 | drive table, crush, follower plus noise (measured 180 a track with every knob on, 0 at the defaults: see "COLOR, as built") |
 | SPACE | 80 | delay plus reverb at 22.05 kHz (measured 220 a track with both on: see "SPACE, as built") |
 | Mixer | 60 for all | measured 145 a track with LOW, HIGH and FILT all on (0 at their defaults), the pan 10, the compressor 2: see "The mixer, as built" |
@@ -248,7 +248,7 @@ with its mixes. My target for all four tracks, everything on, is **at most 2,000
 | **Track total** | **~440** | **× 4 = ~1,760**, plus the mixer and compressor ~60 |
 
 The audio ISR's 85% guard stays. Instead of shedding voices it sheds *grains* first (lowers the sounding
-cap), then RESONATOR strings, and never the tape itself. COLOR and SPACE aren't shed (yet; see "SPACE, as built").
+cap), then RIPPLE strings, and never the tape itself. COLOR and SPACE aren't shed (yet; see "SPACE, as built").
 
 ## What I keep, reuse, and remove
 
@@ -386,7 +386,7 @@ After phase 1, two changes to the screen, from your review:
   to 4 set the levels); let go and you're back on the page. Tap GLO and the mixer stays up. The PRD's SEL (the
   SCL pad) is free; I propose holding it for the system menu.
 - **The space the track tiles took is a visualization per page** (`firmware/src/ui_viz.c`), drawn from the
-  page's values: TAPE's loop window, the sample lit where GRAIN's grains read it (solid blocks in a stereo lane), RESONATOR's response, COLOR's sine through the device,
+  page's values: TAPE's loop window, the sample lit where GRAIN's grains read it (solid blocks in a stereo lane), RIPPLE's response, COLOR's sine through the device,
   SPACE's echoes and tail, each modulator's shape in its slot colour, and the tracks in the mixer. The page's
   last-turned knob is drawn in the accent and named in the panel's caption with its value, and on COLOR the
   inset follows it (the drive curve, the noise, or the tone filter). The DSP will use the same mappings the
@@ -437,12 +437,12 @@ After phase 1, two changes to the screen, from your review:
   the steps past LEN left as dim slots, SLEW drawn as the glide between values and SWING nudging the off-beats.
   For that the slot needs values, so each SEQ slot stores 16 (`tp[].steps`, 0..100) with a default pattern that
   accents the beats; it moves nothing until the slot is assigned a depth, and setting a step's value (hold the
-  slot, hold a white key, turn a knob) arrives with phase 7. RESONATOR's ROOT pictogram is now one outline with
+  slot, hold a white key, turn a knob) arrives with phase 7. RIPPLE's ROOT pictogram is now one outline with
   dividers and thin black keys, the root key filled (or a black one hollow), instead of a key-by-key drawing.
 - **Second pages, reached by pressing the same pad again.** The PRD gives each device exactly four knobs, and
   all of them were on screen. What was missing is what the sound needs that the PRD never gave a knob, so I
   added a page 2 where it matters. Pressing a pad again steps through its pages: EDIT goes GRAIN, GRAIN 2,
-  RESONATOR, GRAIN; FX goes COLOR, COLOR 2, SPACE, SPACE 2; HOME and the slot pads toggle page 1 and 2. The
+  RIPPLE, GRAIN; FX goes COLOR, COLOR 2, SPACE, SPACE 2; HOME and the slot pads toggle page 1 and 2. The
   header shows the page as a block and a dot after the title.
 
   | Page 2 | Knobs | Why |
@@ -454,7 +454,7 @@ After phase 1, two changes to the screen, from your review:
 
   (Since renamed to the Torso S-4's names, with more pages: see `docs/s4-alignment.md`.)
 
-  RESONATOR stays at one page: its four knobs already cover it. (The modulators' pages are under "Modulators".) Every page 2 knob also shows in the
+  RIPPLE stays at one page: its four knobs already cover it. (The modulators' pages are under "Modulators".) Every page 2 knob also shows in the
   picture below, not only as a number: GAIN scales (and clips) the sample on the tape, FADE draws ramps at the
   loop's ends, REV and HALF turn and halve the chevrons; WIN rounds the grains, REV makes some hollow, JIT adds
   whiskers; COLOR's curve and wave include MIX and LVL, and GATE draws its line over the noise; SPACE's echoes
@@ -518,7 +518,7 @@ the refusal that protects a take. What it does and why:
   tape, cleared); SAVE held brings it back, as long as REC hasn't written over it. That costs no RAM for an undo
   copy.
 - **The keys are slices everywhere for now.** The phase 1 test tone is gone. White key n jumps the head to
-  slice n of the loop while playing, and plays just that slice while stopped. RESONATOR (phase 4) and SEQ (phase 7)
+  slice n of the loop while playing, and plays just that slice while stopped. RIPPLE (phase 4) and SEQ (phase 7)
   will give the keys their own jobs on their pages.
 - **The screen draws the real sound.** The tape view, GRAIN and FOLLOW read each block's peak, which the
   encoder stores with the block; the tape view names what plays (a reel, TAPE or EMPTY), shows REC armed, and
@@ -694,8 +694,8 @@ TAPE plays nothing while the tape is empty and the sound once it holds one. Thre
 
 **A budget problem it brought into view.** The pool now holds 282 KB of its 344 KB: the tapes (152 KB), the screen
 canvas (59.5 KB, twice what the budget table planned), the drive's WAV inbox (38 KB, which the plan didn't have)
-and POLY's readers (8 KB). That leaves about 62 KB, and phases 3b to 5 plan about 151 KB more (RESONATOR, SPACE,
-GRAIN, the USB audio ring). Something has to give before RESONATOR lands. The candidates are: the inbox sharing the
+and POLY's readers (8 KB). That leaves about 62 KB, and phases 3b to 5 plan about 151 KB more (RIPPLE, SPACE,
+GRAIN, the USB audio ring). Something has to give before RIPPLE lands. The candidates are: the inbox sharing the
 canvas's memory (it's only in use while a WAV arrives), a shorter SPACE delay (the plan's first choice), and a
 smaller canvas.
 
@@ -896,9 +896,14 @@ The rest of the noise is the 4-bit ADPCM (about -23 dB on drums, louder just aft
 long buffer in little memory, and I left it. Turning WET to 0 also lost a fade's tail: the dry ramp ended a step
 short and the grains' fade finished after the 2x up's three-sample delay; both now land at the block's end.
 
-## RESONATOR, as built (2026-10-08)
+## RIPPLE, as built (2026-10-08)
 
-RESONATOR comes after GRAIN (`reso.c`): four tuned strings the track rings through, the S-4's RING with the PRD's
+RIPPLE was called RESONATOR until 2026-10-13. The old name said what it was, a resonator, not what it does to a
+sound; and the S-4's device is RING, so neither name was a quote. RIPPLE names the picture (strings drawn as decaying
+ripples) and the slow pitch movement knob I added the same day. The module is still `reso.c` and the enum is still
+`RP_*`: renaming files costs a diff of every include and buys nothing you can hear.
+
+RIPPLE comes after GRAIN (`reso.c`): four tuned strings the track rings through, the S-4's RING with the PRD's
 strings. Its picture was drawn before it made sound, with the mappings written next to it, so I built the strings to
 those mappings: what the panel draws is what you hear.
 
@@ -923,17 +928,17 @@ until you turn it. How much of the sound goes in falls as DEC rises: a long ring
 and this keeps it from building without bound (the loop clamps besides). WET blends the strings with the track,
 ramped across each block. The strings sit across the stereo field, 1 and 3 left, 2 and 4 right, two to one.
 
-**The keys on the RESONATOR page** set the root: a semitone a key from C of the track's octave, so OCT-/OCT+ shift
+**The keys on the RIPPLE page** set the root: a semitone a key from C of the track's octave, so OCT-/OCT+ shift
 it, and it holds until PTCH is turned again (the way GRAIN's keys hold a spot until OFST is turned). On a TAPE track
 a key also plucks the strings, a burst of noise one period long, softened by TONE. That's the PRD's sound from
-nothing: a blank tape, RESONATOR and REC. On a SYNTH or POLY track the keys keep playing the source and the strings
+nothing: a blank tape, RIPPLE and REC. On a SYNTH or POLY track the keys keep playing the source and the strings
 take its notes as their root, so the resonance follows what you play. The picture shows a key's root as PTCH's.
 
 **Memory**: a string's delay line is a chunk of the shared memory (1,056 samples, so the lowest string is F1,
 43.7 Hz), four a track, taken while WET is above 0 on a track in use and given back otherwise, like GRAIN's buffer.
 
 **Cost, measured** (host instructions per output sample, the whole chain, four tracks): the reels alone 873;
-RESONATOR at WET 60 on all four (16 strings) 1,818, so about 950 for the strings, around 50 a string with its share
+RIPPLE at WET 60 on all four (16 strings) 1,818, so about 950 for the strings, around 50 a string with its share
 of the blend. My budget said 60 a track; it's nearer 240. The first version cost 1,160: a division per sample in the
 blend, the input's share worked out per string, and each string summed into both sides; now the blend is Q15, the
 share is worked out once per track, and the strings are summed once per side. With GRAIN at its cap too: 4,416. That
@@ -947,7 +952,7 @@ its note (A3 at 220.0 Hz, measured by autocorrelation so the partials don't fool
 SCAL MAJ puts the strings on the third and fifth; turning PTCH takes the root back; a reel through DEC 100 and TONE
 100 rings loud and never past full scale; on a SYNTH track the keys play the synth and the strings follow; shedding
 takes a string and gives it back; a parked track holds no strings; WET 0 gives the chunks back. And
-`tests/checkpoint_sim.sh` renders and measures RESONATOR on all four tracks (runs 11 and 12).
+`tests/checkpoint_sim.sh` renders and measures RIPPLE on all four tracks (runs 11 and 12).
 
 **Silence is silent (2026-10-11, from playing it: "a background noise when everything is turned off ... noise stays
 even when play is paused").** I traced it on the host by playing a reel through each device in turn, stopping, and
@@ -990,7 +995,7 @@ None of them is the only cue: the dot says recording, the ✱ is a shape, a play
 dim, a ringing string gets a stem, the step playing is the filled one (and its key lights), a modulated knob has its
 rail. To have the colours at all the canvas went from 2 bits a dot to 4 (`pxc`, 16 colours a strip, given out as
 drawn; a 17th would fall back to ink): the header alone needs three. 1.6 KB more RAM, the same work a pixel to send.
-RESONATOR keeps a level a string for the picture (`lvl`: a block's last loop sample held, falling an eighth a block;
+RIPPLE keeps a level a string for the picture (`lvl`: a block's last loop sample held, falling an eighth a block;
 +5 to +14 a sample on runs 11, 12 and 30). The screens' signatures carry what's coloured (the focus pad, the strings
 ringing, SPACE sounding, the SEQ step), so a change redraws. Tested: the canvas test for 4 bits and the 17th colour,
 `test_resting` for what the screen reads as sounding and resting (and two pictures, `space_live` and `reso_live`), the
@@ -1004,8 +1009,8 @@ host (runs 29 and 30) and measured where the time went. Three causes:
   state shows its tail has gone, and wakes the block sound comes back, carrying on from its state as it is:
   - SPACE: |wet| <= 16 (-66 dB) out for longer than its lines are long (the delay's, and the pre-delay plus the
     longest comb and the allpasses), then its lines stand still; its loops' filters are let go to 0 as it rests.
-  - RESONATOR: the strings' sum |out| <= 2 for longer than a line (1,056 samples), then the strings stand still; a
-    pluck or a RES ARP step wakes them.
+  - RIPPLE: the strings' sum |out| <= 2 for longer than a line (1,056 samples), then the strings stand still; a
+    pluck or a RIPL ARP step wakes them.
   - COLOR: the noise shut and nothing held in CRSH or TILT (|s| <= 16).
   - The channel: no gain moving and every filter state under 512.
   The thresholds aren't arbitrary: in integers SPACE's combs cycle at about ±16 and the channel's FILT at a few
@@ -1019,7 +1024,7 @@ host (runs 29 and 30) and measured where the time went. Three causes:
   isn't recording sleeps (`src_sleep`, `grain_sleep`): its source keeps its time and makes no sound (TAPE's heads,
   seams, slices and SYNC run as ever with nothing read; DRUM's pattern steps on and still moves the modulators; POLY
   and SYNTH follow the keys with every voice silent), GRAIN neither records nor plays but keeps its write head on its
-  place in the bars, and RES ARP doesn't pluck. The modulators and arpeggiators run on. A mute was already a cut, so
+  place in the bars, and RIPL ARP doesn't pluck. The modulators and arpeggiators run on. A mute was already a cut, so
   what changes is only at waking: notes start fresh and the buffer holds the bars from before the mute until it's
   written over. The scene with T2 alone: 42 % less work on the host. Tested (`test_sleep`): asleep 3 s, T3's tape
   head, T1's pattern step and T3's buffer head end exactly where they do awake, nothing of theirs sounds, and
@@ -1030,7 +1035,7 @@ host (runs 29 and 30) and measured where the time went. Three causes:
   the heaviest half of the last second stays under 70 % (`sys.load_pk`, audio.c; `chain_room`). Muting the others
   gives a lone track the bigger grain pool (40), and that's what lets it have them only while there's room.
 Measured: run 29 (the busy groove stopped) 1,717 to 798, about 46 % to 21 % on the device's scale; run 30 (one track
-heard with dense grains, strings, RES ARP and a room, the others muted) 3,200 to 2,618, about 85 % to 70 %; the
+heard with dense grains, strings, RIPL ARP and a room, the others muted) 3,200 to 2,618, about 85 % to 70 %; the
 playing runs -125 to +17 (the silence checks a block cost a little where nothing rests). What still runs stopped:
 GRAIN recording silence into a SYNTH or POLY track's buffer (about 240 in run 29's kind of scene), the master, the
 sources' clocks. Tested (`test_resting`): stopped 8 s, every device rests with the track's out exactly 0 and SPACE's
@@ -1038,9 +1043,9 @@ and the strings' lines standing still; PLAY wakes them at once; muted, they rest
 unmuted wake; with the heaviest half at 80 % nothing comes back, at 50 % an eighth does. Each part fails its
 mutant (never resting, the tail ignored, a pluck not waking, the mute feeding sound, the blind give-back).
 
-**A pluck's shape (2026-10-12).** From playing RES ARP: "the resonator always sounds the same". Every pluck was the
+**A pluck's shape (2026-10-12).** From playing RIPL ARP: "the resonator always sounds the same". Every pluck was the
 same full burst of noise into all four strings at once, at TONE's brightness, so a pattern of them was identical
-hits. RESONATOR 3's three empty knobs now shape it (`rs_pluck`):
+hits. RIPPLE 3's three empty knobs now shape it (`rs_pluck`):
 
 - **PICK** (-100..100): how hard. An offset on TONE for the burst alone: below 0 a mallet (the burst low-passed
   harder, dark and round), above a pick (bright, snappy); TONE still sets how the strings ring after.
@@ -1057,7 +1062,7 @@ dropping a strum under way; VARY 0 full level, VARY 100 every pluck and string i
 
 ## COLOR, as built (2026-10-08)
 
-COLOR is the S-4's DEFORM after RESONATOR (`firmware/src/color.c`). It takes no memory, only a few numbers a track,
+COLOR is the S-4's DEFORM after RIPPLE (`firmware/src/color.c`). It takes no memory, only a few numbers a track,
 and its picture (`viz_color`) calls the same `color_shape()` the sound goes through, so what's drawn is what's
 played. In order:
 
@@ -1097,17 +1102,17 @@ the sound, which is the height the picture draws. SPRD moves the right echo up t
 
 **The room.** Four damped combs and two allpasses, Freeverb's shape, as Felucca's ROOM. SIZE sets the combs' lengths
 (40 % to 100 % of 38..46 ms); DEC the time the tail takes to fall 60 dB (0.2..4.2 s, each comb's gain from
-RESONATOR's `rs_gain`); TONE the combs' damping, or a high-pass in front above 0; PRE the pre-delay, up to 200 ms.
+RIPPLE's `rs_gain`); TONE the combs' damping, or a high-pass in front above 0; PRE the pre-delay, up to 200 ms.
 For stereo, the right side runs its own pair of allpasses fed the combs with alternating signs, and SPRD blends it in
 (0 is mono). (Since 2026-10-11 the rooms are two the tracks share, on the mixer, always stereo; SPRD is the delay's
 alone: see "The shared rooms, as built".)
 
-**Memory by usage.** DLY and VERB now default to 0, like GRAIN's and RESONATOR's WET: a device that's off takes
+**Memory by usage.** DLY and VERB now default to 0, like GRAIN's and RIPPLE's WET: a device that's off takes
 nothing. With DLY up the delay takes 8 chunks (8,192 samples); with VERB up the room takes 5 and its pre-delay 5. A
 line is 16-bit when there's room for it with 3 s still free, and starts 8-bit when there isn't: 4 chunks for the
 delay and 3 for the pre-delay, companded like A-law (sign, a 3-bit segment, 4 bits inside it), so the noise rides
 under the sound, about 46 dB below a quiet sine's echo. When nothing is free it takes from the end of the longest tape,
-as GRAIN and RESONATOR do. A line never changes format while it sounds: it's chosen when it's switched on. A parked
+as GRAIN and RIPPLE do. A line never changes format while it sounds: it's chosen when it's switched on. A parked
 track holds nothing. Each line counts how many times it's been handed over, so one given back and taken again between
 two audio blocks still starts from silence. The SPACE page draws a part that's off (DLY or VERB at 0) dim, as it
 would be at 100, so TIME, FDBK, SIZE and DEC still show what they set.
@@ -1136,14 +1141,14 @@ at 0 give every chunk back.
 | 1 | four reels, nothing on (the baseline) | 902 |
 | 13 | COLOR on all four (DRV 60, CRSH 40 BOTH, NOIS 30, TILT 30) | 1,630 |
 | 14 | SPACE on all four (DLY 50, VERB 40): 72 chunks, all 16-bit, 14.5 s still free | 1,784 |
-| 15 | everything on all four: GRAIN at the cap, RESONATOR, COLOR, SPACE | 5,842 |
+| 15 | everything on all four: GRAIN at the cap, RIPPLE, COLOR, SPACE | 5,842 |
 | 16 | three tracks as I'd play them: TRACKS 3, GRAIN WET 100, DRV 40, SPACE | 2,310 |
 
 Run 15 is 6.5 times the baseline: the 2,000 target holds only for setups like run 16. That's the hardware
 checkpoint's question now, more than before. If the FM-1 can't carry run 15, the shedding order (grains, then
 strings) would need a step for SPACE as well (the room at a quarter rate, say), and that's a decision for when I have
-the device's number. The stress run cuts the interrupts in while RESONATOR and SPACE take and give back memory as
-knobs turn, and the books balance (RESONATOR's strings and SPACE's lines are in the check now too).
+the device's number. The stress run cuts the interrupts in while RIPPLE and SPACE take and give back memory as
+knobs turn, and the books balance (RIPPLE's strings and SPACE's lines are in the check now too).
 
 ## The shared rooms, as built (2026-10-11)
 
@@ -1279,7 +1284,7 @@ want the hardware's numbers before trying it.
 Phase 8: a project is the whole instrument, saved to flash and brought back. SAVE tapped saves it; PRESETS opens
 the project view; a power cycle brings back the project saved last.
 
-**What a project holds:** every track's knobs on every page (source, GRAIN, RESONATOR, COLOR, SPACE, the slots'
+**What a project holds:** every track's knobs on every page (source, GRAIN, RIPPLE, COLOR, SPACE, the slots'
 engines and knobs, the channel strip), which source each track runs and its SYNTH, POLY and DRUM knobs, the SEQ
 steps, the DRUM pattern, accents and each instrument's own knobs, every modulation depth, REC IN, each track's
 level, mute and octave, TRACKS, the master compressor and the tempo. And what each tape plays: a factory reel or one
@@ -1350,7 +1355,7 @@ sound I like and bring it back on any track later.
 **SCL resets.** SCL had nothing on it (the system menu was only ever proposed), so it's the reset key:
 
 - **SCL held + turn a knob:** that knob jumps to its default. One detent is enough; the direction doesn't matter.
-- **SCL held + the page's own pad** (HOME on a source page, EDIT on GRAIN or RESONATOR, FX on COLOR or SPACE, a
+- **SCL held + the page's own pad** (HOME on a source page, EDIT on GRAIN or RIPPLE, FX on COLOR or SPACE, a
   slot's pad on its page, GLO on the mixer, EDIT on the channel and master pages): every knob on the page shown goes
   to its default, and the pad doesn't do its usual thing (no page turn). It's `focus_btn()`, the same function that
   lights the pad, so the "page's pad" is always the lit one.
@@ -1380,7 +1385,7 @@ steps the view's pages, as it steps the mixer's):
 | # | Name | Source | What it is |
 |---|---|---|---|
 | 1 | DRIFT | TAPE | the tape through soft grains (WET 40, 220 ms), warmed (TILT -25), into its room and a short echo; an LFO sways the grains' spray over a bar |
-| 2 | RINGS | TAPE | the tape ringing RESONATOR's strings tuned to a major chord (WET 45); a SEQ steps their root on semitones |
+| 2 | RINGS | TAPE | the tape ringing RIPPLE's strings tuned to a major chord (WET 45); a SEQ steps their root on semitones |
 | 3 | BASS | SYNTH | one saw voice, a low filter (217 Hz) its envelope opens, a short glide, drive, an octave down |
 | 4 | PAD | SYNTH | detuned saws, a 1 s attack and 2 s release, the cutoff breathing over four bars, well into its room |
 | 5 | KEYS | POLY | a plucked envelope, the filter a little closed and following it, a little of its room |
@@ -1395,7 +1400,7 @@ stay with the track. They can't be saved over or deleted; a changed one saves in
 
 How I checked them, since I can't listen here: `test_tpfactory` loads each onto a track and plays two seconds (TAPE
 on a factory reel, SYNTH and POLY with a key held, DRUM its pattern), with the main loop's memory polls running so
-GRAIN, RESONATOR and SPACE get their buffers. Each has to sound (peak over -30 dBFS), never reach full scale, differ
+GRAIN, RIPPLE and SPACE get their buffers. Each has to sound (peak over -30 dBFS), never reach full scale, differ
 from its source's defaults (more than -20 dB of difference energy), and peak within 3 dB of the default sound it
 replaces, so stepping through them doesn't jump in level. That last one needed each source's LVL trimmed (BASS -6,
 DUB -7, TIGHT -3, DRIFT +3, SWELL +4); they now land within about 2 dB. Whether they *sound good* is for the
@@ -1436,7 +1441,7 @@ keeps each frame (`sys.black_short`) says when the black keys are shortcuts, and
 so writing as it played looked broken. STEP now always draws the picked bar (with the playhead when it's in it); the
 other DRUM pages still follow the playhead.
 
-**A DRUM track's RESONATOR page.** The keys set the strings' root and struck the kit. They pluck the strings alone
+**A DRUM track's RIPPLE page.** The keys set the strings' root and struck the kit. They pluck the strings alone
 now, as on TAPE (on SYNTH and POLY the keys still play the source and the strings follow its notes).
 
 **ENV is the track's envelope, not a modulator.** ENV opened M2, which made it a second door to a modulator the LFO
@@ -1461,7 +1466,7 @@ like M4). M4 on the SEQ pad stays the sequencer.
 
 **Page keys.** Holding a page's pad (HOME, EDIT, FX, ENV, LFO, SEQ, ARP) turns the white keys into a map of its pages:
 key n glows for page n, the page on screen is lit, every other key goes dark (the LEDs have three levels: off, the dim
-glow, lit), and pressing key n goes there. EDIT's keys run through GRAIN's pages and then RESONATOR's, FX's through
+glow, lit), and pressing key n goes there. EDIT's keys run through GRAIN's pages and then RIPPLE's, FX's through
 COLOR's and SPACE's, since those pads already step through both devices. While a pad is held the keys don't play.
 
 For that to work the pad can't act as it goes down, so EDIT, FX and ARP now turn their page as they're let go, the way
@@ -1495,8 +1500,8 @@ gesture: the drum's key held, then the modulator's pad, a knob (in that order; t
 The pool grew by 640 B (the four arrays' modulated copies). The audit (`mod_audit.sh`) runs them too: each moves its
 drum when the test pattern plays it.
 
-**The arpeggiator on every source, and RESONATOR's own.** The arpeggiator only took SYNTH and POLY. It takes every
-source now, and RESONATOR got one of its own:
+**The arpeggiator on every source, and RIPPLE's own.** The arpeggiator only took SYNTH and POLY. It takes every
+source now, and RIPPLE got one of its own:
 
 - **The core is shared.** `arp_run` in arp.c is the arpeggiator with its state and its knobs passed in (an `arp_rt_t`
   and an `AR_*` array); `arp_block` is the ARP pad's, per track, around it (the clear and the project's notes, which
@@ -1508,8 +1513,8 @@ source now, and RESONATOR got one of its own:
   each step (GATE keeps a block of silence between them), which is exactly a slice jump or a drum hit, so tape.c and
   drum.c didn't change. On TAPE playing, each step jumps the head; stopped, each plays its slice, through the slice
   envelope. The screen's walk shows the slices or drums ("3 DRUMS", "HOLD SOME SLICES"), no octaves.
-- **RESONATOR's arpeggio** is MODE ORDR RNGE RATE, stored as RESONATOR's knobs 12-15 (so ROUT and everything else
-  kept their places). It first went on RESONATOR's page 3; it's now RES ARP, the ARP pad's page 3 (below). `reso_arp_block` (reso.c) builds an `AR_*` array from them
+- **RIPPLE's arpeggio** is MODE ORDR RNGE RATE, stored as RIPPLE's knobs 12-15 (so ROUT and everything else
+  kept their places). It first went on RIPPLE's page 3; it's now RIPL ARP, the ARP pad's page 3 (below). `reso_arp_block` (reso.c) builds an `AR_*` array from them
   (GATE 50: a pluck has no length, the gate only spaces the steps) and runs `arp_run` on its own state. Its keys are
   the white keys on its page, a semitone each above C of OCT, as the page's keys were already. chain.c turns a step's
   rising edge into a pluck: `reso_block` gets the note, makes it the strings' root and plucks, whatever the source
@@ -1518,41 +1523,41 @@ source now, and RESONATOR got one of its own:
   Its knobs aren't modulation targets (switches and a pattern you set, like the ARP page's).
 - Projects are version 6: an older one stored 0s where the arpeggio's knobs are, which would be RNGE 0 and RATE 1/4,
   so it gets the defaults (OFF, UP, 1, 1/16).
-- The header's page dots: RESONATOR's long title and four pages left the tempo bar no room, and the stop square
+- The header's page dots: RIPPLE's long title and four pages left the tempo bar no room, and the stop square
   covered the last dot. When the bar would be too short the dots go two apart with the shown page a tick instead of a
-  block. (With RES ARP moved off RESONATOR nothing needs it today, but the unsaved mark and REC can make the bar short
+  block. (With RIPL ARP moved off RIPPLE nothing needs it today, but the unsaved mark and REC can make the bar short
   too, so it stays.)
 
 What it costs: every track now goes through `arp_block` each block, where TAPE and DRUM used to skip it, and the
-RESONATOR arpeggio's checks run on all four. Measured first, that was about 20 host instructions a sample on every
+RIPPLE arpeggio's checks run on all four. Measured first, that was about 20 host instructions a sample on every
 checkpoint run, most of it the arpeggiator's off path (a copy of its knobs for TAPE and DRUM, then `arp_run`'s
 bookkeeping). `arp_block` now has a fast path for off and quiet, the state of almost every track almost every block:
 it keeps what the off path keeps (the keys held, the transport's edge) and returns the keys. That brought it to about
 7 a sample (run 19 1,622 to 1,628; run 15 4,910 to 4,921), and SYNTH and POLY tracks with the arpeggiator off take the
-fast path too. RAM: RESONATOR's arpeggio state, one `arp_rt_t` a track.
+fast path too. RAM: RIPPLE's arpeggio state, one `arp_rt_t` a track.
 
 Tested: TAPE's arpeggio walks the held slices (and RNGE 3 still walks them once), DRUM's walks the drums UPDN with the
-kit seeing one key a step, RESONATOR's plucks at C3 and E3 in turn with the tape kept quiet, stops when the keys are
+kit seeing one key a step, RIPPLE's plucks at C3 and E3 in turn with the tape kept quiet, stops when the keys are
 let go, and a latched one goes on plucking an octave apart off its page. Each was checked against a mutant (the step
 handing back every key, RNGE kept, the page's keys still reaching the source, no pluck, no new root, the project
 fix-up gone), and the factory scene's latched arpeggios, which the move of the project's notes first broke (they were
 put back before the "turned on" clear), are back.
 
-**RES ARP moves to the ARP pad.** Having the strings' arpeggio on RESONATOR's page 3 split arpeggios across two
-pads. It's the ARP pad's page 3 now, titled RES ARP, with MODE as its on/off. Nothing about storage changed: the
-knobs are still RESONATOR's 12-15 (projects, presets and the version 6 fix-up as they were). What changed is where
+**RIPL ARP moves to the ARP pad.** Having the strings' arpeggio on RIPPLE's page 3 split arpeggios across two
+pads. It's the ARP pad's page 3 now, titled RIPL ARP, with MODE as its on/off. Nothing about storage changed: the
+knobs are still RIPPLE's 12-15 (projects, presets and the version 6 fix-up as they were). What changed is where
 the screen points:
 
-- `ARP_P` has a third page (`ARP_RES`, 8-11) with the same descriptors as RESONATOR's 12-15 (a test checks they
+- `ARP_P` has a third page (`ARP_RES`, 8-11) with the same descriptors as RIPPLE's 12-15 (a test checks they
   match), and `ui_page` points those four at `tp[t].dev[DEV_RESO][12..15]` instead of `tp[t].arp`. Everything that
   goes through `ui_page` (a turn, the cells, SCL's defaults, the page keys' count) followed with no change of its own.
-  RESONATOR's layout is back to three pages; the layout test knows 12-15 are shown on another pad's page.
-- The keys: a new flag, `sys.keys_rarp`, is the RES ARP page being up. With RES ARP's MODE on, its keys go to
+  RIPPLE's layout is back to three pages; the layout test knows 12-15 are shown on another pad's page.
+- The keys: a new flag, `sys.keys_rarp`, is the RIPL ARP page being up. With RIPL ARP's MODE on, its keys go to
   `reso_arp_block` and the source gets none (the track's own arpeggio neither); MODE OFF, the page plays the track
-  as the other ARP pages do. RESONATOR's own page is as it was before the arpeggio: its keys set the root (and pluck
-  on TAPE and DRUM), a running RES ARP or not.
-- POLY held on RES ARP clears its notes (`reso_arp_clear_req`, read at the next block), as on the ARP page.
-- The screen is the ARP page's walk, fed RESONATOR's state and knobs (`viz_arp` builds the same `AR_*` array
+  as the other ARP pages do. RIPPLE's own page is as it was before the arpeggio: its keys set the root (and pluck
+  on TAPE and DRUM), a running RIPL ARP or not.
+- POLY held on RIPL ARP clears its notes (`reso_arp_clear_req`, read at the next block), as on the ARP page.
+- The screen is the ARP page's walk, fed RIPPLE's state and knobs (`viz_arp` builds the same `AR_*` array
   `reso_arp_block` does).
 
 **Knowing when you haven't saved.** Losing a cleared track and not knowing whether a save had happened came from
@@ -1596,12 +1601,12 @@ so WET sets it with them, and the 2x up costs it nothing more).
   place, range and default, so no version). Cost: one modulo a grain start and a few adds a block, nothing a sample
   (runs within 1 to 7 a sample, the two changes together).
 - **ROOT RES (2026-10-11, from playing it: "the body sound is not flowing into the resonator and has no effect on
-  it").** It did flow: GRAIN's output, BODY in it, is what RESONATOR hears. But a string only rings at its own
-  partials. On the host, BODY on the strings' note added about 6 dB, a third away nothing (0.1 dB); and under RES ARP
+  it").** It did flow: GRAIN's output, BODY in it, is what RIPPLE hears. But a string only rings at its own
+  partials. On the host, BODY on the strings' note added about 6 dB, a third away nothing (0.1 dB); and under RIPL ARP
   the strings' root moves every step while BODY sat on its own ROOT. ROOT's lowest value (23, below C1, shown RES)
-  now takes RESONATOR's root (`reso_root16`: PTCH, a white key on its page, or RES ARP's note; last block's, 0.7 ms),
+  now takes RIPPLE's root (`reso_root16`: PTCH, a white key on its page, or RIPL ARP's note; last block's, 0.7 ms),
   with the grains' degrees over it as before, so BODY always lands on the strings. Measured at the strings' note
-  (C3) with RESONATOR at WET 100: a sine on ROOT A2 rings it at 41, on RES at 6,842. A projects' or preset's ROOT is
+  (C3) with RIPPLE at WET 100: a sine on ROOT A2 rings it at 41, on RES at 6,842. A projects' or preset's ROOT is
   24 or more, so nothing stored changes. The knob's picture marks no key on RES (the root is another device's).
 - Projects were version 7 for this (8 since the shared rooms): an older one stored 0s there (NOTE held to C1, TONE 30 Hz), so it gets the defaults. A track
   preset has no version: BODY, MODE and TONE all 0 means one from before, and gets them too (BODY stays off either
@@ -1884,7 +1889,7 @@ memory too: the biggest project is 3,804 bytes with the new knobs. The default p
 **Compatibility dropped.** Projects had barely started, so old formats aren't kept up with any more: a project is
 read only at the current version (9; anything else reads as one this Bryo can't), the track presets' bank only at
 its version (2; another reads as empty), and the fix-ups for each older version are gone (SEQ's SPRD AMT OFS,
-TAPE's envelope, RESONATOR's arpeggio, GRAIN's BODY, the rooms from a room per track, and the old-preset guesses).
+TAPE's envelope, RIPPLE's arpeggio, GRAIN's BODY, the rooms from a room per track, and the old-preset guesses).
 What stayed is the format itself: counted arrays, clamped values, depths by array and knob. ROTA: only the knob
 itself rotates the loop live now; a modulated ROTA moves where PLAY and the slices start (and SYNC's lock), as it
 did before, because the live jump made it step under an LFO (the modulation audit found it; I hadn't run it after
@@ -1918,7 +1923,7 @@ when a note starts, so the ISR pays nothing per sample.
 **Where it applies.** At the one place each source turns a key into a note: `syn_note16` (SYNTH, legato's glides
 too) and `pol_start` (POLY). The arpeggiator's notes go through the same place, so an arpeggio follows the scale
 without arp.c knowing about it. A held note keeps its pitch when SCAL changes; the next one follows. GRAIN's and
-RESONATOR's own SCAL stay theirs: they're sound design, not the keyboard.
+RIPPLE's own SCAL stay theirs: they're sound design, not the keyboard.
 
 **ROOT (POLY).** The note the sound was recorded at: that key plays it as it is, every other key against it. It was
 always C3 (white key 1 at OCT 3), and a sound recorded at A had to be fixed with TUNE -9, which then read as a
@@ -1961,7 +1966,7 @@ on POLY's page 4 to ROOT A3, SYNTH's FINE on KNOB 4. Three new screens are in th
 
 ## Sends: ROUT, as built (2026-10-09)
 
-GRAIN, RESONATOR and COLOR each have a WET, and until now it was always a crossfade: turning WET up turned the dry
+GRAIN, RIPPLE and COLOR each have a WET, and until now it was always a crossfade: turning WET up turned the dry
 sound down, because the device sat in the track's line (an insert). That's right for some things (a track that's
 all grains) and wrong for others: a little resonance or a bit of parallel drive under a drum loop wants the loop at
 full and the effect added. So each of the three now has ROUT, INS or SEND, on its own page:
@@ -1969,7 +1974,7 @@ full and the effect added. So each of the three now has ROUT, INS or SEND, on it
 | Device | Where ROUT is | INS (as before) | SEND |
 | --- | --- | --- | --- |
 | GRAIN | page 4, KNOB 4 | dry x (1 - WET) + grains x WET | dry + grains x WET |
-| RESONATOR | page 3 (its own page), KNOB 4 | dry x (1 - WET) + strings x WET | dry + strings x WET |
+| RIPPLE | page 3 (its own page), KNOB 4 | dry x (1 - WET) + strings x WET | dry + strings x WET |
 | COLOR | page 3, KNOB 3 (left of LVL) | dry x (1 - WET) + coloured x WET, then LVL | dry + coloured x WET, then LVL |
 
 SPACE has no ROUT: DLY and VERB were always levels added to a full dry, which is a send already.
@@ -1992,7 +1997,7 @@ and COLOR's LVL sits right beside ROUT for it. With drive on, it's parallel satu
 and the drive fills in underneath.
 
 ROUT isn't a modulation target (`nomod`): a switch flipping at an LFO's rate isn't a sound. The pictures follow it:
-RESONATOR's response adds the strings to the flat dry line instead of blending, COLOR's transfer curve adds the
+RIPPLE's response adds the strings to the flat dry line instead of blending, COLOR's transfer curve adds the
 coloured sound to the straight line.
 
 Tested (`test_sends`): for each device at WET 100, SEND minus INS equals the dry sound (the same run at WET 0) to
@@ -2085,7 +2090,7 @@ around where you set the knob; ADSR, SEQ and FOLLOW push one way, and the depth'
 clamped to the knob's range. So a filter at the middle with an LFO at 50 % sweeps end to end, and an envelope at
 100 % on a WET of 0 opens it all the way.
 
-**What can be a target.** Every knob of GRAIN, RESONATOR, COLOR and SPACE, every knob of the three sources (each
+**What can be a target.** Every knob of GRAIN, RIPPLE, COLOR and SPACE, every knob of the three sources (each
 source keeps its own depths, as it keeps its own knobs), and the channel strip's LOW, HIGH, FILT and PAN. Not the
 reel choices (TAPE's REEL and POLY's REEL): the main loop prepares memory for the reel a track plays, and the ISR
 switching it under the main loop's feet is how you get a tape playing a reel that was never copied. A track holds
@@ -2105,7 +2110,7 @@ modulation is per track, and those aren't.
   through `TPD(t, array)`, which points at that copy or at the track's own array. An array without depths reads
   exactly what it read before, so a track without modulation sounds sample for sample as it did. I tried copying a
   whole track first: it cost more and took 7 KB of main RAM, which is how I ended up with arrays.
-- The memory polls ask `mod_peak` instead of the knob: GRAIN's WET, RESONATOR's WET, SPACE's DLY and VERB at 0 but
+- The memory polls ask `mod_peak` instead of the knob: GRAIN's WET, RIPPLE's WET, SPACE's DLY and VERB at 0 but
   modulated up keep their memory ready, so an envelope can open a reverb that was off.
 
 **The engines**, against the S-4's (see "Modulators, lined up with the Torso S-4" for the knobs):
@@ -2136,7 +2141,7 @@ modulation is per track, and those aren't.
   moves across instead of just sideways. Every other target takes the left output.
 
 **A LEVEL on every source** (2026-10-09). The S-4 puts a LEVEL on each of its sources; Bryo had the mixer fader
-(not a modulation target) and COLOR's LVL (one per track, after GRAIN and RESONATOR). Now every source's last page
+(not a modulation target) and COLOR's LVL (one per track, after GRAIN and RIPPLE). Now every source's last page
 ends with LVL, -24 to +6 dB like COLOR's: TAPE 3 (REEL ROTA LVL), SYNTH 5, POLY 4. It's applied as the source is
 mixed into the track (`chain_source`), ramped across the block, and skipped at 0 dB so nothing changes until it's
 turned. A SYNTH or POLY track prints onto its tape after it (what you hear is what goes on); a TAPE track's REC
@@ -2153,12 +2158,12 @@ preset now write each array only up to its last knob with a label (`pdesc_len`):
 reads as 0 anyway. That packs the biggest to 3,741, under what it was.
 
 **Every effect opens with its mix (2026-10-11, from playing it: "wet and send options should be farther up in the
-page count for all parameters that have them").** ROUT and WET are KNOB 3 and 4 of page 1 on GRAIN, RESONATOR and
+page count for all parameters that have them").** ROUT and WET are KNOB 3 and 4 of page 1 on GRAIN, RIPPLE and
 COLOR; SPACE's sends, DLY and VERB, the same. Bringing an effect in is the first thing you do with it, and with
 WET 0 (the default) nothing else on its pages is heard, so it was backwards to have WET on GRAIN 2 and ROUT on
 the last page of everything. Only the `PLAYOUT` rows moved: stored order is the same, so projects, presets,
 modulation targets and the DSP are untouched. The rest close up behind: GRAIN SIZE RATE ROUT WET / PTCH SPRD SPRY
-CONT / REV PATN SCAL PRND / SCAN WARP OFST FDBK / BODY MODE ROOT TONE / GRNS; RESONATOR PTCH DEC ROUT WET / CUT
+CONT / REV PATN SCAL PRND / SCAN WARP OFST FDBK / BODY MODE ROOT TONE / GRNS; RIPPLE PTCH DEC ROUT WET / CUT
 RES TYPE SCAL / TONE; COLOR DRV CRSH ROUT WET / NOIS TILT NDEC NTON / CMOD . . LVL; SPACE TIME FDBK DLY VERB /
 SIZE DEC TONE SPRD / PRE (since the shared rooms: TIME FDBK DLY VERB / ROOM TONE SPRD). The layout lint (`test_mod`) checks the rule: an effect's page 1 ends ROUT WET (SPACE DLY
 VERB), a source's (and COLOR's) last page ends LVL, a modulator's AMT OFS. The other rule ("ROUT KNOB 4 of the last
@@ -2189,11 +2194,11 @@ applied a block at a time in steps does), and, with `--cost`, the instructions.
   100, GRAIN's OFST a SCAN on POS or DLY, its SCAL some PRND, POLY's DEC a SUS under 100; ROTA acts at the next
   start, DUB and GAIN while recording; ATK DEC REL VOIC GLID (and POLY's STRT) at the next note. A switch (REV,
   HALF, WAVE, TYPE, CMOD...) needs a depth of about 70 to flip: the swing has to cross half a step.
-- RESONATOR's PTCH was the one that jumped: the strings' delay changed length a block at a time, and their read
+- RIPPLE's PTCH was the one that jumped: the strings' delay changed length a block at a time, and their read
   point jumped (34 clicks a second on a sweep, a 4.6 dB edge at the blocks' starts). Now the root glides half the
   way a block and each string reaches its new length sample by sample across the block: no edge, no clicks. A key's
   root still lands at once (it's a new note, and a pluck). It costs nothing while the pitch holds.
-- The pitch knobs (SYNTH's and POLY's TUNE, RESONATOR's and GRAIN's PTCH) modulate in 1/16 semitones now (`mod_f16`,
+- The pitch knobs (SYNTH's and POLY's TUNE, RIPPLE's and GRAIN's PTCH) modulate in 1/16 semitones now (`mod_f16`,
   read through `mod_pitch16`): a knob holds semitones, so an LFO on TUNE used to step, a trill rather than vibrato.
   Now a small depth is vibrato. A SEQ's steps still land on semitones (a step is a note).
 - I got one thing wrong on the way, and the tool says so in its header. My first pass flagged SYNTH (MIX, CUT, ENV,
@@ -2223,7 +2228,7 @@ applied a block at a time in steps does), and, with `--cost`, the instructions.
 - Cost: a slot with one depth adds about 20 instructions a sample; what the device does with the moving knob comes
   on top, in proportion (the channel filter switched on, more grains at a higher RATE, more notes overlapping with a
   longer REL). Nothing costs more just for being modulated.
-- The filters' cutoffs modulate finely too (2026-10-09): SYNTH's, POLY's and RESONATOR's CUT and the channel's FILT
+- The filters' cutoffs modulate finely too (2026-10-09): SYNTH's, POLY's and RIPPLE's CUT and the channel's FILT
   join the pitches on the fine path, which now keeps 1/256 of a knob's step (`mod_f8`; pitches read it as 1/16
   semitones through `mod_pitch16`, cutoffs as their Q8 through `mod_fine8`). A knob holds whole semitones of the
   filter's scale (FILT whole percent), so a slow, deep, resonant sweep climbed a staircase: on a 0.06 Hz sweep,
@@ -2424,11 +2429,11 @@ found and what I did with it.
 
 **Fixed now:**
 
-- **The same filter list had two names.** RESONATOR's `SLOP` and POLY's `TYPE` both choose LP / BP / HP (the same
-  `N_SLOP` names). It's a type, not a slope, so RESONATOR's is `TYPE` now.
+- **The same filter list had two names.** RIPPLE's `SLOP` and POLY's `TYPE` both choose LP / BP / HP (the same
+  `N_SLOP` names). It's a type, not a slope, so RIPPLE's is `TYPE` now.
 - **Drive and decay were spelled two ways.** COLOR said `DRIV` where SYNTH and DRUM say `DRV`; DRUM said `DECY`
-  where SYNTH, POLY, RESONATOR, SPACE and the ADSR say `DEC`. Both now use the common spelling (labels only: the
-  code's enum names stay, so nothing else moves). The COLOR and RESONATOR pictures had their own copies of the
+  where SYNTH, POLY, RIPPLE, SPACE and the ADSR say `DEC`. Both now use the common spelling (labels only: the
+  code's enum names stay, so nothing else moves). The COLOR and RIPPLE pictures had their own copies of the
   labels; they read the descriptors now, so a rename can't leave them behind again.
 - **The ADSR modulator showed raw numbers.** Its ATK DEC REL run on the same `TIME_MS_X10` curve as SYNTH's and
   POLY's envelopes, which show milliseconds and seconds; the modulator's showed 0..127. They show times now.
@@ -2448,7 +2453,7 @@ found and what I did with it.
 
 1. **One place for the output knobs.** A source's LVL (and COLOR's) is KNOB 4 of its last page; ROUT sits just
    left of it, or on KNOB 4 where there's no LVL. TAPE 3 reads REEL ROTA . LVL, SYNTH 5 and POLY 4 . . . LVL,
-   COLOR 3 . . ROUT LVL, RESONATOR 3 . . . ROUT, DRUM's STEP already ended in LVL. GRAIN's pages 3 and 4 swapped,
+   COLOR 3 . . ROUT LVL, RIPPLE 3 . . . ROUT, DRUM's STEP already ended in LVL. GRAIN's pages 3 and 4 swapped,
    so its ROUT (with PATN SCAL PRND) is on its last page and SCAN WARP OFST FDBK come first. (Superseded for ROUT
    on 2026-10-11: an effect's ROUT and WET are KNOB 3-4 of its first page now, "Every effect opens with its mix".)
 2. **SYNTH turns its pages in POLY's order**: OSC, AMP (the envelope), FILTER, VOICE, LEVEL.
@@ -2464,7 +2469,7 @@ found and what I did with it.
    instead: + SELECT picks the source from any page (and shows it), + a white key picks DRUM's instrument. The cost
    is a page turn on the let-go rather than the press, a few tens of milliseconds.
 6. **OCT moves DRUM's bar only on DRUM's own pages.** On the track's device pages it's the octave again, so a
-   DRUM track's RESONATOR root can change octave like any other.
+   DRUM track's RIPPLE root can change octave like any other.
 
 How the pages move without anything else moving: the knob tables stay in the order the knobs are stored, and a
 layout (`PLAYOUT` in `param.c`) says which stored knob each page position shows. Only the code that turns a page
@@ -2508,7 +2513,7 @@ step) and it isn't in track presets (the music, like the pattern), but it's in p
 16 semitones from C so the black keys could be the PRD's macros. SETUP's KEYS on NOTE (or GLO held + OCT+) makes
 them a keyboard on SYNTH and POLY: the mask is `fm1_in.notes` itself, `key_base` the F of the octave (53 at OCT 3).
 The black keys' shortcuts are off then, all of them (a key can't be a sharp and a mute), except under the LFO pad,
-where OP1-OP3 still pick. TAPE's slices, DRUM's kit, GRAIN's cursor and RESONATOR's root keep the white keys as
+where OP1-OP3 still pick. TAPE's slices, DRUM's kit, GRAIN's cursor and RIPPLE's root keep the white keys as
 they were.
 
 **SETUP**, the mixer's last page: KEYS, KNOB, HOLD and LEDS, the instrument's, not a project's. HOLD and LEDS were
@@ -2572,7 +2577,7 @@ timing to keep (nothing records until PLAY), so nothing is lost. Playing, REC st
 punch-in has to land where you press it; holding it then only says to stop first.
 
 **While it's up.** The transport stops, every track's REC lets go, and the tracks stop rendering: the audio ISR fades
-them out over one block and plays the computer instead. Their GRAIN buffers, RESONATOR strings and SPACE lines go back
+them out over one block and plays the computer instead. Their GRAIN buffers, RIPPLE strings and SPACE lines go back
 to the shared memory (their polls see `sys.usbrec`), so the take can use it. The FM-1's own USB input, what the
 computer can record from it, sends silence: otherwise whatever the computer plays would come straight back to it.
 
@@ -2720,7 +2725,7 @@ Each phase ends in something you can flash and hear or see, and each is its own 
 | 3. USB audio in + SYNTH + POLY (**done**, host-verified; see "SYNTH, as built", "POLY, as built" and "USB record mode") | the source_t interface; the UAC OUT endpoint, drift handling, a record mode; the SYNTH source; the POLY source (voices with their own envelope and filter, three HOME pages) | you can record your computer, and play the synth and samples onto a tape |
 | 3b. GRAIN (**done**, host-verified; see "GRAIN, as built") | the scheduler, the shared pool of grains, FREEZE (key 0); the live buffer, SCAN, FDBK | grains run on 4 tracks inside the budget |
 | 3c. Memory by usage (**done**, host-verified; see "Memory by usage, TRACKS and REC IN") | the shared chunks, growing tapes, TRACKS, REC IN, long reels | memory follows what you use |
-| 4. RESONATOR (**done**, host-verified; see "RESONATOR, as built") | strings, chromatic keys, OCT shifts | tuned feedback chords from the keys |
+| 4. RIPPLE (**done**, host-verified; see "RIPPLE, as built") | strings, chromatic keys, OCT shifts | tuned feedback chords from the keys |
 | 5. COLOR + SPACE (**done**, host-verified; see "COLOR, as built" and "SPACE, as built") | drive, crush, noise; delay and reverb | the full chain on 4 tracks inside the budget (on the host it isn't: everything on all four is 5,842; the device decides) |
 | 6. Mixer + routing (**done**, host-verified; routing early as REC IN; see "The mixer, as built") | GLO mixer, filters, compressor | the mixer's DSP |
 | 7. Modulation (**done** but p-locks, host-verified; see "Modulation, as built") | the 4 engines, hold-and-turn depth, assigning engines, SEQ steps, MONO's clear; p-locks wait on a decision | the PRD's §4 workflow end to end |

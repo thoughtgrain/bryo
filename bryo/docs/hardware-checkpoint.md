@@ -1,6 +1,6 @@
 # Hardware checkpoint: memory by usage, GRAIN's buffer and the full chain (2026-10-08)
 
-Everything since phase 2 has only run on the host, and the whole chain (GRAIN, RESONATOR, COLOR, SPACE) is built now.
+Everything since phase 2 has only run on the host, and the whole chain (GRAIN, RIPPLE, COLOR, SPACE) is built now.
 I want to know three things only the FM-1 can tell me: whether the audio interrupt keeps up with it all on, whether the
 shared memory behaves with real timing (USB packets and screen frames cutting in), and whether anything sounds wrong
 that the host tests can't hear. This page is the run sheet. It takes about 30 minutes.
@@ -36,8 +36,8 @@ first six runs cost about 40 more than at the first checkpoint, the two new devi
 | 8 | the freeze tapped on and off | 1,020 | frozen at 3 s, let go at 9 s |
 | 9 | SYNTH played, transport stopped, GRAIN on | 659 | grains sounding after the phrase |
 | 10 | a 20 s WAV over TAPE3.WAV while playing | - | the tape 20.00 s, TRACK 3'S TAPE REPLACED |
-| 11 | RESONATOR WET 60 on all four | 1,847 | 16 strings |
-| 12 | RESONATOR and GRAIN dense | 3,248 | 16 strings, 16 grains |
+| 11 | RIPPLE WET 60 on all four | 1,847 | 16 strings |
+| 12 | RIPPLE and GRAIN dense | 3,248 | 16 strings, 16 grains |
 | 13 | COLOR on all four (DRV 60, CRSH 40 BOTH, NOIS 30, TILT 30) | 1,630 | |
 | 14 | SPACE on all four (DLY 50, VERB 40) | 1,784 | 72 chunks, all 16-bit, 14.5 s free |
 | 15 | everything on all four | 4,859 | 16 grains, 16 strings, 72 chunks of SPACE, 3.3 s free |
@@ -54,7 +54,7 @@ runs 18 to 22 are realistic setups (each played for 6 s, a synth track's keys go
 
 | Run | Setup | Host cost | Against nothing on |
 | --- | --- | ---: | ---: |
-| 18 | three tracks as I'd play them: a played synth through GRAIN and SPACE, a driven reel with a little EQ, a reel through RESONATOR, the compressor | 1,653 | 1.8x |
+| 18 | three tracks as I'd play them: a played synth through GRAIN and SPACE, a driven reel with a little EQ, a reel through RIPPLE, the compressor | 1,653 | 1.8x |
 | 19 | a four-track groove: crushed drums, a grain track, a filtered synth bass, a reverb, two tracks panned, the compressor | 1,584 | 1.7x |
 | 20 | an ambient pad on two tracks: a synth stretched by dense grains into a long reverb, a reel through the strings | 2,077 | 2.2x |
 | 21 | the groove's busiest moment: denser grains, strings, a delay, every channel filtered | 2,439 | 2.6x |
@@ -76,7 +76,7 @@ The everyday setups sit under the 2,000 target, a dense pad at it, a busy build-
 
 These are measurements, not listening: the WAVs are there to be heard.
 No sample past full scale and no sudden jump (over 12,000 between neighbouring samples) in any of them. The stress:
-over 20 s, 131,965 audio blocks and 86,110 USB sectors cut into the main loop while RESONATOR's and SPACE's knobs
+over 20 s, 131,965 audio blocks and 86,110 USB sectors cut into the main loop while RIPPLE's and SPACE's knobs
 took memory and gave it back too, and the books balanced at every one of 9,839 checks.
 
 What that leaves for the device: the load. Run 4 costs 4.5 times run 1 on the host, and run 15, everything on all
@@ -114,7 +114,7 @@ Write down the CPU reading for each, and anything you hear.
 | 8 | Tap the 0 key while track 1's GRAIN plays (WET 100) | the buffer freezes into a 1-bar loop, the 0 key's LED lights; tap again to let go | does it loop in time? |
 | 9 | Track 1 to SYNTH (hold HOME, turn SELECT), GRAIN WET 100, transport stopped, play a few notes | what you play is granulated without PLAY | does it sound? |
 | 10 | Plug into a computer, copy a 20 s WAV onto the drive as TAPE3.WAV, eject, replug | track 3's tape is the whole 20 s (memory allowing) | the length on TAPE's page; any audio dropout while it copied |
-| 11 | Power-cycle. Each track: RESONATOR WET 60 (FX until RESONATOR, KNOB 4) | four strings ring through each track | CPU |
+| 11 | Power-cycle. Each track: RIPPLE WET 60 (FX until RIPPLE, KNOB 4) | four strings ring through each track | CPU |
 | 12 | Same, plus each track's GRAIN at the cap (run 3's settings) | the strings and the grains together | CPU; crackle? |
 | 13 | Power-cycle. Each track's COLOR: DRV 60, CRSH 40, NOIS 30, TILT 30 (FX, KNOB 1-4); CMOD BOTH (COLOR 2) | every track driven, crushed and noisy | CPU |
 | 14 | Power-cycle. Each track's SPACE 2: DLY 50, VERB 40 | echoes and a room on every track | CPU; does the mixer's memory ribbon show it? |
@@ -133,8 +133,8 @@ Write down the CPU reading for each, and anything you hear.
 | 26 | PRESETS, EDIT (the PRESETS page), turn past H to the factory ones; for each, focus a track of its source (TAPE on a reel, a SYNTH, POLY, DRUM track), OCT+, play it; SAVE held after one | each loads with no question and sounds like its name; none much louder or quieter than the last; SAVE held puts the track back | by ear: which to retune (they were level-matched on the host, not listened to) |
 | 27 | On a track: SCL held, turn a knob; SCL held, press the lit pad; SAVE held. Then save the track as preset A, power-cycle, load A into another track | the knob, then the page, to defaults; SAVE held brings them back; A survives the power cycle and loads | that SCL is held (not a tap) |
 | 28 | Track 1: GRAIN WET 80, RATE 60, SIZE 300, PLAY; GRAIN 6, GRNS 12. Then track 2 a SYNTH with GRAIN WET 80, play chords; then track 2 GRNS 30 | track 1 reads "n OF 12 HELD" and its cloud stays as thick when track 2 comes in; track 2 holding 30 of the pool of 30: track 1 keeps its 12, track 2 gets the other 18 | does a held cloud sound steady while the others change? CPU with both dense |
-| 29 | Load a busy project, PLAY a while, then stop and wait 5 s; then PLAY, and mute three tracks, leaving one with grains, RESONATOR (RES ARP on) and a room | stopped: CPU well under the 50 % it read, no hiss even with COLOR's NOIS up; muted: CPU lower than with them heard, no crackle; unmuting brings them straight back | the CPU numbers for both; any click as a device wakes |
-| 30 | Walk the pages: EDIT, FX, LFO, SEQ, ARP; PLAY with GRAIN, RESONATOR and SPACE up; arm REC; change a knob | blue page names on the blue pads' pages, purple on the modulators'; grains, ringing strings, the room's tail, the step playing in orange; the tempo bar red while REC is armed; a yellow ✱ after the change | do the hues read as intended on the panel (RGB565, its gamma), is the orange lively without being loud, can the yellow ✱ be seen at a glance; anything that flickers |
+| 29 | Load a busy project, PLAY a while, then stop and wait 5 s; then PLAY, and mute three tracks, leaving one with grains, RIPPLE (RIPL ARP on) and a room | stopped: CPU well under the 50 % it read, no hiss even with COLOR's NOIS up; muted: CPU lower than with them heard, no crackle; unmuting brings them straight back | the CPU numbers for both; any click as a device wakes |
+| 30 | Walk the pages: EDIT, FX, LFO, SEQ, ARP; PLAY with GRAIN, RIPPLE and SPACE up; arm REC; change a knob | blue page names on the blue pads' pages, purple on the modulators'; grains, ringing strings, the room's tail, the step playing in orange; the tempo bar red while REC is armed; a yellow ✱ after the change | do the hues read as intended on the panel (RGB565, its gamma), is the orange lively without being loud, can the yellow ✱ be seen at a glance; anything that flickers |
 | 31 | Power-cycle (the factory scene), PLAY. Then track 1 (DRUM): an LFO on one drum's level (on the KIT page hold the drum's white key, then LFO, KNOB 3 (LVL) to +40 %, let go). Then track 3, FX until SPACE 3 (room B's): QUAL to HI, then back to LO | the scene and the depth together without crackle, near 75 %; room B at HI about 2 % more and a little brighter | the CPU for the scene, with the depth, with room B at HI; does LO's tail sound dull or grainy? |
 | 32 | Track 2 on a cleared tape: hold REC and turn SELECT to 2 BARS, let go, tap REC, PLAY. Then turn the tempo from 120 to 100 and back | the take starts on the downbeat and stops by itself after 2 bars, then loops in time with the drums; TAPE 4 shows SYNC 2BR; at 100 BPM it slows (and drops in pitch) and stays on the beat | does the take start and end clean (no click at the seam)? does it stay in time after a minute? CPU |
 
@@ -167,7 +167,7 @@ under the address and undefined-behaviour sanitizers).
 | 31 | 3,100 (the factory scene, measured as in the note of 2026-10-11 below; 2,831 the other way) | 75 % (was 81 %) | | |
 
 The host costs were measured again on 2026-10-11, after the second round from playing it (the arpeggiator on every
-source, RESONATOR's own: about 7 a sample more on every run) and after the grains went to half rate with a bigger
+source, RIPPLE's own: about 7 a sample more on every run) and after the grains went to half rate with a bigger
 pool (runs 3, 5, 6, 12, 15 now sound 18 or 30 grains where they sounded 16 or 24, for a little less). Row 1 stays at 940, the build the 25 % was read on,
 since it sets the scale. Read again after the grain pool stopped capping a track at
 what RATE and SIZE ask and BODY's wave followed the grains' notes: those moved them by 1 to 7 a sample. And again after

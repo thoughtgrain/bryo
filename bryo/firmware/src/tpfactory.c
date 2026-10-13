@@ -263,9 +263,9 @@ static const uint8_t TPS_ARPC[NTRK] = {0, 4, 0, 5};
 
 /* main loop: TEST (the project view, past FACTORY), after the scene: the same music with T1's drums through GRAIN
  * too (the drums-and-grains case), to read the load on (SETUP's lines) and compare one build with the next. Every
- * stage is at work in it (the scene has GRAIN, RESONATOR and SPACE; COLOR runs on every track). Kept near the
+ * stage is at work in it (the scene has GRAIN, RIPPLE and SPACE; COLOR runs on every track). Kept near the
  * overload line, not over it: past it the shedding takes grains and strings and the reading is of that. (The first
- * TEST added COLOR and an echo on T1 and RESONATOR on T4: 1.3 x FACTORY on the host, over 100 % on the FM-1) */
+ * TEST added COLOR and an echo on T1 and RIPPLE on T4: 1.3 x FACTORY on the host, over 100 % on the FM-1) */
 static void tpf_test(void);
 
 /* main loop: the scene into the four tracks (on the defaults: param_defaults first) */

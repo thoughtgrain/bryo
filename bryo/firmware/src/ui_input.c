@@ -3,7 +3,7 @@
  *
  * Phase 1 mapping (docs/bryo-architecture.md, PRD 2):
  *   HOME           focus the track's source (TAPE); again: its page 2
- *   EDIT           focus GRAIN; again: GRAIN 2, RESONATOR, GRAIN ... (each device's pages, then the next device)
+ *   EDIT           focus GRAIN; again: GRAIN 2, RIPPLE, GRAIN ... (each device's pages, then the next device)
  *   FX             focus COLOR; again: COLOR 2, SPACE, SPACE 2, COLOR ...
  *   LFO ENV SEQ    the modulators (param.c SLOT_*): tapped, a slot's page as the pad is let go; again: its next
  *                  page. Held: KNOB 1..4 set that slot's depth to the knobs on the page shown (a device, the source,
@@ -263,7 +263,7 @@ static void focus_arp(void)
 static int pad_down(void) { return ui.pg_pad < NB && ((fm1_in.buttons >> panel.btn[ui.pg_pad]) & 1u); }
 
 /* What pad b's pages are, in key order: n of them; page i (0..n-1) shown by pad_go. HOME: the source's; ENV: its
- * envelope's; EDIT: GRAIN's then RESONATOR's; FX: COLOR's then SPACE's; LFO: the modulator it's on; SEQ: M4's;
+ * envelope's; EDIT: GRAIN's then RIPPLE's; FX: COLOR's then SPACE's; LFO: the modulator it's on; SEQ: M4's;
  * ARP: the arpeggiator's */
 static uint32_t pad_pages(uint32_t b)
 {
@@ -704,7 +704,7 @@ static void on_button(uint32_t b)
         ui.pg_pad = B_HOME;
         ui.pg_used = 0;
         break;
-    case B_EDIT:                                        /* GRAIN's pages, RESONATOR's; on the mixer: the channel */
+    case B_EDIT:                                        /* GRAIN's pages, RIPPLE's; on the mixer: the channel */
         if (ui.view == VIEW_PROJECT) {                  /* the project view's pages: PROJECTS, PRESETS, REELS (as
                                                          * EDIT steps the mixer's) */
             ui.pj_page = (uint8_t)((ui.pj_page + 1u) % 3u);
@@ -727,7 +727,7 @@ static void on_button(uint32_t b)
                 ui.glo_used = 1;
             break;
         }
-        ui.pg_pad = B_EDIT;                             /* (GRAIN's next page, then RESONATOR's: as it's let go) */
+        ui.pg_pad = B_EDIT;                             /* (GRAIN's next page, then RIPPLE's: as it's let go) */
         ui.pg_used = 0;
         break;
     case B_FX:                                          /* COLOR's pages, then SPACE's: as it's let go */
@@ -781,7 +781,7 @@ static void on_button(uint32_t b)
                 ui.last = 0xFF;
             }
         } else if (drm_page()) {                       /* DRUM's own pages: the bar STEP shows (elsewhere, as on
-                                                         * every track, the octave: RESONATOR's root) */
+                                                         * every track, the octave: RIPPLE's root) */
             int16_t *bp = &tp[sys.sel].drm[DM_BAR];
             *bp = (int16_t)clamp(*bp + (b == B_OCTUP ? 1 : -1), 1, tp[sys.sel].drm[DM_LEN]);
         } else if (b == B_OCTDN && track[sys.sel].octave > 1u) {
@@ -851,7 +851,7 @@ static void on_black(uint32_t k)
         ui.poly_held = 1;
         ui.poly_t0 = fm1_ms;
         ui_message(ui.view == VIEW_PROJECT ? "KEEP HOLDING POLY TO DELETE IT" : ui.view == VIEW_PAGE && ui.kind == FOCUS_ARP
-                   ? (ui.page == 2u ? "KEEP HOLDING POLY TO CLEAR RES ARP" : "KEEP HOLDING POLY TO CLEAR THE NOTES") : tp[sys.sel].src == SRC_DRUM ?
+                   ? (ui.page == 2u ? "KEEP HOLDING POLY TO CLEAR RIPL ARP" : "KEEP HOLDING POLY TO CLEAR THE NOTES") : tp[sys.sel].src == SRC_DRUM ?
                    "KEEP HOLDING POLY TO CLEAR THE PATTERN" : "KEEP HOLDING POLY TO CLEAR THE TAPE");
     }
 }
@@ -903,11 +903,11 @@ static void hold_keys(void)
             ui_message(m);
         } else if ((uint32_t)(fm1_ms - ui.poly_t0) >= 500u && ui.view == VIEW_PAGE && ui.kind == FOCUS_ARP) {
             ui.poly_held = 0;                           /* the arpeggiator's notes (a latched or piled-up pattern;
-                                                         * RES ARP's on its page) */
+                                                         * RIPL ARP's on its page) */
             if (ui.page == 2u) {
                 RING_PUBLISH();
                 reso_arp_clear_req[sys.sel] = 1;
-                ui_message("RES ARP NOTES CLEARED");
+                ui_message("RIPL ARP NOTES CLEARED");
             } else {
                 arp_clear(sys.sel);
                 ui_message("ARP NOTES CLEARED");

@@ -75,7 +75,7 @@ static void arp_clear(uint32_t t)
 /* track t's arpeggiator is on (every source: SYNTH and POLY notes, TAPE's slices, DRUM's drums) */
 static int arp_on(uint32_t t) { return tp[t].arp[AR_MODE] != ARM_OFF; }
 
-static arp_rt_t reso_arp[NTRK];      /* RESONATOR's own arpeggio, one a track (its knobs: RP_AMODE.., reso.c) */
+static arp_rt_t reso_arp[NTRK];      /* RIPPLE's own arpeggio, one a track (its knobs: RP_AMODE.., reso.c) */
 
 static void arp_add(arp_rt_t *r, uint32_t note)
 {

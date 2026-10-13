@@ -177,7 +177,7 @@ static const pdesc_t *ui_page(uint32_t k, int16_t **vp)
         *vp = &p->dins[(ui.drm_inst - 1u) & 15u][k];
         return &DRI_P[k];
     }
-    if (ui.kind == FOCUS_ARP) {                        /* the arpeggiator; page 3, RES ARP: RESONATOR's arpeggio */
+    if (ui.kind == FOCUS_ARP) {                        /* the arpeggiator; page 3, RIPL ARP: RIPPLE's arpeggio */
         k += 4u * ui.page;
         if (k >= ARP_RES) {
             k = k < ARP_RES + 4u ? k : ARP_RES;
@@ -212,7 +212,7 @@ static uint32_t hash_str(uint32_t h, const char *s)
 }
 
 /* ------------------------------------------------------------ header --- */
-/* [T1] RESONATOR  [rec play metronome 120]: the box names the track (a modulator page: the slot, M1..M4, with its
+/* [T1] RIPPLE  [rec play metronome 120]: the box names the track (a modulator page: the slot, M1..M4, with its
  * colour under the box), the title the page in bold, and the tempo bar (inverted, like a groovebox's) fills the rest. */
 static const char *const PX_METRO[7] = {"..#..", ".#..#", ".#.#.", "#.#.#", "##..#", "#...#", "#####"};
 static const char *const PX_UNSAVED[5] = {"..#..", "#.#.#", ".###.", "#.#.#", "..#.."};   /* an asterisk: not saved */
@@ -244,7 +244,7 @@ static void draw_head(void)
     else if (ui.view == VIEW_ROUTE)
         str_cpy(ti, "REC IN", sizeof ti);
     else
-        str_cpy(ti, slot ? ME_NAME[tp[sys.sel].engine[ui.slot]] : arp ? (ui.page == 2u ? "RES ARP" : "ARP")
+        str_cpy(ti, slot ? ME_NAME[tp[sys.sel].engine[ui.slot]] : arp ? (ui.page == 2u ? "RIPL ARP" : "ARP")
                 : dev_name(sys.sel, ui.dev), sizeof ti);
     if (slot) {                                         /* (a slot shows as its number: M1 M2 M3, the SEQ M4) */
         box[0] = 'M';
@@ -287,7 +287,7 @@ static void draw_head(void)
         if (pages > 1u) {                                  /* the pages, side by side: the shown one a block, the other a dot
                                                             * (4 dots apart; 2 apart, the shown one a tick, when the tempo
                                                             * bar would have no room left for the tempo, the transport and
-                                                            * REC: RESONATOR's four pages) */
+                                                            * REC: RIPPLE's four pages) */
             uint32_t g;
             int32_t need = px_text_w(PXF_5, bpm) + 10 + (((sys.rec >> sys.sel) & 1u) || ui.view == VIEW_USBREC ? 7 : 0) +
                            (ui.unsaved ? 7 : 0);
@@ -595,7 +595,7 @@ static void draw_foot(void)
                                                        * its slot; the SEQ's engine stays) */
         str_cpy(a, ui.slot_btn == B_LFO ? "KNOB:DEPTH OP1-3:M1-3" : ui.slot_held == SLOT_SEQ ? "KNOB:DEPTH"
                    : "KNOB:DEPTH SEL:ENGINE", sizeof a);
-    else if (ui.view == VIEW_PAGE && ui.kind == FOCUS_ARP && ui.page == 2u)   /* RES ARP: the keys the strings' */
+    else if (ui.view == VIEW_PAGE && ui.kind == FOCUS_ARP && ui.page == 2u)   /* RIPL ARP: the keys the strings' */
         str_cpy(a, tp[sys.sel].dev[DEV_RESO][RP_AMODE] >= ARM_LTCH ? "POLY HELD: CLEAR"
                    : tp[sys.sel].dev[DEV_RESO][RP_AMODE] != ARM_OFF ? "KEYS: STRINGS" : "MODE: OFF", sizeof a);
     else if (ui.view == VIEW_PAGE && ui.kind == FOCUS_ARP)   /* the arpeggiator: the keys, and the latched notes' clear */

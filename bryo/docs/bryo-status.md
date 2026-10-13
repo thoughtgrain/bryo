@@ -10,7 +10,7 @@ code wins, and this page needs fixing.
 Bryo is replacement firmware for the M-VAVE FM-1, forked from Felucca 1.0.3 (`b22a24b`). It turns the FM-1 into
 a four-track sound-sculpting instrument after the PRD (my product spec, which lives outside this repo; the docs
 cite its sections as "PRD 2.2" and so on). Each track is a source (TAPE, SYNTH, POLY or DRUM) through a fixed chain:
-GRAIN, RESONATOR, COLOR, SPACE, then a channel strip into the mix and a master compressor. Four modulator slots
+GRAIN, RIPPLE, COLOR, SPACE, then a channel strip into the mix and a master compressor. Four modulator slots
 per track move any of it: hold a slot's pad, turn a knob.
 
 **Phases 1 to 9 of 10 are built, with one piece open (p-locks).** On 2026-10-10 it ran on an FM-1 for the first
@@ -23,7 +23,7 @@ The rest of the hardware checkpoint (`docs/hardware-checkpoint.md`) is under way
 | 2 TAPE + reels | done: ADPCM tapes, factory reels, slices, REC and overdub, clear and undo |
 | 3 USB audio in + SYNTH + POLY | done: the USB record mode, the SYNTH and POLY sources |
 | 3b GRAIN, 3c memory by usage | done: the live buffer, one grain pool shared by demand; tapes that grow, TRACKS, REC IN |
-| 4 RESONATOR | done: four strings, keys set the root |
+| 4 RIPPLE (RESONATOR until 2026-10-13) | done: four strings, keys set the root |
 | 5 COLOR + SPACE | done |
 | 6 Mixer + routing | done: channel strips (LOW HIGH FILT PAN), master compressor; routing is REC IN |
 | 7 Modulation | done but p-locks: LFO ADSR SEQ FOLLOW, hold-and-turn depths, MONO's clear and undo |
@@ -36,7 +36,7 @@ The rest of the hardware checkpoint (`docs/hardware-checkpoint.md`) is under way
 
 ```
  per track (x4):
-   source ─► GRAIN ─► RESONATOR ─► COLOR ─► SPACE ─► channel (LOW HIGH FILT, level, PAN) ─┐
+   source ─► GRAIN ─► RIPPLE ─► COLOR ─► SPACE ─► channel (LOW HIGH FILT, level, PAN) ─┐
    TAPE | SYNTH | POLY | DRUM   (stereo from GRAIN on)                                     │
      ▲ REC IN: what REC prints onto the tape (the others, one track, itself)               ▼
      └──────────────────────────────────────────── sum ─► master compressor ─► MASTER ─► out
@@ -45,17 +45,17 @@ The rest of the hardware checkpoint (`docs/hardware-checkpoint.md`) is under way
 ```
 
 - **Pages and knobs.** KNOB 1 to 4 always edit the four values on screen. HOME is the source (its pages: TAPE 3,
-  SYNTH 5, POLY 4, DRUM 4, each ending with LVL); EDIT is GRAIN then RESONATOR; FX is COLOR then SPACE; LFO ENV SEQ are
+  SYNTH 5, POLY 4, DRUM 4, each ending with LVL); EDIT is GRAIN then RIPPLE; FX is COLOR then SPACE; LFO ENV SEQ are
   the modulators (LFO: M1-M3, picked with OP1-OP3 while it's held; ENV: M2; SEQ: M4) and ARP the arpeggiator; GLO is
   the mixer (EDIT there: the channel, MASTER, KEY, SETUP); ALGORITHM turned is REC IN. A pad held +
   SELECT picks that pad's thing (HOME: the source; a slot: its engine; GLO: TRACKS). Every control in every
-  context is in `docs/controls.tsv`, checked by `tests/controls_check.py`. GRAIN, RESONATOR and COLOR have ROUT:
+  context is in `docs/controls.tsv`, checked by `tests/controls_check.py`. GRAIN, RIPPLE and COLOR have ROUT:
   INS (WET crossfades) or SEND (the dry at full, the device added).
 - **Modulation.** A slot's pad tapped opens its page as you let go; held, KNOB 1 to 4 set its depth to the knobs on
   the page shown (the strip shows the depths while it's held; a modulated knob gets a mark). MONO held half a
   second clears the track's depths; SAVE held undoes the last clear (tape or modulation).
 - **The keys.** White keys play slices (TAPE), notes (SYNTH, POLY) or the drum kit (DRUM: on its STEP page they
-  write steps, accents, live hits, or wipe), set RESONATOR's root on its page, move GRAIN's cursor on its page, and
+  write steps, accents, live hits, or wipe), set RIPPLE's root on its page, move GRAIN's cursor on its page, and
   pick SEQ steps on a SEQ page. Black keys: OP1 to OP4 mute, OP5 reverse, OP6 half
   speed, MONO and POLY clear (held), 0 freezes GRAIN; or, with SETUP's KEYS on NOTE (GLO held + OCT+), the 27 keys
   are a keyboard from F on SYNTH and POLY, and the black keys play. The mixer's KEY page holds the project's key
@@ -63,7 +63,7 @@ The rest of the hardware checkpoint (`docs/hardware-checkpoint.md`) is under way
   POLY's ROOT names the key that plays a sound as recorded; FINE tunes SYNTH and POLY in cents.
 - **ARP.** Per track, on every source: the keys held go in, one at a time comes out in time (KEY, LTCH, ADD;
   UP DOWN UPDN RND PLAY; 1-3 octaves; RATE, GATE, SWNG): notes on SYNTH and POLY, slices on TAPE, drums on DRUM.
-  RESONATOR has its own, RES ARP (the ARP pad's page 3: MODE ORDR RNGE RATE), plucking the strings at each step's
+  RIPPLE has its own, RIPL ARP (the ARP pad's page 3: MODE ORDR RNGE RATE), plucking the strings at each step's
   note. `arp.c`.
 - **DRUM.** Sixteen synthesized instruments on the white keys, a pattern of 2 to 4 bars, ten written rhythms
   (PATN), and SEED: any value but 0 plays a version that varies the pattern the way a player would (the backbone
@@ -89,7 +89,7 @@ One core, no RTOS. Three contexts, and the rules between them are most of the ar
   the ISR reads as a whole (a depth list), build it in the half the ISR isn't reading and flip one byte.
 
 **Memory.** Sound lives in one pool of 143 chunks (26.6 s of tape-format sound: `mem.c`) handed out by use: tapes as
-long as what's on them, GRAIN's live buffers, RESONATOR's strings and SPACE's lines while they're on. Nothing is
+long as what's on them, GRAIN's live buffers, RIPPLE's strings and SPACE's lines while they're on. Nothing is
 set aside per track. When it runs short: a cleared tape's chunks first, then a parked track's tape, then the end of
 the longest tape. Main RAM holds 85.1 of 96 KiB (.bss; 50.7 of it sound on purpose, the rest of the 96 the stack's), the pool 329.6 of 336 KiB (2026-10-11, 40 grain slots and NPK 24, the last two by arithmetic: 384 and 416 B more, and the canvas's 1,620; 32-bit
 build: the firmware preprocessed, its inline assembly taken out, compiled `-m32 -Os`, `size -A`).
@@ -118,10 +118,10 @@ Felucca's `felucca.c` did); `tests/bryo_host.c` includes the same files for the 
 | `mem.c` | the shared sound memory: chunks and owners |
 | `tape.c` | TAPE: ADPCM tapes, reels, the head, REC and overdub, clear and undo |
 | `synth.c`, `poly.c`, `source.c` | SYNTH, POLY, and the source table |
-| `arp.c` | the arpeggiator: the keys into one at a time, in time, before the source (notes, slices, drums); RESONATOR's arpeggio runs the same core (`arp_run`) |
+| `arp.c` | the arpeggiator: the keys into one at a time, in time, before the source (notes, slices, drums); RIPPLE's arpeggio runs the same core (`arp_run`) |
 | `drum_voice.c`, `drum.c` | DRUM: the one synthesizer every instrument shares; the kit, the rhythms, SEED's versions, the player |
 | `grain.c` | GRAIN: the live buffer, the scheduler, the shared pool of grains |
-| `reso.c`, `color.c`, `space.c` | RESONATOR, COLOR, SPACE |
+| `reso.c`, `color.c`, `space.c` | RIPPLE, COLOR, SPACE |
 | `mixer.c` | the channel strips and the master compressor |
 | `usbrec.c` | the USB record mode (the endpoint itself is in `usb.c`) |
 | `chain.c` | a control block of the whole instrument; TRACKS; shedding; the main loop's memory polls |
@@ -195,7 +195,7 @@ playing runs 2 to 3 more for the silence scans):
 | 28 | four DRUM tracks at once, every voice (20) | 2,323 |
 | 15 | everything on, all four tracks | 4,633 |
 | 29 | the busiest groove's devices all on, the transport stopped (what "nothing playing" costs) | 618 |
-| 30 | one track heard (dense grains, strings with RES ARP, a room), the other three muted | 2,518 |
+| 30 | one track heard (dense grains, strings with RIPL ARP, a room), the other three muted | 2,518 |
 
 My target for a realistic four-track scene is 2,000. The first device reading (run 1, 2026-10-10: 25 %, in 5 % steps)
 puts the ratio at about 37.6 host instructions a sample per percent, if the load scales with the host's count: the
@@ -255,7 +255,7 @@ number.
   changed nothing on the screen. Now the plot is 4 seconds free-running (a tick a second, dim) or 2 bars on SYNC BPM
   (a tick a beat), and RATE shows as how many cycles fit, from half a cycle to 16 (the ends held readable); the
   window's width is named under the plot. Same day: resting on silence for the output stage, the compressor and a
-  RESONATOR's input filter (Tier C of the plan, identical output); `mod_peak`'s depth spans cached for the memory
+  RIPPLE's input filter (Tier C of the plan, identical output); `mod_peak`'s depth spans cached for the memory
   polls; and the 1/3-beat LFO phase glitch fixed (the only non-identical change, with its own test).
 - **2026-10-12: tuning and a key, for SYNTH and POLY only.** TAPE's pitch stays its speed. KEY and SCAL are the
   project's (one for every track, the mixer's KEY page), and a note outside the scale snaps to the nearest one in it
@@ -286,7 +286,7 @@ number.
   room.** Stopped, everything ran on digital zeros (about half the CPU with nothing playing); muting saved nothing
   and handed the remaining track a bigger grain pool; shedding gave back blindly, a crackle a second near the edge.
   See "Resting" in the architecture doc.
-- **2026-10-11: every effect opens with its mix.** ROUT and WET are KNOB 3-4 of page 1 on GRAIN, RESONATOR and
+- **2026-10-11: every effect opens with its mix.** ROUT and WET are KNOB 3-4 of page 1 on GRAIN, RIPPLE and
   COLOR (SPACE: DLY and VERB, its sends); the rest close up behind. Layout only: nothing stored moved.
 - **2026-10-11: six pages a device (NPK 24), for GRAIN's GRNS.** GRAIN's 20 were full. Projects and presets store
   each array with its count and depths by array and knob, so the format didn't change and older files read as they
@@ -307,7 +307,7 @@ number.
   clamped on load, depths by array and knob). Since 2026-10-11 only the current version is read (old formats
   dropped while projects had barely started). Six slots, A/B, Bryo's own magic so
   Felucca never misreads one. A take on a track's own tape goes into a user reel named after the project and track.
-- **2026-10-09: GRAIN, RESONATOR and COLOR can be sends** (ROUT: INS or SEND, per device, per track): the dry at
+- **2026-10-09: GRAIN, RIPPLE and COLOR can be sends** (ROUT: INS or SEND, per device, per track): the dry at
   full, the device added at WET. Per track rather than shared aux buses: no new memory or CPU, every track keeps
   its own effects. SPACE was always a send.
 - **2026-10-09: DRUM's sounds and rhythms are Bryo's own.** CR-78-inspired in the instrument list and the
@@ -416,8 +416,8 @@ About 50 commits over three days, each one a working step (`git log --oneline --
   and the factory reels (phase 2); user reels in flash and the FM-1 as a USB drive; SYNTH and POLY; the S-4
   alignment.
 - **2026-10-08:** GRAIN (and its live buffer); memory by usage, TRACKS, REC IN; a review round; the hardware
-  checkpoint's run sheet and its host simulation; RESONATOR, COLOR, SPACE; the USB record mode; the mixer;
+  checkpoint's run sheet and its host simulation; RIPPLE, COLOR, SPACE; the USB record mode; the mixer;
   realistic load runs; GRAIN's shared pool.
-- **2026-10-09:** modulation; TUNE played live; a LEVEL on every source; the modulation audit (RESONATOR's pitch
+- **2026-10-09:** modulation; TUNE played live; a LEVEL on every source; the modulation audit (RIPPLE's pitch
   glides, fine pitch); fine filter cutoffs; this page; DRUM (its own voice and kit, the source, SEED); sends
   (ROUT); projects (phase 8); the RAM pass; phase 9's rails.

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
-/* Bryo: RESONATOR, the device after GRAIN (docs/bryo-architecture.md, "RESONATOR, as built"): four tuned strings the
+/* Bryo: RIPPLE, the device after GRAIN (docs/bryo-architecture.md, "RIPPLE, as built"): four tuned strings the
  * track's sound rings through, the S-4's RING with the PRD's strings. Its picture (ui_viz.c viz_reso) draws the
  * same mappings this plays.
  *
@@ -11,8 +11,8 @@
  * TYPE: the same state-variable filter as POLY's, low-, band- or high-pass), and WET blends the strings with it. The
  * strings sit across the stereo field, 1 and 3 to the left, 2 and 4 to the right.
  *
- * The root is PTCH, or the last white key played on the RESONATOR page (until PTCH is turned again). On a TAPE track
- * those keys pluck the strings too, a burst of noise one period long (a sound from nothing: a blank tape, RESONATOR
+ * The root is PTCH, or the last white key played on the RIPPLE page (until PTCH is turned again). On a TAPE track
+ * those keys pluck the strings too, a burst of noise one period long (a sound from nothing: a blank tape, RIPPLE
  * and REC); on a SYNTH or POLY track the keys still play the source and the strings follow its notes.
  *
  * Memory: four chunks of the shared memory (mem.c, a string's delay line in each: 1,056 samples, so the lowest
@@ -130,7 +130,7 @@ static void HOT_CODE rs_pluck1(reso_t *R, uint32_t k, int32_t root16, int32_t a,
     R->lp[k] = 0;
 }
 
-/* a pluck of the strings (a key, or RES ARP's step), shaped by RESONATOR 3: PICK, how hard (an offset on TONE for
+/* a pluck of the strings (a key, or RIPL ARP's step), shaped by RIPPLE 3: PICK, how hard (an offset on TONE for
  * the burst alone: below 0 a soft mallet, dark and round; above, a pick, bright and snappy); STRM, a strum (the
  * strings one after another, root first, STRM ms apart; 0 all at once); VARY, each pluck a little different (its
  * brightness up to VARY x 0.3 points either way, its level down to 1 - VARY / 2, each string's a little more). All
@@ -177,9 +177,9 @@ static void rs_strum(reso_t *R, uint32_t nstr, uint32_t n)
         }
 }
 
-/* audio ISR: one block of track t's RESONATOR arpeggio (RES ARP, the ARP pad's page 3: MODE ORDR RNGE RATE; a pluck
+/* audio ISR: one block of track t's RIPPLE arpeggio (RIPL ARP, the ARP pad's page 3: MODE ORDR RNGE RATE; a pluck
  * has no gate): keys, the white keys on that page over base. Returns 1 while a step's note sounds, the note in *note */
-static volatile uint8_t reso_arp_clear_req[NTRK];   /* main loop -> ISR: forget RES ARP's notes (POLY held on it) */
+static volatile uint8_t reso_arp_clear_req[NTRK];   /* main loop -> ISR: forget RIPL ARP's notes (POLY held on it) */
 static uint32_t HOT_CODE reso_arp_block(uint32_t t, uint32_t keys, uint32_t base, uint32_t n, uint32_t *note)
 {
     const int16_t *p = tp[t].dev[DEV_RESO];
@@ -196,7 +196,7 @@ static uint32_t HOT_CODE reso_arp_block(uint32_t t, uint32_t keys, uint32_t base
     return arp_run(&reso_arp[t], a, p[RP_AMODE] != ARM_OFF, keys, base, n, note, t + 4u) & 1u;
 }
 
-/* audio ISR: track t's RESONATOR on its stereo block, in place. keys: the white keys on the RESONATOR page (0
+/* audio ISR: track t's RIPPLE on its stereo block, in place. keys: the white keys on the RIPPLE page (0
  * otherwise); pluck: they pluck (a TAPE track) or only retune (a SYNTH or POLY track, the keys playing the source) */
 static uint8_t reso_arp_on[NTRK];   /* ISR: the arpeggio's note sounding last block (a new step: a pluck) */
 /* Why a string's damping and its loop gain round toward 0 on a silent block (rs_settle): a right shift rounds down, so with g near 1
@@ -425,7 +425,7 @@ static void HOT_CODE reso_recover(void)
     }
 }
 
-/* main loop, every pass: a track's strings while its RESONATOR is on (WET above 0, the track in use), taken from the
+/* main loop, every pass: a track's strings while its RIPPLE is on (WET above 0, the track in use), taken from the
  * shared memory (from the end of the longest tape when nothing is free); none otherwise */
 static void reso_poll(void)
 {

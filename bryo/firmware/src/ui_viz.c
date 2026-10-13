@@ -15,7 +15,7 @@
  *              ticked under it; the playhead over it (stopped: where playing starts, moved by ROTA)
  *   GRAIN      the grains as they sound: where each reads (across), its pitch (up), its stretch of the sound
  *              under its window with the playhead running its way; the cursor and SPRY's reach; FROZEN
- *   RESONATOR  the response over 8 octaves: peaks on PTCH's partials (harmonics, or a scale's chord tones; a node on
+ *   RIPPLE  the response over 8 octaves: peaks on PTCH's partials (harmonics, or a scale's chord tones; a node on
  *              each, the root's filled and named), as sharp as DEC makes them, kept up top by TONE, shaped by the
  *              filter before them (dotted: CUT RES TYPE), blended with the dotted dry line by WET
  *   COLOR      a sine through the device (dotted: in; solid: out); the inset follows the last-turned knob: the
@@ -443,7 +443,7 @@ labels:
         px_text(118 - px_text_w(PXF_3, tape_name(sys.sel)), DLBL, PXF_3, tape_name(sys.sel), px_dim);   /* its source */
 }
 
-/* --------------------------------------------------------- RESONATOR --- */
+/* --------------------------------------------------------- RIPPLE --- */
 /* the strings' partials above PTCH, in 1/16 semitones: SCAL HARM is the root's harmonics (12 log2 k); MAJ, MIN and
  * PEN are their scale's chord tones (1 3 5, or the pentatonic's notes) stacked over three octaves */
 static const int16_t PART_16[4][24] = {
@@ -1451,7 +1451,7 @@ static void viz_seq(const int16_t *v, uint32_t f)
 static void viz_arp(const int16_t *v, uint32_t f)
 {
     int16_t ra[NARP] = {0};
-    int res = ui.page == 2u;                                           /* RES ARP: RESONATOR's, its knobs (12-15) as
+    int res = ui.page == 2u;                                           /* RIPL ARP: RIPPLE's, its knobs (12-15) as
                                                                         * an AR_* array, as reso_arp_block builds */
     const arp_rt_t *r = res ? &reso_arp[sys.sel] : &arp_rt[sys.sel];
     uint8_t s[ARP_MAXN];
@@ -2422,7 +2422,7 @@ static uint32_t viz_sig(void)
         return h + sys.rec * 977u + sys.ntrk * 5381u + 0x55u;
     }
     if (ui.kind == FOCUS_ARP) {                                        /* the arpeggiator: its knobs, its notes, the
-                                                                        * step sounding (RES ARP: RESONATOR's) */
+                                                                        * step sounding (RIPL ARP: RIPPLE's) */
         const arp_rt_t *r = ui.page == 2u ? &reso_arp[sys.sel] : &arp_rt[sys.sel];
         for (k = 0; k < NARP; k++)
             h = (h ^ (uint32_t)(tp[sys.sel].arp[k] + 32768)) * 16777619u;
@@ -2481,7 +2481,7 @@ static uint32_t viz_sig(void)
             h = (h ^ (uint32_t)(q[k] + 32768) << (k & 1u)) * 16777619u;
         h = (h ^ room[clamp(tp[sys.sel].dev[DEV_SPACE][SP_ROOM], 0, 1)].users) * 16777619u;
     }
-    if (ui.kind == FOCUS_DEV && ui.dev == DEV_RESO) {                  /* RESONATOR: a key's root, the strings ringing */
+    if (ui.kind == FOCUS_DEV && ui.dev == DEV_RESO) {                  /* RIPPLE: a key's root, the strings ringing */
         uint32_t ring = 0;
         for (k = 0; k < (int32_t)RS_N; k++)
             ring |= (uint32_t)(reso[sys.sel].lvl[k] > RV_RING) << k;

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
-/* Bryo: the shared core. Four tracks, each a source engine feeding a fixed device chain (GRAIN, RESONATOR,
+/* Bryo: the shared core. Four tracks, each a source engine feeding a fixed device chain (GRAIN, RIPPLE,
  * COLOR, SPACE: docs/bryo-architecture.md). This header holds what the kept hardware layer and every Bryo
  * module agree on: the frame sizes, the system state the main loop and the audio ISR share, the ring
  * barrier, the boot guard. Device and modulator state lives with each module. */
@@ -33,8 +33,8 @@ typedef struct {
     uint8_t keys_live;           /* 1: the white keys play the focused track (0 while SEL picks a track) */
     uint8_t rec;                 /* REC armed, a bit per track (the ISR records a track while its tape is ready) */
     uint8_t keys_grain;          /* 1: the GRAIN page is up: on a TAPE track the white keys move GRAIN's cursor */
-    uint8_t keys_rarp;           /* 1: RES ARP (the ARP pad's page 3) is up: the white keys go to RESONATOR's arpeggio */
-    uint8_t keys_reso;           /* 1: the RESONATOR page is up: the white keys set its root (TAPE: and pluck) */
+    uint8_t keys_rarp;           /* 1: RIPL ARP (the ARP pad's page 3) is up: the white keys go to RIPPLE's arpeggio */
+    uint8_t keys_reso;           /* 1: the RIPPLE page is up: the white keys set its root (TAPE: and pluck) */
     uint8_t ntrk;                /* TRACKS: the tracks in use, 1..NTRK (GLO held + SELECT); the rest are parked */
     uint8_t freeze;              /* the 0 key tapped: GRAIN's freeze latched (held: momentary, as GLO's mixer) */
     uint8_t drum_mode;           /* DRUM's STEP page is up in LIVE or ERAS (DMODE_*: what the keys do there); else

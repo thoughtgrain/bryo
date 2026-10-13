@@ -19,7 +19,7 @@
  * in main RAM.
  *
  * The targets are numbered so a depth table is one flat array per slot (NPK = 24 knobs an array):
- *   0..95    GRAIN, RESONATOR, COLOR, SPACE: (device - 1) x NPK + knob
+ *   0..95    GRAIN, RIPPLE, COLOR, SPACE: (device - 1) x NPK + knob
  *   96..191  the sources: TAPE, SYNTH, POLY, DRUM: 96 + source x NPK + knob (each source keeps its own depths)
  *   192..195 the channel strip: LOW HIGH FILT PAN
  * (The numbers live only in RAM: projects and presets store a depth by array and knob, so they moved freely when NPK
@@ -113,7 +113,7 @@ static inline uint32_t mod_fine_of(uint32_t a, uint32_t k)
 {
     return a == MA_SYN ? (k == SY_TUNE ? FN_SYN : k == SY_CUT ? FN_SCUT : FN_N)
          : a == MA_POL ? (k == PL_TUNE ? FN_POL : k == PL_CUT ? FN_PCUT : FN_N)
-         : a == DEV_RESO ? (k == 0u ? FN_RESO : k == 4u ? FN_RCUT : FN_N)   /* (RESONATOR: PTCH knob 1, CUT knob 5) */
+         : a == DEV_RESO ? (k == 0u ? FN_RESO : k == 4u ? FN_RCUT : FN_N)   /* (RIPPLE: PTCH knob 1, CUT knob 5) */
          : a == DEV_GRAIN && k == 2u ? FN_GRAIN                             /* (GRAIN's PTCH: knob 3) */
          : a == MA_CH && k == CH_FILT ? FN_FILT : FN_N;
 }

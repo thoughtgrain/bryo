@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
-/* Bryo: the parameter table. Every track has five devices (its source, GRAIN, RESONATOR, COLOR, SPACE) with four
+/* Bryo: the parameter table. Every track has five devices (its source, GRAIN, RIPPLE, COLOR, SPACE) with four
  * knobs each, and four modulator slots with four knobs each. KNOB 1..4 always edit the four values of whatever the
  * screen shows (the PRD's "4-value strip"), so a page is just (device or slot, track).
  *
@@ -29,7 +29,7 @@ static const char *const N_CLK[2] = {"FREE", "BPM"};
 static const char *const N_MODE[2] = {"KEYS", "FLLW"};
 static const char *const N_DIR[4] = {"FWD", "REV", "PING", "RND"};
 static const char *const N_BODY[3] = {"SRC", "TRI", "SIN"};   /* GRAIN's BODY: the source, or a wave */
-static const char *const N_ROOT[1] = {"RES"};          /* BODY's ROOT at its bottom: RESONATOR's root (F_NOTE's
+static const char *const N_ROOT[1] = {"RES"};          /* BODY's ROOT at its bottom: RIPPLE's root (F_NOTE's
                                                         * names: the name of its lowest value, if it has one) */
 static const char *const N_SHAPE[5] = {"SIN", "TRI", "SQR", "SAW", "RND"};
 static const char *const N_SRC[6] = {"SELF", "T1", "T2", "T3", "T4", "USB"};
@@ -46,7 +46,7 @@ static const char *const N_REEL[1u + NREEL + USLOT_N] = {"TAPE", REEL_NAMES_INIT
                                   * GRNS: projects and presets store each array with its count, depths by array
                                   * and knob, so older ones read as they are) */
 
-static const char *const DEV_NAME[NDEV] = {"TAPE", "GRAIN", "RESONATOR", "COLOR", "SPACE"};
+static const char *const DEV_NAME[NDEV] = {"TAPE", "GRAIN", "RIPPLE", "COLOR", "SPACE"};
 
 /* Page 1 of each device is the PRD's four knobs. The pages after it hold what the sound needs that the PRD left
  * without a knob: wet levels, the switches the black keys flip, the shapes. The names follow the Torso S-4's
@@ -63,12 +63,12 @@ static const char *const N_RSCAL[4] = {"HARM", "MAJ", "MIN", "PEN"};
 static const char *const N_SLOP[3] = {"LP", "BP", "HP"};
 static const char *const N_CMOD[3] = {"BIT", "RATE", "BOTH"};
 static const char *const N_ROUT[2] = {"INS", "SEND"};
-/* ROUT (GRAIN, RESONATOR, COLOR): how WET mixes the device in. INS: in the track's line, WET crossfading the dry
+/* ROUT (GRAIN, RIPPLE, COLOR): how WET mixes the device in. INS: in the track's line, WET crossfading the dry
  * sound with the device's (dry x (1 - WET) + device x WET); SEND: in parallel, the dry at full and the device's
  * sound added at WET (dry + device x WET), the way an aux send works, per track. SPACE is always a send (DLY and
  * VERB are levels added to the dry). Not a modulation target: a switch flipping at an LFO's rate isn't a sound */
 #define P_ROUT {"ROUT", 0, 1, 0, F_ENUM, N_ROUT, 1}
-/* the arpeggiator's knobs and names (ARP_P below; RESONATOR's own arpeggio uses them too) */
+/* the arpeggiator's knobs and names (ARP_P below; RIPPLE's own arpeggio uses them too) */
 enum { AR_MODE, AR_ORDR, AR_RNGE, AR_RATE, AR_GATE, AR_SWNG, NARP = 8 };
 enum { ARM_OFF, ARM_KEY, ARM_LTCH, ARM_ADD };
 enum { ARO_UP, ARO_DOWN, ARO_UPDN, ARO_RND, ARO_PLAY };   /* (PK_DIR's order, then PLAY) */
@@ -119,7 +119,7 @@ static const pdesc_t DEV_P[NDEV][NPK] = {
         {"OFST", 0, 100, 25, F_PCT}, {"FDBK", 0, 100, 0, F_PCT},
         /* 5: BODY, a floor under the grains (it helps at WET 100, where the source is gone): the track's own sound
          * low-passed (MODE SRC: always in key and in time with it), or a wave playing the grains' notes (PTCH,
-         * PRND, SCAL) in the octave over ROOT (RES, below C1: over RESONATOR's root, PTCH, a key or RES ARP's note, so
+         * PRND, SCAL) in the octave over ROOT (RES, below C1: over RIPPLE's root, PTCH, a key or RIPL ARP's note, so
          * it always rings the strings; TRI: heard on the small speaker too, its harmonics; SIN: the purest, for
          * headphones), through TONE's low-pass, at BODY's level. It's part of the wet side: WET sets it with the
          * grains (grain.c) */
@@ -131,7 +131,7 @@ static const pdesc_t DEV_P[NDEV][NPK] = {
         {"GRNS", 0, GR_GRNS_MAX, 0, F_ENUM, N_GRNS, 1},
         /* SYNC: RATE in the tempo's divisions (1 bar .. 1/64), the grains on that grid, PATN shaping it (grain.c) */
         {"SYNC", 0, 1, 0, F_ENUM, N_OFFON, 1}},
-    {   /* RESONATOR (the S-4's RING) */
+    {   /* RIPPLE (the S-4's RING) */
         {"PTCH", 33, 81, 45, F_NOTE}, {"DEC", 0, 100, 60, F_PCT},
         {"TONE", 0, 100, 60, F_PCT}, {"WET", 0, 100, 0, F_PCT},
         /* 2: a filter before the strings (cutoff, resonance, its TYPE: low-, band- or high-pass, as POLY's), and the
@@ -142,7 +142,7 @@ static const pdesc_t DEV_P[NDEV][NPK] = {
          * (an offset on TONE for the burst: - a soft mallet, + a pick), STRM, the strings strummed STRM ms apart,
          * VARY, each pluck a little different. 0 on all three: the pluck as it was (a stored 0 from before them) */
         P_ROUT, {"PICK", -100, 100, 0, F_BIPCT}, {"STRM", 0, 100, 0, F_MS}, {"VARY", 0, 100, 0, F_PCT},
-        /* its own arpeggio, RES ARP (stored here, 12-15, shown on the ARP pad's page 3, not on RESONATOR's): the
+        /* its own arpeggio, RIPL ARP (stored here, 12-15, shown on the ARP pad's page 3, not on RIPPLE's): the
          * keys on that page into it, a pluck of the strings each step at that note's root, whatever the source
          * plays. As the ARP pad's knobs, with no GATE (a pluck rings by DEC) */
         {"MODE", 0, 3, ARM_OFF, F_ENUM, N_ARM, 1}, {"ORDR", 0, 4, ARO_UP, F_ENUM, N_ARO, 1},
@@ -340,11 +340,11 @@ static const pdesc_t ARP_P[NPK] = {   /* (NPK long: pdesc_pages looks past the l
     {"MODE", 0, 3, ARM_OFF, F_ENUM, N_ARM, 1}, {"ORDR", 0, 4, ARO_UP, F_ENUM, N_ARO, 1}, {"RNGE", 1, 3, 1, F_NUM, 0, 1},
     {"RATE", 0, 5, 3, F_ENUM, N_ARATE, 1},
     {"GATE", 10, 100, 50, F_PCT, 0, 1}, {"SWNG", 0, 100, 0, F_PCT, 0, 1}, {""}, {""},
-    /* page 3, RES ARP: RESONATOR's own arpeggio (stored in RESONATOR's knobs, 12-15, not in tp.arp: ui.c's
-     * ui_page points there). The same knobs as page 1, the same ranges as RESONATOR's descriptors */
+    /* page 3, RIPL ARP: RIPPLE's own arpeggio (stored in RIPPLE's knobs, 12-15, not in tp.arp: ui.c's
+     * ui_page points there). The same knobs as page 1, the same ranges as RIPPLE's descriptors */
     {"MODE", 0, 3, ARM_OFF, F_ENUM, N_ARM, 1}, {"ORDR", 0, 4, ARO_UP, F_ENUM, N_ARO, 1}, {"RNGE", 1, 3, 1, F_NUM, 0, 1},
     {"RATE", 0, 5, 3, F_ENUM, N_ARATE, 1}};
-#define ARP_RES 8u                   /* ARP_P's index of RES ARP's first knob (page 3) */
+#define ARP_RES 8u                   /* ARP_P's index of RIPL ARP's first knob (page 3) */
 
 /* SETUP, the mixer's last page (EDIT tapped six times): how the panel behaves, for the instrument, not a project
  * (settings.c keeps them). KEYS: the black keys as the shortcuts (SHRT: mutes, reverse, clears, freeze) or as notes
@@ -429,10 +429,10 @@ static const playout_t PLAYOUT[] = {
     {DEV_P[DEV_GRAIN], 6, {0, 1, 11, 4, 2, 3, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23}},
                                                     /* GRAIN: SIZE RATE ROUT WET, PTCH SPRD SPRY CONT, REV PATN SCAL
                                                      * PRND, SCAN.., BODY.., GRNS */
-    {DEV_P[DEV_RESO], 3, {0, 1, 8, 3, 4, 5, 6, 7, 2, 9, 10, 11, 12, 13, 14, 15}},   /* RESONATOR: PTCH DEC ROUT WET,
+    {DEV_P[DEV_RESO], 3, {0, 1, 8, 3, 4, 5, 6, 7, 2, 9, 10, 11, 12, 13, 14, 15}},   /* RIPPLE: PTCH DEC ROUT WET,
                                                                                       * CUT RES TYPE SCAL, TONE PICK
                                                                                       * STRM VARY (12-15,
-                                                                                      * RES ARP: the ARP pad's) */
+                                                                                      * RIPL ARP: the ARP pad's) */
     {DEV_P[DEV_COLOR], 3, {0, 1, 9, 7, 2, 3, 4, 5, 6, 10, 11, 8}},              /* COLOR: DRV CRSH ROUT WET, NOIS TILT
                                                                                  * NDEC NTON, CMOD . . LVL */
     {DEV_P[DEV_SPACE], 4, {0, 1, 4, 5, 2, 3, 8, 11, 6, 7, 9, 10, 12, 13, 14, 15}},   /* SPACE: TIME FDBK DLY VERB,
