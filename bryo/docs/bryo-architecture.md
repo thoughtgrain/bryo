@@ -1513,7 +1513,9 @@ volume"). There white keys 1-4 are scenes 1-4 (they don't play): tapped, a recal
 store); held + SAVE, store. KNOB n morphs toward scene n, nothing held ("holding two keys while morphing is hard":
 the first try was GLO held + white 5-8 held + SELECT). The strip draws each scene's box and the morph's %; the
 picture under it, each scene's tracks' sources (lit where one differs from now: a fade, not a morph) and a bar of
-how far the sound is toward it. Leaving the page lets the morph's start go.
+how far the sound is toward it. Leaving the page lets the morph's start go. And since the mixer's other pages read as the
+selected track's ("all of the other glo options are track specific it was a bit confusing"), the header's box names
+the project (P1..P6, F, T) on SCENES, MASTER and KEY, the project's pages, and the picture says ALL TRACKS.
 
 **In a project** (format 12): after the rooms, each scene as a used byte and its differences from the state just
 written: (id u16, value as `pw_v`), the id t x MOD_NTGT + g, then levels, room knobs, sources. Read back, a scene

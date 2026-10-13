@@ -249,10 +249,18 @@ static void draw_head(void)
         str_cpy(ti, "PROJECTS", sizeof ti);
         box[0] = ui.pj_sel == PJ_TEST ? 'T' : ui.pj_sel >= PJ_N ? 'F' : 'P';
         box[1] = ui.pj_sel >= PJ_N ? 0 : (char)('1' + ui.pj_sel);
-    } else if (ui.view == VIEW_MIXER)
+    } else if (ui.view == VIEW_MIXER) {
         str_cpy(ti, ui.chan == CHAN_SETUP ? "SETUP" : ui.chan == CHAN_KEY ? "KEY" : ui.chan == CHAN_MASTER ? "MASTER"
                     : ui.chan == CHAN_SCENES ? "SCENES"
                     : ui.chan ? "CHANNEL" : "MIXER", sizeof ti);
+        if (ui.chan == CHAN_SCENES || ui.chan == CHAN_MASTER || ui.chan == CHAN_KEY) {   /* the project's, not a
+                                                         * track's: the box names the project (P1..P6, F, T), as the
+                                                         * PROJECTS view's does ("all of the other glo options are
+                                                         * track specific it was a bit confusing") */
+            box[0] = pj_cur == PJ_TEST ? 'T' : pj_cur >= PJ_N ? 'F' : 'P';
+            box[1] = pj_cur >= PJ_N ? 0 : (char)('1' + pj_cur);
+        }
+    }
     else if (ui.view == VIEW_ROUTE)
         str_cpy(ti, "REC IN", sizeof ti);
     else

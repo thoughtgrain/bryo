@@ -1613,7 +1613,8 @@ static void viz_setup(void)
  * many notes it keeps. SCAL OFF: every key solid. */
 /* SCENES (the mixer's first EDIT page): under each scene's knob, its tracks' sources (T S P D), lit where one differs
  * from the track's now (a change there fades out and in, not a morph), and a bar of how far the sound is toward it
- * (the morph's, or full for the current one). Under it all, what's going on */
+ * (the morph's, or full for the current one). Under it all, what's going on, or that a scene moves every track (the
+ * header's box names the project, not a track) */
 static void viz_scenes(void)
 {
     uint32_t k, t;
@@ -1643,7 +1644,7 @@ static void viz_scenes(void)
         str_cpy(b, "GLIDING TO 1", sizeof b);
         b[11] = (char)('1' + scm.to);
     } else {
-        str_cpy(b, "LIT: ANOTHER SOURCE, IT FADES", sizeof b);
+        str_cpy(b, "ALL TRACKS. LIT: A NEW SOURCE", sizeof b);
     }
     px_text_c(0, 120, 28, PXF_3, b, scm.on ? px_ink : px_dim);
 }

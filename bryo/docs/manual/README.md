@@ -349,7 +349,9 @@ track levels and the rooms. A scene doesn't hold what's playing: the tapes and r
 the modulation, the mutes, the arpeggios, the tempo and the key all stay as they are when you change scenes.
 
 Scenes have their own page on the mixer: open the mixer (**tap GLO**) and **tap EDIT**: **SCENES** is the first
-page (then CHANNEL, MASTER, KEY, SETUP). The mixer's own page stays just the levels. On SCENES, the white keys
+page (then CHANNEL, MASTER, KEY, SETUP). The mixer's own page stays just the levels. A scene moves **every
+track** at once, not just the one you've selected: the header's box shows the project (**P1**) here instead of a
+track, as it does on MASTER and KEY, which are the project's too; only CHANNEL is the selected track's. On SCENES, the white keys
 1-4 are scenes 1-4 (they don't play notes there) and each knob sits under its scene:
 
 - **Store:** hold a scene's white key and tap **SAVE**. The sound as it is goes into that scene.
