@@ -1108,7 +1108,8 @@ the curve it's one line that comes alive.
 **Defaults.** TONE 60 -> 45 (the brightness the request was about), DRV 25. Both change the factory scene's sound
 on purpose; the fingerprints were rewritten. **Cost**: the scene went from 2,924 to 2,999 instructions a sample
 (about 2 % of the FM-1): the cubic, on four strings every sample; the loop's own path costs one branch more with
-DRV at 0. **Project format 11, bank 4**: a knob's value is one byte when it's small either side of 0 (zigzag), 255 and
+DRV at 0. The suite's own count (-O2, no cache): run 15, sixteen strings, 4,633 to 5,005; run 19 1,632 to 1,679;
+run 31, the scene, 2,608. **Project format 11, bank 4**: a knob's value is one byte when it's small either side of 0 (zigzag), 255 and
 two bytes otherwise, since the biggest project there can be (every knob random) grew past its sector by 11 bytes with
 three knobs more; it's 3,212 bytes now, and eight of the densest tracks fit a bank where six did.
 

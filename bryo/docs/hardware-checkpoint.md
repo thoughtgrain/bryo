@@ -166,6 +166,12 @@ under the address and undefined-behaviour sanitizers).
 | 30 | 2,652 | 71 % (was 85 %) | | |
 | 31 | 3,100 (the factory scene, measured as in the note of 2026-10-11 below; 2,831 the other way) | 75 % (was 81 %) | | |
 
+Measured again on 2026-10-13 after RIPPLE 4 (MODE DRV RIPL, DRV 25 on by default: a cubic on every string every
+sample) and the harness resetting the master, the rooms and the shedding caps between runs: run 1 978, 15 5,005
+(sixteen strings), 19 1,679, 25 2,663, 29 633, 30 2,238, 31 2,608. The -Os cache simulation of the factory scene
+(docs/performance-plan.md's measure) went 2,924 to 2,999, about 2 % of the FM-1 at the scale above; the device
+hasn't read this build yet. The rows below are the readings as they stand.
+
 The host costs were measured again on 2026-10-11, after the second round from playing it (the arpeggiator on every
 source, RIPPLE's own: about 7 a sample more on every run) and after the grains went to half rate with a bigger
 pool (runs 3, 5, 6, 12, 15 now sound 18 or 30 grains where they sounded 16 or 24, for a little less). Row 1 stays at 940, the build the 25 % was read on,
