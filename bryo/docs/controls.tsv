@@ -85,6 +85,8 @@ mixer	ENC_K2	turn	track 2 level	now	-	change
 mixer	ENC_K3	turn	track 3 level	now	-	change
 mixer	ENC_K4	turn	track 4 level	now	-	change
 mixer	BTN_GLO	tap	close the mixer	now	-	change
+mixer	WHITE_5-8	press	(the mixer latched, on its levels: its white keys are the mixer's, as under GLO; 1-4 pick the track) a scene picked as the morph's target, nothing moved yet (SEL: MORPH TO 2); held + SAVE stores it. The keys don't play while the mixer is latched there (2026-10-13: a morph with two keys held was hard)	now	-	change
+mixer	ENC_SELECT	combo	with a scene picked (white 5-8): the morph from the sound as it was toward it, 5 % a detent, nothing held; another scene picked morphs on from there. The mixer closed: the tempo again	now	-	change
 mixer	BTN_HOME	press	close the mixer and focus the source (any page pad does the same for its page)	now	-	change
 mixer	BTN_EDIT	hold	the selected track's channel: KNOB 1-4 set LOW HIGH FILT PAN; letting go returns to the levels	now	-	PRD 2.2
 mixer	BTN_EDIT	tap	steps the pages, each latched (as a tapped GLO latches the mixer): LEVELS, CHANNEL (the selected track's LOW HIGH FILT PAN), MASTER (the compressor: AMT ATK REL MIX), KEY (the project's KEY and SCAL: with SCAL on, a SYNTH or POLY note outside the scale plays the nearest one in it), SETUP (KEYS KNOB HOLD LEDS: the panel's preferences, kept for the instrument), LEVELS	now	-	change

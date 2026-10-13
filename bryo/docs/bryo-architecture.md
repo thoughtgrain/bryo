@@ -1508,7 +1508,10 @@ before the pan and the sum (which then take it at 1); a mute is still a cut; an 
 so every fingerprint held. Tested: 97 % of the old level at the block's start, 12 % (the new -20 dB) at its end.
 
 **Gestures**: GLO held, white 5-8 (1-4 are the tracks): tapped, a recall (on the let-go, so a hold can morph or
-store); held + SELECT, the morph; held + SAVE, store. The mixer shows SCN 1 2 3 4 (stored ink, the current one in a
+store); held + SELECT, the morph; held + SAVE, store. Then "holding two keys while morphing is hard": with the mixer
+latched (GLO tapped) on its levels, the white keys are the mixer's too (`mix_keys`: they don't play), a scene's key
+tapped makes it the target (`ui.scn_tgt`, nothing moves) and SELECT morphs to it with nothing held, until the mixer
+closes (then SELECT is the tempo again and the morph's start is let go). The mixer shows SCN 1 2 3 4 (stored ink, the current one in a
 tag, empty dim); keys 5-8 light the same under GLO, and 1-4 the tracks.
 
 **In a project** (format 12): after the rooms, each scene as a used byte and its differences from the state just
@@ -1516,7 +1519,9 @@ written: (id u16, value as `pw_v`), the id t x MOD_NTGT + g, then levels, room k
 is the loaded state with its differences, clamped by each knob's descriptor. A sector's payload is 3,840 B and the
 biggest project 3.2 KB, so before each scene the writer checks what's left against the scene's worst packed size; a
 scene that wouldn't fit is saved empty and SAVE says which (`scn_lost`). Tested: two scenes, a project of 1.5 KB or
-so; four scenes far from the project in every knob: the save goes through and says so.
+so; four scenes far from the project in every knob: the save goes through and says so. The PROJECTS view shows them without
+loading: `pj_scan`, which already reads through each track for its source, carries on past the depths and the rooms
+and skips through the scenes, a bit each in `pj_sum[].scn` (four marks in the slot's box, "2 SCENES" on the strip).
 
 ## Track presets and SCL's reset, as built (2026-10-10)
 

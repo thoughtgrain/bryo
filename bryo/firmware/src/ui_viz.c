@@ -2175,7 +2175,7 @@ static void viz_project_strip(void)
         viz_tpr_strip();
         return;
     }
-    char n[4] = {'P', (char)('1' + ui.pj_sel % PJ_N), 0, 0}, b[16];
+    char n[4] = {'P', (char)('1' + ui.pj_sel % PJ_N), 0, 0}, b[24];
     uint32_t t;
     if (ui.pj_sel >= PJ_N) {                                           /* FACTORY: the scene Bryo starts with; TEST */
         int test = ui.pj_sel == PJ_TEST;
@@ -2198,7 +2198,19 @@ static void viz_project_strip(void)
     if (m->used) {
         fmt_int(b, m->bpm);
         str_cpy(b + str_len(b), " BPM", 5);
-        px_text(44, 13, PXF_5, b, px_ink);
+        if (m->scn) {                                                   /* (its scenes: how many, small, after) */
+            uint32_t k, c = 0;
+            char sc[12];
+            for (k = 0; k < NSCN; k++)
+                c += (m->scn >> k) & 1u;
+            int32_t x = px_text(44, 13, PXF_5, b, px_ink) + 4;
+            fmt_int(sc, (int32_t)c);
+            str_cpy(sc + str_len(sc), c == 1u ? " SCENE" : " SCENES", 8);
+            if (x + px_text_w(PXF_3, sc) > 119)          /* (a tempo of three digits: the short word) */
+                str_cpy(sc + 1, " SCN", 5);
+            px_text(x, 15, PXF_3, sc, px_ink);
+        } else
+            px_text(44, 13, PXF_5, b, px_ink);
     }
     if (ui.pj_sel == pj_cur)
         px_tag(44, 22, PXF_3, pj_changed() ? "LOADED, CHANGED" : "LOADED", px_ink, px_bg);
@@ -2257,6 +2269,14 @@ static void viz_project(void)
         for (t = 0; t < NTRK; t++)
             src[t] = SRC_NAME[m->src[t] % NSRC][0];
         px_text(x + 3, y + 12, PXF_3, m->used ? src : "EMPTY", sel ? px_bg : m->used ? px_ink : px_dim);
+        if (m->used && m->scn) {                                       /* its scenes: a mark each, stored lit */
+            uint32_t k;
+            for (k = 0; k < NSCN; k++)
+                if ((m->scn >> k) & 1u)
+                    px_box(x + 23 + (int32_t)k * 3, y + 14, 2, 2, ink);
+                else
+                    px_dot(x + 23 + (int32_t)k * 3, y + 15, sel ? ink : px_dim);
+        }
     }
 }
 
@@ -2485,7 +2505,7 @@ static uint32_t viz_sig(void)
     if (ui.view == VIEW_PROJECT) {                                     /* the slots, which is pointed at, loaded */
         for (t = 0; t < PJ_N; t++)
             h = (h ^ (pj_sum[t].used | pj_sum[t].src[0] << 2 | pj_sum[t].src[1] << 4 | pj_sum[t].src[2] << 6 |
-                      (uint32_t)pj_sum[t].src[3] << 8)) * 16777619u;
+                      (uint32_t)pj_sum[t].src[3] << 8 | (uint32_t)pj_sum[t].scn << 10)) * 16777619u;
         return h + ui.pj_sel * 31u + pj_cur * 977u;
     }
     if (ui.view == VIEW_ROUTE) {

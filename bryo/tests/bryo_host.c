@@ -3623,6 +3623,17 @@ static void test_scenes(void)
               !scn[2].used && !scn[3].used && gr[GP_WET] == 80);
         snprintf(b, sizeof b, "..the project with them: %u bytes packed", len0);
         check(b, len0 > 0u && len0 < 2500u);
+        check("..the PROJECTS view knows: P1 holds scenes 1 and 2 (read from the slot, not the RAM)",
+              pj_sum[0].scn == 3u && pj_sum[0].used && !pj_sum[1].scn);
+        host_enc[panel.enc[EN_PRESET]] = 1;              /* (the project view on P1: the strip says 2 SCN) */
+        ui_input();
+        while (ui.pj_sel != 0u) {
+            host_enc[panel.enc[EN_PRESET]] = -1;
+            ui_input();
+        }
+        ui.msg_t = 0;
+        shot("BRYO", "projects_scenes");
+        press(B_OCTDN);
     }
     {   /* four scenes each differing in every knob from the project: what doesn't fit is saved empty, said, and the
          * save itself goes through */
@@ -3666,6 +3677,46 @@ static void test_scenes(void)
                  "the same level: to the bit)", r0, r1);
         check(b, r0 > 90 && r1 < 20 && !memcmp(a1, a2, 20 * CTL * sizeof a1[0]));
         sys.playing = 0;
+    }
+    {   /* the morph with nothing held (2026-10-13: "holding two keys while morphing is hard"): GLO tapped, the mixer
+         * stays; a scene's key tapped picks it, SELECT morphs */
+        uint16_t bpm;
+        power_on();
+        pj_new(0);
+        gr = tp[0].dev[DEV_GRAIN];
+        gr[GP_WET] = 0;
+        scn_store(0);
+        gr[GP_WET] = 100;
+        scn_store(1);
+        gr[GP_WET] = 0;
+        bpm = sys.bpm;
+        fm1_ms = 50000;
+        hold(B_GLO);
+        let_go(B_GLO);
+        check("GLO tapped: the mixer latched, its white keys the mixer's (they don't play)", ui.view == VIEW_MIXER &&
+              ui.glo_latched && !sys.keys_live);
+        scn_key_down(2);
+        scn_key_up(2);
+        check("..white 6 tapped: scene 2 the target, nothing moved yet, said", ui.scn_tgt == 2u && gr[GP_WET] == 0 &&
+              strstr(ui.msg, "TURN SELECT") != 0);
+        host_enc[panel.enc[EN_SELECT]] = 6;
+        ui_input();
+        host_enc[panel.enc[EN_SELECT]] = 4;
+        ui_input();
+        check("..SELECT 6 then 4, no key held: the morph to scene 2 halfway (WET 50), the tempo left alone",
+              gr[GP_WET] == 50 && sys.bpm == bpm);
+        shot("BRYO", "mixer_morph");
+        scn_key_down(1);
+        scn_key_up(1);
+        host_enc[panel.enc[EN_SELECT]] = 10;
+        ui_input();
+        check("..white 5 tapped, SELECT 10: from there halfway to scene 1 (WET 25)", gr[GP_WET] == 25);
+        hold(B_GLO);                                     /* (GLO again: the mixer closes) */
+        let_go(B_GLO);
+        host_enc[panel.enc[EN_SELECT]] = 1;
+        ui_input();
+        check("..the mixer closed: SELECT is the tempo again, the target gone", ui.view == VIEW_PAGE && !ui.scn_tgt &&
+              sys.bpm == bpm + 1u && gr[GP_WET] == 25);
     }
 }
 

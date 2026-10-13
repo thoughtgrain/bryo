@@ -75,6 +75,7 @@ typedef struct {
     uint8_t used;
     uint8_t src[NTRK];               /* each track's source (SRC_*) */
     uint16_t bpm;
+    uint8_t scn;                     /* the scenes it holds, a bit each */
     uint32_t seq;                    /* the newest copy's (the last one saved has the highest) */
 } pj_sum_t;
 
@@ -707,6 +708,27 @@ static void pj_scan(uint32_t s)
         pr_a16(junk, NPK, 0);                            /* (the arpeggiator, its notes) */
         for (k = pr_byte(), s2 = 0; s2 < k; s2++)
             (void)pr_byte();
+    }
+    m->scn = 0;
+    if (pj_ver >= 12u && !pr.bad) {                      /* the scenes it holds: on past the depths and the rooms */
+        uint32_t k, s2, j;
+        int16_t junk[NPK];
+        for (k = pr_u16() * 5u, s2 = 0; s2 < k && !pr.bad; s2++)
+            (void)pr_byte();
+        for (k = pr_byte(), s2 = 0; s2 < k && !pr.bad; s2++)
+            pr_a16(junk, 0, 0);
+        for (k = pr_byte(), s2 = 0; s2 < k && !pr.bad; s2++) {
+            uint32_t c;
+            if (!pr_byte())
+                continue;
+            m->scn |= (uint8_t)(s2 < 8u ? 1u << s2 : 0u);
+            for (c = pr_u16(), j = 0; j < c && !pr.bad; j++) {
+                (void)pr_u16();
+                (void)pr_v();
+            }
+        }
+        if (pr.bad)
+            m->scn = 0;
     }
     m->used = !pr.bad;
 }

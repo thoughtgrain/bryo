@@ -47,6 +47,7 @@ static struct {
     uint8_t glo_latched;             /* the mixer stays up (GLO tapped) */
     uint8_t scn_key;                 /* GLO held: the scene key held (white 5-8: 1..4), 0 none */
     uint8_t scn_used;                /* .. and it morphed or stored (letting go doesn't recall) */
+    uint8_t scn_tgt;                 /* the latched mixer: the scene SELECT morphs toward (1..4), 0 none */
     uint8_t poly_held, save_held;    /* the POLY key (clear the tape) and SAVE (undo) held, waiting for HOLD */
     uint32_t poly_t0, save_t0;
     uint8_t mono_held;               /* the MONO key (clear the track's modulation) held, waiting for half a second */
@@ -615,7 +616,10 @@ static void draw_foot(void)
         str_cpy(a, "SEL:MORPH SAVE:KEEP", sizeof a);
     else if (ui.glo_held)                             /* keys 1-4 the track, 5-8 the scenes; SELECT: TRACKS */
         str_cpy(a, "1-4:TRK 5-8:SCENE", sizeof a);
-    else if (ui.view == VIEW_MIXER)
+    else if (ui.view == VIEW_MIXER && ui.scn_tgt) {   /* the latched mixer, a scene picked: SELECT morphs to it */
+        str_cpy(a, "SEL: MORPH TO 1", sizeof a);
+        a[14] = (char)('0' + ui.scn_tgt);
+    } else if (ui.view == VIEW_MIXER)
         str_cpy(a, ui.chan == CHAN_SETUP ? "EDIT: LEVELS" : ui.chan == CHAN_KEY ? "EDIT: SETUP" : ui.chan == CHAN_MASTER
                    ? "EDIT: KEY" : ui.chan ? "EDIT: MASTER" : "EDIT: CHANNEL", sizeof a);
     else if (ui.view == VIEW_ROUTE)

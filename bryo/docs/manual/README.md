@@ -270,7 +270,8 @@ Press **ENV** (or HOME to the second page): **ATK DEC SUS REL**, an envelope for
 ### 3.2 Keep the mixer open
 
 **Tap GLO** (press and let go quickly). The mixer stays up, so both hands are free. Tap GLO again, or press any
-page pad, to leave.
+page pad, to leave. While it's open on the levels, the white keys are the mixer's, as when GLO is held: 1-4 pick
+the track and 5-8 are the scenes ([3.9](#39-scenes-four-sounds-to-jump-or-morph-between)); they don't play notes.
 
 ### 3.3 Tone and pan for one track
 
@@ -350,10 +351,14 @@ the modulation, the mutes, the arpeggios, the tempo and the key all stay as they
 
 Hold **GLO**: white keys 1-4 still pick the track, and **white keys 5-8 are scenes 1-4**.
 
-- **Store:** hold GLO, hold a scene's key, tap **SAVE**. The sound as it is goes into that scene.
+- **Store:** hold GLO (or open the mixer with a tap), hold a scene's key, tap **SAVE**. The sound as it is goes into
+  that scene.
 - **Recall:** hold GLO and tap a scene's key. Everything glides there in about a third of a second.
-- **Morph:** hold GLO, hold a scene's key, and turn **SELECT**. Each detent moves 5 % of the way from where the
-  sound was toward the scene. Let go anywhere and it stays there, so you can sit halfway between two sounds.
+- **Morph, hands free:** **tap GLO** so the mixer stays open, **tap a scene's key** (nothing changes yet: it's the
+  target, and the footer says SEL: MORPH TO 2), then **turn SELECT**. Each detent moves 5 % of the way from where the
+  sound was toward the scene, and you can stop anywhere, so you can sit halfway between two sounds. Tap another
+  scene's key to morph from there toward that one. SELECT goes back to the tempo when the mixer closes.
+- (Also: hold GLO, hold a scene's key and turn SELECT, the same morph without latching the mixer.)
 
 Track by track, a scene change does one of two things:
 
@@ -367,9 +372,11 @@ all the way to in a box, an empty one dim. While GLO is held, keys 5-8 light the
 
 Scenes are saved with the project (**SAVE**). They're stored as only what differs from the project's own sound, so
 they usually take little room. If a project is so full that a scene doesn't fit, SAVE keeps the project and says
-which scene it couldn't keep (that one comes back empty).
+which scene it couldn't keep (that one comes back empty). On the **PROJECTS** view you can see which projects have
+scenes before loading them: the slot's grid box has four small marks (a stored scene filled), and the strip at the
+top says how many (**2 SCENES**).
 
-<img src="img/mixer_scenes.png" width="240" alt="The mixer with GLO held: scenes 1 and 2 stored, 2 the current one">
+<img src="img/mixer_scenes.png" width="240" alt="The mixer with GLO held: scenes 1 and 2 stored, 2 the current one"> <img src="img/mixer_morph.png" width="240" alt="The latched mixer morphing to scene 2"> <img src="img/projects_scenes.png" width="240" alt="PROJECTS: P1 holds 2 scenes">
 
 ---
 
@@ -1084,7 +1091,8 @@ M-VAVE's updater puts the stock firmware back. Bryo's projects and tapes can't b
 | **SELECT** | tempo |
 | **MASTER** | volume |
 | **GLO** held + white key 1-4 | pick a track |
-| **GLO** held + white key 5-8 | recall scene 1-4 (held + SELECT: morph to it; held + SAVE: store it) |
+| **GLO** held + white key 5-8 | recall scene 1-4 (held + SAVE: store it) |
+| **GLO** tapped, white key 5-8, then **SELECT** | morph toward that scene |
 | **GLO** held + KNOB 1-4 | track levels |
 | **GLO** held + SELECT | how many tracks are on |
 | **GLO** tapped, then **EDIT** | CHANNEL, MASTER, KEY, SETUP |
