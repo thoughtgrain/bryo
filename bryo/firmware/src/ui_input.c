@@ -98,9 +98,8 @@ static uint32_t focus_btn(void)
     return ui.dev <= DEV_RESO ? B_EDIT : B_FX;
 }
 
-/* the white keys are the mixer's: GLO held, or the mixer latched open on its levels (2026-10-13: a morph shouldn't
- * need two keys held). 1-4 the tracks, 5-8 the scenes; they don't play */
-static int mix_keys(void) { return ui.glo_held || (ui.view == VIEW_MIXER && ui.glo_latched && !ui.chan); }
+/* the mixer's SCENES page (scene.c): white keys 1-4 are scenes 1-4 there (they don't play), KNOB 1-4 morph */
+static int scn_page(void) { return ui.view == VIEW_MIXER && ui.chan == CHAN_SCENES; }
 
 /* Lit: the focus pad, REC armed, the octave keys away from the default, the muted tracks' OP keys. The rest glow
  * dim (the LEDS setting: OFF, DIM LO, DIM HI, INV). Each picture is built off-line and copied one
@@ -189,20 +188,21 @@ static void ui_leds(void)
             }
         }
     }
-    if (mix_keys()) {                                   /* GLO held (or the mixer latched): keys 1-TRACKS the tracks (dim, the focused lit),
-                                                         * 5-8 the scenes (stored dim, the last one lit) */
+    if (ui.glo_held || scn_page()) {                    /* GLO held: keys 1-TRACKS the tracks (dim, the focused
+                                                         * lit); the SCENES page: keys 1-4 the scenes (stored dim, the
+                                                         * current one lit) */
         for (k = 0; k < 27u; k++) {
             uint32_t w = KEY_WHITE[k];
-            if (w == KEY_NONE || w >= 4u + NSCN)
+            if (w == KEY_NONE || w >= 4u)
                 continue;
             led_clear(nl, 14u + k);
             led_clear(nd, 14u + k);
-            if (w < 4u) {
+            if (ui.glo_held) {
                 led_put(nd, 14u + k, w < sys.ntrk);
                 led_put(nl, 14u + k, w == sys.sel);
             } else {
-                led_put(nd, 14u + k, scn[w - 4u].used);
-                led_put(nl, 14u + k, ui.scn_tgt ? ui.scn_tgt == w - 3u : scn_cur == w - 3u);
+                led_put(nd, 14u + k, scn[w].used);
+                led_put(nl, 14u + k, scn_cur == w + 1u);
             }
         }
     }
@@ -741,11 +741,11 @@ static void on_button(uint32_t b)
             break;
         }
         if (ui.view == VIEW_MIXER) {                    /* (held: while held; tapped: latched; tapped again: off) */
-            if (ui.chan == CHAN_SETUP && ui.chan_latched) {   /* LEVELS CHANNEL MASTER KEY SETUP, LEVELS */
+            if (ui.chan == CHAN_SETUP && ui.chan_latched) {   /* LEVELS SCENES CHANNEL MASTER KEY SETUP, LEVELS */
                 ui.chan = CHAN_LEVELS;
                 ui.chan_latched = 0;
             } else {
-                ui.chan = !ui.chan_latched || ui.chan >= CHAN_SETUP ? CHAN_STRIP : (uint8_t)(ui.chan + 1u);
+                ui.chan = !ui.chan_latched || ui.chan >= CHAN_SETUP ? CHAN_SCENES : (uint8_t)(ui.chan + 1u);
                 ui.chan_latched = 0;
                 ui.chan_held = 1;
                 ui.chan_used = 0;
@@ -788,8 +788,7 @@ static void on_button(uint32_t b)
             rec_arm();
         break;
     case B_SAVE:                                        /* tap: save the project; held: undo the last clear */
-        if (mix_keys() && ui.scn_key) {                 /* GLO (or the latched mixer) + a scene's key held + SAVE: the
-                                                         * sound into it */
+        if (scn_page() && ui.scn_key) {                 /* SCENES + a scene's key held + SAVE: the sound into it */
             char m[24] = "SCENE 1 STORED";
             scn_store(ui.scn_key - 1u);
             m[6] = (char)('0' + ui.scn_key);
@@ -1124,6 +1123,17 @@ static void on_knob(uint32_t c, int32_t d)
     int16_t *vp;
     const pdesc_t *p = ui_page(c, &vp);
     int16_t v;
+    if (scn_page()) {                                   /* SCENES: KNOB n morphs toward scene n, 5 % a detent, from the
+                                                         * sound as it was at its first detent; nothing held */
+        char m[40] = "SCENE 1 IS EMPTY: HOLD ITS KEY + SAVE";
+        ui.chan_used = 1;
+        ui.last = (uint8_t)c;
+        if (scn_morph(c, d) < 0) {
+            m[6] = (char)('1' + c);
+            ui_message(m);
+        }
+        return;
+    }
     if (ui.slot_held != SLOT_NONE && page_target(c) < MOD_NTGT) {   /* a slot's pad held: its depth to this knob */
         uint32_t g = page_target(c);
         int32_t o = mod_dep(sys.sel, ui.slot_held, g), v;
@@ -1319,7 +1329,7 @@ static void ui_input(void)
                 focus_arp();
         }
     }
-    if (ui.scn_key && !((white_keys(fm1_in.notes) >> (ui.scn_key + 3u)) & 1u)) {   /* a scene's key let go: a tap
+    if (ui.scn_key && !((white_keys(fm1_in.notes) >> (ui.scn_key - 1u)) & 1u)) {   /* a scene's key let go: a tap
                                                                                  * recalls it */
         uint32_t n = ui.scn_key - 1u;
         char m[32] = "SCENE ";
@@ -1358,11 +1368,9 @@ static void ui_input(void)
         }
     }
     sys.black_short = (uint8_t)(!sys.keys_notes || ui.glo_held);   /* (the 0 key's freeze: chain.c) */
-    if (ui.scn_tgt && !(ui.view == VIEW_MIXER && ui.glo_latched)) {
-        ui.scn_tgt = 0;                                 /* (the morph's target lasts while the mixer stays open) */
-        scn_morph_end();
-    }
-    sys.keys_live = (uint8_t)(!mix_keys() && !seq_page() && !pad_down() &&   /* (a page pad held: the keys pick
+    if (!scn_page() && scm.on == 2)
+        scn_morph_end();                                /* (off the SCENES page: a turn there later starts afresh) */
+    sys.keys_live = (uint8_t)(!ui.glo_held && !scn_page() && !seq_page() && !pad_down() &&   /* (a page pad held: the keys pick
                                                                             * pages, they don't play) */
                               !(drm_step_page() && sys.drum_mode == DMODE_HITS));   /* under GLO the white keys pick
                                                                 * the track, on a SEQ page the steps, on DRUM's STEP
@@ -1380,25 +1388,13 @@ static void ui_input(void)
         if ((notes >> k) & 1u) {
             if (KEY_BLACK[k] != KEY_NONE) {
                 on_black(KEY_BLACK[k]);
-            } else if (!ui.glo_held && mix_keys() && KEY_WHITE[k] >= 4u && KEY_WHITE[k] < 4u + NSCN) {
-                char m[32] = "SCENE 1: TURN SELECT TO MORPH";   /* the latched mixer + white 5..8: the morph's
-                                                         * target (nothing moves yet); SELECT then morphs, no key
-                                                         * held. Held + SAVE: stored, as under GLO */
-                ui.scn_tgt = (uint8_t)(KEY_WHITE[k] - 3u);
-                ui.scn_key = ui.scn_tgt;
-                ui.scn_used = 1;                         /* (its let-go doesn't recall) */
-                m[6] = (char)('0' + ui.scn_tgt);
-                if (!scn[ui.scn_tgt - 1u].used)
-                    str_cpy(m + 7, " IS EMPTY: HOLD IT + SAVE", 26);
-                ui_message(m);
-            } else if (ui.glo_held && KEY_WHITE[k] >= 4u && KEY_WHITE[k] < 4u + NSCN) {
-                ui.scn_key = (uint8_t)(KEY_WHITE[k] - 3u);   /* GLO + white key 5..8: a scene (scene.c): tapped,
-                                                         * recalled as it's let go; held, SELECT morphs, SAVE stores */
+            } else if (scn_page() && KEY_WHITE[k] < NSCN) {
+                ui.scn_key = (uint8_t)(KEY_WHITE[k] + 1u);   /* SCENES + white key 1..4: a scene: tapped, recalled
+                                                         * as it's let go; held + SAVE, stored */
                 ui.scn_used = 0;
-                ui.glo_used = 1;
-            } else if (mix_keys() && KEY_WHITE[k] < sys.ntrk) {
-                sys.sel = KEY_WHITE[k];                  /* GLO (or the latched mixer) + white key 1..TRACKS: the
-                                                         * track */
+                ui.chan_used = 1;
+            } else if (ui.glo_held && KEY_WHITE[k] < sys.ntrk) {
+                sys.sel = KEY_WHITE[k];                  /* GLO + white key 1..TRACKS: the track */
                 ui.glo_used = 1;
             } else if (pad_down()) {                     /* a page's pad held + white key n: its page n */
                 pad_go(ui.pg_pad, KEY_WHITE[k]);
@@ -1480,22 +1476,6 @@ static void ui_input(void)
                 str_cpy(m, "REC: FREE (UNTIL REC AGAIN)", sizeof m);
             }
             ui_message(m);
-        } else if ((ui.glo_held && ui.scn_key) || ui.scn_tgt) {   /* GLO + a scene's key held + SELECT, or the
-                                                         * latched mixer with a scene picked: the morph toward it */
-            uint32_t n = ui.glo_held && ui.scn_key ? ui.scn_key : ui.scn_tgt;
-            int32_t pc = scn_morph(n - 1u, d);
-            char m[32] = "MORPH TO 1: ";
-            m[9] = (char)('0' + n);
-            if (pc < 0) {
-                str_cpy(m, "SCENE 1 IS EMPTY: HOLD IT + SAVE", sizeof m);
-                m[6] = (char)('0' + n);
-            } else {
-                fmt_int(m + 12, pc);
-                str_cpy(m + str_len(m), "%", 2);
-            }
-            ui_message(m);
-            ui.scn_used = 1;
-            ui.last = 0xFF;
         } else if (ui.glo_held) {                       /* GLO held + SELECT: TRACKS (how many are in use), as a pad
                                                          * held + SELECT picks that pad's thing elsewhere */
             chain_tracks((int32_t)sys.ntrk + d);

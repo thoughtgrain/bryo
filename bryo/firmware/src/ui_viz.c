@@ -1611,6 +1611,43 @@ static void viz_setup(void)
 /* KEY, the mixer's page: an octave, C to B, the scale's notes solid and the rest hollow (a key there plays the
  * nearest solid one: param.c key_snap), the key's note marked under it; beside it, what the scale is called and how
  * many notes it keeps. SCAL OFF: every key solid. */
+/* SCENES (the mixer's first EDIT page): under each scene's knob, its tracks' sources (T S P D), lit where one differs
+ * from the track's now (a change there fades out and in, not a morph), and a bar of how far the sound is toward it
+ * (the morph's, or full for the current one). Under it all, what's going on */
+static void viz_scenes(void)
+{
+    uint32_t k, t;
+    char b[32];
+    for (k = 0; k < NSCN; k++) {
+        int32_t x = 30 * (int32_t)k, f;
+        if (!scn[k].used) {
+            px_text_c(x, 30, 6, PXF_3, "EMPTY", px_dim);
+            px_frame(x + 3, 18, 24, 5, px_dim, 2);
+            continue;
+        }
+        for (t = 0; t < NTRK; t++) {
+            char c[2] = {SRC_NAME[scn[k].src[t] % NSRC][0], 0};
+            px_text(x + 4 + (int32_t)t * 6, 4, PXF_5, c, scn[k].src[t] != tp[t].src ? px_ink : px_dim);
+        }
+        f = scm.on && scm.to == k ? scm.pos * 22 / SCN_FULL : scn_cur == k + 1u ? 22 : 0;
+        px_frame(x + 3, 18, 24, 5, px_ink, 1);
+        if (f)
+            px_box(x + 4, 19, f, 3, px_live);
+    }
+    if (scm.on == 2) {
+        str_cpy(b, "MORPH TO 1: ", sizeof b);
+        b[9] = (char)('1' + scm.to);
+        fmt_int(b + 12, scm.pos * 100 / SCN_FULL);
+        str_cpy(b + str_len(b), "%", 2);
+    } else if (scm.on == 1) {
+        str_cpy(b, "GLIDING TO 1", sizeof b);
+        b[11] = (char)('1' + scm.to);
+    } else {
+        str_cpy(b, "LIT: ANOTHER SOURCE, IT FADES", sizeof b);
+    }
+    px_text_c(0, 120, 28, PXF_3, b, scm.on ? px_ink : px_dim);
+}
+
 static void viz_key(void)
 {
     static const int8_t WHITE[7] = {0, 2, 4, 5, 7, 9, 11}, BLACK[5] = {1, 3, 6, 8, 10}, BAFTER[5] = {0, 1, 3, 4, 5};
@@ -1819,19 +1856,6 @@ static void viz_memory(void)
     str_cpy(b, "TRACKS ", sizeof b);
     fmt_int(b + 7, sys.ntrk);
     px_tag(1, DLBL - 1, PXF_3, b, px_ink, px_bg);
-    {                                                   /* the scenes (GLO + white 5-8): stored ink, the one last
-                                                         * recalled or stored in a tag, empty dim */
-        int32_t x = px_text(px_text_w(PXF_3, b) + 6, DLBL, PXF_3, "SCN", px_dim) + 2;
-        uint32_t n;
-        for (n = 0; n < NSCN; n++) {
-            char d[2] = {(char)('1' + n), 0};
-            if (scn_cur == n + 1u)
-                px_tag(x - 1, DLBL - 1, PXF_3, d, px_ink, px_bg);
-            else
-                px_text(x, DLBL, PXF_3, d, scn[n].used ? px_ink : px_dim);
-            x += 6;
-        }
-    }
     str_cpy(b, "FREE ", sizeof b);                     /* the time free, at the ribbon's free end */
     vz_secs(b + 5, vz_chunk_tenths(mem_count(MEM_FREE)));
     str_cpy(b + str_len(b), " SEC", 5);
@@ -2480,6 +2504,9 @@ static uint32_t viz_sig(void)
         if (ui.chan == CHAN_MASTER)                                    /* the compressor's knobs and what it takes off */
             for (k = 0; k < NMS; k++)
                 h = (h ^ (uint32_t)(mst[k] + 32768)) * 16777619u;
+        if (ui.chan == CHAN_SCENES)                                    /* the scenes, the morph, the sources now */
+            return h + 0x5C3u + (uint32_t)scm.on * 31u + scm.to * 977u + (uint32_t)scm.pos * 7919u +
+                   (tp[0].src | tp[1].src << 2 | tp[2].src << 4 | (uint32_t)tp[3].src << 6) * 104729u;
         if (ui.chan == CHAN_KEY)                                       /* the key and scale */
             return h + 0x6E1u + (uint32_t)keyp[KY_KEY] * 31u + (uint32_t)keyp[KY_SCAL] * 977u + ui.last * 7u;
         if (ui.chan == CHAN_SETUP)                                     /* the preferences */
@@ -2608,6 +2635,8 @@ static void draw_viz(void)
             viz_key();
         else if (ui.chan == CHAN_MASTER)
             viz_master(f);
+        else if (ui.chan == CHAN_SCENES)
+            viz_scenes();
         else if (ui.chan)
             viz_channel(f);
         else

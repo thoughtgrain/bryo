@@ -626,17 +626,23 @@ static void test_input(void)
     check("GLO held + KNOB 1: TRACK 1's level, and letting go goes back", track[0].level == 103u && ui.view == VIEW_PAGE);
     tap(B_GLO);
     hold(B_EDIT);
-    check("EDIT held on the mixer: the channel page, the mixer stays", ui.chan && ui.view == VIEW_MIXER);
+    check("EDIT held on the mixer: the SCENES page (the first), the mixer stays", ui.chan == CHAN_SCENES &&
+          ui.view == VIEW_MIXER);
+    host_enc[panel.enc[EN_K3]] = 2;
+    ui_input();
+    let_go(B_EDIT);
+    check("EDIT let go after turning a knob: the levels again, the mixer still up", !ui.chan && ui.view == VIEW_MIXER &&
+          track[2].level == 100u);
+    tap(B_EDIT);
+    check("EDIT tapped on the mixer: SCENES stays (latched, as a tapped GLO; the right hand free for the knobs)",
+          ui.chan == CHAN_SCENES && ui.chan_latched && ui.view == VIEW_MIXER);
+    tap(B_EDIT);
+    check("..tapped again: the channel page (latched)", ui.chan == CHAN_STRIP && ui.chan_latched);
     host_enc[panel.enc[EN_K3]] = -30;
     ui_input();
     check("..KNOB 3 sets the selected track's FILT (TRACK 3: 0 -> -30), not a level", tp[2].ch[CH_FILT] == -30 &&
           track[2].level == 100u);
-    let_go(B_EDIT);
-    check("EDIT let go after turning a knob: the levels again, the mixer still up", !ui.chan && ui.view == VIEW_MIXER);
     tp[2].ch[CH_FILT] = 0;
-    tap(B_EDIT);
-    check("EDIT tapped on the mixer: the channel page stays (latched, as a tapped GLO; the right hand free for the knobs)",
-          ui.chan && ui.chan_latched && ui.view == VIEW_MIXER);
     tap(B_EDIT);
     check("..tapped again: MASTER, the compressor's page (latched)", ui.chan == CHAN_MASTER && ui.chan_latched &&
           ui.view == VIEW_MIXER);
@@ -1147,16 +1153,15 @@ static void screens_in(const char *pal)
     ui_input();
     let_go(B_GLO);
     tap(B_GLO);                                          /* (the mixer up again, latched, for the shots below) */
-    hold(B_EDIT);                                        /* the channel: LOW +6, HIGH -4, a low-pass, PAN right */
+    tap(B_EDIT);                                         /* EDIT twice (SCENES, then the channel): LOW +6, HIGH -4, a
+                                                          * low-pass, PAN right */
+    tap(B_EDIT);
     turn(0, 6);
     turn(1, -4);
     turn(2, -55);
     turn(3, 30);
     shot(pal, "mixer_channel");
-    let_go(B_EDIT);
-    shot(pal, "mixer_eq");
-    tap(B_EDIT);                                         /* EDIT tapped twice: MASTER, the compressor */
-    tap(B_EDIT);
+    tap(B_EDIT);                                         /* EDIT again: MASTER, the compressor */
     turn(0, 60);                                         /* AMT 60, MIX 70, and what it takes off now */
     turn(3, -30);
     comp.gr_q8 = 220;
@@ -1164,7 +1169,10 @@ static void screens_in(const char *pal)
     comp.gr_q8 = 0;
     for (s = 0; s < NMS; s++)
         mst[s] = MS_P[s].def;
+    tap(B_EDIT);                                         /* (KEY, SETUP, then the levels: the channel's marks) */
     tap(B_EDIT);
+    tap(B_EDIT);
+    shot(pal, "mixer_eq");
     tap(B_GLO);
     hold(B_GLO);
     shot(pal, "mixer_held");
@@ -3517,16 +3525,22 @@ static void test_reso_pluck(void)
 }
 
 static double goertzel(const int32_t *x, uint32_t from, uint32_t to, double hz);   /* (below, with SPACE's tests) */
-/* scenes (scene.c, 2026-10-13): GLO held + white 5-8. Stored, recalled with a glide, morphed by SELECT; a track
- * whose source differs fades out, switches, fades in; choices switch at the midpoint; the playing isn't theirs;
- * saved in the project as their differences */
+/* scenes (scene.c, 2026-10-13): the mixer's SCENES page (GLO, then EDIT): white keys 1-4 recall (held + SAVE:
+ * store), KNOB 1-4 morph. A track whose source differs fades out, switches, fades in; choices switch at the
+ * midpoint; the playing isn't theirs; saved in the project as their differences */
 static void scn_key_down(uint32_t n)
 {
-    fm1_in.notes |= note_bit_of_white(3u + n);
-    host_note_edges |= note_bit_of_white(3u + n);
+    fm1_in.notes |= note_bit_of_white(n - 1u);
+    host_note_edges |= note_bit_of_white(n - 1u);
     ui_input();
 }
-static void scn_key_up(uint32_t n) { fm1_in.notes &= ~note_bit_of_white(3u + n); ui_input(); }
+static void scn_key_up(uint32_t n) { fm1_in.notes &= ~note_bit_of_white(n - 1u); ui_input(); }
+static void scn_open(void)                               /* GLO tapped, EDIT tapped: the SCENES page, latched */
+{
+    hold(B_GLO);
+    let_go(B_GLO);
+    press(B_EDIT);
+}
 static void test_scenes(void)
 {
     uint32_t i;
@@ -3540,18 +3554,19 @@ static void test_scenes(void)
     tp[0].dev[DEV_RESO][RP_MODE] = RM_STRG;
     track[0].level = 100;
     sys.bpm = 120;
+    fm1_ms = 9000;
     hold(B_GLO);
-    {
-        uint32_t k, n = 0;
-        for (k = 0; k < 27u; k++)
-            n += KEY_WHITE[k] == 4u;
-        check("GLO held: the footer names the scenes' keys", n == 1u);
-    }
-    scn_key_down(1);                                     /* white 5 held + SAVE: scene 1 */
+    let_go(B_GLO);
+    check("the mixer (GLO tapped) is the levels only: its white keys still play", ui.view == VIEW_MIXER &&
+          ui.chan == CHAN_LEVELS && sys.keys_live);
+    press(B_EDIT);
+    check("..EDIT: the SCENES page first, latched; its white keys are the scenes (they don't play)",
+          ui.chan == CHAN_SCENES && ui.chan_latched && !sys.keys_live);
+    scn_key_down(1);                                     /* white 1 held + SAVE: scene 1 */
     press(B_SAVE);
     scn_key_up(1);
-    check("GLO + white 5 held + SAVE: scene 1 stored (no project save, no recall)", scn[0].used && scn_cur == 1u &&
-          !ui.save_held && !scn[1].used);
+    check("white 1 held + SAVE: scene 1 stored (no project save, no recall)", scn[0].used && scn_cur == 1u &&
+          !ui.save_held && !scn[1].used && ui.chan == CHAN_SCENES);
     gr[GP_WET] = 80;                                     /* scene 2: GRAIN WET 80, RIPPLE COMB, the level 80, SYNTH on
                                                           * track 2 */
     tp[0].dev[DEV_RESO][RP_MODE] = RM_COMB;
@@ -3568,7 +3583,7 @@ static void test_scenes(void)
     scn_key_up(1);
     fm1_ms = 10000 + SCN_GLIDE_MS / 4u;
     ui_input();
-    snprintf(b, sizeof b, "white 5 tapped: scene 1 glides back (a quarter in: WET %d, the level %u; track 2's SYNTH fading "
+    snprintf(b, sizeof b, "white 1 tapped: scene 1 glides back (a quarter in: WET %d, the level %u; track 2's SYNTH fading "
              "out at %u)", gr[GP_WET], track[0].level, track[1].level);
     check(b, gr[GP_WET] == 60 && track[0].level == 85u && tp[0].dev[DEV_RESO][RP_MODE] == RM_COMB &&
           tp[1].src == SRC_SYNTH && track[1].level == 50u);
@@ -3581,31 +3596,29 @@ static void test_scenes(void)
     check("..the end: scene 1 as stored; the reel, the tempo and the mute left alone", gr[GP_WET] == 0 &&
           track[0].level == 100u && track[1].level == 100u && tp[0].dev[DEV_SRC][TK_REEL] == 3 && sys.bpm == 97 &&
           track[2].mute == 1u && scm.on == 0u);
-    scn_key_down(2);                                     /* white 6 held + SELECT: the morph, 5 % a detent */
-    host_enc[panel.enc[EN_SELECT]] = 10;
-    ui_input();
-    snprintf(b, sizeof b, "white 6 held + SELECT 10: the morph halfway to scene 2 (WET %d, the level %u), said: %s",
-             gr[GP_WET], track[0].level, ui.msg);
-    check(b, gr[GP_WET] == 40 && track[0].level == 90u && !strcmp(ui.msg, "MORPH TO 2: 50%") && sys.bpm == 97);
-    host_enc[panel.enc[EN_SELECT]] = -4;
-    ui_input();
+    turn(1, 10);                                         /* KNOB 2: the morph to scene 2, 5 % a detent, nothing held */
+    snprintf(b, sizeof b, "KNOB 2 turned 10: the morph halfway to scene 2 (WET %d, the level %u), no key held, the tempo "
+             "left alone", gr[GP_WET], track[0].level);
+    check(b, gr[GP_WET] == 40 && track[0].level == 90u && sys.bpm == 97 && scm.on == 2u && scm.to == 1u);
+    ui.msg_t = 0;
+    shot("BRYO", "mixer_morph");
+    turn(1, -4);
     check("..back 4: 30 %, the choice back too (below the midpoint)", gr[GP_WET] == 24 &&
           tp[0].dev[DEV_RESO][RP_MODE] == RM_STRG);
-    scn_key_up(2);
-    check("..let go: the sound stays where the morph left it (no recall)", gr[GP_WET] == 24 && scm.on == 0u);
-    scn_key_down(2);                                     /* (the mixer under GLO: the scenes, 1 and 2 stored, 2 last) */
-    host_enc[panel.enc[EN_SELECT]] = 20;
-    ui_input();
-    scn_key_up(2);
+    turn(0, 10);
+    check("..KNOB 1 then: from there halfway back to scene 1 (WET 12)", gr[GP_WET] == 12 && scm.to == 0u);
+    turn(1, 20);                                         /* (to scene 2 all the way: 2 the current one) */
+    check("..KNOB 2 all the way: scene 2 as stored, the current one", gr[GP_WET] == 80 && scn_cur == 2u);
     ui.msg_t = 0;
     shot("BRYO", "mixer_scenes");
-    let_go(B_GLO);
-    check("GLO let go: back to the page", ui.view == VIEW_PAGE);
-    hold(B_GLO);
     scn_key_down(3);
     scn_key_up(3);
     check("an empty scene tapped: said, nothing moves", gr[GP_WET] == 80 && strstr(ui.msg, "EMPTY") != 0);
+    turn(3, 2);
+    check("..its knob: said, nothing moves", gr[GP_WET] == 80 && strstr(ui.msg, "EMPTY") != 0);
+    hold(B_GLO);                                         /* (GLO: the mixer closes) */
     let_go(B_GLO);
+    check("GLO again: the mixer closed, the keys play", ui.view == VIEW_PAGE && sys.keys_live);
     for (i = 0; i < 40u; i++)                            /* (the glide doesn't run off the end) */
         scn_poll();
     {   /* saved and loaded: the scenes come back, as their differences */
@@ -3677,46 +3690,6 @@ static void test_scenes(void)
                  "the same level: to the bit)", r0, r1);
         check(b, r0 > 90 && r1 < 20 && !memcmp(a1, a2, 20 * CTL * sizeof a1[0]));
         sys.playing = 0;
-    }
-    {   /* the morph with nothing held (2026-10-13: "holding two keys while morphing is hard"): GLO tapped, the mixer
-         * stays; a scene's key tapped picks it, SELECT morphs */
-        uint16_t bpm;
-        power_on();
-        pj_new(0);
-        gr = tp[0].dev[DEV_GRAIN];
-        gr[GP_WET] = 0;
-        scn_store(0);
-        gr[GP_WET] = 100;
-        scn_store(1);
-        gr[GP_WET] = 0;
-        bpm = sys.bpm;
-        fm1_ms = 50000;
-        hold(B_GLO);
-        let_go(B_GLO);
-        check("GLO tapped: the mixer latched, its white keys the mixer's (they don't play)", ui.view == VIEW_MIXER &&
-              ui.glo_latched && !sys.keys_live);
-        scn_key_down(2);
-        scn_key_up(2);
-        check("..white 6 tapped: scene 2 the target, nothing moved yet, said", ui.scn_tgt == 2u && gr[GP_WET] == 0 &&
-              strstr(ui.msg, "TURN SELECT") != 0);
-        host_enc[panel.enc[EN_SELECT]] = 6;
-        ui_input();
-        host_enc[panel.enc[EN_SELECT]] = 4;
-        ui_input();
-        check("..SELECT 6 then 4, no key held: the morph to scene 2 halfway (WET 50), the tempo left alone",
-              gr[GP_WET] == 50 && sys.bpm == bpm);
-        shot("BRYO", "mixer_morph");
-        scn_key_down(1);
-        scn_key_up(1);
-        host_enc[panel.enc[EN_SELECT]] = 10;
-        ui_input();
-        check("..white 5 tapped, SELECT 10: from there halfway to scene 1 (WET 25)", gr[GP_WET] == 25);
-        hold(B_GLO);                                     /* (GLO again: the mixer closes) */
-        let_go(B_GLO);
-        host_enc[panel.enc[EN_SELECT]] = 1;
-        ui_input();
-        check("..the mixer closed: SELECT is the tempo again, the target gone", ui.view == VIEW_PAGE && !ui.scn_tgt &&
-              sys.bpm == bpm + 1u && gr[GP_WET] == 25);
     }
 }
 
@@ -5678,7 +5651,7 @@ static void test_controls_more(void)
 
     hold(B_GLO);                                         /* GLOBAL held, EDIT: the channel page (GLOBAL used) */
     hold(B_EDIT);
-    check("on the mixer, GLOBAL held + EDIT: the channel page, GLOBAL counted as used", ui.view == VIEW_MIXER &&
+    check("on the mixer, GLOBAL held + EDIT: its first page (SCENES), GLOBAL counted as used", ui.view == VIEW_MIXER &&
           ui.chan && ui.glo_used);
     let_go(B_EDIT);
     let_go(B_GLO);
@@ -7641,8 +7614,9 @@ static void test_key_tuning(void)
     tap(B_EDIT);
     tap(B_EDIT);
     tap(B_EDIT);
+    tap(B_EDIT);
     ui.msg_t = 0;
-    check("the KEY page: GLO, EDIT x3 (CHANNEL MASTER KEY)", ui.view == VIEW_MIXER && ui.chan == CHAN_KEY);
+    check("the KEY page: GLO, EDIT x4 (SCENES CHANNEL MASTER KEY)", ui.view == VIEW_MIXER && ui.chan == CHAN_KEY);
     shot("BRYO", "mixer_key");
     tap(B_GLO);
     tp[0].src = SRC_POLY;
@@ -9474,7 +9448,8 @@ static void test_arp_keys(void)
     tap(B_EDIT);
     tap(B_EDIT);
     tap(B_EDIT);
-    check("SETUP: the mixer's last page (GLO, EDIT x4: CHANNEL MASTER KEY SETUP)", ui.view == VIEW_MIXER &&
+    tap(B_EDIT);
+    check("SETUP: the mixer's last page (GLO, EDIT x5: SCENES CHANNEL MASTER KEY SETUP)", ui.view == VIEW_MIXER &&
           ui.chan == CHAN_SETUP);
     turn(1, 2);                                          /* KNOB: 1X -> 4X */
     check("..KNOB 2 sets KNOB: 4X", ((bryo_prefs >> 1) & 3u) == KNOB_4X);

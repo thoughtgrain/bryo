@@ -1507,12 +1507,13 @@ each ~15 ms pass) would have been a staircase. A moved level now ramps across th
 before the pan and the sum (which then take it at 1); a mute is still a cut; an unmoved level runs the old path,
 so every fingerprint held. Tested: 97 % of the old level at the block's start, 12 % (the new -20 dB) at its end.
 
-**Gestures**: GLO held, white 5-8 (1-4 are the tracks): tapped, a recall (on the let-go, so a hold can morph or
-store); held + SELECT, the morph; held + SAVE, store. Then "holding two keys while morphing is hard": with the mixer
-latched (GLO tapped) on its levels, the white keys are the mixer's too (`mix_keys`: they don't play), a scene's key
-tapped makes it the target (`ui.scn_tgt`, nothing moves) and SELECT morphs to it with nothing held, until the mixer
-closes (then SELECT is the tempo again and the morph's start is let go). The mixer shows SCN 1 2 3 4 (stored ink, the current one in a
-tag, empty dim); keys 5-8 light the same under GLO, and 1-4 the tracks.
+**Gestures** (as they settled, 2026-10-13): the mixer's first EDIT page, SCENES (`CHAN_SCENES`, before CHANNEL),
+so the levels are only the levels ("first edit ... moves to the mixer with scenes. no edit press it's just for
+volume"). There white keys 1-4 are scenes 1-4 (they don't play): tapped, a recall (on the let-go, so a hold can
+store); held + SAVE, store. KNOB n morphs toward scene n, nothing held ("holding two keys while morphing is hard":
+the first try was GLO held + white 5-8 held + SELECT). The strip draws each scene's box and the morph's %; the
+picture under it, each scene's tracks' sources (lit where one differs from now: a fade, not a morph) and a bar of
+how far the sound is toward it. Leaving the page lets the morph's start go.
 
 **In a project** (format 12): after the rooms, each scene as a used byte and its differences from the state just
 written: (id u16, value as `pw_v`), the id t x MOD_NTGT + g, then levels, room knobs, sources. Read back, a scene

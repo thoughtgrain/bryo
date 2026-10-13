@@ -25,7 +25,9 @@ enum { FOCUS_DEV, FOCUS_SLOT, FOCUS_ARP };   /* FOCUS_ARP: the arpeggiator's pag
 enum { UNDO_TAPE, UNDO_MOD, UNDO_DRUM, UNDO_TRACK };
 #define SLOT_NONE 0xFFu
 /* ui.chan: the mixer's page (KEY: the project's key and scale; SETUP: the panel's preferences, settings.c) */
-enum { CHAN_LEVELS, CHAN_STRIP, CHAN_MASTER, CHAN_KEY, CHAN_SETUP };
+enum { CHAN_LEVELS, CHAN_SCENES, CHAN_STRIP, CHAN_MASTER, CHAN_KEY, CHAN_SETUP };   /* (SCENES 2026-10-13: the
+                                                                                   * first EDIT; the levels are only
+                                                                                   * the levels) */
 enum { VIEW_PAGE, VIEW_MIXER, VIEW_ROUTE, VIEW_USBREC, VIEW_PROJECT };   /* VIEW_PROJECT: PRESETS turned, the
                                                                           * project slots (project.c) */   /* VIEW_MIXER: GLO, the four track levels on the knobs,
                                                             * the tracks below; VIEW_ROUTE: ALGORITHM, each track's
@@ -45,9 +47,8 @@ static struct {
     uint8_t glo_held;                /* GLO held: the mixer is up, white keys 1..4 pick the track */
     uint8_t glo_used;                /* .. and something was done while it was held (so letting go closes it) */
     uint8_t glo_latched;             /* the mixer stays up (GLO tapped) */
-    uint8_t scn_key;                 /* GLO held: the scene key held (white 5-8: 1..4), 0 none */
+    uint8_t scn_key;                 /* the SCENES page: the scene whose key (white 1-4) is held, 1..4, 0 none */
     uint8_t scn_used;                /* .. and it morphed or stored (letting go doesn't recall) */
-    uint8_t scn_tgt;                 /* the latched mixer: the scene SELECT morphs toward (1..4), 0 none */
     uint8_t poly_held, save_held;    /* the POLY key (clear the tape) and SAVE (undo) held, waiting for HOLD */
     uint32_t poly_t0, save_t0;
     uint8_t mono_held;               /* the MONO key (clear the track's modulation) held, waiting for half a second */
@@ -162,6 +163,13 @@ static const pdesc_t *ui_page(uint32_t k, int16_t **vp)
         *vp = &mst[k];
         return &MS_P[k];
     }
+    if (ui.view == VIEW_MIXER && ui.chan == CHAN_SCENES) {   /* the scenes (scene.c): a knob a scene, its morph */
+        static const pdesc_t SC_P[NSCN] = {{"S1", 0, 100, 0, F_PCT}, {"S2", 0, 100, 0, F_PCT}, {"S3", 0, 100, 0, F_PCT},
+                                           {"S4", 0, 100, 0, F_PCT}};
+        lv[k] = (int16_t)(scm.on == 2 && scm.to == k ? scm.pos * 100 / SCN_FULL : scn_cur == k + 1u ? 100 : 0);
+        *vp = &lv[k];
+        return &SC_P[k];
+    }
     if (ui.view == VIEW_MIXER && ui.chan) {
         *vp = &p->ch[k];
         return &CH_P[k];
@@ -243,6 +251,7 @@ static void draw_head(void)
         box[1] = ui.pj_sel >= PJ_N ? 0 : (char)('1' + ui.pj_sel);
     } else if (ui.view == VIEW_MIXER)
         str_cpy(ti, ui.chan == CHAN_SETUP ? "SETUP" : ui.chan == CHAN_KEY ? "KEY" : ui.chan == CHAN_MASTER ? "MASTER"
+                    : ui.chan == CHAN_SCENES ? "SCENES"
                     : ui.chan ? "CHANNEL" : "MIXER", sizeof ti);
     else if (ui.view == VIEW_ROUTE)
         str_cpy(ti, "REC IN", sizeof ti);
@@ -491,6 +500,9 @@ static void draw_strip(void)
                                     (ui.slot_held < NSLOT ? (mod_dep(sys.sel, ui.slot_held, page_target(k)) + 256) << 1 : 0))) * 16777619u;
     }
     sig += ui.slot_held * 2909u + ui.drm_inst * 6151u + ui.zoom * 50331653u;
+    sig += (scn_cur | (uint32_t)scn[0].used << 3 | (uint32_t)scn[1].used << 4 | (uint32_t)scn[2].used << 5 |
+            (uint32_t)scn[3].used << 6 | (uint32_t)scm.on << 7 | (uint32_t)scm.to << 9 | (uint32_t)scm.pos << 12) *
+           2654435761u;
     sig += (ui.last < 4u ? ui.last + 1u : 0u) * 7919u + sys.ntrk * 15485863u + sys.sel * 104729u + ui.view * 31u + ui.page * 263u + ui.chan * 5u + ui.kind * 131u +
            ui.dev * 1031u + (ui.kind == FOCUS_SLOT ? tp[sys.sel].engine[ui.slot] * 65537u : tp[sys.sel].src * 3571u);
     if (!ui.force && sig == ui.sig_strip)
@@ -504,6 +516,32 @@ static void draw_strip(void)
         int32_t x = 30 * (int32_t)k, v = *vp;
         if (pdesc_empty(d)) {                          /* an unused knob on this page: an empty cell */
             px_frame(x + 9, 8, 12, 12, px_dim, 2);
+            continue;
+        }
+        if (ui.view == VIEW_MIXER && ui.chan == CHAN_SCENES) {   /* a scene: its number in a box (filled: the one
+                                                         * last recalled, stored or morphed to; framed: stored;
+                                                         * dotted: empty), its knob's morph under it */
+            char nb[2] = {(char)('1' + k), 0};
+            int cur = scn_cur == k + 1u, used = scn[k].used;
+            if (cur)
+                px_box(x + 6, 2, 18, 20, px_ink);
+            else
+                px_frame(x + 6, 2, 18, 20, used ? px_ink : px_dim, used ? 1 : 2);
+            px_text_big(x + 10, 5, 2, nb, cur ? px_bg : used ? px_ink : px_dim);
+            if (ui.last == k)
+                px_tag(x + (30 - px_text_w(PXF_5, d->label)) / 2 - 1, 26, PXF_5, d->label, px_ink, px_bg);
+            else
+                px_text_c(x, 30, 27, PXF_5, d->label, px_ink);
+            if (!used) {
+                px_text_c(x, 30, 37, PXF_5, "--", px_dim);
+            } else if (scm.on == 2 && scm.to == k) {
+                char pc[8];
+                fmt_int(pc, v);
+                str_cpy(pc + str_len(pc), "%", 2);
+                px_text_c(x, 30, 37, PXF_5, pc, px_ink);
+            } else {
+                px_text_c(x, 30, 37, PXF_5, cur ? "ON" : "-", cur ? px_ink : px_dim);
+            }
             continue;
         }
         uint32_t pk = ui.view == VIEW_ROUTE ? PK_SRC : ui.view == VIEW_MIXER ? (ui.chan == CHAN_SETUP ? SET_PK[k]
@@ -612,16 +650,14 @@ static void draw_foot(void)
                    ? "KEYS: SLICES" : tp[sys.sel].src == SRC_DRUM ? "KEYS: DRUMS" : "KEYS: ARP", sizeof a);
     else if (ui.view == VIEW_PAGE && ui.kind == FOCUS_SLOT && tp[sys.sel].engine[ui.slot] == ME_SEQ)
         str_cpy(a, "KEY+KNOB 1: STEP", sizeof a);
-    else if (ui.glo_held && ui.scn_key)               /* a scene's key held: SELECT morphs, SAVE stores */
-        str_cpy(a, "SEL:MORPH SAVE:KEEP", sizeof a);
-    else if (ui.glo_held)                             /* keys 1-4 the track, 5-8 the scenes; SELECT: TRACKS */
-        str_cpy(a, "1-4:TRK 5-8:SCENE", sizeof a);
-    else if (ui.view == VIEW_MIXER && ui.scn_tgt) {   /* the latched mixer, a scene picked: SELECT morphs to it */
-        str_cpy(a, "SEL: MORPH TO 1", sizeof a);
-        a[14] = (char)('0' + ui.scn_tgt);
-    } else if (ui.view == VIEW_MIXER)
+    else if (ui.glo_held)                             /* the white keys pick the track; SELECT sets TRACKS */
+        str_cpy(a, "KEYS:TRK SEL:TRACKS", sizeof a);
+    else if (ui.view == VIEW_MIXER && ui.chan == CHAN_SCENES)   /* the scenes: a key recalls (held + SAVE stores), a
+                                                       * knob morphs */
+        str_cpy(a, ui.scn_key ? "SAVE: STORE IT" : "KEY:GO KNOB:MORPH", sizeof a);
+    else if (ui.view == VIEW_MIXER)
         str_cpy(a, ui.chan == CHAN_SETUP ? "EDIT: LEVELS" : ui.chan == CHAN_KEY ? "EDIT: SETUP" : ui.chan == CHAN_MASTER
-                   ? "EDIT: KEY" : ui.chan ? "EDIT: MASTER" : "EDIT: CHANNEL", sizeof a);
+                   ? "EDIT: KEY" : ui.chan == CHAN_STRIP ? "EDIT: MASTER" : "EDIT: SCENES", sizeof a);
     else if (ui.view == VIEW_ROUTE)
         str_cpy(a, "KNOBS: REC IN", sizeof a);
     else if ((tp[sys.sel].src == SRC_DRUM || tp[sys.sel].src == SRC_TAPE) && ui.kind == FOCUS_DEV &&

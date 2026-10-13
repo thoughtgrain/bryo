@@ -270,20 +270,19 @@ Press **ENV** (or HOME to the second page): **ATK DEC SUS REL**, an envelope for
 ### 3.2 Keep the mixer open
 
 **Tap GLO** (press and let go quickly). The mixer stays up, so both hands are free. Tap GLO again, or press any
-page pad, to leave. While it's open on the levels, the white keys are the mixer's, as when GLO is held: 1-4 pick
-the track and 5-8 are the scenes ([3.9](#39-scenes-four-sounds-to-jump-or-morph-between)); they don't play notes.
+page pad, to leave.
 
 ### 3.3 Tone and pan for one track
 
 1. Open the mixer (tap GLO) and pick the track (hold GLO + white key 1-4).
-2. **Tap EDIT.** The **CHANNEL** page: **LOW** and **HIGH** (bass and treble, ±12 dB), **FILT** (left of centre
+2. **Tap EDIT twice** (the first is SCENES, [3.9](#39-scenes-four-sounds-to-jump-or-morph-between)). The **CHANNEL** page: **LOW** and **HIGH** (bass and treble, ±12 dB), **FILT** (left of centre
    a low-pass, right a high-pass), **PAN**.
 
 <img src="img/mixer_channel.png" width="240" alt="CHANNEL: LOW HIGH FILT PAN">
 
 ### 3.4 The master compressor
 
-1. In the mixer, **tap EDIT twice**: the **MASTER** page.
+1. In the mixer, **tap EDIT three times**: the **MASTER** page.
 2. **AMT** is how much it squeezes, **ATK** and **REL** how fast, **MIX** how much of it you hear.
 3. Tap EDIT once more for KEY (3.6), again for SETUP (3.7), and again to get back to the levels.
 
@@ -303,7 +302,7 @@ The four tracks share one memory (about 20 seconds of sound in all). You can swi
 One key and scale for the whole project, for SYNTH and POLY (TAPE, DRUM and the effects don't use it). A new
 project starts on **A MIN**, the key all the factory reels are in, and so does the factory scene.
 
-1. Tap **GLO**, then tap **EDIT three times** (CHANNEL, MASTER, KEY).
+1. Tap **GLO**, then tap **EDIT four times** (SCENES, CHANNEL, MASTER, KEY).
 2. **KEY** is the key's note, C to B. **SCAL** is the scale: **OFF** (every note, as normal), then the seven modes
    **MAJ**, **MIN**, **DOR** (dorian), **PHR** (phrygian), **LYD** (lydian), **MIX** (mixolydian), **LOC** (locrian);
    **HMIN** (harmonic minor), **MMIN** (melodic minor); **PEN** (major pentatonic), **MPEN** (minor pentatonic);
@@ -322,7 +321,7 @@ the project.
 The mixer's last page holds your preferences. They belong to the FM-1, not to a project, and they're kept when
 you turn it off.
 
-1. Tap **GLO**, then tap **EDIT four times** (CHANNEL, MASTER, KEY, SETUP).
+1. Tap **GLO**, then tap **EDIT five times** (SCENES, CHANNEL, MASTER, KEY, SETUP).
 2. **KEYS**: **SHRT** (the black keys are the shortcuts: mutes, reverse, clears, freeze) or **NOTE** (the black keys
    play notes: see [5.9](#59-play-the-black-keys-as-notes)).
 3. **KNOB**: how far a knob moves a value per click. **1X**, **2X**, **4X**, or **ACC** (turn slowly for fine
@@ -349,16 +348,17 @@ SYNTH, POLY or DRUM), every knob of its sound (the source's, GRAIN, RIPPLE, COLO
 track levels and the rooms. A scene doesn't hold what's playing: the tapes and reels, the drum patterns, the steps,
 the modulation, the mutes, the arpeggios, the tempo and the key all stay as they are when you change scenes.
 
-Hold **GLO**: white keys 1-4 still pick the track, and **white keys 5-8 are scenes 1-4**.
+Scenes have their own page on the mixer: open the mixer (**tap GLO**) and **tap EDIT**: **SCENES** is the first
+page (then CHANNEL, MASTER, KEY, SETUP). The mixer's own page stays just the levels. On SCENES, the white keys
+1-4 are scenes 1-4 (they don't play notes there) and each knob sits under its scene:
 
-- **Store:** hold GLO (or open the mixer with a tap), hold a scene's key, tap **SAVE**. The sound as it is goes into
-  that scene.
-- **Recall:** hold GLO and tap a scene's key. Everything glides there in about a third of a second.
-- **Morph, hands free:** **tap GLO** so the mixer stays open, **tap a scene's key** (nothing changes yet: it's the
-  target, and the footer says SEL: MORPH TO 2), then **turn SELECT**. Each detent moves 5 % of the way from where the
-  sound was toward the scene, and you can stop anywhere, so you can sit halfway between two sounds. Tap another
-  scene's key to morph from there toward that one. SELECT goes back to the tempo when the mixer closes.
-- (Also: hold GLO, hold a scene's key and turn SELECT, the same morph without latching the mixer.)
+- **Store:** hold a scene's white key and tap **SAVE**. The sound as it is goes into that scene.
+- **Recall:** tap a scene's white key. Everything glides there in about a third of a second.
+- **Morph:** turn a scene's **knob**. Each detent moves 5 % of the way from where the sound was toward that scene,
+  nothing held, and you can stop anywhere, so you can sit halfway between two sounds. Turn another scene's knob to
+  morph from there toward that one; turn back to go back.
+
+(Holding EDIT shows SCENES only while it's held, as GLO does the mixer, for a quick recall.)
 
 Track by track, a scene change does one of two things:
 
@@ -367,8 +367,10 @@ Track by track, a scene change does one of two things:
 - **A different source:** there's no morph. The track fades out over the first half, switches to the scene's
   source and sound while it's silent, and fades back in over the second half.
 
-On the mixer (GLO), **SCN 1 2 3 4** shows them: a stored scene bright, the one you last recalled, stored or morphed
-all the way to in a box, an empty one dim. While GLO is held, keys 5-8 light the same way.
+The SCENES page shows each scene's box: filled for the one you last recalled, stored or morphed all the way to,
+framed for a stored one, dotted for an empty one. Under each, its tracks' sources (**T S P D**, bright where a
+track would change source, so it fades rather than morphs) and a bar of how far the sound has come toward it.
+White keys 1-4 light the same way.
 
 Scenes are saved with the project (**SAVE**). They're stored as only what differs from the project's own sound, so
 they usually take little room. If a project is so full that a scene doesn't fit, SAVE keeps the project and says
@@ -376,7 +378,7 @@ which scene it couldn't keep (that one comes back empty). On the **PROJECTS** vi
 scenes before loading them: the slot's grid box has four small marks (a stored scene filled), and the strip at the
 top says how many (**2 SCENES**).
 
-<img src="img/mixer_scenes.png" width="240" alt="The mixer with GLO held: scenes 1 and 2 stored, 2 the current one"> <img src="img/mixer_morph.png" width="240" alt="The latched mixer morphing to scene 2"> <img src="img/projects_scenes.png" width="240" alt="PROJECTS: P1 holds 2 scenes">
+<img src="img/mixer_scenes.png" width="240" alt="SCENES: 1 and 2 stored, 2 the current one"> <img src="img/mixer_morph.png" width="240" alt="SCENES: KNOB 2 halfway to scene 2"> <img src="img/projects_scenes.png" width="240" alt="PROJECTS: P1 holds 2 scenes">
 
 ---
 
@@ -1091,11 +1093,10 @@ M-VAVE's updater puts the stock firmware back. Bryo's projects and tapes can't b
 | **SELECT** | tempo |
 | **MASTER** | volume |
 | **GLO** held + white key 1-4 | pick a track |
-| **GLO** held + white key 5-8 | recall scene 1-4 (held + SAVE: store it) |
-| **GLO** tapped, white key 5-8, then **SELECT** | morph toward that scene |
+| **GLO** tapped, **EDIT** | SCENES: white key 1-4 recalls (held + SAVE stores), KNOB 1-4 morphs |
 | **GLO** held + KNOB 1-4 | track levels |
 | **GLO** held + SELECT | how many tracks are on |
-| **GLO** tapped, then **EDIT** | CHANNEL, MASTER, KEY, SETUP |
+| **GLO** tapped, then **EDIT** | SCENES, CHANNEL, MASTER, KEY, SETUP |
 | **OP1-OP4** | mute tracks |
 | **OP5 / OP6** | the tape backwards / half speed |
 | **HOME** | the source's pages |
@@ -1110,7 +1111,7 @@ M-VAVE's updater puts the stock firmware back. Bryo's projects and tapes can't b
 | **LFO** held + SELECT | the modulator's engine (LFO, ADSR, SEQ, FOLLOW) |
 | **ARP** | the arpeggiator (notes on SYNTH and POLY, slices on TAPE, drums on DRUM); its page 3, RIPL ARP, plays RIPPLE's strings |
 | **GLO** held + OCT+ | black keys: shortcuts or notes |
-| **GLO** tapped, **EDIT** ×3 | SETUP: keys, knob speed, hold time, LEDs |
+| **GLO** tapped, **EDIT** ×5 | SETUP: keys, knob speed, hold time, LEDs |
 | **REC** | record onto the track |
 | **REC** held 1 s, stopped | record the computer |
 | **ALGORITHM** | what REC records |
