@@ -155,7 +155,7 @@ Why:
 
 | Use | Bytes | How it's sized |
 | --- | ---: | --- |
-| Shared sound memory | 251,328 pool + 50,688 main RAM | 143 chunks of tape-format sound (26.6 s in all), handed out by usage: tapes as long as what's on them, GRAIN's live buffers while GRAIN is on, RIPPLE's strings and SPACE's lines while they're on. See "Memory by usage" |
+| Shared sound memory | 228,096 pool | 108 chunks of tape-format sound (20.1 s in all), handed out by usage: tapes as long as what's on them, GRAIN's live buffers while GRAIN is on, RIPPLE's strings and SPACE's lines while they're on. See "Memory by usage" |
 | RIPPLE | 4 chunks a track, while on | 4 strings × 1,056 samples × 2 B (lowest string F1, 43.7 Hz), from the shared memory while WET is up |
 | SPACE delay | 8 chunks a track, while DLY is up | 8,192 samples × 2 B at 22.05 kHz (TIME's 370 ms); 4 chunks at 8 bits when memory is short |
 | SPACE rooms | 10 chunks a room (two: A and B), while a track sends to it | the room (a comb a chunk, the allpasses in a fifth) and the pre-delay's line (5 chunks; 3 at 8 bits); see "The shared rooms, as built" |
@@ -2731,8 +2731,11 @@ Until now every track had a 36 KB tape whether it used it or not, and the plan r
 track the same way. That's 4 × 3.3 s of tape however you play, with a third of the RAM sitting idle on tracks doing
 nothing. Now there's one pool and each track takes what it uses (`mem.c`).
 
-**Chunks.** The pool is 143 chunks of 16 tape blocks (4,096 samples, 186 ms each): 119 in the pool region (128 until 2026-10-11, then 126: two went back to keep the pool's 8 KiB headroom, seven more to the audio code in RAM on 2026-10-12) and 24 in
-main RAM's spare room, 26.6 s of tape-format sound in all. A tape is a list of chunks, and a reader looks a block up
+**Chunks.** The pool is 108 chunks of 16 tape blocks (4,096 samples, 186 ms each), all in the pool region, 20.1 s
+of tape-format sound in all. (152 at first, 128 in the pool and 24 in main RAM's spare room; down to 143 as the
+pool's headroom and the audio code in RAM took some; 108 since 2026-10-13, from playing it: 20 s shared by the four
+tracks is enough, and main RAM's 50 KB and the pool's top are worth more as room for features and for the audio code
+in RAM.) A tape is a list of chunks, and a reader looks a block up
 through the list (one more load per block decode). The main loop hands chunks out and takes them back; the audio ISR
 only reads the lists. Taking a chunk away shortens the list first, then frees it, and that's safe to reuse at once:
 the main loop never runs inside the audio ISR, so a block being rendered finishes before the next step, and every

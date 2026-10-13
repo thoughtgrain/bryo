@@ -3293,15 +3293,15 @@ static void test_grain_buffer(void)
         render_poll(400);
         p[GP_WET] = 0;
         chain_poll();
-        fill_tape(2, 100);
-        fill_tape(3, 50);
+        fill_tape(2, MEM_NC * 2u / 3u);                  /* (two thirds and the rest: 100 and 50 of 150) */
+        fill_tape(3, MEM_NC - MEM_NC * 2u / 3u);
         while (mem_count(MEM_FREE))
             mem_alloc(MEM_IMPORT);
         p[GP_WET] = 100;
         chain_poll();
         check("no chunk free: GRAIN's buffer takes from the end of the longest tape (track 3's)",
-              gbuf[0].nch == 11 && tape_ctl[2].nch == MEM_NC - 50u - 11u && tape_ctl[3].nch == 50);   /* (track 2
-                                                         * had the rest: 100 of 150 chunks, 93 of 143) */
+              gbuf[0].nch == 11 && tape_ctl[2].nch == MEM_NC * 2u / 3u - 11u &&
+              tape_ctl[3].nch == MEM_NC - MEM_NC * 2u / 3u);
     }
     sys.playing = 0;
     for (t = 0; t < NTRK; t++)
@@ -5374,24 +5374,24 @@ static void test_memory(void)
 
     {   /* nothing free: chunks come from a cleared tape first, then a parked track, then the longest tape */
         power_on();
-        fill_tape(0, 60);
-        fill_tape(2, 30);
-        fill_tape(3, 20);
-        fill_tape(1, 40);                                /* 150 of 152 */
+        fill_tape(0, 40);
+        fill_tape(2, 20);
+        fill_tape(3, 14);
+        fill_tape(1, MEM_NC - 76u);                      /* all but 2 chunks (32 with 108; track 1's 40 the longest) */
         tape_clear(2);                                   /* track 3's take cleared (its undo waiting) */
         n0 = tape_ctl[0].nch;
         check("tape_steal takes a cleared tape's chunk first (not the longest), and its undo goes",
-              tape_steal(1, 1) && tape_ctl[2].nch == 29 && tape_ctl[0].nch == n0 && !tape_undo.valid);
+              tape_steal(1, 1) && tape_ctl[2].nch == 19 && tape_ctl[0].nch == n0 && !tape_undo.valid);
         while (tape_ctl[2].nch)
             tape_steal(1, 1);
         sys.ntrk = 3;                                    /* TRACKS 3: track 4 parked */
-        check("..then a parked track's (TRACKS 3: track 4)", tape_steal(1, 1) && tape_ctl[3].nch == 19 &&
+        check("..then a parked track's (TRACKS 3: track 4)", tape_steal(1, 1) && tape_ctl[3].nch == 13 &&
               tape_ctl[0].nch == n0);
         while (tape_ctl[3].nch)
             tape_steal(1, 1);
         sys.ntrk = NTRK;
         check("..then the end of the longest tape, never the one asking", tape_steal(1, 1) &&
-              tape_ctl[0].nch == n0 - 1u && tape_ctl[1].nch == 40 && tape_ctl[0].nblk == (n0 - 1u) * MEM_CB);
+              tape_ctl[0].nch == n0 - 1u && tape_ctl[1].nch == MEM_NC - 76u && tape_ctl[0].nblk == (n0 - 1u) * MEM_CB);
         check("..an import (active 0) never takes from a tape in use", !tape_steal(NTRK, 0));
         tape_free(1);
         while (mem_count(MEM_FREE))
@@ -5419,8 +5419,9 @@ static void test_memory(void)
     }
 
     power_on();
-    check("one tape holds 127 chunks at most (23.6 s: its head's Q12 position fits 32 bits)",
-          tape_reserve(0, MEM_NC, 1) == TAPE_MAXCH && (int64_t)TAPE_MAXCH * TAPE_CHS * 4096 + 8192 < 0x7FFFFFFFLL);
+    check("one tape holds 127 chunks at most (23.6 s: its head's Q12 position fits 32 bits), or all there are",
+          tape_reserve(0, MEM_NC, 1) == (MEM_NC < TAPE_MAXCH ? MEM_NC : TAPE_MAXCH) &&
+          (int64_t)TAPE_MAXCH * TAPE_CHS * 4096 + 8192 < 0x7FFFFFFFLL);
 
     {   /* a tape that can't grow any more stops at its end and loops */
         power_on();

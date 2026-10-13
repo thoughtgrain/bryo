@@ -201,3 +201,12 @@ slice's jump, a sleeping track) or tiny and shared. One lesson: the compiler won
 section into another, so moving a caller made its small helpers calls; the per-sample ones (`clamp`, `sdiv2`,
 `softclip`, the oscillators, `mem_at`, the SPACE and GRAIN helpers) are `always_inline` now, as they were inlined
 before. Every audio fingerprint unchanged; two tests that counted chunks now count from `MEM_NC`.
+
+**The fourth reading (7c22901): 65 % steady on TEST.** SRC 23, GRN 16, RES 5, COL 0, SPC 12, PRE 7, ROOM 6, MST 2:
+the whole path in RAM gave four points more and a steady meter.
+
+**Room for features (2026-10-13).** RIPPLE's new code went into `.hot` as written and filled it (40.0 of 40 KiB).
+From playing it, 20 s of sound shared by the four tracks is enough, so the memory went from 143 chunks to 108 (20.1 s):
+main RAM's 24 chunks are gone (its .data+.bss from 89.9 KB to 38.9 of 96: about 57 KB free for features) and the pool
+gave 11 more, so `.hot` is 56 KiB at 0x01C66000 (39.7 used), with 16 KB of pool headroom. Run 15 (every device on all
+four tracks) sounds a little different: with less memory one of its lines gets less.

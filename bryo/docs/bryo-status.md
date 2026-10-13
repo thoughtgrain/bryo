@@ -88,7 +88,7 @@ One core, no RTOS. Three contexts, and the rules between them are most of the ar
   shared with the ISR: shorten the list (or set the flag) first, publish (`RING_PUBLISH`), then free. For anything
   the ISR reads as a whole (a depth list), build it in the half the ISR isn't reading and flip one byte.
 
-**Memory.** Sound lives in one pool of 143 chunks (26.6 s of tape-format sound: `mem.c`) handed out by use: tapes as
+**Memory.** Sound lives in one pool of 108 chunks (20.1 s of tape-format sound: `mem.c`) handed out by use: tapes as
 long as what's on them, GRAIN's live buffers, RIPPLE's strings and SPACE's lines while they're on. Nothing is
 set aside per track. When it runs short: a cleared tape's chunks first, then a parked track's tape, then the end of
 the longest tape. Main RAM holds 85.1 of 96 KiB (.bss; 50.7 of it sound on purpose, the rest of the 96 the stack's), the pool 329.6 of 336 KiB (2026-10-11, 40 grain slots and NPK 24, the last two by arithmetic: 384 and 416 B more, and the canvas's 1,620; 32-bit

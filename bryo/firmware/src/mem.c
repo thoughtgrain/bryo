@@ -19,10 +19,12 @@
  * the books. Integer only. */
 
 #define MEM_CB 16u                   /* tape blocks per chunk */
-#define MEM_NC_POOL 119u             /* chunks in the pool (251 KB; 128 until 2026-10-11, two given back to the pool's headroom;
-                                      * 126 until 2026-10-12, seven more to the audio code in RAM: app.ld .hot) */
-#define MEM_NC_RAM 24u               /* chunks in main RAM (50 KB) */
-#define MEM_NC (MEM_NC_POOL + MEM_NC_RAM)   /* 143: 26.6 s of tape-format sound in all */
+#define MEM_NC_POOL 108u             /* chunks in the pool (228 KB). 2026-10-13, from playing it: 20 s of sound shared by the
+                                      * four tracks is enough, and the room it gives back is worth more: main RAM's 24
+                                      * chunks (50 KB, the tightest region) back for features, and the pool's top for
+                                      * the audio code in RAM (app.ld .hot). (128 until 2026-10-11, then 126, 119, and
+                                      * 24 more in main RAM: 152, 150, 143 in all) */
+#define MEM_NC MEM_NC_POOL           /* 108: 20.1 s of tape-format sound in all */
 #define MEM_FREE 0xFFu               /* owner: nobody */
 /* owners: a track's tape (MEM_TAPE + t), its GRAIN buffer (MEM_GRAIN + t), a WAV arriving over USB (MEM_IMPORT),
  * its RIPPLE's strings (MEM_RESO + t), its SPACE's delay (MEM_SPACE + t), the shared rooms A and B (MEM_ROOM + r) */
@@ -37,10 +39,9 @@ typedef struct {
 } mem_chunk_t;
 
 static mem_chunk_t mem_pool[MEM_NC_POOL] __attribute__((section(".pool")));
-static mem_chunk_t mem_ram[MEM_NC_RAM];
 static uint8_t mem_owner[MEM_NC];
 
-static inline __attribute__((always_inline)) mem_chunk_t *mem_at(uint32_t c) { return c < MEM_NC_POOL ? &mem_pool[c] : &mem_ram[c - MEM_NC_POOL]; }
+static inline __attribute__((always_inline)) mem_chunk_t *mem_at(uint32_t c) { return &mem_pool[c]; }
 
 static void mem_init(void)
 {
