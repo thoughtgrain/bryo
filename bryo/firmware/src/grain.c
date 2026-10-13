@@ -154,9 +154,9 @@ static inline uint32_t gr_on(uint32_t k) { return (gr_used[k >> 5] >> (k & 31u))
 static inline void gr_set(uint32_t k) { gr_used[k >> 5] |= 1u << (k & 31u); }
 static inline void gr_clr(uint32_t k) { gr_used[k >> 5] &= ~(1u << (k & 31u)); }
 static inline void gr_tset(uint32_t t, uint32_t k) { gr_set(k); gr_trk[t][k >> 5] |= 1u << (k & 31u); }
-static inline void gr_tclr(uint32_t t, uint32_t k) { gr_clr(k); gr_trk[t][k >> 5] &= ~(1u << (k & 31u)); }
+static inline __attribute__((always_inline)) void gr_tclr(uint32_t t, uint32_t k) { gr_clr(k); gr_trk[t][k >> 5] &= ~(1u << (k & 31u)); }
 /* the lowest set bit's slot of a track's mask word w (w != 0) */
-static inline uint32_t gr_low(uint32_t w)
+static inline __attribute__((always_inline)) uint32_t gr_low(uint32_t w)
 {
     uint32_t k = 0;
     if (!(w & 0xFFFFu)) { w >>= 16; k += 16u; }
@@ -179,7 +179,7 @@ static uint32_t gr_ntrk(void) { return sys.ntrk >= 1u && sys.ntrk <= NTRK ? sys.
 
 /* track t's devices may hold memory: it's in use (TRACKS) and the USB record mode isn't up (nothing renders then,
  * and the take can have their memory) */
-static int trk_live(uint32_t t) { return t < gr_ntrk() && !sys.usbrec; }
+static int HOT_CODE trk_live(uint32_t t) { return t < gr_ntrk() && !sys.usbrec; }
 
 /* the grains a second x 100 at RATE r (1..80, on a square law) */
 static inline int32_t gr_gps100(int32_t r) { return 100 + r * r * 79 / 100; }
@@ -189,7 +189,7 @@ static inline int32_t gr_gps100(int32_t r) { return 100 + r * r * 79 / 100; }
 #define GR_NSDIV 10u
 static const uint32_t GR_SDIV[GR_NSDIV] = {4u << 16, 2u << 16, 1u << 16, 1u << 15, 21845u, 1u << 14, 10923u, 1u << 13,
                                            5461u, 1u << 12};
-static inline uint32_t gr_sdiv(const int16_t *p)
+static inline __attribute__((always_inline)) uint32_t gr_sdiv(const int16_t *p)
 {
     return GR_SDIV[(uint32_t)clamp(p[GP_RATE], 0, 100) * GR_NSDIV / 101u];
 }
@@ -337,7 +337,7 @@ static uint32_t grain_count(uint32_t t)
 }
 
 /* every grain of track t stops */
-static void grain_kill(uint32_t t)
+static void HOT_CODE grain_kill(uint32_t t)
 {
     uint32_t k;
     gr_used[0] &= ~gr_trk[t][0];
@@ -351,7 +351,7 @@ static void grain_kill(uint32_t t)
 /* audio ISR: track t asleep (muted, REC not armed: chain.c). No grains and nothing recorded, but the buffer's write
  * head keeps its place in the bars (what's under it is the old sound until it wakes and writes over it), and at
  * waking WET comes back in from 0 and the dry share starts afresh */
-static void gr_bcommit(gr_buf_t *B);
+static void HOT_CODE gr_bcommit(gr_buf_t *B);
 static void grain_sleep(uint32_t t, int frozen, uint32_t n)
 {
     gr_buf_t *B = &gbuf[t];
@@ -461,7 +461,7 @@ static int gr_buf_loud(uint32_t t)
 }
 
 /* one sample x into the buffer at the write head: what's there x FDBK % + x */
-static void gr_bput(gr_buf_t *B, int32_t x, int32_t fb)
+static void HOT_CODE gr_bput(gr_buf_t *B, int32_t x, int32_t fb)
 {
     uint32_t b = (uint32_t)B->w / TAPE_BLK, o = (uint32_t)B->w % TAPE_BLK;
     if (!B->staged || B->sblk != b) {
@@ -485,7 +485,7 @@ static void gr_bput(gr_buf_t *B, int32_t x, int32_t fb)
  * source runs above full scale inside the chain (the factory scene's drums peak near 52,000), and the buffer's 16 bits
  * would clip it hard, every hit. A grain of the buffer plays at twice (gr_start), its peaks are kept at the sound's
  * own (gr_bcommit) */
-static void gr_record(gr_buf_t *B, const int32_t *dry, uint32_t n, int32_t fb)
+static void HOT_CODE gr_record(gr_buf_t *B, const int32_t *dry, uint32_t n, int32_t fb)
 {
     int32_t x[6u + CTL];
     uint32_t i;
@@ -507,7 +507,7 @@ static void gr_record(gr_buf_t *B, const int32_t *dry, uint32_t n, int32_t fb)
 /* ------------------------------------------------------------- reading --- */
 /* decode samples dpos.. of view v into out (n of them; silence past its end), the decoder's state carried in locals;
  * each block starts from its stored state */
-static void gr_decode(grain_t *g, const tape_view_t *v, int16_t *out, int32_t n)
+static void HOT_CODE gr_decode(grain_t *g, const tape_view_t *v, int16_t *out, int32_t n)
 {
     int32_t pred = g->pred, idx = g->idx, s = g->dpos, len = (int32_t)v->len, i;
     const uint8_t *d = s < len ? tv_data(v, (uint32_t)s / TAPE_BLK) : 0;
@@ -532,7 +532,7 @@ static void gr_decode(grain_t *g, const tape_view_t *v, int16_t *out, int32_t n)
 /* decode the window from sample lo (kept inside the view). Moving forward over what it holds, it keeps the overlap
  * and decodes on from where its decoder is (each sample decoded once); otherwise it starts at lo's block (its stored
  * state) and decodes up to lo first. */
-static void gr_fill(grain_t *g, const tape_view_t *v, int32_t lo)
+static void HOT_CODE gr_fill(grain_t *g, const tape_view_t *v, int32_t lo)
 {
     static int16_t skip[TAPE_BLK];                      /* (what's decoded on the way to lo: thrown away) */
     int32_t len = (int32_t)v->len, i, keep;
@@ -569,7 +569,7 @@ static inline int32_t gr_read(grain_t *g, const tape_view_t *v, int32_t p)
 }
 
 /* the window at output sample `at` of grain g (0 outside it), Q15: the ramps at both ends, flat between */
-static inline int32_t gr_env(const grain_t *g, uint32_t at)
+static inline __attribute__((always_inline)) int32_t gr_env(const grain_t *g, uint32_t at)
 {
     if (at >= g->len)
         return 0;
@@ -651,7 +651,7 @@ static uint32_t gr_snext(const int16_t *p, uint32_t dv, uint32_t at, uint32_t se
  * than GR_QUIET_MAX blocks (then it's not worth the looking): those count as sound. A grain there would cost its work
  * to make nothing */
 #define GR_QUIET_MAX 256
-static int gr_quiet(const tape_view_t *v, int32_t lo, int32_t hi, int32_t ll, int32_t busy)
+static int HOT_CODE gr_quiet(const tape_view_t *v, int32_t lo, int32_t hi, int32_t ll, int32_t busy)
 {
     int32_t len = (int32_t)v->len, b, nb;
     if (!len || ll <= 0 || hi < lo)
@@ -671,7 +671,7 @@ static int gr_quiet(const tape_view_t *v, int32_t lo, int32_t hi, int32_t ll, in
     return 1;
 }
 
-static void gr_start(uint32_t t, grain_trk_t *G, const int16_t *p, int32_t ls, int32_t ll, const tape_view_t *v,
+static void HOT_CODE gr_start(uint32_t t, grain_trk_t *G, const int16_t *p, int32_t ls, int32_t ll, const tape_view_t *v,
                      int32_t busy)
 {
     grain_t *g = 0;
@@ -742,7 +742,7 @@ static int32_t gr_pace(const gr_buf_t *B, int32_t len)
  * they did without it */
 #define GR_ROOT_RES 23                /* ROOT's lowest, RES: RESONATOR's root (reso.c, after this file) */
 static int32_t reso_root16(uint32_t t);
-static __attribute__((noinline)) uint32_t gr_body(grain_trk_t *G, const int16_t *p, const int32_t *dry, int32_t *xl,
+static uint32_t HOT_CODE gr_body(grain_trk_t *G, const int16_t *p, const int32_t *dry, int32_t *xl,
                                                   int32_t *xr, uint32_t h2, uint32_t sounding)
 {
     uint32_t mode = (uint32_t)clamp(p[GP_BMOD], 0, 2), k;
@@ -812,7 +812,7 @@ static __attribute__((noinline)) uint32_t gr_body(grain_trk_t *G, const int16_t 
                                              * reads either side of a jump in it (1.5 ms at its own pitch) */
 
 /* how far a is from b round a loop of len samples (0..len/2) */
-static inline int32_t gr_cdist(int32_t a, int32_t b, int32_t len)
+static inline __attribute__((always_inline)) int32_t gr_cdist(int32_t a, int32_t b, int32_t len)
 {
     int32_t d = a - b;
     if (len) {                                          /* (as d % len, sign kept, no divide: d is within a few
@@ -869,7 +869,7 @@ static inline __attribute__((always_inline)) void gr_mix(grain_t *g, const tape_
 
 /* audio ISR: track t's GRAIN on one block. dry: the source (n samples); keys: the white keys on the GRAIN page (0
  * otherwise); frozen: the 0 key held. The track's stereo out into l and r. */
-static void grain_block(uint32_t t, const int32_t *dry, uint32_t keys, int frozen, int32_t *l, int32_t *r, uint32_t n)
+static void HOT_CODE grain_block(uint32_t t, const int32_t *dry, uint32_t keys, int frozen, int32_t *l, int32_t *r, uint32_t n)
 {
     grain_trk_t *G = &grain[t];
     gr_buf_t *B = &gbuf[t];
@@ -1172,7 +1172,7 @@ static void grain_shed(void)
 }
 /* audio ISR, each block: a second after the last shed, an eighth of the pool back, if there's room for it (the
  * heaviest half of the last second under 70 %: chain_room); no room, another second */
-static void grain_recover(void)
+static void HOT_CODE grain_recover(void)
 {
     if (++grain_calm >= 1378u && grain_cap < GR_CAP) {   /* (1378 blocks: a second) */
         if (chain_room())

@@ -51,7 +51,7 @@ static void chain_init(void)
 /* one track's source into s: the chosen one, and the one before it while it fades out. The tape renders last, so
  * REC on a track whose source isn't TAPE can print that source onto it (rin: the other tracks, for a TAPE track;
  * 0: REC isn't armed) */
-static void chain_source(uint32_t t, uint32_t keys, const int32_t *rin, int32_t *s, uint32_t n)
+static void HOT_CODE chain_source(uint32_t t, uint32_t keys, const int32_t *rin, int32_t *s, uint32_t n)
 {
     track_rt_t *rt = &track_rt[t];
     uint32_t cur = (uint32_t)tp[t].src & (NSRC - 1u), e, i;   /* (& not %: src is a byte, NSRC an int, so % is a
@@ -110,7 +110,7 @@ static uint32_t ld_acc[LD_N], ld_blocks, ld_t;
 static volatile uint16_t ld_pm[LD_N];               /* ISR -> the screen: per mille of the blocks' time, last second */
 static volatile uint16_t ld_ram, ld_xip;            /* main loop, at boot: a fixed loop's speed from RAM and from
                                                      * flash (main.c ld_probe), loops a microsecond x 10 */
-static inline void ld_mark(uint32_t k)
+static inline __attribute__((always_inline)) void ld_mark(uint32_t k)
 {
     uint32_t t1 = fm1_ticks();
     ld_acc[k] += t1 - ld_t;
@@ -120,7 +120,7 @@ static inline void ld_mark(uint32_t k)
 /* audio ISR: one control block of the whole instrument, interleaved stereo Q15 into out. In the USB record mode
  * (usbrec.c) the computer's sound instead: the tracks fade out over one block as it opens, and come back once the
  * monitor has faded out as it closes. */
-static void chain_block(int32_t *out, uint32_t n)
+static void HOT_CODE chain_block(int32_t *out, uint32_t n)
 {
     int32_t l[CTL], r[CTL], rin[NTRK][CTL];
     uint32_t i, t, u, white = sys.keys_live ? white_keys(fm1_in.notes) : 0u, sel = sys.sel, zero = 0, play[NTRK];

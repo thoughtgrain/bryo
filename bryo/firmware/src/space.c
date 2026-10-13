@@ -93,7 +93,7 @@ static room_t room[NROOM];
  * nothing: it stops working until sound comes in again, where it carries on from its lines as they are. The
  * filters in its loops are let go to 0 as it rests (a residue under the threshold can't hold it awake). */
 #define SP_QUIET_OUT 16
-static inline int32_t sp_loud(int32_t x) { return (uint32_t)(x + SP_QUIET_OUT) > 2u * SP_QUIET_OUT; }   /* |x| > 16 */
+static inline __attribute__((always_inline)) int32_t sp_loud(int32_t x) { return (uint32_t)(x + SP_QUIET_OUT) > 2u * SP_QUIET_OUT; }   /* |x| > 16 */
 
 /* SYNC: TIME as the tempo's divisions (96ths of a beat): 1/64 1/32 16T 1/16 8T 16D 1/8 4T 8D 1/4 4D 1/2. One the line
  * can't hold at the tempo (370 ms) plays halved until it fits (1/4 at 120 BPM: 1/8), so it stays on the grid */
@@ -156,14 +156,14 @@ static inline int32_t sp_mul(int32_t a, int32_t b) { return sdiv2(a * b, 15); } 
 
 /* ----------------------------------------------------------- lines --- */
 /* a line's chunks as pointers, for a block */
-static inline void sp_bases(const sp_line_t *ln, uint8_t **b)
+static inline __attribute__((always_inline)) void sp_bases(const sp_line_t *ln, uint8_t **b)
 {
     uint32_t k;
     for (k = 0; k < ln->nch; k++)
         b[k] = (uint8_t *)(void *)mem_at(ln->map[k]);
 }
 
-static inline uint32_t sp_len(const sp_line_t *ln) { return (uint32_t)ln->nch * SP_CH * (ln->bits8 ? 2u : 1u); }
+static inline __attribute__((always_inline)) uint32_t sp_len(const sp_line_t *ln) { return (uint32_t)ln->nch * SP_CH * (ln->bits8 ? 2u : 1u); }
 
 static inline int32_t sp_rd(uint8_t *const *b, int bits8, uint32_t i)
 {
@@ -271,14 +271,14 @@ static void sp_room(room_t *R, int32_t size, int32_t dec, uint32_t lo)
 }
 
 /* saturate to the lines' 16 bits (one compare when it's inside) */
-static inline int32_t sp_sat(int32_t v)
+static inline __attribute__((always_inline)) int32_t sp_sat(int32_t v)
 {
     return (uint32_t)(v + 32767) <= 65534u ? v : v < 0 ? -32767 : 32767;
 }
 
 /* the delay over a block at half the rate: m in, its echoes added to wl, wr (the state in locals throughout: the
  * compiler can't know the buffers don't alias it) */
-static void sp_delay(space_t *S, uint8_t *const *db, int dlb, uint32_t dl, int32_t tgt, int32_t off, int32_t kl,
+static void HOT_CODE sp_delay(space_t *S, uint8_t *const *db, int dlb, uint32_t dl, int32_t tgt, int32_t off, int32_t kl,
                      int32_t kh, int32_t fbg, int32_t v0, int32_t v1, const int32_t *m, int32_t *wl, int32_t *wr)
 {
     int32_t q = S->dq, lp = S->dlp, w = (int32_t)S->dw, gq = v0 << (CTL_LOG2 - 1), dg = v1 - v0;
@@ -360,7 +360,7 @@ static void sp_delay(space_t *S, uint8_t *const *db, int dlb, uint32_t dl, int32
  * stage over the block, not every stage a sample: one loop holding four combs and four allpasses kept about 38
  * values live and spilled on every comb on the target (about 16 registers); each stage on its own keeps its few in
  * registers. The same arithmetic in the same order for every value: the output bit for bit (2026-10-12) */
-static void sp_room_run(room_t *R, uint8_t *const *pb, int plb, uint32_t pl, int32_t pre, uint8_t *const *rb,
+static void HOT_CODE sp_room_run(room_t *R, uint8_t *const *pb, int plb, uint32_t pl, int32_t pre, uint8_t *const *rb,
                         int32_t kh, int32_t damp, const int32_t *xin, uint32_t ns, int32_t *wl, int32_t *wr)
 {
     int16_t *c0 = (int16_t *)(void *)rb[0], *c1 = (int16_t *)(void *)rb[1], *c2 = (int16_t *)(void *)rb[2];
@@ -430,7 +430,7 @@ static void sp_room_run(room_t *R, uint8_t *const *pb, int plb, uint32_t pl, int
 
 /* audio ISR: track t's SPACE on its stereo block (n even): its delay added to it, and what it sends to its room
  * (VERB x lvl, the track's level, Q12) added to the room's input for space_rooms */
-static void space_block(uint32_t t, int32_t *l, int32_t *r, uint32_t n, int32_t lvl)
+static void HOT_CODE space_block(uint32_t t, int32_t *l, int32_t *r, uint32_t n, int32_t lvl)
 {
     space_t *S = &space[t];
     const int16_t *v = TPD(t, DEV_SPACE);
@@ -519,7 +519,7 @@ static void space_block(uint32_t t, int32_t *l, int32_t *r, uint32_t n, int32_t 
 /* audio ISR, after the tracks: the rooms on what the tracks sent them this block, into the mix (l r, n samples);
  * their inputs cleared for the next block. HI at 22.05 kHz, LO at 11.025 kHz (the sends averaged in pairs, the tail
  * stepped back up across four samples) */
-static void space_rooms(int32_t *l, int32_t *r, uint32_t n)
+static void HOT_CODE space_rooms(int32_t *l, int32_t *r, uint32_t n)
 {
     uint32_t k, i, h = n / 2u;
     for (k = 0; k < NROOM; k++) {

@@ -3241,7 +3241,8 @@ static void test_grain_buffer(void)
         p[GP_WET] = 100;
         chain_poll();
         check("no chunk free: GRAIN's buffer takes from the end of the longest tape (track 3's)",
-              gbuf[0].nch == 11 && tape_ctl[2].nch == 89 && tape_ctl[3].nch == 50);
+              gbuf[0].nch == 11 && tape_ctl[2].nch == MEM_NC - 50u - 11u && tape_ctl[3].nch == 50);   /* (track 2
+                                                         * had the rest: 100 of 150 chunks, 93 of 143) */
     }
     sys.playing = 0;
     for (t = 0; t < NTRK; t++)
@@ -3848,8 +3849,8 @@ static void test_space(void)
     p[SP_DLY] = 0;
     chain_poll();
     check("DLY 0: the line back to the pool", !space[0].dly.nch && !mem_count(MEM_SPACE));
-    fill_tape(1, 60);                                    /* memory short: 20 chunks left free */
-    fill_tape(2, 60);
+    fill_tape(1, (MEM_NC - 30u) / 2u);                   /* memory short: 20 chunks left free (two tapes take all but */
+    fill_tape(2, MEM_NC - 30u - (MEM_NC - 30u) / 2u);    /* .. 30, imports the rest down to 20; 60 and 60 of 150) */
     while (mem_count(MEM_FREE) > 20u)
         mem_alloc(MEM_IMPORT);
     p[SP_DLY] = 100;

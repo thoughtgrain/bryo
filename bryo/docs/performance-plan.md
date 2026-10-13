@@ -186,3 +186,18 @@ pool gave it without sound memory: `pol_rd` and `tape_rt` (14.7 KB) moved to `.l
 arpeggiators' helpers, `gr_plan` and its helpers: 6 KB. What it still calls in flash is small and shared (`clamp`,
 `memcpy`, `sine_i`, `isqrt`). Every audio fingerprint unchanged. If the theory holds, PRE goes from 16 toward 6 on
 TEST; if it does, the per-block parts of the other stages are next.
+
+**The third reading (c9bea3f): 60-70 % on TEST, from 90.** SRC 24, GRN 17, RES 6, COL 1, SPC 10, PRE 8, ROOM 7, MST 2.
+PRE halved as expected, and SRC fell ten points with nothing of the sources moved: with the once-a-block code out of
+the cache's way, the sources' loops stayed in it. The cache is the cost.
+
+**Step 2 of the code in RAM (this change): the whole audio path.** `.hot` grows to 40 KiB at 0x01C6A000 (still in
+reach of all of .text), RAMTEXT takes in the old debug area up to the boot probe (0x01C07F00), and `.lowpool` takes four
+more pool objects (`drm_rt`, `mod_l`, `mrt`, `mda`); seven chunks of sound memory go too (143, 26.6 s, from 150 and
+27.9). In `.hot`: `chain_block`, every engine's block and its per-sample routines (POLY's voice, TAPE's block and
+reads, the drum voices and their setup, GRAIN's block, decode, mix, recording and planning, RESONATOR, COLOR, SPACE's
+delay and rooms, the mixer, the master): 38.6 KB. What stays in flash is cold (REC's writes, USB's record mode, a
+slice's jump, a sleeping track) or tiny and shared. One lesson: the compiler won't inline a function from one
+section into another, so moving a caller made its small helpers calls; the per-sample ones (`clamp`, `sdiv2`,
+`softclip`, the oscillators, `mem_at`, the SPACE and GRAIN helpers) are `always_inline` now, as they were inlined
+before. Every audio fingerprint unchanged; two tests that counted chunks now count from `MEM_NC`.

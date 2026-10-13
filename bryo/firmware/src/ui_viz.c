@@ -1523,33 +1523,30 @@ static void viz_setup(void)
                                       "KNOBS: FAST TURNS GO FURTHER"};
     px_text_c(0, 120, 3, PXF_3, sys.keys_notes ? "BLACK KEYS PLAY NOTES: F TO G" : "BLACK KEYS: THE SHORTCUTS", px_ink);
     px_text_c(0, 120, 11, PXF_3, KN[(bryo_prefs >> 1) & 3u], px_ink);
-    {                                                   /* the load by stage (chain.c ld_pm, in %), and the loop
-                                                         * speeds from RAM and flash (main.c ld_probe) */
-        static const char *const L1[5] = {"SRC ", " GRN ", " RES ", " COL ", " SPC "};
-        static const char *const L2[3] = {"PRE ", " ROOM ", " MST "};
-        static const uint8_t S1[5] = {LD_SRC, LD_GRN, LD_RES, LD_COL, LD_SPC}, S2[3] = {LD_PRE, LD_ROOM, LD_MST};
+    {                                                   /* the load by stage (chain.c ld_pm, in %), three to a line
+                                                         * (four ran off the edge), and the loop speeds from RAM and
+                                                         * flash (main.c ld_probe) */
+        static const char *const L[8] = {"SRC ", "  GRN ", "  RES ", "COL ", "  SPC ", "  PRE ", "ROOM ", "  MST "};
+        static const uint8_t S[8] = {LD_SRC, LD_GRN, LD_RES, LD_COL, LD_SPC, LD_PRE, LD_ROOM, LD_MST};
         char b[48], v[12];
         uint32_t k;
-        b[0] = 0;
-        for (k = 0; k < 5u; k++) {
-            str_cpy(b + str_len(b), L1[k], (unsigned)(sizeof b - str_len(b)));
-            fmt_int(v, (int32_t)((ld_pm[S1[k]] + 5u) / 10u));
+        for (k = 0; k < 8u; k++) {
+            if (k % 3u == 0u)
+                b[0] = 0;
+            str_cpy(b + str_len(b), L[k], (unsigned)(sizeof b - str_len(b)));
+            fmt_int(v, (int32_t)((ld_pm[S[k]] + 5u) / 10u));
             str_cpy(b + str_len(b), v, (unsigned)(sizeof b - str_len(b)));
+            if (k == 7u) {
+                str_cpy(b + str_len(b), "  R/F ", (unsigned)(sizeof b - str_len(b)));
+                fmt_int(v, (int32_t)ld_ram);
+                str_cpy(b + str_len(b), v, (unsigned)(sizeof b - str_len(b)));
+                str_cpy(b + str_len(b), "/", (unsigned)(sizeof b - str_len(b)));
+                fmt_int(v, (int32_t)ld_xip);
+                str_cpy(b + str_len(b), v, (unsigned)(sizeof b - str_len(b)));
+            }
+            if (k % 3u == 2u || k == 7u)
+                px_text_c(0, 120, 19 + 8 * (int32_t)(k / 3u), PXF_3, b, px_ink);
         }
-        px_text_c(0, 120, 19, PXF_3, b, px_ink);
-        b[0] = 0;
-        for (k = 0; k < 3u; k++) {
-            str_cpy(b + str_len(b), L2[k], (unsigned)(sizeof b - str_len(b)));
-            fmt_int(v, (int32_t)((ld_pm[S2[k]] + 5u) / 10u));
-            str_cpy(b + str_len(b), v, (unsigned)(sizeof b - str_len(b)));
-        }
-        str_cpy(b + str_len(b), "  R/F ", (unsigned)(sizeof b - str_len(b)));
-        fmt_int(v, (int32_t)ld_ram);
-        str_cpy(b + str_len(b), v, (unsigned)(sizeof b - str_len(b)));
-        str_cpy(b + str_len(b), "/", (unsigned)(sizeof b - str_len(b)));
-        fmt_int(v, (int32_t)ld_xip);
-        str_cpy(b + str_len(b), v, (unsigned)(sizeof b - str_len(b)));
-        px_text_c(0, 120, 27, PXF_3, b, px_ink);
     }
 }
 

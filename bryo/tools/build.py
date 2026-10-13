@@ -244,6 +244,7 @@ def build_app():
 # numbers that fall in the ROM's window but are arithmetic, not addresses: -32767 * 100 (grain.c gr_body's
 # BODY * 32767 / 100, folded by the compiler into an add)
 NOT_ROM = {(-32767 * 100) & 0xFFFFFFFF}
+POOL_LEN, HOT_LEN = 0x4A000, 0xA000                # app.ld's POOL and HOT
 
 
 def check(img, syms, dis, rt):
@@ -276,12 +277,12 @@ def check(img, syms, dis, rt):
     pool = sym("_pool_end") - sym("_pool_start")
     lowp = sym("_lp_end") - sym("_lp_start")
     hot = sym("_hot_end") - sym("_hot_start")
-    notes.append(f"image {len(img)} B; RAM .data+.bss {bss} B of 98304; pool {pool} B of {0x50000}; "
-                 f"low pool {lowp} B; hot code {hot} B of {0x4000}")
+    notes.append(f"image {len(img)} B; RAM .data+.bss {bss} B of 98304; pool {pool} B of {POOL_LEN}; "
+                 f"low pool {lowp} B; hot code {hot} B of {HOT_LEN}")
     if bss > 96 * 1024:
         errors.append("RAM region overflow")
-    if 0x50000 - pool < 8192:                     # keep >= 8 KiB of the pool spare (its top 16 KiB is .hot's)
-        errors.append(f"pool headroom {0x50000 - pool} B < 8192 B")
+    if POOL_LEN - pool < 8192:                    # keep >= 8 KiB of the pool spare (its top is .hot's: app.ld)
+        errors.append(f"pool headroom {POOL_LEN - pool} B < 8192 B")
     return errors, notes
 
 

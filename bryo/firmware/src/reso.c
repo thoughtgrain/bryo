@@ -63,7 +63,7 @@ static uint32_t reso_cap = RS_N;     /* strings that sound, lowered by chain_she
 static uint32_t reso_calm;
 
 /* a string's delay line */
-static inline int16_t *rs_line(const reso_t *R, uint32_t k) { return (int16_t *)(void *)mem_at(R->map[k]); }
+static inline __attribute__((always_inline)) int16_t *rs_line(const reso_t *R, uint32_t k) { return (int16_t *)(void *)mem_at(R->map[k]); }
 
 /* the root now, 1/16 semitone */
 static int32_t reso_root16(uint32_t t)
@@ -115,7 +115,7 @@ static uint32_t rs_t60(int32_t dec)
 
 /* string k plucked: one period of noise into its line, behind the write index, softened by a (the pluck's
  * brightness, as TONE's damping), at level lv (Q15) */
-static void rs_pluck1(reso_t *R, uint32_t k, int32_t root16, int32_t a, int32_t lv, int32_t sc)
+static void HOT_CODE rs_pluck1(reso_t *R, uint32_t k, int32_t root16, int32_t a, int32_t lv, int32_t sc)
 {
     int16_t *d = rs_line(R, k);
     uint32_t p = rs_period_q8(root16 + RS_PART16[sc][k]) >> 8, at = R->w, i;
@@ -135,7 +135,7 @@ static void rs_pluck1(reso_t *R, uint32_t k, int32_t root16, int32_t a, int32_t 
  * strings one after another, root first, STRM ms apart; 0 all at once); VARY, each pluck a little different (its
  * brightness up to VARY x 0.3 points either way, its level down to 1 - VARY / 2, each string's a little more). All
  * three at 0: the pluck as it always was. A new pluck drops a strum still under way (its strings not yet reached) */
-static void rs_pluck(reso_t *R, uint32_t nstr, int32_t root16, const int16_t *p, int32_t sc)
+static void HOT_CODE rs_pluck(reso_t *R, uint32_t nstr, int32_t root16, const int16_t *p, int32_t sc)
 {
     int32_t pick = clamp(p[RP_TONE] + p[RP_PICK], 0, 100), vary = clamp(p[RP_VARY], 0, 100), lv = 32767;
     uint32_t k, gap = (uint32_t)clamp(p[RP_STRM], 0, 100) * 441u / 10u;   /* (ms -> samples) */
@@ -180,7 +180,7 @@ static void rs_strum(reso_t *R, uint32_t nstr, uint32_t n)
 /* audio ISR: one block of track t's RESONATOR arpeggio (RES ARP, the ARP pad's page 3: MODE ORDR RNGE RATE; a pluck
  * has no gate): keys, the white keys on that page over base. Returns 1 while a step's note sounds, the note in *note */
 static volatile uint8_t reso_arp_clear_req[NTRK];   /* main loop -> ISR: forget RES ARP's notes (POLY held on it) */
-static uint32_t reso_arp_block(uint32_t t, uint32_t keys, uint32_t base, uint32_t n, uint32_t *note)
+static uint32_t HOT_CODE reso_arp_block(uint32_t t, uint32_t keys, uint32_t base, uint32_t n, uint32_t *note)
 {
     const int16_t *p = tp[t].dev[DEV_RESO];
     int16_t a[NARP] = {0};
@@ -206,7 +206,7 @@ static uint8_t reso_arp_on[NTRK];   /* ISR: the arpeggio's note sounding last bl
  * Unheard itself (the master takes DC away), but COLOR's NOIS follows its input's level, so it held the noise open:
  * a steady hiss with the transport stopped (2026-10-11, from playing it). Rounding toward 0 makes every string's
  * level shrink each time round, to 0. */
-static void reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t keys, int pluck, int32_t anote, uint32_t n)
+static void HOT_CODE reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t keys, int pluck, int32_t anote, uint32_t n)
 {
     reso_t *R = &reso[t];
     const int16_t *p = TPD(t, DEV_RESO);
@@ -416,7 +416,7 @@ static void reso_shed(void)
         reso_cap--;
     reso_calm = 0;
 }
-static void reso_recover(void)
+static void HOT_CODE reso_recover(void)
 {
     if (++reso_calm >= 1378u && reso_cap < RS_N) {     /* (a string back, if there's room: chain_room) */
         if (chain_room())

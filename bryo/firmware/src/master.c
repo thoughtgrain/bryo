@@ -142,7 +142,7 @@ static void out_fade(int32_t *out, uint32_t n)
 }
 
 /* the mix (Q15-ish, summed tracks) -> MASTER -> master_out -> interleaved stereo for audio.c */
-static void master_block(const int32_t *l, const int32_t *r, int32_t *out, uint32_t n)
+static void HOT_CODE master_block(const int32_t *l, const int32_t *r, int32_t *out, uint32_t n)
 {
     uint32_t i;
     int32_t mg = fx_usb_fixed ? MASTER_FULL : (int32_t)sys.master_q12, in = 0;   /* (USB LEVEL FIXED: MASTER after) */

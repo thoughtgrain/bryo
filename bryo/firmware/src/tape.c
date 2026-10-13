@@ -142,7 +142,7 @@ static struct {
 
 /* a gain in dB (-24..24) as Q10: 2x per 6 dB, straight between (DB_Q10, dsp.c: every caller's knob is within
  * -24..24, so the table holds every value the arithmetic gave) */
-static inline int32_t db_q10(int32_t db) { return DB_Q10[clamp(db, -24, 24) + 24]; }
+static inline __attribute__((always_inline)) int32_t db_q10(int32_t db) { return DB_Q10[clamp(db, -24, 24) + 24]; }
 
 /* ------------------------------------------------------------- codec --- */
 static const int16_t IMA_STEP[89] = {
@@ -254,11 +254,11 @@ static void ima_enc(const int16_t *in, int32_t pred, int32_t idx, uint8_t *data,
 static int uslot_view(uint32_t s, tape_view_t *v);   /* reel.c: a user reel in flash */
 
 /* what a track has chosen: 0 its RAM tape, 1..NREEL a factory reel, then the user reels */
-static uint32_t tape_src(uint32_t t) { return (uint32_t)clamp(tp[t].dev[DEV_SRC][TK_REEL], 0, (int32_t)(NREEL + USLOT_N)); }
+static uint32_t HOT_CODE tape_src(uint32_t t) { return (uint32_t)clamp(tp[t].dev[DEV_SRC][TK_REEL], 0, (int32_t)(NREEL + USLOT_N)); }
 
 /* what reel choice s (0: track t's RAM tape, 1..NREEL a factory reel, then the user reels) holds; POLY reads any of
  * them this way, whatever the track's TAPE plays */
-static void tape_view_of(uint32_t t, uint32_t s, tape_view_t *v)
+static void HOT_CODE tape_view_of(uint32_t t, uint32_t s, tape_view_t *v)
 {
     v->map = 0;
     if (s > NREEL) {                                   /* a user reel (an empty slot plays nothing) */
@@ -295,7 +295,7 @@ static void tape_view_of(uint32_t t, uint32_t s, tape_view_t *v)
     v->ram = 1;
 }
 
-static void tape_view(uint32_t t, tape_view_t *v) { tape_view_of(t, tape_src(t), v); }
+static void HOT_CODE tape_view(uint32_t t, tape_view_t *v) { tape_view_of(t, tape_src(t), v); }
 
 /* v hundredths of a percent of len (in two parts: the whole product would pass 32 bits on a long tape) */
 static int32_t pct100_of(uint32_t len, int32_t v)
@@ -329,7 +329,7 @@ static struct {
     int32_t ls, ll;
 } tape_win[NTRK];
 
-static void tape_window(uint32_t t, uint32_t len, int32_t *ls, int32_t *ll)
+static void HOT_CODE tape_window(uint32_t t, uint32_t len, int32_t *ls, int32_t *ll)
 {
     const int16_t *k = TPD(t, DEV_SRC);
     t %= NTRK;
@@ -344,18 +344,18 @@ static void tape_window(uint32_t t, uint32_t len, int32_t *ls, int32_t *ll)
 }
 
 /* SYNC's bars (0: off): OFF 1 2 4 8 16 */
-static uint32_t tape_sync_bars(uint32_t t)
+static uint32_t HOT_CODE tape_sync_bars(uint32_t t)
 {
     int32_t s = clamp(tp[t].dev[DEV_SRC][TK_SYNC], 0, 5);
     return s ? 1u << (s - 1) : 0u;
 }
 
 /* SYNC: the beat's place in the loop's per beats now, Q16 of the loop */
-static uint32_t tape_sync_clock(uint32_t per) { return (mclk.beat % (per << 16)) / per; }
+static uint32_t HOT_CODE tape_sync_clock(uint32_t per) { return (mclk.beat % (per << 16)) / per; }
 
 /* SYNC: where the head belongs in the loop now, Q16: ROTATE's start and where a slice key moved it, then the beat's
  * place forward (backwards: back from them, so PLAY starts it just before ROTATE's start, as tape_rot does) */
-static uint32_t tape_sync_frac(uint32_t t, uint32_t per, int rev)
+static uint32_t HOT_CODE tape_sync_frac(uint32_t t, uint32_t per, int rev)
 {
     uint32_t r = (uint32_t)TPD(t, DEV_SRC)[TK_ROTA] * 65536u / 100u + tape_rt[t].soff, c = tape_sync_clock(per);
     return (rev ? r - c : r + c) & 0xFFFFu;
@@ -363,7 +363,7 @@ static uint32_t tape_sync_frac(uint32_t t, uint32_t per, int rev)
 
 /* the head's step per output sample, Q12 of a tape sample: 0.5 at 100 % (22.05 kHz under 44.1 kHz); SPD
  * -200..200 %, REV turns it round, HALF halves it */
-static int32_t tape_inc(uint32_t t)
+static int32_t HOT_CODE tape_inc(uint32_t t)
 {
     const int16_t *k = TPD(t, DEV_SRC);
     int32_t inc = 2048 * k[TK_SPD] / 100;
@@ -373,7 +373,7 @@ static int32_t tape_inc(uint32_t t)
 }
 
 /* sample i of the view through reader r (silence outside it) */
-static int32_t tape_at(const tape_view_t *v, tape_rd_t *r, int32_t i)
+static int32_t HOT_CODE tape_at(const tape_view_t *v, tape_rd_t *r, int32_t i)
 {
     uint32_t blk, o;
     if (i < 0 || (uint32_t)i >= v->len)
@@ -395,7 +395,7 @@ static int32_t tape_at(const tape_view_t *v, tape_rd_t *r, int32_t i)
 }
 
 /* the view at head position pos (Q12), interpolated */
-static int32_t tape_read(const tape_view_t *v, tape_rd_t *r, int32_t pos)
+static int32_t HOT_CODE tape_read(const tape_view_t *v, tape_rd_t *r, int32_t pos)
 {
     int32_t i = pos >> 12, f = pos & 4095, a = tape_at(v, r, i), b;
     if (i < 0 || (uint32_t)i >= v->len)
@@ -468,7 +468,7 @@ static void tape_commit(uint32_t t)
 /* DUB (-100..100) as the old sound's and the new sound's shares, in %: the S-4's SOS, a Morphagene's SOS. 0 is
  * sound on sound (both whole); toward +100 the input fades and the loop stays (+100: REC changes nothing); toward
  * -100 the loop fades on each pass under the input (-100: the input replaces it) */
-static void tape_dub(int32_t dub, int32_t *keep, int32_t *in)
+static void HOT_CODE tape_dub(int32_t dub, int32_t *keep, int32_t *in)
 {
     *keep = dub >= 0 ? 100 : 100 + dub;
     *in = dub <= 0 ? 100 : 100 - dub;
@@ -491,7 +491,7 @@ static void tape_write(uint32_t t, int32_t i, int32_t in, int32_t keep)
 
 /* ------------------------------------------------------------ the head --- */
 /* jump the head to pos, the old head fading out over the fade (FADE, or at least TAPE_DECLICK) */
-static void tape_jump(uint32_t t, int32_t pos)
+static void HOT_CODE tape_jump(uint32_t t, int32_t pos)
 {
     tape_rt_t *rt = &tape_rt[t];
     int32_t fl = TPD(t, DEV_SRC)[TK_FADE] * 441 / 10;   /* ms -> output samples */
@@ -502,7 +502,7 @@ static void tape_jump(uint32_t t, int32_t pos)
 }
 
 /* where in the loop window [ls, ls + ll) the head sits at its offset o from ROTATE's start (wrapped) */
-static int32_t tape_rot(uint32_t t, int32_t ls, int32_t ll, int32_t o)
+static int32_t HOT_CODE tape_rot(uint32_t t, int32_t ls, int32_t ll, int32_t o)
 {
     int32_t r = (ll * TPD(t, DEV_SRC)[TK_ROTA] / 100 + o) % ll;
     return ls + (r < 0 ? r + ll : r);
@@ -532,7 +532,7 @@ static int32_t tape_env_step(int32_t v)
 /* the slice envelope, a block on: its level at this block's end. Stopped, a key's slice goes ATK DEC SUS while that
  * key is held, then REL, and the head stops when it's silent; playing, a key's jump fades in over ATK and the loop
  * runs as it is (TE_IDLE: unity) */
-static int32_t tape_env(tape_rt_t *rt, const int16_t *p, uint32_t keys, uint32_t playing)
+static int32_t HOT_CODE tape_env(tape_rt_t *rt, const int16_t *p, uint32_t keys, uint32_t playing)
 {
     int32_t sus = PCT_Q15[clamp(p[TK_SUS], 0, 100)];
     int gate = (int)((keys >> rt->ekey) & 1u);
@@ -575,7 +575,7 @@ static int32_t tape_env(tape_rt_t *rt, const int16_t *p, uint32_t keys, uint32_t
 
 /* audio ISR: n output samples of track t (mono Q15, before level) into out; keys: the white keys held on this
  * track; rec_in: what REC records (n samples), 0 when not recording */
-static void tape_block(uint32_t t, uint32_t keys, const int32_t *rec_in, int32_t *out, uint32_t n)
+static void HOT_CODE tape_block(uint32_t t, uint32_t keys, const int32_t *rec_in, int32_t *out, uint32_t n)
 {
     tape_rt_t *rt = &tape_rt[t];
     tape_ctl_t *c = &tape_ctl[t];

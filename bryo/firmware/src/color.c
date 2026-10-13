@@ -33,7 +33,7 @@ static color_t color[NTRK];
 static inline int32_t col_g8(int32_t driv) { return 256 + driv * 3840 / 100; }
 
 /* the drive and the bits (before the hold, the noise, TILT, WET and LVL): x in, Q15-ish; the picture uses it too */
-static inline int32_t col_drive_bits(int32_t x, int32_t g8, uint32_t sh)
+static inline __attribute__((always_inline)) int32_t col_drive_bits(int32_t x, int32_t g8, uint32_t sh)
 {
     int32_t y = g8 > 256 ? softclip(x * g8 >> 8) : x;   /* (|x| up to 65535 * 4096: 32 bits) */
     if (!sh)
@@ -42,14 +42,14 @@ static inline int32_t col_drive_bits(int32_t x, int32_t g8, uint32_t sh)
 }
 
 /* CRSH's bits taken off (0..14), by CMOD */
-static inline uint32_t col_bits_off(const int16_t *v)
+static inline __attribute__((always_inline)) uint32_t col_bits_off(const int16_t *v)
 {
     return v[CP_CMOD] == CMOD_RATE || !v[CP_CRSH] ? 0u : (uint32_t)(v[CP_CRSH] * 14 / 100);   /* (CRSH 0: none,
                                                          * without the divide every block) */
 }
 
 /* CRSH's hold, samples (1: none), by CMOD */
-static inline uint32_t col_hold(const int16_t *v)
+static inline __attribute__((always_inline)) uint32_t col_hold(const int16_t *v)
 {
     return v[CP_CMOD] >= CMOD_RATE && v[CP_CRSH] ? 1u + (uint32_t)(v[CP_CRSH] * 11 / 100) : 1u;
 }
@@ -61,7 +61,7 @@ static int32_t color_shape(int32_t x, const int16_t *v)
 }
 
 /* audio ISR: track t's COLOR on its stereo block */
-static void color_block(uint32_t t, int32_t *l, int32_t *r, uint32_t n)
+static void HOT_CODE color_block(uint32_t t, int32_t *l, int32_t *r, uint32_t n)
 {
     color_t *C = &color[t];
     const int16_t *v = TPD(t, DEV_COLOR);

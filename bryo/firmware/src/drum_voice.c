@@ -136,7 +136,7 @@ static uint32_t dk_us(uint32_t ms, uint32_t sc)
     return (uint32_t)clamp((int32_t)(us / 256u * sc + (us % 256u) * sc / 256u), 200, 30000000);
 }
 
-static void dk_setup(dk_coef_t *c, const dk_patch_t *p, const dk_knobs_t *k)
+static void HOT_CODE dk_setup(dk_coef_t *c, const dk_patch_t *p, const dk_knobs_t *k)
 {
     uint32_t sc = k->dscale ? k->dscale : 256u, i;
     int32_t br = clamp(k->bright, -127, 127), acc = k->accent;
@@ -187,7 +187,7 @@ static void dk_setup(dk_coef_t *c, const dk_patch_t *p, const dk_knobs_t *k)
 }
 
 /* ----------------------------------------------------------------------- the voice --- */
-static void dk_strike(const dk_coef_t *c, dk_voice_t *v)
+static void HOT_CODE dk_strike(const dk_coef_t *c, dk_voice_t *v)
 {
     uint32_t i;
     for (i = 0; i < sizeof *v / 4u; i++)
@@ -205,10 +205,10 @@ static void dk_strike(const dk_coef_t *c, dk_voice_t *v)
 }
 
 static void dk_trigger(dk_voice_t *v) { v->trig = 1; }
-static void dk_choke(dk_voice_t *v) { v->choke = 1; }
+static void HOT_CODE dk_choke(dk_voice_t *v) { v->choke = 1; }
 
 /* a slow envelope's block: its start (Q20) and step per sample, then the envelope a block on */
-static inline void dk_ramp(int32_t *q, uint32_t k, int32_t *a, int32_t *d)
+static inline __attribute__((always_inline)) void dk_ramp(int32_t *q, uint32_t k, int32_t *a, int32_t *d)
 {
     *a = *q >> 10;
     *q = mulq16(*q, k);
@@ -220,7 +220,7 @@ static inline void dk_ramp(int32_t *q, uint32_t k, int32_t *a, int32_t *d)
  * drum's thud lasts 2 ms of its second, a hat has no tone at all. */
 
 /* TONE into y (written, not added): the partials under the body's ramp (a: Q20 start, d: step) */
-static void dk_tone_loop(const dk_coef_t *c, dk_voice_t *v, int32_t *y, uint32_t n, int32_t a, int32_t d)
+static void HOT_CODE dk_tone_loop(const dk_coef_t *c, dk_voice_t *v, int32_t *y, uint32_t n, int32_t a, int32_t d)
 {
     uint32_t i, ph1 = v->ph1, ph2 = v->ph2, span = c->span >> 15, ratio = c->ratio;
     int32_t eb = v->ebend, kb = (int32_t)c->kbend, g1 = c->g1, g2 = c->g2;
@@ -270,7 +270,7 @@ static inline __attribute__((always_inline)) void dk_noise_loop(const dk_coef_t 
     v->rng = rng;
 }
 
-static __attribute__((noinline)) void dk_run(const dk_coef_t *c, dk_voice_t *v, int32_t *out, uint32_t n)
+static void HOT_CODE dk_run(const dk_coef_t *c, dk_voice_t *v, int32_t *out, uint32_t n)
 {
     static const uint32_t KB_CHOKE = 40265u;             /* dk_kslow(1500): a 1.5 ms release */
     uint32_t i, j;

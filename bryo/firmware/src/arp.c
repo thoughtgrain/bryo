@@ -126,7 +126,7 @@ static uint32_t HOT_CODE arp_notes(const int16_t *a, const arp_rt_t *r, uint8_t 
 }
 
 /* the steps before ORDR's walk repeats over len places (UPDN: up and back, the ends once) */
-static uint32_t arp_period(uint32_t ord, uint32_t len) { return ord == ARO_UPDN && len > 1u ? 2u * len - 2u : len; }
+static uint32_t HOT_CODE arp_period(uint32_t ord, uint32_t len) { return ord == ARO_UPDN && len > 1u ? 2u * len - 2u : len; }
 
 /* the place step pos takes among len (n notes, then each an octave up, ...), walked by ORDR (RND: rnd) */
 static uint32_t HOT_CODE arp_place(uint32_t ord, uint32_t len, uint32_t pos, uint32_t rnd)
@@ -235,7 +235,7 @@ static uint32_t HOT_CODE arp_run(arp_rt_t *r, const int16_t *a, int on, uint32_t
 /* audio ISR: one block of track t's arpeggiator (the ARP pad's), between its keys and its source. SYNTH and POLY:
  * notes (keys a mask over base; a step plays bit 0 at *nbase). TAPE and DRUM: the keys are slices or drums (0..15),
  * a step plays that one's key, and RNGE has no octaves to spread over. Returns the mask the source plays */
-static uint32_t arp_block(uint32_t t, uint32_t keys, uint32_t base, uint32_t n, uint32_t *nbase)
+static uint32_t HOT_CODE arp_block(uint32_t t, uint32_t keys, uint32_t base, uint32_t n, uint32_t *nbase)
 {
     arp_rt_t *r = &arp_rt[t];
     int16_t a[NARP];

@@ -130,7 +130,7 @@ typedef struct {
     uint16_t arrs;                   /* the knob arrays they touch, a bit each */
     mod_ent_t e[MOD_MAX];
 } mod_list_t;
-static mod_list_t mod_l[NTRK][2] __attribute__((section(".pool")));
+static mod_list_t mod_l[NTRK][2] __attribute__((section(".lowpool")));
 static volatile uint8_t mod_cur[NTRK];       /* the list the ISR reads */
 static volatile uint8_t mod_on;              /* the tracks with a list, a bit each (the ISR skips the rest) */
 
@@ -177,7 +177,7 @@ static int16_t *HOT_CODE mod_base(uint32_t t, uint32_t a)
 }
 
 /* knob array a's length: the channel's NCH, an instrument group's 4 x NDIN, the rest NPK */
-static inline uint32_t mod_alen(uint32_t a) { return a == MA_CH ? NCH : a >= MA_DIN0 ? 4u * NDIN : NPK; }
+static inline __attribute__((always_inline)) uint32_t mod_alen(uint32_t a) { return a == MA_CH ? NCH : a >= MA_DIN0 ? 4u * NDIN : NPK; }
 
 /* main loop: track t's list from its depths, published whole */
 static uint32_t mod_gen[NTRK];        /* main loop: bumped at each rebuild (mod_peak_dev's spans are per list) */
@@ -461,7 +461,7 @@ typedef struct {                     /* ISR only: a slot's running state */
 } mod_rt_t;
 enum { ENV_IDLE, ENV_ATK, ENV_DEC, ENV_SUS, ENV_REL };
 
-static mod_rt_t mrt[NTRK][NSLOT] __attribute__((section(".pool")));
+static mod_rt_t mrt[NTRK][NSLOT] __attribute__((section(".lowpool")));
 
 /* main loop -> ISR: the SEQ slot on screen, 1 + track x NSLOT + slot (0: none). It runs even when it modulates
  * nothing yet, so its white keys can show the step playing while you write its steps (its output goes nowhere) */
@@ -474,7 +474,7 @@ static int32_t mod_seq_now(uint32_t t, uint32_t s)
     const volatile mod_rt_t *m = &mrt[t % NTRK][s % NSLOT];
     return m->engine == ME_SEQ + 1u ? m->step : -1;
 }
-static int16_t mda[NTRK][MOD_NARR][NPK] __attribute__((section(".pool")));   /* ISR: the modulated arrays */
+static int16_t mda[NTRK][MOD_NARR][NPK] __attribute__((section(".lowpool")));   /* ISR: the modulated arrays */
 static const int16_t *mdv[NTRK][MOD_NARR];     /* what the devices read: mda's array, or tp's own (mod_init) */
 #define TPD(t, a) (mdv[t][a])                  /* track t's knob array a (DEV_*, MA_SYN, MA_POL, MA_DRM, MA_CH),
                                                 * modulated */
@@ -487,7 +487,7 @@ static uint16_t mod_arrs[NTRK];                /* ISR: the arrays mdv points int
  * through mod_fine8 or mod_pitch16 (the knob itself when nothing modulates it). */
 static int32_t mod_f8[NTRK][FN_N];             /* ISR: the modulated value, 1/256 of the knob's step */
 static uint8_t mod_fmask[NTRK];                /* ISR: which of them hold one this block */
-static inline int32_t mod_fine8(uint32_t t, uint32_t f, int32_t knob)
+static inline __attribute__((always_inline)) int32_t mod_fine8(uint32_t t, uint32_t f, int32_t knob)
 {
     return (mod_fmask[t] >> f) & 1u ? mod_f8[t][f] : knob * 256;
 }

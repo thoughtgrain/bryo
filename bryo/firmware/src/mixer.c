@@ -156,7 +156,7 @@ static inline __attribute__((always_inline)) void ch_side(chan_t *C, uint32_t c,
 }
 
 /* audio ISR: track t's channel strip on its stereo block, before its level (LOW HIGH FILT) */
-static void mix_channel(uint32_t t, int32_t *l, int32_t *r, uint32_t n)
+static void HOT_CODE mix_channel(uint32_t t, int32_t *l, int32_t *r, uint32_t n)
 {
     chan_t *C = &chan[t];
     const int16_t *ch = TPD(t, MA_CH);
@@ -243,7 +243,7 @@ static inline void ch_pan_gains(int32_t pan, int32_t *gl, int32_t *gr)
 
 /* audio ISR: track t's level g (Q12) and pan on its block, the pan ramped from the last block's. Centred, it does
  * nothing and returns 0: the caller applies the level as it sums (one pass, as before there was a pan) */
-static int mix_pan(uint32_t t, int32_t *l, int32_t *r, int32_t g, uint32_t n)
+static int HOT_CODE mix_pan(uint32_t t, int32_t *l, int32_t *r, int32_t g, uint32_t n)
 {
     chan_t *C = &chan[t];
     int32_t gl, gr, l0 = C->pl, r0 = C->pr, pl = TPD(t, MA_CH)[CH_PAN], pr = TPD(t, MA_CH) != tp[t].ch ? mod_pan_r[t] : pl, u;
@@ -287,7 +287,7 @@ static int32_t mx_curve(int32_t lv, int32_t *gr)
 }
 
 /* audio ISR: the master compressor on the sum (l, r), before MASTER */
-static void mix_comp(int32_t *l, int32_t *r, uint32_t n)
+static void HOT_CODE mix_comp(int32_t *l, int32_t *r, uint32_t n)
 {
     int32_t amt = mst[MS_AMT], g0 = comp.g, g1 = 4096, pk = 0, a, gr = 0, i;
     if (!amt && g0 == 4096) {                           /* off: untouched (the meter rests) */

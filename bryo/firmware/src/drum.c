@@ -287,7 +287,7 @@ static uint32_t drm_roll(uint32_t v, uint32_t bar, uint32_t s, uint32_t i, uint3
 static uint32_t drm_level(uint32_t s) { return !s ? 0u : !(s & 3u) ? 1u : !(s & 1u) ? 2u : 3u; }
 
 /* the version that plays on pass `pass` (0: as written) */
-static uint32_t drm_version(const int16_t *p, uint32_t pass)
+static uint32_t HOT_CODE drm_version(const int16_t *p, uint32_t pass)
 {
     static const uint8_t EVERY[5] = {0, 1, 2, 4, 8};
     uint32_t e = EVERY[clamp(p[DM_EVOL], 0, 4)];
@@ -297,7 +297,7 @@ static uint32_t drm_version(const int16_t *p, uint32_t pass)
 }
 
 /* what step s of bar `bar` plays in version v of track t's pattern (knobs p) */
-static void drm_step(uint32_t t, const int16_t *p, uint32_t v, uint32_t bar, uint32_t s, drm_hits_t *o)
+static void HOT_CODE drm_step(uint32_t t, const int16_t *p, uint32_t v, uint32_t bar, uint32_t s, drm_hits_t *o)
 {
     const track_params_t *P = &tp[t];
     uint32_t len = (uint32_t)clamp(p[DM_LEN], 2, (int32_t)DRM_NBAR), used = 0, inbar = 0, b, k, i, lv = drm_level(s);
@@ -430,7 +430,7 @@ typedef struct {                     /* audio ISR only */
     uint16_t skip;                   /* .. its instruments, not struck again when the step comes */
     uint32_t keys, last, n;          /* the keys last block; the last step struck (sixteenths since PLAY); ages */
 } drm_rt_t;
-static drm_rt_t drm_rt[NTRK] __attribute__((section(".pool")));   /* (3.7 KB, in the pool) */
+static drm_rt_t drm_rt[NTRK] __attribute__((section(".lowpool")));   /* (3.7 KB, in the pool) */
 static volatile uint8_t drm_now[NTRK];   /* ISR -> UI: the step playing in the pattern (0xFF: stopped) */
 static volatile uint16_t drm_pass[NTRK]; /* ISR -> UI: the passes of the pattern since PLAY (EVOL's version) */
 static volatile uint8_t drm_aud[NTRK];   /* UI -> ISR: an instrument to strike (+1; 0: none; HOME + key) */
@@ -490,7 +490,7 @@ static void drm_shed(void)
         drm_cap--;
     drm_calm = 0;
 }
-static void drm_recover(void)
+static void HOT_CODE drm_recover(void)
 {
     if (++drm_calm >= 1378u && drm_cap < DRM_NV) {     /* (a voice back, if there's room: chain_room) */
         if (chain_room())
@@ -500,7 +500,7 @@ static void drm_recover(void)
 }
 
 /* audio ISR: instrument i struck on track t (knobs p), accented, quiet (a ghost note) */
-static void drm_strike(uint32_t t, const int16_t *p, uint32_t i, uint32_t acc, uint32_t soft)
+static void HOT_CODE drm_strike(uint32_t t, const int16_t *p, uint32_t i, uint32_t acc, uint32_t soft)
 {
     drm_rt_t *r = &drm_rt[t];
     const int16_t *in = TPD(t, MA_DIN0 + i / 4u) + (i % 4u) * NDIN;   /* (its own knobs as modulated now: the hit
@@ -535,7 +535,7 @@ static void drm_strike(uint32_t t, const int16_t *p, uint32_t i, uint32_t acc, u
 
 /* audio ISR: one block of track t's DRUM into out. keys: the white keys held (they play the kit; on STEP in LIVE
  * they write, in ERAS they wipe); rec: unused (REC prints DRUM onto the tape, chain.c) */
-static void drm_block(uint32_t t, uint32_t keys, const int32_t *rec, int32_t *out, uint32_t n)
+static void HOT_CODE drm_block(uint32_t t, uint32_t keys, const int32_t *rec, int32_t *out, uint32_t n)
 {
     drm_rt_t *r = &drm_rt[t];
     const int16_t *p = TPD(t, MA_DRM);

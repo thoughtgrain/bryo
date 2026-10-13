@@ -2,10 +2,11 @@
  * Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments */
 /* Bryo memory map.
  * Code + constants execute in place from XIP (app.bin offset 0 = 0x02000120).
- * 0x01C00000..0x01C06000 holds .ram_text (code that must run while the flash
- * is busy: the flash driver); 0x01C06000..0x01C08000 stays for RAM-run debug.
+ * 0x01C00000..0x01C07F00 holds .ram_text (code that must run while the flash
+ * is busy: the flash driver), then .lowpool. (0x01C06000.. was kept for RAM-run debug until 2026-10-12; the
+ * last 256 B, the boot probe crt0 writes at 0x01C07F00, stay out of it.)
  * The rest of RAMTEXT holds .lowpool: zero-initialised buffers moved out of the pool (2026-10-12), so the pool
- * could give its top 16 KiB to .hot.
+ * could give its top 40 KiB to .hot.
  * RAM  : .data/.bss (96 KiB)
  * POOL : big zero-initialised buffers (FX lines, canvases), section .pool
  * HOT  : code run from RAM that calls flash code and is called from it (.hot): the audio's once-a-block work,
@@ -16,10 +17,10 @@
 MEMORY
 {
     XIP    (rx)  : ORIGIN = 0x02000120, LENGTH = 0x8DFBC
-    RAMTEXT (rwx): ORIGIN = 0x01C00000, LENGTH = 0x6000
+    RAMTEXT (rwx): ORIGIN = 0x01C00000, LENGTH = 0x7F00
     RAM    (rwx) : ORIGIN = 0x01C08000, LENGTH = 96K
-    POOL   (rw)  : ORIGIN = 0x01C20000, LENGTH = 0x50000
-    HOT    (rwx) : ORIGIN = 0x01C70000, LENGTH = 0x4000
+    POOL   (rw)  : ORIGIN = 0x01C20000, LENGTH = 0x4A000
+    HOT    (rwx) : ORIGIN = 0x01C6A000, LENGTH = 0xA000
     NOINIT (rw)  : ORIGIN = 0x01C7C000, LENGTH = 0x3D50
 }
 SECTIONS

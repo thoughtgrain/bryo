@@ -42,7 +42,7 @@ static tape_rd_t pol_rd[NTRK][POL_NV] __attribute__((section(".lowpool")));   /*
 /* the head's step for voice v's note on track t, Q12 tape samples per output sample: 0.5 at the sound's own pitch
  * (its ROOT's key, FINE cents off). TUNE is added here, every block, so a modulated TUNE moves a held note too, to
  * 1/16 semitone (mod.c); FINE to the cent (cents_inc). The divide runs only when the pitch or FINE moved */
-static void pol_tune(uint32_t t, pol_voice_t *v)
+static void HOT_CODE pol_tune(uint32_t t, pol_voice_t *v)
 {
     const int16_t *p = TPD(t, MA_POL);
     int32_t n16 = clamp(((int32_t)v->note + 48 - p[PL_ROOT]) * 16 + mod_pitch16(t, FN_POL, p[PL_TUNE]), 0, 127 * 16);
@@ -59,7 +59,7 @@ static void pol_tune(uint32_t t, pol_voice_t *v)
 }
 
 /* the voice's filter for a cutoff and RES: tsvf_coef's divides only when they moved */
-static void pol_filter(uint32_t t, pol_voice_t *v, int32_t cut)
+static void HOT_CODE pol_filter(uint32_t t, pol_voice_t *v, int32_t cut)
 {
     int16_t res = TPD(t, MA_POL)[PL_RES];
     if (v->fok && cut == v->fcut && res == v->fres)
@@ -90,7 +90,7 @@ static uint32_t pol_end(uint32_t t, uint32_t len)
     return pol_endc[t].end;
 }
 
-static void pol_start(uint32_t t, uint32_t k, uint32_t nv, uint32_t len)
+static void HOT_CODE pol_start(uint32_t t, uint32_t k, uint32_t nv, uint32_t len)
 {
     pol_t *s = &pol[t];
     pol_voice_t *v = &s->v[0];
@@ -125,7 +125,7 @@ static void pol_start(uint32_t t, uint32_t k, uint32_t nv, uint32_t len)
     pol_rd[t][v - s->v].ok = 0;
 }
 
-static void pol_voice(uint32_t t, pol_voice_t *v, tape_rd_t *rd, const tape_view_t *vw, int32_t *out, uint32_t n)
+static void HOT_CODE pol_voice(uint32_t t, pol_voice_t *v, tape_rd_t *rd, const tape_view_t *vw, int32_t *out, uint32_t n)
 {
     const int16_t *p = TPD(t, MA_POL);
     uint32_t i, mode = (uint32_t)clamp(p[PL_TYPE], 0, 2);
@@ -197,7 +197,7 @@ static void pol_voice(uint32_t t, pol_voice_t *v, tape_rd_t *rd, const tape_view
 
 /* audio ISR: one block of track t's POLY into out; keys: the keys held (bit k: key_base + k); rec: unused (REC prints POLY onto the
  * tape, chain.c) */
-static void pol_block(uint32_t t, uint32_t keys, const int32_t *rec, int32_t *out, uint32_t n)
+static void HOT_CODE pol_block(uint32_t t, uint32_t keys, const int32_t *rec, int32_t *out, uint32_t n)
 {
     pol_t *s = &pol[t];
     tape_view_t vw;
