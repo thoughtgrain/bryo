@@ -755,6 +755,15 @@ be modulated (the room is shared). A track preset keeps the track's room choice.
 4. **CHRONOS 4**: **SYNC** puts the delay on the tempo: **TIME** then picks a division (1/64 to 1/2, with dotted and
    triplet ones) and the strip shows it. The delay line holds 370 ms, so a division longer than that at your tempo is
    halved until it fits (a 1/4 at 120 BPM plays as 1/8), which keeps it on the beat; the strip shows what plays.
+   The other three knobs give the echoes a character (all at 0: plain, clean echoes):
+   - **AGE**: tape. Each repeat comes back a little more saturated and darker than the last, and the time wavers
+     (slow wow and quick flutter), so the echoes drift and wear like an old tape delay.
+   - **DIFF**: each repeat is smeared a little more than the last, so the echoes melt into a wash.
+   - **DUCK**: the echoes dip while the track plays and swell back in the gaps, so they stay out of your way.
+5. **CHRONOS 5**: the room's character (shared, like its other knobs):
+   - **TYPE**: **ROOM** (as before), **PLAT** (a plate: dense and bright), **HALL** (long and dark), **SPRG** (a
+     spring: short, bright and ringing).
+   - **MOD**: the tail wavers slowly, so it sounds less metallic and more alive.
 
 <img src="img/space_long.png" width="240" alt="CHRONOS: TIME FDBK DLY VERB"> <img src="img/space2.png" width="240" alt="CHRONOS 2: ROOM SIZE DEC PRE, T1 and T2 sharing room B"> <img src="img/space3.png" width="240" alt="CHRONOS 3: TONE SPRD RTON QUAL">
 

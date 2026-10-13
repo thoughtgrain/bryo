@@ -1041,10 +1041,11 @@ static const uint8_t DEV_PK[NDEV][NPK] = {
     {PK_DRIVE, PK_STAIRS, PK_NOISE, PK_TONE,         /* COLOR: DRV CRSH NOIS TILT */
      PK_DECAY, PK_TONE, PK_CMOD, PK_MIX,             /*        NDEC NTON CMOD WET */
      PK_FADER, PK_ROUTE, PK_NONE, PK_NONE},          /*        LVL ROUT */
-    {PK_CLOCK, PK_LOOP, PK_TOGGLE, PK_ROOM,          /* SPACE: TIME FDBK ROOM SIZE */
-     PK_MIX, PK_MIX, PK_FILTER, PK_BOWTIE,           /*        DLY VERB TONE SPRD */
-     PK_DECAY, PK_FILTER, PK_TOGGLE, PK_PRE,         /*        DEC RTON QUAL PRE (the room's) */
-     PK_CLOCK},                                      /*        SYNC */
+    {PK_CLOCK, PK_LOOP, PK_TOGGLE, PK_ROOM,          /* CHRONOS: TIME FDBK ROOM SIZE */
+     PK_MIX, PK_MIX, PK_FILTER, PK_BOWTIE,           /*          DLY VERB TONE SPRD */
+     PK_DECAY, PK_FILTER, PK_TOGGLE, PK_PRE,         /*          DEC RTON QUAL PRE (the room's) */
+     PK_CLOCK, PK_DRIVE, PK_SMOOTH, PK_GATE,         /*          SYNC AGE DIFF DUCK */
+     PK_MODE, PK_SLEW},                              /*          TYPE MOD (the room's) */
 };
 static const uint8_t SYN_PK[NPK] = {
     PK_OSC, PK_DETUNE, PK_MIX, PK_NOISE,             /* SYNTH: WAVE DTUN MIX NOIS */

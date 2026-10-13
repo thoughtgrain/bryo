@@ -1203,6 +1203,32 @@ strings) would need a step for CHRONOS as well (the room at a quarter rate, say)
 the device's number. The stress run cuts the interrupts in while RIPPLE and CHRONOS take and give back memory as
 knobs turn, and the books balance (RIPPLE's strings and CHRONOS's lines are in the check now too).
 
+**Renamed, and a character (2026-10-13).** SPACE is CHRONOS now (the module stays space.c, the enums SP_*). From
+playing it: the echoes and the rooms wanted character. Three knobs on CHRONOS 4 for the delay, two on CHRONOS 5 for
+the room; each one at 0 is the effect as it was, bit for bit (the audio fingerprints hold), so a project saved before
+them sounds the same.
+
+- **AGE** (tape): in the feedback, the repeat driven into the tanh at up to 2x with its small signal kept at 1x
+  (softclip, then the drive's inverse), then a one-pole low-pass down to about 1.4 kHz a pass, so each repeat is
+  warmer and duller than the last; and the read point wavers, wow (0.7 Hz, to 47 samples at 22.05 kHz, about 16
+  cents) and flutter (6 Hz, to 2.3 samples, about 7 cents), set once a block and ramped across it.
+- **DIFF**: two allpasses in the feedback (113 and 199 samples, 5.1 and 9.0 ms; gain to 0.7), so each repeat is
+  smeared more than the last, toward a wash. Their lines are in main RAM (2.5 KB, four tracks).
+- **DUCK**: the echoes' level times one minus DUCK times the track's envelope (last block's input peak: up at once,
+  down over about 190 ms), all the way down at -12 dBFS. The line keeps taking the sound while it's ducked to 0, so
+  the echoes come back as the track stops (the delay's "nothing on" now looks at the gain before DUCK).
+- **TYPE** (the room's): ROOM as it was; PLAT (combs 0.62 x, ring 1.25 x, allpasses 0.7, half the damping), HALL
+  (combs as long as their chunks allow, ring 1.8 x, allpasses 0.6, 1.6 x the damping), SPRG (combs 0.35 x, ring
+  0.9 x, allpasses 0.75, 0.4 x the damping). Tables in space.c (SP_TY_*); the allpasses take a multiply instead of
+  ROOM's halving only when TYPE isn't ROOM.
+- **MOD** (the room's): each comb read up to 2.3 samples (0.1 ms) newer than its length, between two samples, by its
+  own LFO (0.37, 0.53, 0.71, 0.89 Hz), set once a block: a tail that moves instead of ringing metallic.
+
+All five are modulation targets except TYPE and MOD, which belong to the shared room. Tested (`test_chronos_character`):
+AGE's repeats from the third on about five times darker and its read point moving; DIFF's second repeat spread over
+52 samples where it was 4; DUCK's echoes far down under a playing tone and back within 3 dB once it stops; each TYPE
+its own tail, HALL longer than ROOM, none running away; MOD's tail different from MOD 0, no steps, the same length.
+
 ## The shared rooms, as built (2026-10-11)
 
 **Why.** Playing the factory scene with one LFO on a drum's LVL put the FM-1 over 80 % and it crackled. The depth

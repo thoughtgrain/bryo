@@ -35,13 +35,21 @@
 #define SP_KEEP 16u                  /* chunks (3 s) a 16-bit line leaves free, or it starts 8-bit */
 #define SP_LMAX 8u
 /* (3 and 8: the track's own SIZE and PRE until the rooms were shared; 3 and 8-11 the room's knobs now: SP_RMK) */
-enum { SP_TIME, SP_FDBK, SP_ROOM, SP_X3, SP_DLY, SP_VERB, SP_TONE, SP_SPRD, SP_X8, SP_SYNC = 12 };
+enum { SP_TIME, SP_FDBK, SP_ROOM, SP_X3, SP_DLY, SP_VERB, SP_TONE, SP_SPRD, SP_X8, SP_SYNC = 12, SP_AGE, SP_DIFF,
+       SP_DUCK };
 
 /* the combs' longest (SIZE 100), and the allpasses (left pair, right pair), samples at 22.05 kHz: Freeverb's
  * lengths, the combs half again as long for a room rather than a box */
 static const uint16_t SP_COMB[4] = {837, 891, 958, 1017};
 static const uint16_t SP_AP[4] = {278, 220, 290, 232};
 static const uint16_t SP_APO[4] = {0, 278, 498, 788};   /* where each allpass sits in the fifth chunk */
+/* TYPE (2026-10-13): the room's tunings, by ROOM PLAT HALL SPRG. The combs' lengths (Q8, of SIZE's), their ring
+ * (Q8, of DEC's T60), the allpasses' gain (Q15; 0: the room's 1/2, as it always was) and the combs' damping (Q8).
+ * PLAT dense and bright, HALL long and dark, SPRG short, bright, ringing. ROOM is the room as it was, bit for bit */
+static const uint16_t SP_TY_LEN[4] = {256, 159, 256, 90}, SP_TY_T60[4] = {256, 320, 461, 230};
+static const uint16_t SP_TY_APG[4] = {0, 22938, 19661, 24576}, SP_TY_DAMP[4] = {256, 128, 410, 102};
+/* MOD: each comb's own slow LFO (0.37 0.53 0.71 0.89 Hz), phase steps a sample at 22.05 kHz */
+static const uint32_t SP_MOD_INC[4] = {72071u, 103236u, 138302u, 173367u};
 
 typedef struct {                     /* a line in chunks of the shared memory */
     uint8_t map[SP_LMAX];            /* (the main loop's) */
@@ -64,7 +72,16 @@ typedef struct {                     /* a track's SPACE */
     uint32_t quiet;                  /* half-rate samples in a row of silence in and next to none out (sp_quiet) */
     int16_t mdly, mfb;               /* DLY and FDBK as their gains were last worked out (0 at power-on: their gains */
     int32_t mgd, mfbg;               /* .. 0, right for 0), and the gains: a divide each only when the knob moves */
+    /* the echoes' character (sp_delay; all at rest at 0) */
+    uint32_t wph, fph;               /* AGE: the wow's and the flutter's phases */
+    int32_t wob;                     /* .. the read point's offset last block, Q8 samples (each block ramps from it) */
+    int32_t alp;                     /* .. its low-pass in the feedback */
+    int32_t dpk, denv;               /* DUCK: the input's peak last block, and its envelope */
+    uint16_t dj[2];                  /* DIFF: the two allpasses' indices */
 } space_t;
+#define SP_DF0 113u                  /* DIFF's allpasses, samples at 22.05 kHz (5.1 and 9.0 ms: prime, apart) */
+#define SP_DF1 199u
+static int16_t sp_dfa[NTRK][SP_DF0 + SP_DF1];   /* (main RAM: 2.5 KB) */
 
 typedef struct {                     /* a room, A or B */
     sp_line_t pre, rev;              /* the main loop's */
@@ -75,6 +92,9 @@ typedef struct {                     /* a room, A or B */
     uint32_t pw;                     /* the pre-delay's write index */
     uint16_t ci[4], ai[4];           /* the combs' and allpasses' indices */
     uint16_t clen[4], alen[4];       /* their lengths now (SIZE, QUAL) */
+    uint8_t type_seen;               /* the TYPE clen, cg and apg were set for */
+    int32_t apg;                     /* the allpasses' gain, Q15 (0: 1/2, ROOM's own form) */
+    uint32_t mph[4];                 /* MOD: each comb's LFO phase */
     int32_t clp[4], cg[4];           /* the combs' damping filters, their loop gains (DEC), Q15 */
     int16_t size_seen, dec_seen;     /* what clen and cg were set for (-1: nothing yet) */
     int32_t rhp;                     /* TONE's high-pass in front */
@@ -152,7 +172,7 @@ static inline int32_t sp_dec8(uint8_t c)
 /* a * b, Q15, toward zero: the loops here run for seconds, and a shift's floor would keep them ringing on a small
  * DC of their own after the sound has gone (-36 at the output, measured; rounding to nearest still left a limit
  * cycle of 28). Cutting the magnitude only ever takes energy out, so a loop with nothing in it falls to 0. */
-static inline int32_t sp_mul(int32_t a, int32_t b) { return sdiv2(a * b, 15); }   /* (toward zero: the tails settle) */
+static inline __attribute__((always_inline)) int32_t sp_mul(int32_t a, int32_t b) { return sdiv2(a * b, 15); }   /* (toward zero: the tails settle) */
 
 /* ----------------------------------------------------------- lines --- */
 /* a line's chunks as pointers, for a block */
@@ -252,11 +272,21 @@ static void space_poll(void)
 
 /* ------------------------------------------------------------ audio --- */
 /* a room's combs and allpasses for SIZE, DEC and QUAL (LO: every length half, each sample twice as long) */
-static void sp_room(room_t *R, int32_t size, int32_t dec, uint32_t lo)
+static void sp_room(room_t *R, int32_t size, int32_t dec, uint32_t lo, uint32_t type)
 {
     uint32_t k, t60 = (uint32_t)(200 + dec * 40);
+    if (type) {                                         /* TYPE: its ring (ROOM: as it was) */
+        t60 = t60 * SP_TY_T60[type] >> 8;
+        R->apg = SP_TY_APG[type];
+    } else
+        R->apg = 0;
+    R->type_seen = (uint8_t)type;
     for (k = 0; k < 4u; k++) {
         uint32_t len = (SP_COMB[k] * (uint32_t)(40 + size * 60 / 100) / 100u) >> lo;
+        if (type) {                                     /* (its lengths, inside the comb's chunk) */
+            len = len * SP_TY_LEN[type] >> 8;
+            len = len < 8u ? 8u : len > (1052u >> lo) ? (1052u >> lo) : len;
+        }
         R->clen[k] = (uint16_t)len;
         if (R->ci[k] >= len)
             R->ci[k] = 0;
@@ -278,23 +308,36 @@ static inline __attribute__((always_inline)) int32_t sp_sat(int32_t v)
 
 /* the delay over a block at half the rate: m in, its echoes added to wl, wr (the state in locals throughout: the
  * compiler can't know the buffers don't alias it) */
+/* the echoes' character for a block (sp_delay): AGE's drive, its inverse, its low-pass, the read point's offset at
+ * the block's end (wow and flutter), DIFF's allpass gain. All 0: the delay as it was, bit for bit */
+typedef struct {
+    int32_t dr, dri, ka, wob1, dg;
+} sp_char_t;
+
 static void HOT_CODE sp_delay(space_t *S, uint8_t *const *db, int dlb, uint32_t dl, int32_t tgt, int32_t off, int32_t kl,
-                     int32_t kh, int32_t fbg, int32_t v0, int32_t v1, const int32_t *m, int32_t *wl, int32_t *wr)
+                     int32_t kh, int32_t fbg, int32_t v0, int32_t v1, const int32_t *m, int32_t *wl, int32_t *wr,
+                     const sp_char_t *ch, int16_t *dfa)
 {
     int32_t q = S->dq, lp = S->dlp, w = (int32_t)S->dw, gq = v0 << (CTL_LOG2 - 1), dg = v1 - v0;
-    uint32_t i;
+    int32_t wob = S->wob, dwob = (ch->wob1 - S->wob) >> (CTL_LOG2 - 1), alp = S->alp;
+    uint32_t i, j0 = S->dj[0], j1 = S->dj[1];
     for (i = 0; i < CTL / 2u; i++, gq += dg) {
-        int32_t e, er, f, s0, s1, ix, g = gq >> (CTL_LOG2 - 1);
+        int32_t e, er, f, s0, s1, ix, g = gq >> (CTL_LOG2 - 1), qq = q;
         q += clamp((tgt - q) >> 11, -96, 96);           /* TIME glides: ~90 ms, at most 3/8 of a sample a sample */
-        ix = w - (q >> 8);                              /* (a tape echo's bend: within a fifth) */
+        if (ch->wob1 || wob) {                          /* AGE: the read point wavers (wow and flutter), ramped */
+            wob += dwob;
+            qq = q - wob < (2 << 8) ? 2 << 8 : q - wob;
+        } else
+            qq = q;
+        ix = w - (qq >> 8);                             /* (a tape echo's bend: within a fifth) */
         if (ix < 0)
             ix += (int32_t)dl;
         s0 = sp_rd(db, dlb, (uint32_t)ix);
         s1 = sp_rd(db, dlb, ix ? (uint32_t)ix - 1u : dl - 1u);
-        e = s0 + (((s1 - s0) * (q & 255)) >> 8);
+        e = s0 + (((s1 - s0) * (qq & 255)) >> 8);
         er = e;
         if (off) {                                      /* SPRD: the right echo a little ahead */
-            int32_t qr = q - off < (2 << 8) ? 2 << 8 : q - off;
+            int32_t qr = qq - off < (2 << 8) ? 2 << 8 : qq - off;
             ix = w - (qr >> 8);
             if (ix < 0)
                 ix += (int32_t)dl;
@@ -310,6 +353,26 @@ static void HOT_CODE sp_delay(space_t *S, uint8_t *const *db, int dlb, uint32_t 
             f = lp;
         } else
             f = e;
+        if (ch->dr) {                                   /* AGE: each repeat driven into the tanh (the small signal
+                                                         * at the same level) and darker */
+            f = (softclip((f * ch->dr) >> 12) * ch->dri) >> 12;
+            alp += sp_mul(f - alp, ch->ka);
+            f = alp;
+        }
+        if (ch->dg) {                                   /* DIFF: two allpasses in the feedback, each repeat smeared
+                                                         * more than the last */
+            int32_t o = dfa[j0], u = sp_sat(f + sp_mul(o, ch->dg));
+            dfa[j0] = (int16_t)u;
+            f = o - sp_mul(u, ch->dg);
+            if (++j0 >= SP_DF0)
+                j0 = 0;
+            o = dfa[SP_DF0 + j1];
+            u = sp_sat(f + sp_mul(o, ch->dg));
+            dfa[SP_DF0 + j1] = (int16_t)u;
+            f = o - sp_mul(u, ch->dg);
+            if (++j1 >= SP_DF1)
+                j1 = 0;
+        }
         sp_wr(db, dlb, (uint32_t)w, m[i] + sp_mul(f, fbg));
         if (++w >= (int32_t)dl)
             w = 0;
@@ -319,6 +382,10 @@ static void HOT_CODE sp_delay(space_t *S, uint8_t *const *db, int dlb, uint32_t 
     S->dq = q;
     S->dlp = lp;
     S->dw = (uint32_t)w;
+    S->wob = ch->wob1;
+    S->alp = alp;
+    S->dj[0] = (uint16_t)j0;
+    S->dj[1] = (uint16_t)j1;
 }
 
 /* one comb over the block: read, damp, feed back, step; what it read into o[] (the combs are independent: each one
@@ -330,6 +397,13 @@ static void HOT_CODE sp_delay(space_t *S, uint8_t *const *db, int dlb, uint32_t 
         int16_t *c_ = c##k;                                                                               \
         for (i = 0; i < ns; i++) {                                                                        \
             int32_t o_ = c_[i_];                                                                          \
+            if (mo##k) {                    /* MOD: read mo (Q8 samples) newer, between two samples */    \
+                uint32_t r_ = i_ + (uint32_t)(mo##k >> 8), r1_;                                           \
+                if (r_ >= n_)                                                                             \
+                    r_ -= n_;                                                                             \
+                r1_ = r_ + 1u < n_ ? r_ + 1u : 0u;                                                        \
+                o_ = c_[r_] + (((c_[r1_] - c_[r_]) * (mo##k & 255)) >> 8);                                \
+            }                                                                                             \
             lp_ = o_ + sp_mul(lp_ - o_, damp);                                                            \
             c_[i_] = (int16_t)sp_sat(in[i] + sp_mul(lp_, cg_));                                           \
             if (++i_ >= n_)                                                                               \
@@ -347,7 +421,7 @@ static void HOT_CODE sp_delay(space_t *S, uint8_t *const *db, int dlb, uint32_t 
         int16_t *p_ = ap##k;                                                                              \
         for (i = 0; i < ns; i++) {                                                                        \
             int32_t o_ = p_[j_];                                                                          \
-            p_[j_] = (int16_t)sp_sat((a)[i] + sdiv2(o_, 1));                                              \
+            p_[j_] = (int16_t)sp_sat((a)[i] + (apg ? sp_mul(o_, apg) : sdiv2(o_, 1)));                    \
             (a)[i] = o_ - (a)[i];                                                                         \
             if (++j_ >= m_)                                                                               \
                 j_ = 0;                                                                                   \
@@ -361,7 +435,8 @@ static void HOT_CODE sp_delay(space_t *S, uint8_t *const *db, int dlb, uint32_t 
  * values live and spilled on every comb on the target (about 16 registers); each stage on its own keeps its few in
  * registers. The same arithmetic in the same order for every value: the output bit for bit (2026-10-12) */
 static void HOT_CODE sp_room_run(room_t *R, uint8_t *const *pb, int plb, uint32_t pl, int32_t pre, uint8_t *const *rb,
-                        int32_t kh, int32_t damp, const int32_t *xin, uint32_t ns, int32_t *wl, int32_t *wr)
+                        int32_t kh, int32_t damp, const int32_t *xin, uint32_t ns, int32_t *wl, int32_t *wr,
+                        int32_t md)
 {
     int16_t *c0 = (int16_t *)(void *)rb[0], *c1 = (int16_t *)(void *)rb[1], *c2 = (int16_t *)(void *)rb[2];
     int16_t *c3 = (int16_t *)(void *)rb[3], *ap0 = (int16_t *)(void *)rb[4] + SP_APO[0];
@@ -372,8 +447,22 @@ static void HOT_CODE sp_room_run(room_t *R, uint8_t *const *pb, int plb, uint32_
     uint32_t m0 = R->alen[0], m1 = R->alen[1], m2 = R->alen[2], m3 = R->alen[3];
     int32_t lp0 = R->clp[0], lp1 = R->clp[1], lp2 = R->clp[2], lp3 = R->clp[3], cg0 = R->cg[0], cg1 = R->cg[1];
     int32_t cg2 = R->cg[2], cg3 = R->cg[3], hp = R->rhp, w = (int32_t)R->pw;
-    int32_t in[CTL], o[CTL];
+    int32_t in[CTL], o[CTL], apg = R->apg, mo0 = 0, mo1 = 0, mo2 = 0, mo3 = 0;
     uint32_t i;
+    if (md) {                                           /* MOD: each comb read up to md (Q8) samples newer, by its
+                                                         * own LFO, set once a block (it moves a few thousandths of a
+                                                         * sample a block: no steps heard) */
+        uint32_t k;
+        int32_t mo[4];
+        for (k = 0; k < 4u; k++) {
+            R->mph[k] += SP_MOD_INC[k] * ns;
+            mo[k] = (md + ((sine_i(R->mph[k]) * md) >> 15)) >> 1;
+        }
+        mo0 = mo[0];
+        mo1 = mo[1];
+        mo2 = mo[2];
+        mo3 = mo[3];
+    }
     for (i = 0; i < ns; i++) {                          /* the pre-delay, TONE's high-pass, the level in */
         int32_t x, ix = w - pre;
         if (ix < 0)
@@ -450,6 +539,10 @@ static void HOT_CODE space_block(uint32_t t, int32_t *l, int32_t *r, uint32_t n,
             S->dlp = 0;
             S->dlive = 1;
             S->quiet = 0;
+            S->wob = S->alp = S->dpk = S->denv = 0;
+            S->dj[0] = S->dj[1] = 0;
+            for (i = 0; i < SP_DF0 + SP_DF1; i++)
+                sp_dfa[t][i] = 0;
         }
         sp_bases(&S->dly, db);
         dl = sp_len(&S->dly);
@@ -461,10 +554,19 @@ static void HOT_CODE space_block(uint32_t t, int32_t *l, int32_t *r, uint32_t n,
         S->mgd = clamp(v[SP_DLY], 0, 100) * 26214 / 100;   /* DLY 100: the first echo at 0.8 */
     }
     gd1 = S->dlive ? S->mgd : 0;
+    if (v[SP_DUCK] > 0 && gd1) {                        /* DUCK: the echoes down by the track's level (last block's
+                                                         * peak: fast up, ~190 ms down), all the way at -12 dBFS */
+        int32_t k;
+        S->denv = S->dpk > S->denv ? S->dpk : S->denv - (S->denv >> 8);
+        k = S->denv > 8191 ? 32767 : S->denv << 2;
+        gd1 = (gd1 * (32767 - ((PCT_Q15[clamp(v[SP_DUCK], 0, 100)] * k) >> 15))) >> 15;
+    }
     gv1 = R->rev.ready && R->pre.ready ? PCT_Q15[clamp(v[SP_VERB], 0, 100)] * clamp(lvl, 0, 4096) >> 12 : 0;
     S->gd = gd1;
     S->gv = gv1;
-    if (!gd0 && !gd1 && !gv0 && !gv1) {                 /* nothing on (or nothing yet) */
+    if (!gd0 && !gd1 && !gv0 && !gv1 && !(S->dlive && S->mgd)) {   /* nothing on (or nothing yet; DUCK all the way
+                                                         * down is still on: the line goes on taking the sound, for
+                                                         * the echoes to come back) */
         S->pl = S->pr = 0;
         return;
     }
@@ -482,10 +584,13 @@ static void HOT_CODE space_block(uint32_t t, int32_t *l, int32_t *r, uint32_t n,
         tgt = (int32_t)(dl - 4u) << 8;
     {
         int32_t m[CTL / 2], wl[CTL / 2], wr[CTL / 2], ol = S->pl, or_ = S->pr, in = 0, loud = 0;
+        int32_t pk = 0;
         for (i = 0; i < h; i++) {                       /* mono, at half the rate */
             m[i] = sp_sat((l[2 * i] + r[2 * i] + l[2 * i + 1] + r[2 * i + 1]) >> 2);
             in |= m[i];
+            pk = m[i] > pk ? m[i] : -m[i] > pk ? -m[i] : pk;
         }
+        S->dpk = pk;                                    /* (DUCK's, next block) */
         if (gv0 || gv1) {                               /* the send, ramped across the block */
             int32_t gq = gv0 << (CTL_LOG2 - 1), dg = gv1 - gv0;
             for (i = 0; i < h; i++, gq += dg)
@@ -497,7 +602,23 @@ static void HOT_CODE space_block(uint32_t t, int32_t *l, int32_t *r, uint32_t n,
         }
         for (i = 0; i < h; i++)
             wl[i] = wr[i] = 0;
-        sp_delay(S, db, dlb, dl, tgt, off, kl, kh, fbg, gd0, gd1, m, wl, wr);
+        {
+            sp_char_t ch = {0, 0, 0, 0, 0};
+            int32_t age = clamp(v[SP_AGE], 0, 100), dif = clamp(v[SP_DIFF], 0, 100);
+            if (age) {                                  /* AGE: up to 2x drive into the tanh, a low-pass down to
+                                                         * ~1.4 kHz a pass, wow (0.7 Hz) to +-47 samples, flutter
+                                                         * (6 Hz) to +-2.3: ~16 and 7 cents at 100 */
+                ch.dr = 4096 + age * 41;
+                ch.dri = (4096 << 12) / ch.dr;
+                ch.ka = 32767 - age * 200;
+                S->wph += 136348u * h;
+                S->fph += 1168700u * h;
+                ch.wob1 = (sine_i(S->wph) * (age * 120) + sine_i(S->fph) * (age * 6)) >> 15;
+            }
+            if (dif)                                    /* DIFF: the allpasses' gain, to 0.7 */
+                ch.dg = dif * 229;
+            sp_delay(S, db, dlb, dl, tgt, off, kl, kh, fbg, gd0, gd1, m, wl, wr, &ch, sp_dfa[t]);
+        }
         for (i = 0; i < h; i++) {                       /* back up to 44.1 kHz: halfway, then the sample */
             loud |= sp_loud(wl[i]) | sp_loud(wr[i]);
             l[2 * i] += (ol + wl[i]) >> 1;
@@ -554,14 +675,17 @@ static void HOT_CODE space_rooms(int32_t *l, int32_t *r, uint32_t n)
         sp_bases(&R->rev, rb);
         pl = sp_len(&R->pre);
         plb = R->pre.bits8;
-        if (q[RM_SIZE] != R->size_seen || q[RM_DEC] != R->dec_seen || R->clen[0] == 0)
-            sp_room(R, clamp(q[RM_SIZE], 0, 100), clamp(q[RM_DEC], 0, 100), lo);
+        if (q[RM_SIZE] != R->size_seen || q[RM_DEC] != R->dec_seen || q[RM_TYPE] != R->type_seen ||
+            R->clen[0] == 0)
+            sp_room(R, clamp(q[RM_SIZE], 0, 100), clamp(q[RM_DEC], 0, 100), lo, (uint32_t)clamp(q[RM_TYPE], 0, 3));
         if (tone < 0)                                   /* - : darker combs */
             damp = 6554 - tone * 200;
         else if (tone > 0) {                            /* + : a high-pass in front, the combs a little brighter */
             kh = (tone * 60) << lo;
             damp = 6554 - tone * 49;
         }
+        if (R->type_seen)                               /* TYPE: its damping */
+            damp = clamp(damp * SP_TY_DAMP[R->type_seen] >> 8, 0, 30000);
         pre = (clamp(q[RM_PRE], 0, 200) * 2205 / 100) >> lo;
         if (pre > (int32_t)pl - 2)
             pre = (int32_t)pl - 2;
@@ -575,7 +699,9 @@ static void HOT_CODE space_rooms(int32_t *l, int32_t *r, uint32_t n)
             R->in[i] = 0;
         if (!in && R->quiet > settle)                   /* resting (sp_quiet) */
             continue;
-        sp_room_run(R, pb, plb, pl, pre, rb, kh, damp, x, ns, wl, wr);
+        sp_room_run(R, pb, plb, pl, pre, rb, kh, damp, x, ns, wl, wr,
+                    clamp(q[RM_MOD], 0, 100) * 6 >> lo);   /* (MOD: to 2.3 samples at 22.05 kHz, 0.1 ms;
+                                                         * the same time at 11.025) */
         {
             int32_t ol = R->pl, or_ = R->pr;
             for (i = 0; i < ns; i++) {

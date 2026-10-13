@@ -3957,6 +3957,155 @@ static void test_color(void)
 
 /* SPACE (space.c): the echoes where TIME says and falling by FDBK, the room's tail as long as DEC, the memory
  * taken only while it's used, 8-bit when it's short */
+/* CHRONOS's character (2026-10-13): AGE, DIFF, DUCK on the delay, TYPE and MOD on the rooms. Each run from power-on
+ * with only the knob under test changed; 0 is covered by the audio fingerprints (bit for bit as before) */
+enum { CHN = 44100, CH_AT = 1000 };
+static int32_t chl[CHN], chr_[CHN];
+static void ch_delay(int age, int dif, int duck, int input)   /* track 1's delay, TIME 100 FDBK 70; input 0 a hit, 1 a
+                                                               * 1 kHz tone for 0.5 s then silence */
+{
+    int16_t *p;
+    uint32_t i;
+    power_on();
+    p = tp[0].dev[DEV_SPACE];
+    p[SP_DLY] = 100;
+    p[SP_FDBK] = 70;
+    p[SP_TIME] = 100;
+    p[SP_SPRD] = 0;
+    p[SP_AGE] = (int16_t)age;
+    p[SP_DIFF] = (int16_t)dif;
+    p[SP_DUCK] = (int16_t)duck;
+    chain_poll();
+    memset(chl, 0, sizeof chl);
+    if (input)
+        for (i = 0; i < CHN / 2; i++)
+            chl[i] = (int32_t)lrint(12000 * sin(2 * M_PI * 1000 * i / 44100.0));
+    else
+        chl[CH_AT] = chl[CH_AT + 1] = 20000;            /* (a few blocks in: the first block ramps its gains from 0) */
+    memcpy(chr_, chl, sizeof chl);
+    dev_run(sp_run, chl, chr_, CHN);
+}
+static double ch_bright(uint32_t a, uint32_t b)             /* sample-to-sample movement per level over [a, b) */
+{
+    double mv = 0, lv = 0;
+    uint32_t i;
+    for (i = a + 1u; i < b; i++) {
+        mv += fabs((double)chl[i] - chl[i - 1]);
+        lv += fabs((double)chl[i]);
+    }
+    return lv > 0 ? mv / lv : 0;
+}
+static double ch_energy(uint32_t a, uint32_t b)
+{
+    double e = 0;
+    uint32_t i;
+    for (i = a; i < b; i++)
+        e += (double)chl[i] * chl[i];
+    return e;
+}
+static uint32_t ch_spread(uint32_t a, uint32_t b)           /* samples over a tenth of the window's peak */
+{
+    int32_t pk = 0;
+    uint32_t i, n = 0;
+    for (i = a; i < b; i++)
+        pk = abs(chl[i]) > pk ? abs(chl[i]) : pk;
+    for (i = a; i < b; i++)
+        n += abs(chl[i]) * 10 > pk;
+    return n;
+}
+static int32_t ch_jump(uint32_t a, uint32_t b)              /* the largest second difference over [a, b) */
+{
+    int32_t m = 0;
+    uint32_t i;
+    for (i = a + 2u; i < b; i++) {
+        int32_t d = chl[i] - 2 * chl[i - 1] + chl[i - 2];
+        m = abs(d) > m ? abs(d) : m;
+    }
+    return m;
+}
+static void ch_room(int type, int mod)                       /* track 1 into room A (VERB 100, DLY 0): a hit */
+{
+    power_on();
+    tp[0].dev[DEV_SPACE][SP_VERB] = 100;
+    rmp[0][RM_TYPE] = (int16_t)type;
+    rmp[0][RM_MOD] = (int16_t)mod;
+    rmp[0][RM_DEC] = 60;
+    chain_poll();
+    memset(chl, 0, sizeof chl);
+    chl[CH_AT] = chl[CH_AT + 1] = 20000;
+    memcpy(chr_, chl, sizeof chl);
+    dev_run(sp_run, chl, chr_, CHN);
+}
+static void test_chronos_character(void)
+{
+    char b[220];
+    double b0, b1, e0, e1, f0, f1;
+    uint32_t s0, s1, k;
+    int32_t j0, j1, wmax = 0;
+    ch_delay(0, 0, 0, 0);
+    b0 = ch_bright(CH_AT + 3 * 4410 - 500, CHN);   /* (every repeat from the third: AGE's wow moves them) */      /* (the fourth repeat, 400 ms on) */
+    ch_delay(100, 0, 0, 0);
+    b1 = ch_bright(CH_AT + 3 * 4410 - 500, CHN);
+    snprintf(b, sizeof b, "CHRONOS AGE 100: the repeats from the third on darker (%.3f a sample per level, %.3f at AGE 0)", b1, b0);
+    check(b, b1 < 0.8 * b0 && b1 > 0);
+    for (k = 0; k < 200u; k++) {                         /* (the read point's wavering: blocks of a silent delay) */
+        int32_t z[CTL] = {0}, z2[CTL] = {0};
+        sp_run(0, z, z2, CTL);
+        wmax = abs(space[0].wob) > wmax ? abs(space[0].wob) : wmax;
+    }
+    snprintf(b, sizeof b, "..and its time wavers (wow and flutter: the read point off by up to %.1f samples, 47 at most)",
+             wmax / 256.0);
+    check(b, wmax > 256 && wmax <= 47 * 256 + 2 * 256);
+    ch_delay(0, 0, 0, 0);
+    s0 = ch_spread(CH_AT + 2 * 4410 - 300, CH_AT + 2 * 4410 + 1500);
+    ch_delay(0, 100, 0, 0);
+    s1 = ch_spread(CH_AT + 2 * 4410 - 300, CH_AT + 2 * 4410 + 1500);
+    snprintf(b, sizeof b, "DIFF 100: the second repeat smeared (%u samples over a tenth of its peak, %u at DIFF 0)", s1, s0);
+    check(b, s1 > 4u * s0);
+    ch_delay(0, 0, 0, 1);
+    for (k = 0; k < CHN; k++)                            /* (the echoes alone: the tone taken out) */
+        chl[k] -= k < CHN / 2 ? (int32_t)lrint(12000 * sin(2 * M_PI * 1000 * k / 44100.0)) : 0;
+    e0 = ch_energy(CHN / 4, CHN / 2);
+    f0 = ch_energy(CHN / 2 + 2 * 4410, CHN);   /* (0.7-1 s: DUCK's ~190 ms let go) */
+    ch_delay(0, 0, 100, 1);
+    for (k = 0; k < CHN; k++)
+        chl[k] -= k < CHN / 2 ? (int32_t)lrint(12000 * sin(2 * M_PI * 1000 * k / 44100.0)) : 0;
+    e1 = ch_energy(CHN / 4, CHN / 2);
+    f1 = ch_energy(CHN / 2 + 2 * 4410, CHN);
+    snprintf(b, sizeof b, "DUCK 100: the echoes down while the track plays (%.0f dB under DUCK 0), back after it stops "
+             "(%.0f dB)", 10 * log10(e0 / (e1 + 1)), 10 * log10(f0 / (f1 + 1)));
+    check(b, e1 < e0 / 10.0 && f1 > f0 / 4.0);
+    {
+        static const char *const T[4] = {"ROOM", "PLAT", "HALL", "SPRG"};
+        double late[4];
+        int32_t pk[4];
+        for (k = 0; k < 4u; k++) {
+            uint32_t i;
+            ch_room((int)k, 0);
+            late[k] = ch_energy(CHN / 2, CHN);
+            pk[k] = 0;
+            for (i = 0; i < CHN; i++)
+                pk[k] = abs(chl[i]) > pk[k] ? abs(chl[i]) : pk[k];
+        }
+        snprintf(b, sizeof b, "TYPE: each its own tail (the late half's energy %s %.2g, %s %.2g, %s %.2g, %s %.2g), "
+                 "HALL the longest, none running away", T[0], late[0], T[1], late[1], T[2], late[2], T[3], late[3]);
+        check(b, late[2] > late[0] && late[1] != late[0] && late[3] != late[0] && pk[0] < 32767 && pk[1] < 32767 &&
+              pk[2] < 32767 && pk[3] < 32767);
+    }
+    ch_room(0, 0);
+    e0 = ch_energy(CHN / 4, CHN);
+    j0 = ch_jump(CHN / 4, CHN);
+    memcpy(chr_, chl, sizeof chl);
+    ch_room(0, 100);
+    e1 = ch_energy(CHN / 4, CHN);
+    j1 = ch_jump(CHN / 4, CHN);
+    snprintf(b, sizeof b, "MOD 100: the tail moves (differs from MOD 0), no steps (largest bend %d, %d unmodulated), "
+             "the same length (energy %.2f of it)", j1, j0, e1 / e0);
+    check(b, memcmp(chl + CHN / 4, chr_ + CHN / 4, sizeof chl / 2) != 0 && j1 < 2 * j0 + 50 && e1 > 0.5 * e0 &&
+          e1 < 2 * e0);
+    power_on();
+}
+
 static void test_space(void)
 {
     enum { N = 44100 };                                  /* 1 s */
@@ -5759,7 +5908,7 @@ static void test_mod(void)
     check("mod: no depths, every track reads its own knobs (nothing copied)", TPD(0, DEV_GRAIN) == tp[0].dev[DEV_GRAIN] && TPD(3, MA_CH) == tp[3].ch);
     check("mod: the reel choices can't be targets", mod_nudge(0, 0, MOD_TSRC + TK_REEL, 50) == -128 &&
                                                     mod_nudge(0, 0, MOD_TSRC + SRC_POLY * NPK + PL_REEL, 50) == -128);
-    check("..nor an empty knob", mod_nudge(0, 0, MOD_TG(DEV_SPACE, 15), 50) == -128);
+    check("..nor an empty knob", mod_nudge(0, 0, MOD_TG(DEV_SPACE, 18), 50) == -128);   /* (18: empty; 13-15 are AGE DIFF DUCK since 2026-10-13) */
 
     /* LFO slot 1 (SIN, FREE): depth 100 swings PAN across its whole range; 50: half of it */
     tp[0].mod[0][0] = 127;                               /* RATE: ~20 Hz, many cycles in a few blocks */
@@ -9179,6 +9328,7 @@ int main(int argc, char **argv)
     test_sleep();
     test_color();
     test_space();
+    test_chronos_character();
     test_usbrec();
     test_mixer();
     test_chan_glide();

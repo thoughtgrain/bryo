@@ -72,6 +72,7 @@ static const uint16_t SCALE_MASK[NSCALE] = {0xAB5u, 0x5ADu, 0x6ADu, 0x5ABu, 0xAD
 static const char *const N_GSCAL[2 + NSCALE] = {"OFF", "KEY", SCALE_NAMES};
 static const char *const N_ROOMS[2] = {"A", "B"};       /* SPACE's ROOM: the shared room a track sends to */
 static const char *const N_QUAL[2] = {"HI", "LO"};      /* a room's QUAL: 22.05 or 11.025 kHz */
+static const char *const N_RTYPE[4] = {"ROOM", "PLAT", "HALL", "SPRG"};   /* a room's TYPE (space.c SP_TYPE) */
 #define GR_GRNS_MAX 40                /* GRAIN's GRNS: the most it can hold (the pool for one track, grain.c GR_POOL) */
 static const char *const N_GRNS[1 + GR_GRNS_MAX] = {"AUTO", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40"};
 static const char *const N_RSCAL[13] = {"HARM", "MAJ", "MIN", "PEN", "SUS2", "SUS4", "DOM7", "MAJ7", "MIN7", "DIM",
@@ -191,8 +192,15 @@ static const pdesc_t DEV_P[NDEV][NPK] = {
         {"TONE", -100, 100, 0, F_BIPCT}, {"SPRD", 0, 100, 100, F_PCT},
         {"DEC", 0, 100, 40, F_PCT, 0, 1}, {"RTON", -100, 100, 0, F_BIPCT, 0, 1},
         {"QUAL", 0, 1, 0, F_ENUM, N_QUAL, 1}, {"PRE", 0, 200, 20, F_MS, 0, 1},
-        /* 4: SYNC, TIME in the tempo's divisions (space.c sp_sync_time) */
-        {"SYNC", 0, 1, 0, F_ENUM, N_OFFON, 1}},
+        /* 4: SYNC, TIME in the tempo's divisions (space.c sp_sync_time); the echoes' character (space.c sp_delay):
+         * AGE, tape (each repeat saturated and darker, the time wavering: wow and flutter), DIFF, each repeat smeared
+         * through allpasses toward a wash, DUCK, the echoes down while the track plays. 0: none, the delay as it was */
+        {"SYNC", 0, 1, 0, F_ENUM, N_OFFON, 1}, {"AGE", 0, 100, 0, F_PCT}, {"DIFF", 0, 100, 0, F_PCT},
+        {"DUCK", 0, 100, 0, F_PCT},
+        /* 5: the room's character (its own, shared: SP_RMK): TYPE, the tunings of its combs and allpasses (ROOM as
+         * it was, PLAT dense and bright, HALL long and dark, SPRG short, bright and boingy); MOD, its delays
+         * wavering slowly, a tail less metallic and more alive */
+        {"TYPE", 0, 3, 0, F_ENUM, N_RTYPE, 1}, {"MOD", 0, 100, 0, F_PCT, 0, 1}},
 };
 
 /* The source engines: what starts a track's chain (docs/bryo-architecture.md, "Source engines"). TAPE's knobs are
@@ -341,15 +349,17 @@ static int32_t key_snap(int32_t n)
  * tail), PRE. One pair for the whole instrument, stored with the project; not modulation targets (no track owns
  * them). */
 #define NROOM 2u
-enum { RM_SIZE, RM_DEC, RM_TONE, RM_QUAL, RM_PRE, NRM };
+enum { RM_SIZE, RM_DEC, RM_TONE, RM_QUAL, RM_PRE, RM_TYPE, RM_MOD, NRM };
 enum { RQ_HI, RQ_LO };
 static const pdesc_t RM_P[NRM] = {
     {"SIZE", 0, 100, 50, F_PCT}, {"DEC", 0, 100, 40, F_PCT}, {"TONE", -100, 100, 0, F_BIPCT},
     {"QUAL", 0, 1, RQ_HI, F_ENUM, N_QUAL, 1}, {"PRE", 0, 200, 20, F_MS},
+    {"TYPE", 0, 3, 0, F_ENUM, N_RTYPE, 1}, {"MOD", 0, 100, 0, F_PCT},   /* (2026-10-13; 0, 0: the room as it was) */
 };
 static int16_t rmp[NROOM][NRM];
 /* SPACE's stored knob k as its room's: RM_* + 1 (0: the track's own) */
-static const uint8_t SP_RMK[NPK] = {0, 0, 0, RM_SIZE + 1, 0, 0, 0, 0, RM_DEC + 1, RM_TONE + 1, RM_QUAL + 1, RM_PRE + 1};
+static const uint8_t SP_RMK[NPK] = {0, 0, 0, RM_SIZE + 1, 0, 0, 0, 0, RM_DEC + 1, RM_TONE + 1, RM_QUAL + 1, RM_PRE + 1,
+                                    0, 0, 0, 0, RM_TYPE + 1, RM_MOD + 1};
 
 
 /* The arpeggiator (arp.c), one per track, on the ARP pad: it plays the notes held on a SYNTH or POLY track one at a
@@ -457,10 +467,11 @@ static const playout_t PLAYOUT[] = {
                                                      * page 3, past the pages here) */
     {DEV_P[DEV_COLOR], 3, {0, 1, 9, 7, 2, 3, 4, 5, 6, 10, 11, 8}},              /* COLOR: DRV CRSH ROUT WET, NOIS TILT
                                                                                  * NDEC NTON, CMOD . . LVL */
-    {DEV_P[DEV_SPACE], 4, {0, 1, 4, 5, 2, 3, 8, 11, 6, 7, 9, 10, 12, 13, 14, 15}},   /* SPACE: TIME FDBK DLY VERB,
-                                                                                 * ROOM SIZE DEC PRE, TONE SPRD RTON
-                                                                                 * QUAL, SYNC (2-3 and 8-11: the
-                                                                                 * room's, SP_RMK) */
+    {DEV_P[DEV_SPACE], 5, {0, 1, 4, 5, 2, 3, 8, 11, 6, 7, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19}},   /* CHRONOS:
+                                                                                 * TIME FDBK DLY VERB, ROOM SIZE DEC
+                                                                                 * PRE, TONE SPRD RTON QUAL, SYNC AGE
+                                                                                 * DIFF DUCK, TYPE MOD (2-3, 8-11 and
+                                                                                 * 16-17: the room's, SP_RMK) */
     {SYN_P, 5, {0, 1, 2, 3, 8, 9, 10, 11, 4, 5, 6, 7, 12, 13, 15, 17, 14, 18, 19, 16}},   /* OSC AMP FILTER, VOIC GLID
                                                                                        * TUNE FINE, DRV . . LVL */
     {POL_P, 4, {0, 1, 13, 2, 4, 5, 6, 7, 8, 9, 10, 11, 3, 14, 15, 12}},         /* POLY: REEL STRT END TUNE, ..., VOIC
