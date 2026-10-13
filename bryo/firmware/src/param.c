@@ -46,7 +46,8 @@ static const char *const N_REEL[1u + NREEL + USLOT_N] = {"TAPE", REEL_NAMES_INIT
                                   * GRNS: projects and presets store each array with its count, depths by array
                                   * and knob, so older ones read as they are) */
 
-static const char *const DEV_NAME[NDEV] = {"TAPE", "GRAIN", "RIPPLE", "COLOR", "SPACE"};
+static const char *const DEV_NAME[NDEV] = {"TAPE", "GRAIN", "RIPPLE", "COLOR", "CHRONOS"};   /* (SPACE until
+                                                                                                  * 2026-10-13: space.c, DEV_SPACE) */
 
 /* Page 1 of each device is the PRD's four knobs. The pages after it hold what the sound needs that the PRD left
  * without a knob: wet levels, the switches the black keys flip, the shapes. The names follow the Torso S-4's

@@ -10,7 +10,7 @@ code wins, and this page needs fixing.
 Bryo is replacement firmware for the M-VAVE FM-1, forked from Felucca 1.0.3 (`b22a24b`). It turns the FM-1 into
 a four-track sound-sculpting instrument after the PRD (my product spec, which lives outside this repo; the docs
 cite its sections as "PRD 2.2" and so on). Each track is a source (TAPE, SYNTH, POLY or DRUM) through a fixed chain:
-GRAIN, RIPPLE, COLOR, SPACE, then a channel strip into the mix and a master compressor. Four modulator slots
+GRAIN, RIPPLE, COLOR, CHRONOS, then a channel strip into the mix and a master compressor. Four modulator slots
 per track move any of it: hold a slot's pad, turn a knob.
 
 **Phases 1 to 9 of 10 are built, with one piece open (p-locks).** On 2026-10-10 it ran on an FM-1 for the first
@@ -24,7 +24,7 @@ The rest of the hardware checkpoint (`docs/hardware-checkpoint.md`) is under way
 | 3 USB audio in + SYNTH + POLY | done: the USB record mode, the SYNTH and POLY sources |
 | 3b GRAIN, 3c memory by usage | done: the live buffer, one grain pool shared by demand; tapes that grow, TRACKS, REC IN |
 | 4 RIPPLE (RESONATOR until 2026-10-13) | done: four strings, keys set the root; MODE STRG COMB BANK, DRV, RIPL (2026-10-13) |
-| 5 COLOR + SPACE | done |
+| 5 COLOR + CHRONOS | done |
 | 6 Mixer + routing | done: channel strips (LOW HIGH FILT PAN), master compressor; routing is REC IN |
 | 7 Modulation | done but p-locks: LFO ADSR SEQ FOLLOW, hold-and-turn depths, MONO's clear and undo |
 | 7b DRUM | done: a fourth source, a CR-78-inspired drum machine of Bryo's own sounds, patterns, rhythms and SEED |
@@ -36,16 +36,16 @@ The rest of the hardware checkpoint (`docs/hardware-checkpoint.md`) is under way
 
 ```
  per track (x4):
-   source ─► GRAIN ─► RIPPLE ─► COLOR ─► SPACE ─► channel (LOW HIGH FILT, level, PAN) ─┐
+   source ─► GRAIN ─► RIPPLE ─► COLOR ─► CHRONOS ─► channel (LOW HIGH FILT, level, PAN) ─┐
    TAPE | SYNTH | POLY | DRUM   (stereo from GRAIN on)                                     │
      ▲ REC IN: what REC prints onto the tape (the others, one track, itself)               ▼
      └──────────────────────────────────────────── sum ─► master compressor ─► MASTER ─► out
- SPACE's send (VERB x the track's level) ─► room A or B (shared; ROOM picks) ─► the sum
+ CHRONOS's send (VERB x the track's level) ─► room A or B (shared; ROOM picks) ─► the sum
  four modulator slots per track: LFO | ADSR | SEQ | FOLLOW, each with a depth to any knob
 ```
 
 - **Pages and knobs.** KNOB 1 to 4 always edit the four values on screen. HOME is the source (its pages: TAPE 3,
-  SYNTH 5, POLY 4, DRUM 4, each ending with LVL); EDIT is GRAIN then RIPPLE; FX is COLOR then SPACE; LFO ENV SEQ are
+  SYNTH 5, POLY 4, DRUM 4, each ending with LVL); EDIT is GRAIN then RIPPLE; FX is COLOR then CHRONOS; LFO ENV SEQ are
   the modulators (LFO: M1-M3, picked with OP1-OP3 while it's held; ENV: M2; SEQ: M4) and ARP the arpeggiator; GLO is
   the mixer (EDIT there: the channel, MASTER, KEY, SETUP); ALGORITHM turned is REC IN. A pad held +
   SELECT picks that pad's thing (HOME: the source; a slot: its engine; GLO: TRACKS). Every control in every
@@ -89,7 +89,7 @@ One core, no RTOS. Three contexts, and the rules between them are most of the ar
   the ISR reads as a whole (a depth list), build it in the half the ISR isn't reading and flip one byte.
 
 **Memory.** Sound lives in one pool of 108 chunks (20.1 s of tape-format sound: `mem.c`) handed out by use: tapes as
-long as what's on them, GRAIN's live buffers, RIPPLE's strings and SPACE's lines while they're on. Nothing is
+long as what's on them, GRAIN's live buffers, RIPPLE's strings and CHRONOS's lines while they're on. Nothing is
 set aside per track. When it runs short: a cleared tape's chunks first, then a parked track's tape, then the end of
 the longest tape. Main RAM holds 85.1 of 96 KiB (.bss; 50.7 of it sound on purpose, the rest of the 96 the stack's), the pool 329.6 of 336 KiB (2026-10-11, 40 grain slots and NPK 24, the last two by arithmetic: 384 and 416 B more, and the canvas's 1,620; 32-bit
 build: the firmware preprocessed, its inline assembly taken out, compiled `-m32 -Os`, `size -A`).
@@ -121,7 +121,7 @@ Felucca's `felucca.c` did); `tests/bryo_host.c` includes the same files for the 
 | `arp.c` | the arpeggiator: the keys into one at a time, in time, before the source (notes, slices, drums); RIPPLE's arpeggio runs the same core (`arp_run`) |
 | `drum_voice.c`, `drum.c` | DRUM: the one synthesizer every instrument shares; the kit, the rhythms, SEED's versions, the player |
 | `grain.c` | GRAIN: the live buffer, the scheduler, the shared pool of grains |
-| `reso.c`, `color.c`, `space.c` | RIPPLE, COLOR, SPACE |
+| `reso.c`, `color.c`, `space.c` | RIPPLE, COLOR, CHRONOS |
 | `mixer.c` | the channel strips and the master compressor |
 | `usbrec.c` | the USB record mode (the endpoint itself is in `usb.c`) |
 | `chain.c` | a control block of the whole instrument; TRACKS; shedding; the main loop's memory polls |
@@ -269,18 +269,18 @@ number.
   knob's value a byte when it's small). A new project and the
   factory scene start on A MIN (every factory reel is in A) and ROOT on A3 (BELL, POLY's first reel), so the keys
   play the note they're named for and stay in key out of the box.
-- **2026-10-11, round 3 from playing it.** The rooms' knobs went back to SPACE's pages (ROOM picks A or B; the
+- **2026-10-11, round 3 from playing it.** The rooms' knobs went back to CHRONOS's pages (ROOM picks A or B; the
   room's knobs there are the room's, shared). TAPE's STRT trims the start at any LEN (it slid back before); ROTA
   rotates the loop you hear while it plays. User reels can be deleted (the project view's REELS page). REC held +
   SELECT records exactly 1-8 bars from the downbeat, and a tape has an exact end now so such a loop doesn't drift.
   HOME held + a loop's edge zooms (hundredths of a percent, the decoded sound drawn); POLY has END. TAPE, GRAIN's
-  RATE and SPACE's TIME can follow the tempo (SYNC), locked to the beat clock. Old project and preset formats are no
+  RATE and CHRONOS's TIME can follow the tempo (SYNC), locked to the beat clock. Old project and preset formats are no
   longer read (projects had barely started): only the current version, with no fix-ups. See "From playing it on the FM-1,
   round 3" in the architecture doc.
 - **2026-10-11: two shared rooms in place of a room a track.** One LFO on a drum's level put the factory scene over
-  80 % with crackles; the depth costs half a percent, the scene had crept to 3,046 a sample (81 %), and SPACE's
-  three rooms were its biggest part. Now every track's SPACE sends (VERB x its level) to room A or B, whose knobs
-  are on SPACE's pages 2-3 (shared: turning them changes the room for every track on it), with a QUAL each (HI 22.05 kHz, LO 11.025 kHz: half the work, a darker tail); a room costs the
+  80 % with crackles; the depth costs half a percent, the scene had crept to 3,046 a sample (81 %), and CHRONOS's
+  three rooms were its biggest part. Now every track's CHRONOS sends (VERB x its level) to room A or B, whose knobs
+  are on CHRONOS's pages 2-3 (shared: turning them changes the room for every track on it), with a QUAL each (HI 22.05 kHz, LO 11.025 kHz: half the work, a darker tail); a room costs the
   same however many tracks send to it, and takes memory only while one does. The scene's rooms are both LO: 2,821,
   75 %. Projects went to version 8 (version 9 since: old formats dropped). The 1,547 below, for
   2026-10-10, was measured another way; by today's measure (5 s of the scene after a second's warm-up) it was 2,886.
@@ -293,7 +293,7 @@ number.
   and handed the remaining track a bigger grain pool; shedding gave back blindly, a crackle a second near the edge.
   See "Resting" in the architecture doc.
 - **2026-10-11: every effect opens with its mix.** ROUT and WET are KNOB 3-4 of page 1 on GRAIN, RIPPLE and
-  COLOR (SPACE: DLY and VERB, its sends); the rest close up behind. Layout only: nothing stored moved.
+  COLOR (CHRONOS: DLY and VERB, its sends); the rest close up behind. Layout only: nothing stored moved.
 - **2026-10-11: six pages a device (NPK 24), for GRAIN's GRNS.** GRAIN's 20 were full. Projects and presets store
   each array with its count and depths by array and knob, so the format didn't change and older files read as they
   are; but the biggest project, written 24 wide, no longer fit its sector (it was within 35 bytes at 20). So each
@@ -315,7 +315,7 @@ number.
   Felucca never misreads one. A take on a track's own tape goes into a user reel named after the project and track.
 - **2026-10-09: GRAIN, RIPPLE and COLOR can be sends** (ROUT: INS or SEND, per device, per track): the dry at
   full, the device added at WET. Per track rather than shared aux buses: no new memory or CPU, every track keeps
-  its own effects. SPACE was always a send.
+  its own effects. CHRONOS was always a send.
 - **2026-10-09: DRUM's sounds and rhythms are Bryo's own.** CR-78-inspired in the instrument list and the
   character, written from scratch: one data-driven voice, a patch row per instrument. A first pass reused
   Felucca's drum voices; I replaced them so the kit is ours. "CR-78" stays in the docs, never on screen.
@@ -363,7 +363,7 @@ number.
 - **2026-10-10: the FM-1 crackled with the scene's drums (CPU past 80 %), and the host had said ~45 %.** What I
   found and did: (1) the target's compiler keeps a division by a constant as a hardware divide, which the host's
   counts hide (x86 makes it a multiply); one ran on every track on every sample even with GRAIN off
-  (`dry * (100 - WET) / 100`), others in SPACE's spread, SYNTH's drive and TAPE's loop crossfade. They're gains now,
+  (`dry * (100 - WET) / 100`), others in CHRONOS's spread, SYNTH's drive and TAPE's loop crossfade. They're gains now,
   worked out once a block (the scene's sound differs by at most 16 LSB, 72 dB under it). Any new per-sample code:
   no `/` or `%` that isn't a power of two. (2) DRUM's voices stop at -60 dB, not -84. (3) Overload sheds DRUM's
   voices after the grains and the strings (5 a track down to 2, a calm second each back). (4) The scene's drums
@@ -422,7 +422,7 @@ About 50 commits over three days, each one a working step (`git log --oneline --
   and the factory reels (phase 2); user reels in flash and the FM-1 as a USB drive; SYNTH and POLY; the S-4
   alignment.
 - **2026-10-08:** GRAIN (and its live buffer); memory by usage, TRACKS, REC IN; a review round; the hardware
-  checkpoint's run sheet and its host simulation; RIPPLE, COLOR, SPACE; the USB record mode; the mixer;
+  checkpoint's run sheet and its host simulation; RIPPLE, COLOR, CHRONOS; the USB record mode; the mixer;
   realistic load runs; GRAIN's shared pool.
 - **2026-10-09:** modulation; TUNE played live; a LEVEL on every source; the modulation audit (RIPPLE's pitch
   glides, fine pitch); fine filter cutoffs; this page; DRUM (its own voice and kit, the source, SEED); sends

@@ -14,7 +14,7 @@ to build, test and measure, the decisions and the open questions on one page.
 | Question | Decision |
 | --- | --- |
 | Where audio comes from | All of it: reels (factory + uploaded), resampling inside Bryo, **and USB audio in from the computer, early** (phase 3), **plus synth engines**. |
-| What starts a track's chain | **A source engine per track**, picked like a modulator engine: TAPE, SYNTH, POLY, and engines still to be decided. The source flows into GRAIN, RIPPLE, COLOR and SPACE. |
+| What starts a track's chain | **A source engine per track**, picked like a modulator engine: TAPE, SYNTH, POLY, and engines still to be decided. The source flows into GRAIN, RIPPLE, COLOR and CHRONOS. |
 | Tape format | IMA ADPCM, mono, 22.05 kHz; tapes take what they record from one shared memory (28 s in all; see "Memory by usage"). |
 | Gestures where the hardware differs | Adapt what makes sense; **ask before changing anything else**. The remaps below stand. |
 | MONO and POLY keys | Hold for 0.5 s with a countdown ring, plus one level of undo. |
@@ -116,7 +116,7 @@ With no input, a tape records what the instrument makes. That's still a lot:
   samples are already here), plus your own audio uploaded over USB with `tools/fm1_sample_upload.py` or the
   browser (record in the browser, upload, as Felucca does today). Any reel loads into any tape.
 - **Resampling inside Bryo:** REC records the track's own chain output (sound on sound through
-  RIPPLE, COLOR and SPACE back onto the tape). ALGORITHM routes another track's output into this track's
+  RIPPLE, COLOR and CHRONOS back onto the tape). ALGORITHM routes another track's output into this track's
   tape, which is the PRD's live overdub between tracks.
 - **Sources that make sound from nothing:** RIPPLE played from the keys (Karplus-Strong excited by a
   noise burst) and COLOR's noise generator. A blank tape plus RIPPLE plus REC is a way to start from
@@ -146,7 +146,7 @@ Why:
 - **Overdub that readers can't catch half-written.** The write head decodes the old block, mixes in the new
   audio, re-encodes it into a 128-byte staging block, and commits the block and its index entry together.
   A grain reading the same spot sees either the old block or the new one, never a mix.
-- **Stereo comes later in the chain.** GRAIN's spread, RIPPLE and SPACE are stereo; the tape itself is
+- **Stereo comes later in the chain.** GRAIN's spread, RIPPLE and CHRONOS are stereo; the tape itself is
   mono. That's the trade for length.
 
 ## Budgets
@@ -155,10 +155,10 @@ Why:
 
 | Use | Bytes | How it's sized |
 | --- | ---: | --- |
-| Shared sound memory | 228,096 pool | 108 chunks of tape-format sound (20.1 s in all), handed out by usage: tapes as long as what's on them, GRAIN's live buffers while GRAIN is on, RIPPLE's strings and SPACE's lines while they're on. See "Memory by usage" |
+| Shared sound memory | 228,096 pool | 108 chunks of tape-format sound (20.1 s in all), handed out by usage: tapes as long as what's on them, GRAIN's live buffers while GRAIN is on, RIPPLE's strings and CHRONOS's lines while they're on. See "Memory by usage" |
 | RIPPLE | 4 chunks a track, while on | 4 strings × 1,056 samples × 2 B (lowest string F1, 43.7 Hz), from the shared memory while WET is up |
-| SPACE delay | 8 chunks a track, while DLY is up | 8,192 samples × 2 B at 22.05 kHz (TIME's 370 ms); 4 chunks at 8 bits when memory is short |
-| SPACE rooms | 10 chunks a room (two: A and B), while a track sends to it | the room (a comb a chunk, the allpasses in a fifth) and the pre-delay's line (5 chunks; 3 at 8 bits); see "The shared rooms, as built" |
+| CHRONOS delay | 8 chunks a track, while DLY is up | 8,192 samples × 2 B at 22.05 kHz (TIME's 370 ms); 4 chunks at 8 bits when memory is short |
+| CHRONOS rooms | 10 chunks a room (two: A and B), while a track sends to it | the room (a comb a chunk, the allpasses in a fifth) and the pre-delay's line (5 chunks; 3 at 8 bits); see "The shared rooms, as built" |
 | COLOR | 0 | 64 B of state a track |
 | Screen canvas | 5,460 (main RAM) | 2 bits a dot (1.6 KB) and two 4-row line buffers (3.8 KB); see "The screen as dots" |
 | GRAIN | 9,728 pool + 2,900 main RAM | 32 grain slots × 304 B (a 128-sample decoded window each), and each track's buffer bookkeeping; the buffers themselves are shared memory |
@@ -216,7 +216,7 @@ roughly 230 to 280 KB free. `./build.sh` prints the real number; that's the one 
 Where Bryo's goes: the four factory reels 98 KB (ADPCM, 11 KB a second of sound), Felucca's anti-aliased fonts 43 KB
 (only their sizes are still used, by the boot, crash and update screens: about 40 KB to win back if it's needed,
 without touching the update path's code), tables 5 KB; the UI's code about 55 KB, the DSP and the main loop the rest.
-A device like COLOR or SPACE costs 2 to 6 KB of code, a page of the UI 1 to 3 KB.
+A device like COLOR or CHRONOS costs 2 to 6 KB of code, a page of the UI 1 to 3 KB.
 
 ### Flash (Felucca's 296 KiB data region, rewritten as Bryo's)
 
@@ -242,13 +242,13 @@ with its mixes. My target for all four tracks, everything on, is **at most 2,000
 | GRAIN | 240 | 8 sounding grains × about 30 (decoding, window ramp, interpolation, pan), plus about 100 recording its buffer (measured: see "GRAIN, as built") |
 | RIPPLE | 60 | 4 strings (measured nearer 240 a track on the host: see "RIPPLE, as built") |
 | COLOR | 30 | drive table, crush, follower plus noise (measured 180 a track with every knob on, 0 at the defaults: see "COLOR, as built") |
-| SPACE | 80 | delay plus reverb at 22.05 kHz (measured 220 a track with both on: see "SPACE, as built") |
+| CHRONOS | 80 | delay plus reverb at 22.05 kHz (measured 220 a track with both on: see "CHRONOS, as built") |
 | Mixer | 60 for all | measured 145 a track with LOW, HIGH and FILT all on (0 at their defaults), the pan 10, the compressor 2: see "The mixer, as built" |
 | Modulators | 10 | control rate (every 32 samples), not per sample (measured 84 for all four tracks modulated the way I'd play them, 5 with none: see "Modulation, as built") |
 | **Track total** | **~440** | **× 4 = ~1,760**, plus the mixer and compressor ~60 |
 
 The audio ISR's 85% guard stays. Instead of shedding voices it sheds *grains* first (lowers the sounding
-cap), then RIPPLE strings, and never the tape itself. COLOR and SPACE aren't shed (yet; see "SPACE, as built").
+cap), then RIPPLE strings, and never the tape itself. COLOR and CHRONOS aren't shed (yet; see "CHRONOS, as built").
 
 ## What I keep, reuse, and remove
 
@@ -387,7 +387,7 @@ After phase 1, two changes to the screen, from your review:
   SCL pad) is free; I propose holding it for the system menu.
 - **The space the track tiles took is a visualization per page** (`firmware/src/ui_viz.c`), drawn from the
   page's values: TAPE's loop window, the sample lit where GRAIN's grains read it (solid blocks in a stereo lane), RIPPLE's response, COLOR's sine through the device,
-  SPACE's echoes and tail, each modulator's shape in its slot colour, and the tracks in the mixer. The page's
+  CHRONOS's echoes and tail, each modulator's shape in its slot colour, and the tracks in the mixer. The page's
   last-turned knob is drawn in the accent and named in the panel's caption with its value, and on COLOR the
   inset follows it (the drive curve, the noise, or the tone filter). The DSP will use the same mappings the
   pictures do, so what's drawn is what you'll hear.
@@ -442,7 +442,7 @@ After phase 1, two changes to the screen, from your review:
 - **Second pages, reached by pressing the same pad again.** The PRD gives each device exactly four knobs, and
   all of them were on screen. What was missing is what the sound needs that the PRD never gave a knob, so I
   added a page 2 where it matters. Pressing a pad again steps through its pages: EDIT goes GRAIN, GRAIN 2,
-  RIPPLE, GRAIN; FX goes COLOR, COLOR 2, SPACE, SPACE 2; HOME and the slot pads toggle page 1 and 2. The
+  RIPPLE, GRAIN; FX goes COLOR, COLOR 2, CHRONOS, CHRONOS 2; HOME and the slot pads toggle page 1 and 2. The
   header shows the page as a block and a dot after the title.
 
   | Page 2 | Knobs | Why |
@@ -450,14 +450,14 @@ After phase 1, two changes to the screen, from your review:
   | TAPE 2 | FADE, REV, HALF, GAIN | the loop's crossfade (no clicks at the seam); OP5/OP6's reverse and half speed, now visible; the record gain |
   | GRAIN 2 | MIX, JIT, WIN, REV | without a dry/wet GRAIN always replaces the tape; where grains land, their window, the chance one plays backwards |
   | COLOR 2 | LVL, MIX, SRR, GATE | drive adds loudness with nothing to take it back; a blend; the rate split off CRSH (which keeps the bits); where the noise's envelope opens |
-  | SPACE 2 | DMIX, RMIX, PRE, WIDE | the PRD gives no wet level for the delay or the reverb; the reverb's pre-delay; the stereo width |
+  | CHRONOS 2 | DMIX, RMIX, PRE, WIDE | the PRD gives no wet level for the delay or the reverb; the reverb's pre-delay; the stereo width |
 
   (Since renamed to the Torso S-4's names, with more pages: see `docs/s4-alignment.md`.)
 
   RIPPLE stays at one page: its four knobs already cover it. (The modulators' pages are under "Modulators".) Every page 2 knob also shows in the
   picture below, not only as a number: GAIN scales (and clips) the sample on the tape, FADE draws ramps at the
   loop's ends, REV and HALF turn and halve the chevrons; WIN rounds the grains, REV makes some hollow, JIT adds
-  whiskers; COLOR's curve and wave include MIX and LVL, and GATE draws its line over the noise; SPACE's echoes
+  whiskers; COLOR's curve and wave include MIX and LVL, and GATE draws its line over the noise; CHRONOS's echoes
   and tail scale by their mixes and the tail waits for PRE; the LFO starts at PHAS, fades in, shows the beat ticks
   when locked, the key when restarted and its next time round dotted; ADSR bends each stage by its curve and
   draws the loop and the softest key's envelope; FOLLOW draws its envelope over what it listens to; SEQ hollows the steps PROB skips and marks STRT. A page 2 knob you turn is tagged with its value.
@@ -694,9 +694,9 @@ TAPE plays nothing while the tape is empty and the sound once it holds one. Thre
 
 **A budget problem it brought into view.** The pool now holds 282 KB of its 344 KB: the tapes (152 KB), the screen
 canvas (59.5 KB, twice what the budget table planned), the drive's WAV inbox (38 KB, which the plan didn't have)
-and POLY's readers (8 KB). That leaves about 62 KB, and phases 3b to 5 plan about 151 KB more (RIPPLE, SPACE,
+and POLY's readers (8 KB). That leaves about 62 KB, and phases 3b to 5 plan about 151 KB more (RIPPLE, CHRONOS,
 GRAIN, the USB audio ring). Something has to give before RIPPLE lands. The candidates are: the inbox sharing the
-canvas's memory (it's only in use while a WAV arrives), a shorter SPACE delay (the plan's first choice), and a
+canvas's memory (it's only in use while a WAV arrives), a shorter CHRONOS delay (the plan's first choice), and a
 smaller canvas.
 
 ## The screen as dots (2026-10-08)
@@ -721,7 +721,7 @@ the update path calls the same function names it always did.
 
 **Memory**, measured on a 32-bit build: the pool went from 281.6 KB to 222.1 KB (122 KB free of 336), main RAM from
 23.0 KB to 27.2 KB (71 KB free of 96). Together about 193 KB is free against the ~151 KB phases 3b to 5 plan, so
-the SPACE delay can stay 16-bit; storing it in 8 bits (32 KB back) stays in reserve.
+the CHRONOS delay can stay 16-bit; storing it in 8 bits (32 KB back) stays in reserve.
 
 **Tests:** the canvas clips at its edges, keeps 2 bits a dot and reaches the screen as 2 x 2 pixel dots in the
 right colours; the calibration, boot, update and crash screens are in the golden set.
@@ -973,7 +973,7 @@ most sensitive detector there is). Three integer residues and one oscillator:
   now, open while the track's grains sound (`any` in grain_block), shut about 0.3 s after them. SRC needs none.
 Tested (`test_settle`): each case, 20 s after the sound stops, has every string, the filter and BODY's low-pass at
 exactly 0 and COLOR's noise closed; BODY TRI's gate and level at 0. Each fix fails its mutant (the old rounding, the
-filter kept, the low-pass floor, no gate, the settling loop never chosen). SPACE at FDBK 100 still repeats forever,
+filter kept, the low-pass floor, no gate, the settling loop never chosen). CHRONOS at FDBK 100 still repeats forever,
 as a delay at full feedback should; at 90 it dies away to 0.
 
 **Colour on the screens (2026-10-11, from a conversation about delight: "throw in color for extra state info, and as
@@ -984,7 +984,7 @@ colour-blind-safe set, all 4.5:1 or more on black so they work as text:
 - sky blue #56B4E9 (9.1:1), the blue pads' pages: the title and its page dots (`focus_btn`);
 - reddish purple #CC79A7 (6.9:1), the purple pads' (LFO SEQ ENV ARP) pages, and modulation wherever it shows: a
   knob's corner mark, its rail's reach and live block, the depths while a slot pad is held;
-- orange #E69F00 (9.3:1), alive: a grain's played stretch, a ringing string's stem and node, SPACE's tail and echoes
+- orange #E69F00 (9.3:1), alive: a grain's played stretch, a ringing string's stem and node, CHRONOS's tail and echoes
   while it sounds (`space_sounding`: not resting, |wet| past -66 dB within 0.1 s), the ARP note and the SEQ and DRUM
   step playing, TAPE's running playhead, the mixer's meters;
 - vermillion #D55E00 (5.4:1, black on it the same), recording: the tempo bar turns red (the dot stays in it) and
@@ -997,23 +997,23 @@ rail. To have the colours at all the canvas went from 2 bits a dot to 4 (`pxc`, 
 drawn; a 17th would fall back to ink): the header alone needs three. 1.6 KB more RAM, the same work a pixel to send.
 RIPPLE keeps a level a string for the picture (`lvl`: a block's last loop sample held, falling an eighth a block;
 +5 to +14 a sample on runs 11, 12 and 30). The screens' signatures carry what's coloured (the focus pad, the strings
-ringing, SPACE sounding, the SEQ step), so a change redraws. Tested: the canvas test for 4 bits and the 17th colour,
+ringing, CHRONOS sounding, the SEQ step), so a change redraws. Tested: the canvas test for 4 bits and the 17th colour,
 `test_resting` for what the screen reads as sounding and resting (and two pictures, `space_live` and `reso_live`), the
 goldens for every screen.
 
 **Resting, and what shedding gives back (2026-10-11, from playing it: "CPU is sitting at 50 % with nothing playing";
 "when I mute other tracks ... the cpu actually seems to go up to 85 % and audio crackles").** I rebuilt both on the
 host (runs 29 and 30) and measured where the time went. Three causes:
-- **Everything worked on silence.** Stopped, every device still ran on digital zeros: SPACE 553 a sample, the
+- **Everything worked on silence.** Stopped, every device still ran on digital zeros: CHRONOS 553 a sample, the
   channel filters 453, the strings, COLOR. Now each one rests when its input block is digital silence and its own
   state shows its tail has gone, and wakes the block sound comes back, carrying on from its state as it is:
-  - SPACE: |wet| <= 16 (-66 dB) out for longer than its lines are long (the delay's, and the pre-delay plus the
+  - CHRONOS: |wet| <= 16 (-66 dB) out for longer than its lines are long (the delay's, and the pre-delay plus the
     longest comb and the allpasses), then its lines stand still; its loops' filters are let go to 0 as it rests.
   - RIPPLE: the strings' sum |out| <= 2 for longer than a line (1,056 samples), then the strings stand still; a
     pluck or a RIPL ARP step wakes them.
   - COLOR: the noise shut and nothing held in CRSH or TILT (|s| <= 16).
   - The channel: no gain moving and every filter state under 512.
-  The thresholds aren't arbitrary: in integers SPACE's combs cycle at about ±16 and the channel's FILT at a few
+  The thresholds aren't arbitrary: in integers CHRONOS's combs cycle at about ±16 and the channel's FILT at a few
   hundred (-55 dB out) for good once a tail is gone, and a low shelf holds a few dozen. Those cycles were a faint
   sound of their own with nothing playing, and they'd keep a device awake forever; resting puts them to 0.
 - **A muted track cost as much as a heard one.** Mute is a cut after the devices, so they ran on. Now a muted
@@ -1038,7 +1038,7 @@ Measured: run 29 (the busy groove stopped) 1,717 to 798, about 46 % to 21 % on t
 heard with dense grains, strings, RIPL ARP and a room, the others muted) 3,200 to 2,618, about 85 % to 70 %; the
 playing runs -125 to +17 (the silence checks a block cost a little where nothing rests). What still runs stopped:
 GRAIN recording silence into a SYNTH or POLY track's buffer (about 240 in run 29's kind of scene), the master, the
-sources' clocks. Tested (`test_resting`): stopped 8 s, every device rests with the track's out exactly 0 and SPACE's
+sources' clocks. Tested (`test_resting`): stopped 8 s, every device rests with the track's out exactly 0 and CHRONOS's
 and the strings' lines standing still; PLAY wakes them at once; muted, they rest while the transport plays, and
 unmuted wake; with the heaviest half at 80 % nothing comes back, at 50 % an eighth does. Each part fails its
 mutant (never resting, the tail ignored, a pluck not waking, the mute feeding sound, the blind give-back).
@@ -1141,9 +1141,9 @@ but the estimate only counted the drive: it's spread evenly across the features,
 there and gone by twice NDEC; NTON -100 against +100; TILT ±100 moves 100 Hz and 8 kHz the right ways; WET 0 is the
 dry sound however much drive; every knob at either end with a square past full scale stays bounded.
 
-## SPACE, as built (2026-10-08)
+## CHRONOS, as built (2026-10-08)
 
-SPACE is the S-4's VAST, last on a track (`firmware/src/space.c`): a delay and Felucca's ROOM reverb, run at half the
+CHRONOS is the S-4's VAST, last on a track (`firmware/src/space.c`): a delay and Felucca's ROOM reverb, run at half the
 rate (22.05 kHz) to halve both their memory and their load. The track goes in as mono (both sides averaged, and two
 samples into one), and the wet comes back up to 44.1 kHz by stepping halfway between samples.
 
@@ -1167,7 +1167,7 @@ delay and 3 for the pre-delay, companded like A-law (sign, a 3-bit segment, 4 bi
 under the sound, about 46 dB below a quiet sine's echo. When nothing is free it takes from the end of the longest tape,
 as GRAIN and RIPPLE do. A line never changes format while it sounds: it's chosen when it's switched on. A parked
 track holds nothing. Each line counts how many times it's been handed over, so one given back and taken again between
-two audio blocks still starts from silence. The SPACE page draws a part that's off (DLY or VERB at 0) dim, as it
+two audio blocks still starts from silence. The CHRONOS page draws a part that's off (DLY or VERB at 0) dim, as it
 would be at 100, so TIME, FDBK, SIZE and DEC still show what they set.
 
 **A bug the tests found:** the room kept ringing on its own. After the sound had gone, its output sat at a DC of -36
@@ -1184,7 +1184,7 @@ of 0.8; FDBK 50 a second at 200.0 ms at 0.45; TONE either way loses more each pa
 ms ahead; TIME turned while echoing glides with no jump; with 20 chunks free the delay starts 8-bit in 4 chunks, its
 echo where 16 bits put it; with nothing free it takes its 4 chunks from the longest tape; DEC 100 against 0 at
 0.5..1 s; the room's sides decorrelate at SPRD 100 and match at 0; PRE 100 holds the room back 100 ms; every knob at
-its top with noise in stays bounded (TONE either way, SIZE 0..100); a parked track's SPACE holds nothing; DLY and VERB
+its top with noise in stays bounded (TONE either way, SIZE 0..100); a parked track's CHRONOS holds nothing; DLY and VERB
 at 0 give every chunk back.
 
 **On the checkpoint** (`tests/checkpoint_sim.sh`, runs 13 to 16, host instructions per output sample, four tracks):
@@ -1193,22 +1193,22 @@ at 0 give every chunk back.
 | --- | --- | ---: |
 | 1 | four reels, nothing on (the baseline) | 902 |
 | 13 | COLOR on all four (DRV 60, CRSH 40 BOTH, NOIS 30, TILT 30) | 1,630 |
-| 14 | SPACE on all four (DLY 50, VERB 40): 72 chunks, all 16-bit, 14.5 s still free | 1,784 |
-| 15 | everything on all four: GRAIN at the cap, RIPPLE, COLOR, SPACE | 5,842 |
-| 16 | three tracks as I'd play them: TRACKS 3, GRAIN WET 100, DRV 40, SPACE | 2,310 |
+| 14 | CHRONOS on all four (DLY 50, VERB 40): 72 chunks, all 16-bit, 14.5 s still free | 1,784 |
+| 15 | everything on all four: GRAIN at the cap, RIPPLE, COLOR, CHRONOS | 5,842 |
+| 16 | three tracks as I'd play them: TRACKS 3, GRAIN WET 100, DRV 40, CHRONOS | 2,310 |
 
 Run 15 is 6.5 times the baseline: the 2,000 target holds only for setups like run 16. That's the hardware
 checkpoint's question now, more than before. If the FM-1 can't carry run 15, the shedding order (grains, then
-strings) would need a step for SPACE as well (the room at a quarter rate, say), and that's a decision for when I have
-the device's number. The stress run cuts the interrupts in while RIPPLE and SPACE take and give back memory as
-knobs turn, and the books balance (RIPPLE's strings and SPACE's lines are in the check now too).
+strings) would need a step for CHRONOS as well (the room at a quarter rate, say), and that's a decision for when I have
+the device's number. The stress run cuts the interrupts in while RIPPLE and CHRONOS take and give back memory as
+knobs turn, and the books balance (RIPPLE's strings and CHRONOS's lines are in the check now too).
 
 ## The shared rooms, as built (2026-10-11)
 
 **Why.** Playing the factory scene with one LFO on a drum's LVL put the FM-1 over 80 % and it crackled. The depth
 itself costs about 19 host instructions a sample, half a percent; the scene was the problem. Measured 5 s into it
 after a second's warm-up, it had crept from 2,886 to 3,046 a sample over the day's features (about 81 % on the
-device's scale of 37.6 a percent), and SPACE was its biggest part, about 620: a whole room for each of the three
+device's scale of 37.6 a percent), and CHRONOS was its biggest part, about 620: a whole room for each of the three
 tracks with VERB up, and two delays. A room is Freeverb's four combs and four allpasses at 22.05 kHz whichever
 track it's on, so three rooms cost three times one, and three similar rooms on a small speaker don't sound like
 three rooms anyway. The middle way that was asked for: two rooms the tracks share, and a quality setting for each.
@@ -1218,9 +1218,9 @@ three rooms anyway. The middle way that was asked for: two rooms the tracks shar
 - Two rooms, **A** and **B** (`room[]` in `space.c`), each with SIZE, DEC, TONE, QUAL and PRE (`rmp[]`, `RM_P` in
   `param.c`). They're the mix's, like the master compressor: one pair for the instrument, saved with the project,
   and not modulation targets (no track's slot owns them, and a room's lengths are what the main loop sizes its
-  memory for). I first put their knobs on mixer pages; asked to keep them on FX, they're on SPACE's pages now (see
-  "The room's knobs on SPACE" below).
-- Each track's SPACE keeps its delay (TIME FDBK DLY TONE SPRD) and sends to one room: **ROOM** (A or B) on SPACE 2,
+  memory for). I first put their knobs on mixer pages; asked to keep them on FX, they're on CHRONOS's pages now (see
+  "The room's knobs on CHRONOS" below).
+- Each track's CHRONOS keeps its delay (TIME FDBK DLY TONE SPRD) and sends to one room: **ROOM** (A or B) on CHRONOS 2,
   **VERB** the amount on page 1, next to DLY. Tracks 1-2 start on A, 3-4 on B. ROOM is `nomod` (it picks the memory).
 - The send is a bus. `space_block` adds the track's mono at half rate, times VERB times the track's level (Q12: so
   the fader and mute take the track's share out of the room, as a post-fader send does), ramped across the block,
@@ -1238,10 +1238,10 @@ three rooms anyway. The middle way that was asked for: two rooms the tracks shar
 
 **Memory.** A room's lines (its combs and allpasses, 5 chunks, and the pre-delay, 5 or 3 at 8 bits) belong to
 `MEM_ROOM + r` and are taken while any track in use sends to it (VERB up, or modulated up, and its ROOM that room)
-and given back when none does. So run 14 (SPACE on all four) holds 52 chunks where it held 72. The mixer's memory
+and given back when none does. So run 14 (CHRONOS on all four) holds 52 chunks where it held 72. The mixer's memory
 ribbon draws the rooms after the tracks, dim, under an R where it fits.
 
-**Resting, and a limit cycle it uncovered.** A room rests like a track's SPACE did: silence in and |wet| <= 16 out
+**Resting, and a limit cycle it uncovered.** A room rests like a track's CHRONOS did: silence in and |wet| <= 16 out
 for longer than its pre-delay plus its longest comb and allpasses (at its rate). The first run of the resting test
 never rested: room A sat at -24 for good. The old room's output was scaled by VERB after it, which had hidden its
 integer limit cycle under the threshold; with the send scaled before it, the raw cycle showed. Its source was the
@@ -1257,9 +1257,9 @@ with the rest of the old-format reading: see "Round 3" below.)
 T3's strings), both at QUAL LO. That last part is a choice made for the number: at HI the scene is 2,949 a sample
 (78 %), at LO 2,821 (75 %), inside the 65 to 75 % the device read before. A new project starts at HI.
 
-**The room's knobs on SPACE (later the same day).** The mixer's ROOMS pages felt one step removed: you shape a
-room where you send to it. SPACE has three pages now: TIME FDBK DLY VERB / ROOM SIZE DEC PRE / TONE SPRD RTON QUAL.
-SIZE DEC RTON QUAL PRE are descriptors in SPACE's table (stored places 3 and 8-11, `nomod`) that `SP_RMK` maps to
+**The room's knobs on CHRONOS (later the same day).** The mixer's ROOMS pages felt one step removed: you shape a
+room where you send to it. CHRONOS has three pages now: TIME FDBK DLY VERB / ROOM SIZE DEC PRE / TONE SPRD RTON QUAL.
+SIZE DEC RTON QUAL PRE are descriptors in CHRONOS's table (stored places 3 and 8-11, `nomod`) that `SP_RMK` maps to
 the room's knobs: `sp_knob()` hands the page (and the picture's tag) the value of the room the track's ROOM picks,
 so turning one changes that room for every track on it; the track's own values in those places are never read
 (the DSP reads `rmp`). The picture's label names the room, or the room and every track on it when another track
@@ -1271,9 +1271,9 @@ moves which room the page edits, QUAL is the room's, no depth on a room knob.
 | | Before | Now |
 | --- | ---: | ---: |
 | the factory scene (3 rooms, now 2 at LO) | 3,046 | 2,821 |
-| run 14: SPACE on all four (4 rooms, now 2) | 1,879 | 1,678 |
+| run 14: CHRONOS on all four (4 rooms, now 2) | 1,879 | 1,678 |
 | run 15: everything on all four | 5,072 | 4,871 |
-| run 16: TRACKS 3 with SPACE | 2,363 | 2,291 |
+| run 16: TRACKS 3 with CHRONOS | 2,363 | 2,291 |
 | run 20: the ambient pad (2 rooms, now 1) | 1,864 | 1,753 |
 | run 18: one track in a room | 1,779 | 1,810 |
 | run 21: the busiest groove (one room) | 2,498 | 2,516 |
@@ -1337,7 +1337,7 @@ want the hardware's numbers before trying it.
 Phase 8: a project is the whole instrument, saved to flash and brought back. SAVE tapped saves it; PRESETS opens
 the project view; a power cycle brings back the project saved last.
 
-**What a project holds:** every track's knobs on every page (source, GRAIN, RIPPLE, COLOR, SPACE, the slots'
+**What a project holds:** every track's knobs on every page (source, GRAIN, RIPPLE, COLOR, CHRONOS, the slots'
 engines and knobs, the channel strip), which source each track runs and its SYNTH, POLY and DRUM knobs, the SEQ
 steps, the DRUM pattern, accents and each instrument's own knobs, every modulation depth, REC IN, each track's
 level, mute and octave, TRACKS, the master compressor and the tempo. And what each tape plays: a factory reel or one
@@ -1408,7 +1408,7 @@ sound I like and bring it back on any track later.
 **SCL resets.** SCL had nothing on it (the system menu was only ever proposed), so it's the reset key:
 
 - **SCL held + turn a knob:** that knob jumps to its default. One detent is enough; the direction doesn't matter.
-- **SCL held + the page's own pad** (HOME on a source page, EDIT on GRAIN or RIPPLE, FX on COLOR or SPACE, a
+- **SCL held + the page's own pad** (HOME on a source page, EDIT on GRAIN or RIPPLE, FX on COLOR or CHRONOS, a
   slot's pad on its page, GLO on the mixer, EDIT on the channel and master pages): every knob on the page shown goes
   to its default, and the pad doesn't do its usual thing (no page turn). It's `focus_btn()`, the same function that
   lights the pad, so the "page's pad" is always the lit one.
@@ -1453,7 +1453,7 @@ stay with the track. They can't be saved over or deleted; a changed one saves in
 
 How I checked them, since I can't listen here: `test_tpfactory` loads each onto a track and plays two seconds (TAPE
 on a factory reel, SYNTH and POLY with a key held, DRUM its pattern), with the main loop's memory polls running so
-GRAIN, RIPPLE and SPACE get their buffers. Each has to sound (peak over -30 dBFS), never reach full scale, differ
+GRAIN, RIPPLE and CHRONOS get their buffers. Each has to sound (peak over -30 dBFS), never reach full scale, differ
 from its source's defaults (more than -20 dB of difference energy), and peak within 3 dB of the default sound it
 replaces, so stepping through them doesn't jump in level. That last one needed each source's LVL trimmed (BASS -6,
 DUB -7, TIGHT -3, DRIFT +3, SWELL +4); they now land within about 2 dB. Whether they *sound good* is for the
@@ -1520,7 +1520,7 @@ like M4). M4 on the SEQ pad stays the sequencer.
 **Page keys.** Holding a page's pad (HOME, EDIT, FX, ENV, LFO, SEQ, ARP) turns the white keys into a map of its pages:
 key n glows for page n, the page on screen is lit, every other key goes dark (the LEDs have three levels: off, the dim
 glow, lit), and pressing key n goes there. EDIT's keys run through GRAIN's pages and then RIPPLE's, FX's through
-COLOR's and SPACE's, since those pads already step through both devices. While a pad is held the keys don't play.
+COLOR's and CHRONOS's, since those pads already step through both devices. While a pad is held the keys don't play.
 
 For that to work the pad can't act as it goes down, so EDIT, FX and ARP now turn their page as they're let go, the way
 HOME and the slot pads already did; a pad that was used for a key doesn't turn it (`ui.pg_pad`, `ui.pg_used`). One
@@ -1901,7 +1901,7 @@ ms) now (`POL_ENDF`). The footer says KEYS:PAGES KNOB:ZOOM while HOME is held th
 POLY had no end: **END** (default 100 %) joins page 1 after STRT, and VOIC moves to the last page beside LVL. A note
 stops at END as at the sound's end, with the same fade. The picture lights the sound from STRT to END.
 
-Project space: with the hundredths in the knobs themselves, and SPACE's room-knob places stored as 0, the biggest
+Project space: with the hundredths in the knobs themselves, and CHRONOS's room-knob places stored as 0, the biggest
 project there can be is 3,772 bytes of the sector's 3,840, with SYNC in.
 
 Tested: 7 clicks with HOME held put the loop's start at 0.07 % to the sample; LEN 99.97 %; HOME's let-go ends the
@@ -1912,7 +1912,7 @@ the head doesn't jump it, far past does. Each fails its mutant (END ignored, no 
 **What follows the tempo.** Asked why the tempo didn't seem to move the LFOs, grains and arpeggiator, I measured it
 first: at 60, 120 and 180 BPM (and turned while playing) the arpeggiator, DRUM, the SEQ and the LFOs on SYNC BPM (the
 default) all scale with it. What didn't: the tapes and reels (they play at their own speed), GRAIN's RATE (grains a
-second) and SPACE's TIME (ms), and an LFO on FREE. Those three now have a SYNC each, all locked to the same beat
+second) and CHRONOS's TIME (ms), and an LFO on FREE. Those three now have a SYNC each, all locked to the same beat
 clock (`mclk`, mod.c) rather than a free counter of their own, so none of them drifts against the drums:
 
 - **TAPE SYNC** (TAPE 4, KNOB 3; stored 17): OFF or 1, 2, 4, 8, 16 bars. The loop window lasts that many bars at the
@@ -1929,13 +1929,13 @@ clock (`mclk`, mod.c) rather than a free counter of their own, so none of them d
   rhythm: EVEN, SWNG the odd steps a third late, CLST three a quarter step apart then quiet for the rest of four, RND
   each step's grain at a place in it from the step's number). The pool's planning reads the division's grains a
   second (`gr_rate_gps`). Measured: 1/4 at 120, 8 grains in 4 s, each in its beat's block.
-- **SPACE SYNC** (SPACE 4, KNOB 1; stored 12): TIME picks a division in 96ths of a beat (1/64 .. 1/2, dotted and
+- **CHRONOS SYNC** (CHRONOS 4, KNOB 1; stored 12): TIME picks a division in 96ths of a beat (1/64 .. 1/2, dotted and
   triplets). The line is 370 ms, so one longer at the tempo is halved until it fits (`sp_sync_d96`; a 1/4 at 120 BPM
   plays 1/8), which keeps it on the grid; the strip names what plays. The glide on TIME still smooths a change.
   Measured: 1/8 at 120 and 100 BPM, 250.0 and 299.3 ms; 1/4 at 120, 250.4.
 
 Project room: the three new knobs would have run the biggest project past its sector, so a project now stores the
-places of SPACE's room knobs (the track's own, never read) as 0, which packs to almost nothing, and they're 0 in
+places of CHRONOS's room knobs (the track's own, never read) as 0, which packs to almost nothing, and they're 0 in
 memory too: the biggest project is 3,804 bytes with the new knobs. The default project costs 10 a sample more
 (2,831: the SYNC checks a block).
 
@@ -2046,7 +2046,7 @@ full and the effect added. So each of the three now has ROUT, INS or SEND, on it
 | RIPPLE | page 3 (its own page), KNOB 4 | dry x (1 - WET) + strings x WET | dry + strings x WET |
 | COLOR | page 3, KNOB 3 (left of LVL) | dry x (1 - WET) + coloured x WET, then LVL | dry + coloured x WET, then LVL |
 
-SPACE has no ROUT: DLY and VERB were always levels added to a full dry, which is a send already.
+CHRONOS has no ROUT: DLY and VERB were always levels added to a full dry, which is a send already.
 
 This is a send per track, not a shared aux bus: each track's devices stay its own, nothing new is allocated, and the
 CPU is the same. (A shared bus, one reverb that four tracks send into, was the other option; it would save memory
@@ -2159,7 +2159,7 @@ around where you set the knob; ADSR, SEQ and FOLLOW push one way, and the depth'
 clamped to the knob's range. So a filter at the middle with an LFO at 50 % sweeps end to end, and an envelope at
 100 % on a WET of 0 opens it all the way.
 
-**What can be a target.** Every knob of GRAIN, RIPPLE, COLOR and SPACE, every knob of the three sources (each
+**What can be a target.** Every knob of GRAIN, RIPPLE, COLOR and CHRONOS, every knob of the three sources (each
 source keeps its own depths, as it keeps its own knobs), and the channel strip's LOW, HIGH, FILT and PAN. Not the
 reel choices (TAPE's REEL and POLY's REEL): the main loop prepares memory for the reel a track plays, and the ISR
 switching it under the main loop's feet is how you get a tape playing a reel that was never copied. A track holds
@@ -2189,7 +2189,7 @@ own knobs, not the list), and the message now says so when another page is up: "
   through `TPD(t, array)`, which points at that copy or at the track's own array. An array without depths reads
   exactly what it read before, so a track without modulation sounds sample for sample as it did. I tried copying a
   whole track first: it cost more and took 7 KB of main RAM, which is how I ended up with arrays.
-- The memory polls ask `mod_peak` instead of the knob: GRAIN's WET, RIPPLE's WET, SPACE's DLY and VERB at 0 but
+- The memory polls ask `mod_peak` instead of the knob: GRAIN's WET, RIPPLE's WET, CHRONOS's DLY and VERB at 0 but
   modulated up keep their memory ready, so an envelope can open a reverb that was off.
 
 **The engines**, against the S-4's (see "Modulators, lined up with the Torso S-4" for the knobs):
@@ -2225,10 +2225,10 @@ ends with LVL, -24 to +6 dB like COLOR's: TAPE 3 (REEL ROTA LVL), SYNTH 5, POLY 
 mixed into the track (`chain_source`), ramped across the block, and skipped at 0 dB so nothing changes until it's
 turned. A SYNTH or POLY track prints onto its tape after it (what you hear is what goes on); a TAPE track's REC
 still records at GAIN. SYNTH's four pages were full, so a device or engine can now have five pages (NPK 20, from 16),
-and the targets are numbered by NPK: GRAIN..SPACE 0..79, the sources 80..139, the channel 140..143.
+and the targets are numbered by NPK: GRAIN..CHRONOS 0..79, the sources 80..139, the channel 140..143.
 
 **Six pages (NPK 24, 2026-10-11).** GRAIN's GRNS needed a 21st knob. Raising NPK moved every modulation target's
-number (GRAIN..SPACE 0..95, the sources 96..191, the channel 192..195), which costs nothing stored: projects and
+number (GRAIN..CHRONOS 0..95, the sources 96..191, the channel 192..195), which costs nothing stored: projects and
 presets keep each array with its count and each depth as (array, knob), and the numbers live only in RAM. An older
 file's arrays are 20 long and the rest come from the defaults (a project load starts from `param_defaults`). What
 did matter: the biggest project there can be (`test_project_worst`: every knob random, every step and pattern set,
@@ -2238,13 +2238,13 @@ reads as 0 anyway. That packs the biggest to 3,741, under what it was.
 
 **Every effect opens with its mix (2026-10-11, from playing it: "wet and send options should be farther up in the
 page count for all parameters that have them").** ROUT and WET are KNOB 3 and 4 of page 1 on GRAIN, RIPPLE and
-COLOR; SPACE's sends, DLY and VERB, the same. Bringing an effect in is the first thing you do with it, and with
+COLOR; CHRONOS's sends, DLY and VERB, the same. Bringing an effect in is the first thing you do with it, and with
 WET 0 (the default) nothing else on its pages is heard, so it was backwards to have WET on GRAIN 2 and ROUT on
 the last page of everything. Only the `PLAYOUT` rows moved: stored order is the same, so projects, presets,
 modulation targets and the DSP are untouched. The rest close up behind: GRAIN SIZE RATE ROUT WET / PTCH SPRD SPRY
 CONT / REV PATN SCAL PRND / SCAN WARP OFST FDBK / BODY MODE ROOT TONE / GRNS; RIPPLE PTCH DEC ROUT WET / CUT
-RES TYPE SCAL / TONE; COLOR DRV CRSH ROUT WET / NOIS TILT NDEC NTON / CMOD . . LVL; SPACE TIME FDBK DLY VERB /
-SIZE DEC TONE SPRD / PRE (since the shared rooms: TIME FDBK DLY VERB / ROOM TONE SPRD). The layout lint (`test_mod`) checks the rule: an effect's page 1 ends ROUT WET (SPACE DLY
+RES TYPE SCAL / TONE; COLOR DRV CRSH ROUT WET / NOIS TILT NDEC NTON / CMOD . . LVL; CHRONOS TIME FDBK DLY VERB /
+SIZE DEC TONE SPRD / PRE (since the shared rooms: TIME FDBK DLY VERB / ROOM TONE SPRD). The layout lint (`test_mod`) checks the rule: an effect's page 1 ends ROUT WET (CHRONOS DLY
 VERB), a source's (and COLOR's) last page ends LVL, a modulator's AMT OFS. The other rule ("ROUT KNOB 4 of the last
 page") is gone with it. The pictures in the visualizations don't care which page they're on (they follow the knob
 turned), so nothing else changed but the tests and the manual. Reading one, an empty knob past what was
@@ -2281,7 +2281,7 @@ applied a block at a time in steps does), and, with `--cost`, the instructions.
   read through `mod_pitch16`): a knob holds semitones, so an LFO on TUNE used to step, a trill rather than vibrato.
   Now a small depth is vibrato. A SEQ's steps still land on semitones (a step is a note).
 - I got one thing wrong on the way, and the tool says so in its header. My first pass flagged SYNTH (MIX, CUT, ENV,
-  RES, TUNE) and SPACE's TIME as clicking and buzzing at the blocks' rate. They weren't stepping: a saw's own edges
+  RES, TUNE) and CHRONOS's TIME as clicking and buzzing at the blocks' rate. They weren't stepping: a saw's own edges
   count as clicks, and a moving pitch or filter smears its harmonics into the blocks' frequencies. I smoothed them
   anyway (MIX, NOIS and DRV ramped, the filter in four steps a block, TIME's target ramped), measured no difference
   in what the edge test finds, and 25 to 50 more instructions a sample on the groove (runs 18, 19), so I took that
@@ -2511,7 +2511,7 @@ found and what I did with it.
 - **The same filter list had two names.** RIPPLE's `SLOP` and POLY's `TYPE` both choose LP / BP / HP (the same
   `N_SLOP` names). It's a type, not a slope, so RIPPLE's is `TYPE` now.
 - **Drive and decay were spelled two ways.** COLOR said `DRIV` where SYNTH and DRUM say `DRV`; DRUM said `DECY`
-  where SYNTH, POLY, RIPPLE, SPACE and the ADSR say `DEC`. Both now use the common spelling (labels only: the
+  where SYNTH, POLY, RIPPLE, CHRONOS and the ADSR say `DEC`. Both now use the common spelling (labels only: the
   code's enum names stay, so nothing else moves). The COLOR and RIPPLE pictures had their own copies of the
   labels; they read the descriptors now, so a rename can't leave them behind again.
 - **The ADSR modulator showed raw numbers.** Its ATK DEC REL run on the same `TIME_MS_X10` curve as SYNTH's and
@@ -2656,7 +2656,7 @@ timing to keep (nothing records until PLAY), so nothing is lost. Playing, REC st
 punch-in has to land where you press it; holding it then only says to stop first.
 
 **While it's up.** The transport stops, every track's REC lets go, and the tracks stop rendering: the audio ISR fades
-them out over one block and plays the computer instead. Their GRAIN buffers, RIPPLE strings and SPACE lines go back
+them out over one block and plays the computer instead. Their GRAIN buffers, RIPPLE strings and CHRONOS lines go back
 to the shared memory (their polls see `sys.usbrec`), so the take can use it. The FM-1's own USB input, what the
 computer can record from it, sends silence: otherwise whatever the computer plays would come straight back to it.
 
@@ -2808,7 +2808,7 @@ Each phase ends in something you can flash and hear or see, and each is its own 
 | 3b. GRAIN (**done**, host-verified; see "GRAIN, as built") | the scheduler, the shared pool of grains, FREEZE (key 0); the live buffer, SCAN, FDBK | grains run on 4 tracks inside the budget |
 | 3c. Memory by usage (**done**, host-verified; see "Memory by usage, TRACKS and REC IN") | the shared chunks, growing tapes, TRACKS, REC IN, long reels | memory follows what you use |
 | 4. RIPPLE (**done**, host-verified; see "RIPPLE, as built") | strings, chromatic keys, OCT shifts | tuned feedback chords from the keys |
-| 5. COLOR + SPACE (**done**, host-verified; see "COLOR, as built" and "SPACE, as built") | drive, crush, noise; delay and reverb | the full chain on 4 tracks inside the budget (on the host it isn't: everything on all four is 5,842; the device decides) |
+| 5. COLOR + CHRONOS (**done**, host-verified; see "COLOR, as built" and "CHRONOS, as built") | drive, crush, noise; delay and reverb | the full chain on 4 tracks inside the budget (on the host it isn't: everything on all four is 5,842; the device decides) |
 | 6. Mixer + routing (**done**, host-verified; routing early as REC IN; see "The mixer, as built") | GLO mixer, filters, compressor | the mixer's DSP |
 | 7. Modulation (**done** but p-locks, host-verified; see "Modulation, as built") | the 4 engines, hold-and-turn depth, assigning engines, SEQ steps, MONO's clear; p-locks wait on a decision | the PRD's §4 workflow end to end |
 | 7b. DRUM (**done**, host-verified; see "DRUM, as built") | the fourth source: sixteen synthesized instruments, patterns of 2 to 4 bars, ten written rhythms, SEED's versions, STEP's HITS ACC LIVE ERAS | a groove from a rhythm, varied, edited, printed onto a tape |

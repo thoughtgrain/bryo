@@ -49,7 +49,7 @@ identity value (AMT 100, SKEW 0, FOLD 0, SMTH 0, SWNG 0, ENV 0, FDBK 0, DUB 0).
 | `db_q10` (every rendered source, COLOR, LOW and HIGH) | 0.3-1.25 | the table |
 | GRAIN: `gr_cdist`'s `% len`, the seam, the envelope ramp, `gr_plan`, knob maths | ~1.2 | fold loops, shifts, a reciprocal at grain start, the table |
 | RIPPLE per block: TONE, DEC, WET, each string's period and gain | 0.8 | sdiv2, hoist, memoize by knob and root |
-| SPACE and COLOR: knob maths computed before their early returns | 1.0-1.3 | below the returns; cache per knob |
+| CHRONOS and COLOR: knob maths computed before their early returns | 1.0-1.3 | below the returns; cache per knob |
 | the compressor, `src % NSRC`, the limiter's divide a sample while limiting | ~0.3 | caches, `& 3u`; the limiter: a Newton-updated reciprocal (near-identical: see below) |
 
 ## Tier C: resting on silence (identical output; nothing for the scene, ~130 a sample when nothing plays)
@@ -131,14 +131,14 @@ everywhere), then A6-A9, then C. D and the two items outside the interrupt as th
 ## Round 2 (2026-10-12, evening): one track heard at 70-75 %
 
 From playing it: 70-75 % with only T2 playing, the rest muted. Five read-only audits of the whole path (sources,
-GRAIN and RIPPLE, COLOR SPACE mixer master, the chain and the modulators, the platform), and timing on the host,
+GRAIN and RIPPLE, COLOR CHRONOS mixer master, the chain and the modulators, the platform), and timing on the host,
 put it this way:
 
 | Where | Share of that 70-75 % | How sure |
 | --- | --- | --- |
 | the muted tracks still rendering their sources and GRAIN, then zeroed | about a third | measured (host time) |
 | code run from flash: `chain_block` alone is 23.7 KB against a 16 KB cache, refetched every block; the screen's code evicts it between | 10-30 points | inferred, not measured |
-| SPACE and the master | ~5 % | estimated |
+| CHRONOS and the master | ~5 % | estimated |
 | GRAIN | ~5 % | estimated |
 | T2's POLY | ~3 % | estimated |
 | modulators, arpeggiators | 1-1.5 % | estimated |
@@ -195,11 +195,11 @@ the cache's way, the sources' loops stayed in it. The cache is the cost.
 reach of all of .text), RAMTEXT takes in the old debug area up to the boot probe (0x01C07F00), and `.lowpool` takes four
 more pool objects (`drm_rt`, `mod_l`, `mrt`, `mda`); seven chunks of sound memory go too (143, 26.6 s, from 150 and
 27.9). In `.hot`: `chain_block`, every engine's block and its per-sample routines (POLY's voice, TAPE's block and
-reads, the drum voices and their setup, GRAIN's block, decode, mix, recording and planning, RIPPLE, COLOR, SPACE's
+reads, the drum voices and their setup, GRAIN's block, decode, mix, recording and planning, RIPPLE, COLOR, CHRONOS's
 delay and rooms, the mixer, the master): 38.6 KB. What stays in flash is cold (REC's writes, USB's record mode, a
 slice's jump, a sleeping track) or tiny and shared. One lesson: the compiler won't inline a function from one
 section into another, so moving a caller made its small helpers calls; the per-sample ones (`clamp`, `sdiv2`,
-`softclip`, the oscillators, `mem_at`, the SPACE and GRAIN helpers) are `always_inline` now, as they were inlined
+`softclip`, the oscillators, `mem_at`, the CHRONOS and GRAIN helpers) are `always_inline` now, as they were inlined
 before. Every audio fingerprint unchanged; two tests that counted chunks now count from `MEM_NC`.
 
 **The fourth reading (7c22901): 65 % steady on TEST.** SRC 23, GRN 16, RES 5, COL 0, SPC 12, PRE 7, ROOM 6, MST 2:

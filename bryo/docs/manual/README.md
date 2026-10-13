@@ -3,7 +3,7 @@
 
 Bryo turns the M-VAVE FM-1 into a four-track instrument for sculpting sound. Each track has a **source** (a tape
 loop, a synth, a sampler or a drum machine) and runs through four effects in a fixed order: **GRAIN, RIPPLE,
-COLOR, SPACE**. Four **modulators** per track can move any knob, and an **arpeggiator** can play your chords for
+COLOR, CHRONOS**. Four **modulators** per track can move any knob, and an **arpeggiator** can play your chords for
 you. There are no menus: you hold a pad and turn a knob.
 
 This manual is a series of small steps. Each one does one thing, shows the screen you should see, and says what you
@@ -20,7 +20,7 @@ should hear. Do them in order the first time; after that, jump to what you need.
 3. [The mixer](#3-the-mixer): levels, tone and pan, the compressor, the key and scale, SETUP, the CPU meter
 4. [Recording](#4-recording): clear a track, record onto it, overdub, undo
 5. [Other sources](#5-other-sources): SYNTH, POLY and DRUM; the arpeggiator; the black keys as notes
-6. [The effects](#6-the-effects): GRAIN, RIPPLE, COLOR, SPACE
+6. [The effects](#6-the-effects): GRAIN, RIPPLE, COLOR, CHRONOS
 7. [Modulation](#7-modulation): make knobs move by themselves
 8. [Getting back](#8-getting-back): reset a knob or a page, undo
 9. [Saving](#9-saving): projects, a blank project, the factory scene, track presets
@@ -40,7 +40,7 @@ should hear. Do them in order the first time; after that, jump to what you need.
   **ALGORITHM** (what REC records). Under them, **OCT−** and **OCT+**.
 - **Top right**, **KNOB 1 to 4**: they always change the four values on the screen.
 - **The pads**, two rows:
-  - **Blue: the pages.** HOME (the track's source), EDIT (GRAIN, RIPPLE), FX (COLOR, SPACE), GLO (the mixer).
+  - **Blue: the pages.** HOME (the track's source), EDIT (GRAIN, RIPPLE), FX (COLOR, CHRONOS), GLO (the mixer).
   - **Purple: the modulators and the envelope.** LFO holds three you can swap around (M1, M2, M3), SEQ is M4, the
     step sequencer. **ENV** is the track's own envelope: SYNTH's and POLY's, TAPE's slices', DRUM's KIT.
   - **ARP** is the arpeggiator.
@@ -74,7 +74,7 @@ Everything it says is also said by a shape or a word, so you never need to tell 
 | **Red** | recording (the tempo bar, the REC tag); the CPU reading near its limit |
 | **Yellow** | something to know: not saved (the ✱), FROZEN, grains HELD |
 
-<img src="img/space_live.png" width="240" alt="SPACE sounding: its tail and echoes in orange"> <img src="img/reso_live.png" width="240" alt="RIPPLE: the strings ringing, orange stems on their notes">
+<img src="img/space_live.png" width="240" alt="CHRONOS sounding: its tail and echoes in orange"> <img src="img/reso_live.png" width="240" alt="RIPPLE: the strings ringing, orange stems on their notes">
 
 ### 0.3 How pages work
 
@@ -84,7 +84,7 @@ Every pad opens a page, and **pressing the same pad again goes to its next page*
 | --- | --- |
 | HOME | the source's pages (TAPE has 4; SYNTH 5; POLY 4; DRUM 4) |
 | EDIT | GRAIN 1-6, then RIPPLE 1-3 |
-| FX | COLOR 1-3, then SPACE 1-4 |
+| FX | COLOR 1-3, then CHRONOS 1-4 |
 | ENV | the source's envelope: SYNTH's AMP, POLY's ENV, TAPE's slice envelope (each the second page), DRUM's KIT |
 | LFO, SEQ | a modulator's pages (LFO: M1, M2 or M3; SEQ: M4) |
 | ARP | the arpeggiator: 2 pages, then RIPL ARP (RIPPLE's own arpeggio) |
@@ -95,8 +95,8 @@ KNOB 1 to 4 always change the four values you see. There's nothing hidden.
 **Jump straight to a page: hold its pad and press a white key.** While you hold a pad (HOME, EDIT, FX, ENV, LFO,
 SEQ or ARP), the white keys show its pages: one glows for each page, the page on screen is lit, and every other key
 goes dark. Press white key 3 to go to the third page. EDIT's keys run through GRAIN's pages and then RIPPLE's
-(key 8 is RIPPLE 2); FX's through COLOR's and then SPACE's. Every effect's first page ends with its mix:
-**ROUT** on KNOB 3 and **WET** on KNOB 4 (SPACE: **DLY** and **VERB**, its two sends), so one press of EDIT or FX
+(key 8 is RIPPLE 2); FX's through COLOR's and then CHRONOS's. Every effect's first page ends with its mix:
+**ROUT** on KNOB 3 and **WET** on KNOB 4 (CHRONOS: **DLY** and **VERB**, its two sends), so one press of EDIT or FX
 and KNOB 4 brings an effect in. Holding LFO also lights OP1-OP3, the one it's on
 bright. Let go without pressing a key and the pad turns its page as usual.
 
@@ -329,7 +329,7 @@ you turn it off.
 4. **HOLD**: how long a pad must be held to count as held. **LEDS**: how the idle pads glow.
 5. Under the two lines about the keys and knobs, two lines show **where the CPU goes**, in % of the time the FM-1
    has, averaged over the last second:
-   - **SRC GRN RES COL SPC**: the four tracks' sources, GRAIN, RIPPLE, COLOR, and SPACE with the channel strip.
+   - **SRC GRN RES COL CHR**: the four tracks' sources, GRAIN, RIPPLE, COLOR, and CHRONOS with the channel strip.
    - **PRE ROOM MST**: the work before the tracks (keys, arpeggiators, modulators), the two rooms, and the master.
    - **R/F**: how fast a fixed loop runs from fast RAM and from flash, measured once at power-on. It's there for
      tuning Bryo; together with **TEST** ([9.4](#94-back-to-the-factory-scene)) it shows what a new build changed.
@@ -574,7 +574,7 @@ OP1–OP3 still works ([7.4](#74-choose-which-modulator-the-lfo-pad-controls)). 
 
 ## 6. The effects
 
-Every track goes through GRAIN, RIPPLE, COLOR and SPACE, in that order. They start switched off (WET at 0, DLY
+Every track goes through GRAIN, RIPPLE, COLOR and CHRONOS, in that order. They start switched off (WET at 0, DLY
 and VERB at 0), so turn them up to hear them.
 
 ### 6.1 GRAIN: turn it on
@@ -735,28 +735,28 @@ loud and as tight as it is high, and the waves drift along with RIPL (slowly on 
 
 <img src="img/color.png" width="240" alt="COLOR: DRV CRSH ROUT WET"> <img src="img/color2.png" width="240" alt="COLOR 2: NOIS TILT NDEC NTON">
 
-### 6.7 SPACE: echoes and a room
+### 6.7 CHRONOS: echoes and a room
 
-1. Press **FX four times**: **SPACE**. **TIME** is the echo's time, **FDBK** how many echoes; turn up **DLY** (the
+1. Press **FX four times**: **CHRONOS**. **TIME** is the echo's time, **FDBK** how many echoes; turn up **DLY** (the
    echoes) and **VERB** (how much goes to the room), its two sends. VERB follows the track's level: turn the track
    down or mute it and its share of the room goes with it.
-2. Press **FX** again for **SPACE 2**: **ROOM** picks which room the track sends to, **A** or **B**, then that room's
+2. Press **FX** again for **CHRONOS 2**: **ROOM** picks which room the track sends to, **A** or **B**, then that room's
    **SIZE**, **DEC** (how long it rings) and **PRE** (a gap before it starts).
-3. **SPACE 3**: **TONE** darkens or brightens the echoes, **SPRD** spreads them across the stereo field; **RTON** is
+3. **CHRONOS 3**: **TONE** darkens or brightens the echoes, **SPRD** spreads them across the stereo field; **RTON** is
    the room's tone and **QUAL** its quality: **HI** (the full 22 kHz) or **LO** (half the rate: half the CPU, and a
    darker, softer tail that suits a big ambient room).
 
 Bryo has two rooms, A and B, and the tracks share them: tracks 1-2 start on A, 3-4 on B. A room costs the same
 whether one track or four send to it, so a room per pair is the cheap way to put everything in a space. The room's
-knobs on SPACE 2 and 3 belong to the room, so turning them on one track changes it for every track on it; the label
+knobs on CHRONOS 2 and 3 belong to the room, so turning them on one track changes it for every track on it; the label
 under the picture names the others when there are any ("B: T1 T2"). They're saved with the project, and they can't
 be modulated (the room is shared). A track preset keeps the track's room choice.
 
-4. **SPACE 4**: **SYNC** puts the delay on the tempo: **TIME** then picks a division (1/64 to 1/2, with dotted and
+4. **CHRONOS 4**: **SYNC** puts the delay on the tempo: **TIME** then picks a division (1/64 to 1/2, with dotted and
    triplet ones) and the strip shows it. The delay line holds 370 ms, so a division longer than that at your tempo is
    halved until it fits (a 1/4 at 120 BPM plays as 1/8), which keeps it on the beat; the strip shows what plays.
 
-<img src="img/space_long.png" width="240" alt="SPACE: TIME FDBK DLY VERB"> <img src="img/space2.png" width="240" alt="SPACE 2: ROOM SIZE DEC PRE, T1 and T2 sharing room B"> <img src="img/space3.png" width="240" alt="SPACE 3: TONE SPRD RTON QUAL">
+<img src="img/space_long.png" width="240" alt="CHRONOS: TIME FDBK DLY VERB"> <img src="img/space2.png" width="240" alt="CHRONOS 2: ROOM SIZE DEC PRE, T1 and T2 sharing room B"> <img src="img/space3.png" width="240" alt="CHRONOS 3: TONE SPRD RTON QUAL">
 
 ### 6.8 Insert or send
 
@@ -765,7 +765,7 @@ GRAIN, RIPPLE and COLOR have **ROUT** on KNOB 3 of their first page, next to WET
 - **INS** (insert): **WET** fades from the dry sound to the effect.
 - **SEND**: the dry sound stays at full and WET adds the effect on top.
 
-SPACE always works as a send.
+CHRONOS always works as a send.
 
 <img src="img/color.png" width="240" alt="COLOR 1: DRV CRSH ROUT WET">
 
@@ -1037,7 +1037,7 @@ M-VAVE's updater puts the stock firmware back. Bryo's projects and tapes can't b
 | **HOME** | the source's pages |
 | **HOME** held + SELECT | change the source |
 | **EDIT** | GRAIN, then RIPPLE |
-| **FX** | COLOR, then SPACE |
+| **FX** | COLOR, then CHRONOS |
 | **ENV** | the source's envelope page |
 | **LFO SEQ** tapped | that modulator's pages (LFO: M1-M3, SEQ: M4) |
 | **LFO SEQ** held + a knob | how much that modulator moves the knob |

@@ -1549,7 +1549,7 @@ static void viz_setup(void)
     {                                                   /* the load by stage (chain.c ld_pm, in %), three to a line
                                                          * (four ran off the edge), and the loop speeds from RAM and
                                                          * flash (main.c ld_probe) */
-        static const char *const L[8] = {"SRC ", "  GRN ", "  RES ", "COL ", "  SPC ", "  PRE ", "ROOM ", "  MST "};
+        static const char *const L[8] = {"SRC ", "  GRN ", "  RES ", "COL ", "  CHR ", "  PRE ", "ROOM ", "  MST "};
         static const uint8_t S[8] = {LD_SRC, LD_GRN, LD_RES, LD_COL, LD_SPC, LD_PRE, LD_ROOM, LD_MST};
         char b[48], v[12];
         uint32_t k;
