@@ -720,6 +720,9 @@ The track rings four tuned strings, like a sitar's sympathetic strings.
      across them like a ripple on water; up to half a semitone either way at 100, faster as it rises. On BANK it
      moves the bands' centres.
 
+The picture shows it: while a string rings, the curve waves round its node in orange, as high as the string is
+loud and as tight as it is high, and the waves drift along with RIPL (slowly on their own when RIPL is 0).
+
 <img src="img/resonator_wet.png" width="240" alt="RIPPLE ringing"> <img src="img/resonator2.png" width="240" alt="RIPPLE 2: CUT RES TYPE SCAL"> <img src="img/ripple4.png" width="240" alt="RIPPLE 4: MODE DRV RIPL">
 
 ### 6.6 COLOR: dirt and character

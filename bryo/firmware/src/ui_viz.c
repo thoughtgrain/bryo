@@ -487,6 +487,31 @@ static int32_t reso_at(const int16_t *v, int32_t x)
 }
 
 #define RV_RING 192                   /* a string ringing, for the picture: its level (reso.c lvl) above about -45 dB */
+/* the ripples (2026-10-13): a string ringing makes the curve wave round its node, out to 24 dots each way and dying
+ * as it goes, as high as the string is loud (1..5 dots), its wavelength the string's pitch (an octave up: half as
+ * long). The wave drifts with RIPL's phase, a quarter turn a string, so the drift runs across the strings as it does
+ * in the sound, or slowly with time when RIPL is 0 (a turn in two seconds). Returns the curve's offset at x, and
+ * sets *live when a string's ripple reaches x (the curve goes orange there, as the stems do) */
+static int32_t reso_ripple(const int16_t *v, int32_t sc, int32_t x, int *live)
+{
+    const reso_t *R = &reso[sys.sel];
+    int32_t k, sum = 0;
+    for (k = 0; k < (int32_t)RS_N && k < PART_N[sc]; k++) {
+        int32_t hx = DX0 + (v[0] * 16 + PART_16[sc][k] - 28 * 16) * DW / (96 * 16), lv = R->lvl[k], d, amp, lam, ph;
+        d = x > hx ? x - hx : hx - x;
+        if (lv <= RV_RING || d >= 24)
+            continue;
+        amp = 1 + clamp(lv, 0, 16384) * 4 / 16384;
+        lam = 24 * 192 / (192 + PART_16[sc][k]);
+        lam = lam < 6 ? 6 : lam;
+        ph = v[RP_RIPL] ? (int32_t)((R->rph + (uint32_t)k * 0x40000000u) >> 26)
+                        : (int32_t)(((fm1_ms >> 5) + (uint32_t)k * 16u) & 63u);
+        sum += px_sin((d * 64 / lam + ph) & 63) * amp * (24 - d) / 24 / 1000;
+        *live = 1;
+    }
+    return sum;
+}
+
 static void viz_reso(const int16_t *v, uint32_t f)
 {
     int32_t x, k, py = 0, top = DY0 + 6, base = DY1 + 2, sc = clamp(v[7], 0, RS_SCALES);
@@ -495,10 +520,12 @@ static void viz_reso(const int16_t *v, uint32_t f)
     if (v[4] < 127 || v[5] || v[6] || f == 4u || f == 5u || f == 6u)   /* the filter: dotted, once it does anything */
         for (x = DX0; x <= DX1; x += 2)
             px_dot(x, base - clamp(reso_filter(v, reso_n16(x)), 0, 1000) * (base - top) / 1000, px_ink);
-    for (x = DX0; x <= DX1; x++) {
-        int32_t y = base - reso_at(v, x) * (base - top) / 1000;
+    for (x = DX0; x <= DX1; x++) {                                     /* the curve, rippling where a string rings */
+        int live = 0;
+        int32_t y = base - reso_at(v, x) * (base - top) / 1000 - reso_ripple(v, sc, x, &live);
+        y = clamp(y, top - 4, base);
         if (x > DX0)
-            px_line(x - 1, py, x, y, px_ink, 1);
+            px_line(x - 1, py, x, y, live ? px_live : px_ink, 1);
         py = y;
     }
     for (k = 0; k < PART_N[sc]; k++) {                                 /* a node on each partial still sounding */

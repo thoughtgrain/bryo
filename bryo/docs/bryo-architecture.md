@@ -1096,6 +1096,15 @@ k a quarter turn behind string k - 1, so the drift runs across the four like a r
 through `cents_inc` and the lines follow sample by sample (the moving-delay loop), which now also rounds toward 0
 when the input is silent, since with RIPL on it's the loop that runs. On BANK it moves the bands' centres.
 
+**The picture ripples** (`ui_viz.c reso_ripple`): "I don't see the wave in the resonator that has it ripple". A
+string that rings (its level above `RV_RING`, as the stems) makes the response curve wave round its node, out to 24
+dots each way and dying as it goes, 1 to 5 dots high by the string's level, its wavelength the string's pitch (an
+octave up: half), the curve orange where a ripple reaches; the wave's phase is RIPL's (`rph`, a quarter turn a
+string, so the drift crosses the strings as it does in the sound) or the clock's when RIPL is 0, a turn in two
+seconds. The first try drew each string's wave on its own, spreading from the node over the whole curve: four
+strings' waves over each other and over the curve were a mess, above all with a chord's nodes three dots apart. On
+the curve it's one line that comes alive.
+
 **Defaults.** TONE 60 -> 45 (the brightness the request was about), DRV 25. Both change the factory scene's sound
 on purpose; the fingerprints were rewritten. **Cost**: the scene went from 2,924 to 2,999 instructions a sample
 (about 2 % of the FM-1): the cubic, on four strings every sample; the loop's own path costs one branch more with
