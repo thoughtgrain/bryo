@@ -37,7 +37,7 @@ typedef struct {
 } pol_t;
 
 static pol_t pol[NTRK];
-static tape_rd_t pol_rd[NTRK][POL_NV] __attribute__((section(".pool")));   /* each voice's block (8 KB in all) */
+static tape_rd_t pol_rd[NTRK][POL_NV] __attribute__((section(".lowpool")));   /* (RAMTEXT: app.ld) */   /* each voice's block (8 KB in all) */
 
 /* the head's step for voice v's note on track t, Q12 tape samples per output sample: 0.5 at the sound's own pitch
  * (its ROOT's key, FINE cents off). TUNE is added here, every block, so a modulated TUNE moves a held note too, to

@@ -195,7 +195,7 @@ static inline uint32_t gr_sdiv(const int16_t *p)
 }
 
 /* the grains a second x 100 that RATE asks for (SYNC: its division at the tempo) */
-static inline int32_t gr_rate_gps(const int16_t *p)
+static int32_t HOT_CODE gr_rate_gps(const int16_t *p)
 {
     if (!p[GP_SYNC])
         return gr_gps100(p[GP_RATE]);
@@ -205,7 +205,7 @@ static inline int32_t gr_rate_gps(const int16_t *p)
 
 /* the grains a track's knobs ask for at once: those a second x SIZE (m), with room for PATN's and chance's
  * bunching (m + m/2 + 2) */
-static uint32_t gr_need(const int16_t *p)
+static uint32_t HOT_CODE gr_need(const int16_t *p)
 {
     int32_t m = gr_rate_gps(p) * p[GP_SIZE] / 100000;
     return (uint32_t)(m + (m >> 1) + 2);               /* (m >= 0: the shift is the divide) */
@@ -216,7 +216,7 @@ static uint32_t gr_need(const int16_t *p)
  * (grain_block's rule: the transport playing, or on the GRAIN page; reading the buffer, also a SYNTH or POLY track or
  * frozen). A track that isn't keeps the grains it has sounding (they finish); it starts none. loud: the ISR's
  * gr_buf_loud, or the screen's last copy of it */
-static int gr_wants(uint32_t t, int loud)
+static int HOT_CODE gr_wants(uint32_t t, int loud)
 {
     const int16_t *p = TPD(t, DEV_GRAIN);
     uint32_t scan = (uint32_t)clamp(p[GP_SCAN], 0, 3);
@@ -250,7 +250,7 @@ static const char *gr_why(uint32_t t)
 /* left shared among the tracks in act by what each asks (ask[]), into share[]: those asking less than an even share
  * of what's left get what they ask, round by round; the rest is split evenly among those that want more. Returns
  * what's left over (0 when it ran short) */
-static uint32_t gr_split(uint8_t *share, uint32_t act, const uint32_t *ask, uint32_t left)
+static uint32_t HOT_CODE gr_split(uint8_t *share, uint32_t act, const uint32_t *ask, uint32_t left)
 {
     uint32_t t, k;
     for (k = 0; k < NTRK && act; k++) {
@@ -283,7 +283,7 @@ static uint32_t gr_split(uint8_t *share, uint32_t act, const uint32_t *ask, uint
  * them: the need only decides who gives way when the pool runs short, it's no cap (a lone AUTO track has all 40).
  * A held track never gets more than it holds: what it holds is what it keeps, whatever comes and goes. (The ISR's
  * every block, gr_plan; the screen the same, for itself.) */
-static void gr_plan_into(uint8_t *share)
+static void HOT_CODE gr_plan_into(uint8_t *share)
 {
     uint32_t t, on = 0, held = 0, aut = 0, nauto = 0, left, ask[NTRK];
     for (t = 0; t < NTRK; t++) {
@@ -314,8 +314,8 @@ static void gr_plan_into(uint8_t *share)
 }
 
 /* audio ISR, each block: the shares the grains start under */
-static int gr_buf_loud(uint32_t t);
-static void gr_plan(void)
+static int HOT_CODE gr_buf_loud(uint32_t t);
+static void HOT_CODE gr_plan(void)
 {
     uint32_t t;
     for (t = 0; t < NTRK; t++)                          /* (the loud counts current before the plan reads them) */

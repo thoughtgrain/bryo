@@ -5,6 +5,7 @@
  * guards; then LCD, input (TIMER5 IRQ, 10 kHz), audio (ALNK0 IRQ). */
 extern uint32_t _data_start[], _data_end[], _data_load[], _bss_start[], _bss_end[];
 extern uint32_t _pool_start[], _pool_end[], _rt_start[], _rt_end[], _rt_load[];
+extern uint32_t _lp_start[], _lp_end[], _hot_start[], _hot_end[], _hot_load[];
 
 
 /* TIMER5 outranks ALNK0, so the scan keeps its 100 us pace while a half buffer renders: before,
@@ -326,12 +327,23 @@ void fm1_cstart(void)
         *d = 0;
     for (d = _pool_start; d < _pool_end; d++)
         *d = 0;
+    for (d = _lp_start; d < _lp_end; d++)               /* (the pool's buffers that live in RAMTEXT: app.ld) */
+        *d = 0;
     for (s = _data_load, d = _data_start; d < _data_end; s++, d++)
         *d = *s;
     for (s = _rt_load, d = _rt_start; d < _rt_end; s++, d++)
         *d = *s;                                /* flash driver code that must run from RAM */
+    for (s = _hot_load, d = _hot_start; d < _hot_end; s++, d++)
+        *d = *s;                                /* the audio's once-a-block code, run from RAM (HOT_CODE, app.ld) */
     fm1_mailbox_clear();
     fm1_guard_enable(FM1_GUARD_STACK | FM1_GUARD_WRITE | FM1_GUARD_BUS | FM1_GUARD_PC);
+    {                                           /* the PC window from .ram_text up through .hot (volatile: the
+                                                 * linker's symbols, not a compile-time compare, fm1_guard.h) */
+        volatile uint32_t rs = (uint32_t)(uintptr_t)_rt_start, re = (uint32_t)(uintptr_t)_rt_end;
+        volatile uint32_t hs = (uint32_t)(uintptr_t)_hot_start, he = (uint32_t)(uintptr_t)_hot_end;
+        if (he > hs)
+            fm1_guard_pc_ram(re > rs ? rs : hs, he);
+    }
     fm1_boot.p3_rst = (uint8_t)p3;
     fm1_boot.rst_src = src;
     fm1_boot.wdt_con = (uint8_t)wdt;

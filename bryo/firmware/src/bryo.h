@@ -84,6 +84,11 @@ static uint8_t key_base[NTRK];
 /* audio ISR (chain.c): 1 while the track being rendered sleeps (muted, REC not armed): its source keeps its time
  * (heads, patterns, keys) but makes no sound (2026-10-12: a muted track had rendered all of it, then been zeroed) */
 static uint8_t src_sleep;
+/* the audio's once-a-block work (the modulators, the arpeggiators, the grains' plan), run from RAM: per-sample loops
+ * pay their cache misses once a block and run 32 samples from the cache, but code run once a block misses every
+ * block (2026-10-12, the FM-1's SETUP lines: PRE at 16 % where its instructions say 6). app.ld's .hot, copied there
+ * at startup (main.c); out of line, so it stays one copy in one place */
+#define HOT_CODE __attribute__((section(".hot"), noinline))
 /* fm1_in.notes -> the white keys held, bit k = white key k (a plain loop: no builtin that could become a runtime
  * library call on the target compiler) */
 static inline uint32_t white_keys(uint32_t notes)

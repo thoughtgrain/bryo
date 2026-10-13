@@ -85,6 +85,16 @@ static void fm1_guard_enable(uint32_t which)
     fm1__dbg_lock();
 }
 
+/* the second PC window as one range of RAM, lo .. hi - 1: RAM code in two places (app.ld: .ram_text low, .hot
+ * high, the RAM between them inside the window too). Call after fm1_guard_enable, before any of it runs */
+static void fm1_guard_pc_ram(uint32_t lo, uint32_t hi)
+{
+    fm1__dbg_unlock();
+    FM1_PC_LIMIT1_L = lo;
+    FM1_PC_LIMIT1_H = hi - 1u;
+    fm1__dbg_lock();
+}
+
 /* write-protect 0x01C7FD50..0x01C7FFFF (boot info, mailbox, vectors):
  * call after the last fm1_irq_attach */
 static void fm1_guard_lock_top(void)

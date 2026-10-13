@@ -169,3 +169,20 @@ RES 10, COL 8 % and was over 100 % (noise: the shedding). The host's shares of T
 8, SPC 11, ROOM 5, MST 3, PRE 5 %: no stage costs the FM-1 far more than its instructions say (RESONATOR's 10 is
 likely its strings shed), the sources a little more. TEST cut down to FACTORY plus T1's drums through GRAIN (1.06 x
 FACTORY on the host, where the first was 1.3 x), and the load lines drawn bright.
+
+**The second reading (fd6d40c, TEST as it is now): 90 % CPU.** SRC 34, GRN 19, RES 7, COL 1, SPC 10, PRE 16, ROOM 8,
+MST 3 (98 in all: the stages count the nested TIMER5, the meter takes it out); R/F 239/239. The host's shares of the
+same TEST: PRE 6, SRC 34, GRN 25, RES 12, COL 2, SPC 10, ROOM 7, MST 3. Every stage costs the FM-1 what its
+instructions say, except PRE, ten points over: the once-a-block work (the modulators, the arpeggiators, the grains'
+plan). Code run once a block misses the cache every block, where a per-sample loop pays its misses once and runs 32
+samples from the cache, and the scene's hardware divides (about 2 a sample) can't make ten points. The target, from
+playing it: 65-70 % with a lot going on.
+
+**Step 1 of the code in RAM (this change): the once-a-block work.** `HOT_CODE` (bryo.h) puts a function in `.hot`
+(app.ld): 16 KiB at 0x01C70000, the pool's top, high enough that a call reaches every part of .text both ways. The
+pool gave it without sound memory: `pol_rd` and `tape_rt` (14.7 KB) moved to `.lowpool` in RAMTEXT, after
+`.ram_text`. The startup copies `.hot` like `.ram_text` and widens the PC guard's RAM window over both
+(`fm1_guard_pc_ram`, hal/). In it: `mod_tick` and the modulators' engines and helpers, `arp_run` and the
+arpeggiators' helpers, `gr_plan` and its helpers: 6 KB. What it still calls in flash is small and shared (`clamp`,
+`memcpy`, `sine_i`, `isqrt`). Every audio fingerprint unchanged. If the theory holds, PRE goes from 16 toward 6 on
+TEST; if it does, the per-block parts of the other stages are next.

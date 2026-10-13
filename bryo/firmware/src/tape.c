@@ -133,7 +133,7 @@ enum { TB_IDLE, TB_WAIT, TB_REC, TB_DONE };   /* not armed for bars; armed, wait
 /* main loop: tracks whose take of set bars just ended (tape_poll; the screen says so) */
 static uint8_t tape_bars_done;
 enum { TE_IDLE, TE_JUMP, TE_ATK, TE_DEC, TE_SUS, TE_REL };
-static tape_rt_t tape_rt[NTRK] __attribute__((section(".pool")));
+static tape_rt_t tape_rt[NTRK] __attribute__((section(".lowpool")));   /* (RAMTEXT: app.ld) */
 
 /* the clear's undo: one, for the last clear, until REC writes over it */
 static struct {

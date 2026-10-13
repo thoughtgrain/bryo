@@ -170,7 +170,7 @@ static uint32_t mod_tarr(uint32_t g, uint32_t *k)
 }
 
 /* knob array a of track t, as the main loop sets it */
-static int16_t *mod_base(uint32_t t, uint32_t a)
+static int16_t *HOT_CODE mod_base(uint32_t t, uint32_t a)
 {
     return a < NDEV ? tp[t].dev[a] : a == MA_SYN ? tp[t].syn : a == MA_POL ? tp[t].pol : a == MA_DRM ? tp[t].drm :
            a >= MA_DIN0 ? &tp[t].dins[4u * (a - MA_DIN0)][0] : tp[t].ch;
@@ -376,7 +376,7 @@ static int32_t isqrt(int32_t n)                                       /* floor(s
 
 /* the LFO at phase q (0..999 of a cycle), Q15: the shape (SIN TRI SQR SAW, or RND's step from rnd[]), SKEW's
  * warped phase, FOLD, CURV. The sound and the picture (ui_viz.c viz_wave) both draw from this. */
-static int32_t lfo_at(const int16_t *v, int32_t q, const int16_t *rnd)
+static int32_t HOT_CODE lfo_at(const int16_t *v, int32_t q, const int16_t *rnd)
 {
     int32_t sk = clamp(500 + v[2] * 5, 50, 950), sh = clamp(v[1], 0, 4), n = clamp(v[7], 1, 16), y, a;
     if (v[2])                                                         /* SKEW: squashed to one side (at 0, sk is 500
@@ -409,7 +409,7 @@ static int32_t lfo_at(const int16_t *v, int32_t q, const int16_t *rnd)
 
 /* t (0..1000) along an envelope stage bent by its curve c (-100..100): 0 straight, + sags, - bows (ADSR, and its
  * picture) */
-static int32_t env_bend(int32_t t, int32_t c)
+static int32_t HOT_CODE env_bend(int32_t t, int32_t c)
 {
     return t - c * t / 1000 * (1000 - t) / 400;
 }
@@ -504,7 +504,7 @@ static volatile uint8_t mod_seam;              /* a bit per track: its loop star
                                                 * pattern's) */
 static uint32_t mod_phrase_n;
 
-static uint32_t mod_rand(uint32_t *s)          /* xorshift32: the RND steps and SEQ's chances */
+static uint32_t HOT_CODE mod_rand(uint32_t *s)          /* xorshift32: the RND steps and SEQ's chances */
 {
     uint32_t x = *s ? *s : 0x9E3779B9u;
     x ^= x << 13;
@@ -513,35 +513,35 @@ static uint32_t mod_rand(uint32_t *s)          /* xorshift32: the RND steps and 
     *s = x;
     return x;
 }
-static int32_t mod_rand_q15(uint32_t *s) { return (int32_t)(mod_rand(s) % 65535u) - 32767; }
+static int32_t HOT_CODE mod_rand_q15(uint32_t *s) { return (int32_t)(mod_rand(s) % 65535u) - 32767; }
 
 /* a hash of a step count: SEQ's RND order and PROB's chance, the same for the same step every time round */
-static uint32_t mod_hash(uint32_t a, uint32_t b)
+static uint32_t HOT_CODE mod_hash(uint32_t a, uint32_t b)
 {
     uint32_t h = (a + 0x7F4A7C15u) * 2654435761u ^ b * 40503u;
     return h ^ (h >> 15);
 }
 
 /* AMT then OFS, Q15 in, Q15 out (lo: -32767 bipolar, 0 unipolar) */
-static int32_t mod_place(int32_t y, const int16_t *v, uint32_t ka, int32_t lo)
+static int32_t HOT_CODE mod_place(int32_t y, const int16_t *v, uint32_t ka, int32_t lo)
 {
     return clamp((v[ka] == 100 ? y : y * v[ka] / 100) + v[ka + 1u] * 327, lo, 32767);   /* (AMT 100: y as it is) */
 }
 
 /* a one-pole step toward x by a (Q15) */
-static int32_t mod_slew(int32_t y, int32_t x, int32_t a) { return y + (((x - y) >> 1) * a >> 14); }
+static int32_t HOT_CODE mod_slew(int32_t y, int32_t x, int32_t a) { return y + (((x - y) >> 1) * a >> 14); }
 
 /* the coefficient that follows a change over a time (TIME_MS_X10's index) per control block, Q15 */
-static int32_t mod_coef(int32_t ti)
+static int32_t HOT_CODE mod_coef(int32_t ti)
 {
     return (int32_t)(32768u * 726u / (TIME_MS_X10[ti & 127] * 100u + 363u));
 }
 
 /* SPRD as a lag on the right output (ADSR, FOLLOW): 0..100 -> up to ~200 ms */
-static int32_t mod_lag(int32_t sprd) { return sprd ? (int32_t)(32768u * 726u / ((uint32_t)sprd * 2000u + 363u)) : 32767; }
+static int32_t HOT_CODE mod_lag(int32_t sprd) { return sprd ? (int32_t)(32768u * 726u / ((uint32_t)sprd * 2000u + 363u)) : 32767; }
 
 /* LFO RATE (FREE) 0..127 -> a phase step per block, Q32: 0.02 Hz .. ~20 Hz, 10 octaves, 2^frac by a parabola */
-static uint32_t lfo_inc(int32_t r)
+static uint32_t HOT_CODE lfo_inc(int32_t r)
 {
     uint32_t e = (uint32_t)clamp(r, 0, 127) * 2560u / 127u, f = e & 255u;   /* octaves Q8 */
     uint32_t inc = 62333u << (e >> 8);
@@ -549,7 +549,7 @@ static uint32_t lfo_inc(int32_t r)
 }
 
 /* the LFO's random steps, new (the seed is the slot's) */
-static void lfo_seed(mod_rt_t *m, uint32_t t, uint32_t s)
+static void HOT_CODE lfo_seed(mod_rt_t *m, uint32_t t, uint32_t s)
 {
     uint32_t k;
     m->seed = 4242u + t * 977u + s * 131u;
@@ -558,7 +558,7 @@ static void lfo_seed(mod_rt_t *m, uint32_t t, uint32_t s)
 }
 
 /* one time round done: VAR drifts the steps (RND), or every LEN cycles each cycle's level (the other shapes) */
-static void lfo_round(mod_rt_t *m, const int16_t *v)
+static void HOT_CODE lfo_round(mod_rt_t *m, const int16_t *v)
 {
     uint32_t k, n = (uint32_t)clamp(v[7], 1, 16);
     m->cyc++;
@@ -568,7 +568,7 @@ static void lfo_round(mod_rt_t *m, const int16_t *v)
         m->rnd[k] = (int16_t)clamp(m->rnd[k] + mod_rand_q15(&m->seed) * v[6] / 100, -32000, 32000);
 }
 
-static int32_t lfo_eval(const mod_rt_t *m, const int16_t *v, uint32_t ph)
+static int32_t HOT_CODE lfo_eval(const mod_rt_t *m, const int16_t *v, uint32_t ph)
 {
     uint32_t q = ph >> 16, q1 = q * 1000u >> 16, fr = q * 1000u & 65535u;
     int32_t a = lfo_at(v, (int32_t)q1, m->rnd), b = lfo_at(v, q1 == 999u ? 0 : (int32_t)q1 + 1, m->rnd), y;
@@ -580,7 +580,7 @@ static int32_t lfo_eval(const mod_rt_t *m, const int16_t *v, uint32_t ph)
     return y;
 }
 
-static void mod_lfo(mod_rt_t *m, const int16_t *v, int restart)
+static void HOT_CODE mod_lfo(mod_rt_t *m, const int16_t *v, int restart)
 {
     uint32_t ph0 = m->ph, inc, pofs = (uint32_t)clamp(v[10], 0, 359) * 11930464u, sofs = (uint32_t)clamp(v[11], 0, 100) * 21474836u;
     int32_t y, yr, a;
@@ -647,7 +647,7 @@ static void mod_lfo(mod_rt_t *m, const int16_t *v, int restart)
 
 /* ADSR: gate (a key held on the track), press (a key went down), loop (the track's loop started, or its DRUM pattern
  * struck: a one-shot either way) */
-static void mod_adsr(mod_rt_t *m, const int16_t *v, int gate, int press, int loop)
+static void HOT_CODE mod_adsr(mod_rt_t *m, const int16_t *v, int gate, int press, int loop)
 {
     int32_t to, c, t1000;
     uint32_t inc;
@@ -697,7 +697,7 @@ static void mod_adsr(mod_rt_t *m, const int16_t *v, int gate, int press, int loo
 
 /* SEQ: the step under the beat (from the restart: TRIG KEY, or PLAY), its value glided into by SLEW, then placed
  * by AMT and OFS as every engine's output is */
-static void mod_seq(mod_rt_t *m, const int16_t *v, const int8_t *steps, int restart)
+static void HOT_CODE mod_seq(mod_rt_t *m, const int16_t *v, const int8_t *steps, int restart)
 {
     uint32_t dsh = 18u - (uint32_t)clamp(v[1], 0, 5), div = SEQ_DIV[clamp(v[1], 0, 5)];   /* (div is 1 << dsh) */
     uint32_t len = (uint32_t)clamp(v[0], 1, 16), rel, n, in, c, fr, i;
@@ -738,7 +738,7 @@ static void mod_seq(mod_rt_t *m, const int16_t *v, const int8_t *steps, int rest
 }
 
 /* FOLLOW: the envelope of a block of sound in (0: silence), GAIN into it, RISE and FALL, HOLD to the tempo */
-static void mod_follow(mod_rt_t *m, const int16_t *v, const int32_t *in)
+static void HOT_CODE mod_follow(mod_rt_t *m, const int16_t *v, const int32_t *in)
 {
     static const uint16_t DB_Q12[25] = {1029, 1155, 1296, 1454, 1631, 1830, 2053, 2304, 2585, 2900, 3254, 3651, 4096,
                                         4596, 5157, 5786, 6492, 7284, 8173, 9170, 10289, 11544, 12953, 14533, 16306};
@@ -795,7 +795,7 @@ static void mod_init(void)
  * with the depths added (TPD). keys: the white keys held on track sel; last: each track's last block (FOLLOW's
  * input) */
 /* ISR: slot s of track t's state from rest when its engine e is new there (1: it was) */
-static int mod_rt_fresh(mod_rt_t *m, uint32_t t, uint32_t s, uint32_t e)
+static int HOT_CODE mod_rt_fresh(mod_rt_t *m, uint32_t t, uint32_t s, uint32_t e)
 {
     uint32_t sd = m->seed;
     mod_rt_t z = {0};
@@ -810,7 +810,7 @@ static int mod_rt_fresh(mod_rt_t *m, uint32_t t, uint32_t s, uint32_t e)
     return 1;
 }
 
-static void mod_tick(uint32_t keys, uint32_t sel, const int32_t *const *last)
+static void HOT_CODE mod_tick(uint32_t keys, uint32_t sel, const int32_t *const *last)
 {
     uint32_t t, s, e, seam = mod_seam, hits = mod_hit, playing = sys.playing, ph;
     mod_seam = 0;

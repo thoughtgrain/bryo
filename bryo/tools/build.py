@@ -209,11 +209,12 @@ def build_app():
     elf = OUT / "bryo.elf"
     tc("pi32v2/bin/ld", "-T", FW / "app.ld", OUT / "crt0.o", OUT / "fm1_vec.o", OUT / "fm1_isr.o",
        OUT / "bryo.o", "-o", elf)
-    for sect in ("text.bin", "data.bin", "ramtext.bin"):
+    for sect in ("text.bin", "data.bin", "ramtext.bin", "hot.bin"):
         (OUT / sect).unlink(missing_ok=True)
     *_, syms, dis, rt = tc_all(("common/bin/objcopy", "-O", "binary", "-j", ".text", elf, OUT / "text.bin"),
                                ("common/bin/objcopy", "-O", "binary", "-j", ".data", elf, OUT / "data.bin"),
                                ("common/bin/objcopy", "-O", "binary", "-j", ".ram_text", elf, OUT / "ramtext.bin"),
+                               ("common/bin/objcopy", "-O", "binary", "-j", ".hot", elf, OUT / "hot.bin"),
                                ("common/bin/objdump", "-t", elf),
                                ("common/bin/objdump", "-d", elf),
                                ("common/bin/objdump", "-d", "-j", ".ram_text", elf))
@@ -222,8 +223,10 @@ def build_app():
     def symv(name):
         return int(re.search(r"^([0-9a-f]+) .*\s" + name + r"$", syms, re.M).group(1), 16)
     img = bytearray((OUT / "text.bin").read_bytes())
-    # .ram_text and .data follow .text at their load addresses; crt0 copies them by words
-    for sect, lname in (("ramtext.bin", "_rt_load"), ("data.bin", "_data_load")):
+    # .ram_text, .hot and .data follow .text at their load addresses (in that order); the startup copies them by words
+    loads = sorted((symv(lname), sect, lname) for sect, lname in
+                   (("ramtext.bin", "_rt_load"), ("hot.bin", "_hot_load"), ("data.bin", "_data_load")))
+    for _, sect, lname in loads:
         load = symv(lname)
         if load % 4:
             raise SystemExit(f"{lname} {load:#x} is not word aligned")
@@ -271,11 +274,14 @@ def check(img, syms, dis, rt):
         return int(mm.group(1), 16) if mm else 0
     bss = sym("_bss_end") - 0x01C08000
     pool = sym("_pool_end") - sym("_pool_start")
-    notes.append(f"image {len(img)} B; RAM .data+.bss {bss} B of 98304; pool {pool} B of {0x54000}")
+    lowp = sym("_lp_end") - sym("_lp_start")
+    hot = sym("_hot_end") - sym("_hot_start")
+    notes.append(f"image {len(img)} B; RAM .data+.bss {bss} B of 98304; pool {pool} B of {0x50000}; "
+                 f"low pool {lowp} B; hot code {hot} B of {0x4000}")
     if bss > 96 * 1024:
         errors.append("RAM region overflow")
-    if 0x54000 - pool < 8192:                     # keep >= 8 KiB of the pool spare
-        errors.append(f"pool headroom {0x54000 - pool} B < 8192 B")
+    if 0x50000 - pool < 8192:                     # keep >= 8 KiB of the pool spare (its top 16 KiB is .hot's)
+        errors.append(f"pool headroom {0x50000 - pool} B < 8192 B")
     return errors, notes
 
 

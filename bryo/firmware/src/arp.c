@@ -101,7 +101,7 @@ static void arp_remove(arp_rt_t *r, uint32_t note)
 }
 
 /* a step's length at the tempo, in samples: RATE's division of a beat (1/4 = a beat), SWNG's long or short half */
-static int32_t arp_len(const int16_t *a, uint32_t step)
+static int32_t HOT_CODE arp_len(const int16_t *a, uint32_t step)
 {
     static const uint8_t DIV[6] = {1, 2, 3, 4, 6, 8};   /* 1/4 1/8 8T 1/16 16T 1/32: steps a beat */
     int32_t bpm = clamp((int32_t)sys.bpm, 40, 240), d = DIV[clamp(a[AR_RATE], 0, 5)];
@@ -110,7 +110,7 @@ static int32_t arp_len(const int16_t *a, uint32_t step)
 }
 
 /* the notes held into s, low to high (PLAY: in the order pressed); their count */
-static uint32_t arp_notes(const int16_t *a, const arp_rt_t *r, uint8_t *s)
+static uint32_t HOT_CODE arp_notes(const int16_t *a, const arp_rt_t *r, uint8_t *s)
 {
     uint32_t n = r->n, i, j;
     for (i = 0; i < n; i++)
@@ -129,7 +129,7 @@ static uint32_t arp_notes(const int16_t *a, const arp_rt_t *r, uint8_t *s)
 static uint32_t arp_period(uint32_t ord, uint32_t len) { return ord == ARO_UPDN && len > 1u ? 2u * len - 2u : len; }
 
 /* the place step pos takes among len (n notes, then each an octave up, ...), walked by ORDR (RND: rnd) */
-static uint32_t arp_place(uint32_t ord, uint32_t len, uint32_t pos, uint32_t rnd)
+static uint32_t HOT_CODE arp_place(uint32_t ord, uint32_t len, uint32_t pos, uint32_t rnd)
 {
     uint32_t k = pos % arp_period(ord, len);
     switch (ord) {
@@ -141,13 +141,13 @@ static uint32_t arp_place(uint32_t ord, uint32_t len, uint32_t pos, uint32_t rnd
 }
 
 /* the note at place k: note k mod n, k / n octaves up */
-static uint32_t arp_at(const uint8_t *s, uint32_t n, uint32_t k)
+static uint32_t HOT_CODE arp_at(const uint8_t *s, uint32_t n, uint32_t k)
 {
     return (uint32_t)clamp((int32_t)s[k % n] + 12 * (int32_t)(k / n), 0, 127);
 }
 
 /* the note of the next step: RNGE octaves of the notes held, walked by ORDR */
-static uint32_t arp_pick(const int16_t *a, arp_rt_t *r)
+static uint32_t HOT_CODE arp_pick(const int16_t *a, arp_rt_t *r)
 {
     uint8_t s[ARP_MAXN];
     uint32_t n = arp_notes(a, r, s), len = n * (uint32_t)clamp(a[AR_RNGE], 1, 3);
@@ -157,7 +157,7 @@ static uint32_t arp_pick(const int16_t *a, arp_rt_t *r)
 
 /* audio ISR: one block of an arpeggiator (state r, knobs a: AR_*; on: it plays). keys: the keys held (a mask over
  * base); returns the mask that plays, and in *nbase its key_base (a step's note: bit 0 at that base) */
-static uint32_t arp_run(arp_rt_t *r, const int16_t *a, int on, uint32_t keys, uint32_t base, uint32_t n,
+static uint32_t HOT_CODE arp_run(arp_rt_t *r, const int16_t *a, int on, uint32_t keys, uint32_t base, uint32_t n,
                         uint32_t *nbase, uint32_t salt)
 {
     uint32_t mode = (uint32_t)clamp(a[AR_MODE], 0, 3), press = keys & ~r->held, k;

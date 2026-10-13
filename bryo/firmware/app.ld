@@ -4,8 +4,13 @@
  * Code + constants execute in place from XIP (app.bin offset 0 = 0x02000120).
  * 0x01C00000..0x01C06000 holds .ram_text (code that must run while the flash
  * is busy: the flash driver); 0x01C06000..0x01C08000 stays for RAM-run debug.
+ * The rest of RAMTEXT holds .lowpool: zero-initialised buffers moved out of the pool (2026-10-12), so the pool
+ * could give its top 16 KiB to .hot.
  * RAM  : .data/.bss (96 KiB)
  * POOL : big zero-initialised buffers (FX lines, canvases), section .pool
+ * HOT  : code run from RAM that calls flash code and is called from it (.hot): the audio's once-a-block work,
+ *        refetched from flash every block through the cache. High in RAM on purpose: a call reaches 4 MiB either
+ *        way (fm1_flash.h), and from here the whole of .text is in reach both ways; RAMTEXT, 0x01C00000, isn't
  * STACKS with 256-byte guard bands; NOINIT survives resets and UBOOT entry.
  * 0x01C7FD50.. is reserved: boot_info, boot-state mailbox, vector table. */
 MEMORY
@@ -13,7 +18,8 @@ MEMORY
     XIP    (rx)  : ORIGIN = 0x02000120, LENGTH = 0x8DFBC
     RAMTEXT (rwx): ORIGIN = 0x01C00000, LENGTH = 0x6000
     RAM    (rwx) : ORIGIN = 0x01C08000, LENGTH = 96K
-    POOL   (rw)  : ORIGIN = 0x01C20000, LENGTH = 0x54000
+    POOL   (rw)  : ORIGIN = 0x01C20000, LENGTH = 0x50000
+    HOT    (rwx) : ORIGIN = 0x01C70000, LENGTH = 0x4000
     NOINIT (rw)  : ORIGIN = 0x01C7C000, LENGTH = 0x3D50
 }
 SECTIONS
@@ -21,6 +27,9 @@ SECTIONS
     .text : { KEEP(*(.text.crt0)) *(.text*) *(.rodata*) . = ALIGN(4); _etext = .; } > XIP
     .ram_text : { _rt_start = .; KEEP(*(.ram_text*)) . = ALIGN(4); _rt_end = .; } > RAMTEXT AT > XIP
     _rt_load = LOADADDR(.ram_text);
+    .lowpool (NOLOAD) : { . = ALIGN(4); _lp_start = .; *(.lowpool*) . = ALIGN(4); _lp_end = .; } > RAMTEXT
+    .hot : { . = ALIGN(4); _hot_start = .; KEEP(*(.hot*)) . = ALIGN(4); _hot_end = .; } > HOT AT > XIP
+    _hot_load = LOADADDR(.hot);
     .data : { . = ALIGN(4); _data_start = .; *(.data*) *(.sdata*) . = ALIGN(4); _data_end = .; } > RAM AT > XIP
     _data_load = LOADADDR(.data);
     .bss (NOLOAD) : { _bss_start = .; *(.bss*) *(.sbss*) *(COMMON) . = ALIGN(4); _bss_end = .; } > RAM
