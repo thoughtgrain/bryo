@@ -303,9 +303,11 @@ One key and scale for the whole project, for SYNTH and POLY (TAPE, DRUM and the 
 project starts on **A MIN**, the key all the factory reels are in, and so does the factory scene.
 
 1. Tap **GLO**, then tap **EDIT three times** (CHANNEL, MASTER, KEY).
-2. **KEY** is the key's note, C to B. **SCAL** is the scale: **OFF** (every note, as normal), **MAJ**, **MIN**,
-   **DOR** (dorian), **MIX** (mixolydian), **HMIN** (harmonic minor), **PEN** (major pentatonic), **MPEN** (minor
-   pentatonic).
+2. **KEY** is the key's note, C to B. **SCAL** is the scale: **OFF** (every note, as normal), then the seven modes
+   **MAJ**, **MIN**, **DOR** (dorian), **PHR** (phrygian), **LYD** (lydian), **MIX** (mixolydian), **LOC** (locrian);
+   **HMIN** (harmonic minor), **MMIN** (melodic minor); **PEN** (major pentatonic), **MPEN** (minor pentatonic);
+   **BLUE** (the blues scale); **WHOL** (whole tone), **DIM** (diminished, whole-half) and **CHR** (chromatic, every
+   note but with the key shown). The picture names the scale in full and counts its notes.
 3. Play. The keys still work like a piano, but a note outside the scale plays **the nearest note in it** (between
    two, the lower one). You can't play a wrong note, and the arpeggiator follows it too.
 
@@ -608,7 +610,9 @@ On **GRAIN 2**: **PTCH** their pitch in semitones, **SPRD** how wide in stereo, 
 start, **CONT** softens their edges.
 
 On **GRAIN 3**: **REV** plays some backwards, **PATN** the rhythm they fire in, **SCAL** holds their pitch to a scale
-and **PRND** gives each a random pitch.
+and **PRND** gives each a random pitch. SCAL's list is the same as the mixer's KEY page, with **KEY** first: the
+grains then follow whatever scale the project is in (every semitone while KEY's SCAL is OFF), so one change on the
+KEY page moves the grains too. The shift is held to the scale's intervals from the sound's own pitch.
 
 <img src="img/grain.png" width="240" alt="GRAIN 1: SIZE RATE ROUT WET"> <img src="img/grain2.png" width="240" alt="GRAIN 2: PTCH SPRD SPRY CONT">
 
@@ -690,7 +694,10 @@ The track rings four tuned strings, like a sitar's sympathetic strings.
 2. Turn **KNOB 4 (WET)** up (KNOB 3 is ROUT, see 6.8).
 3. **The white keys set the strings' root note** (on a TAPE or DRUM track they pluck the strings alone, without
    playing a slice or a drum). **PTCH** does the same with a knob. **DEC** is how long they ring.
-4. **RIPPLE 2**: a filter (CUT, RES, TYPE) and **SCAL**, the chord the four strings make (HARM, MAJ, MIN, PEN).
+4. **RIPPLE 2**: a filter (CUT, RES, TYPE) and **SCAL**, the chord the four strings make: **HARM** (the root's
+   harmonics), **MAJ**, **MIN**, **PEN**, **SUS2**, **SUS4**, **DOM7**, **MAJ7**, **MIN7** (the sevenths leave out
+   the octave: the seventh's rub is the point), **DIM**, **AUG**, **5TH** (a power chord) and **OCT** (one note in
+   four octaves). The ring over the knob lights the notes the strings make.
 5. **RIPPLE 3**: **TONE**, how bright they ring, and how each pluck sounds (a white key on a TAPE or DRUM
    track, or a RIPL ARP step):
    - **PICK**: how hard the strings are struck. Turn it left for a soft mallet (dark and round), right for a pick

@@ -867,10 +867,18 @@ static void px_picto(uint32_t kind, int32_t x, int32_t y, const pdesc_t *d, int3
             px_box(x + AT[v & 3][k], y + 6, 2, 9, c);
         break;
     }
-    case PK_SCALE: {                                     /* 12 semitones round a ring, the scale's lit (OFF / HARM: */
-        static const uint16_t SC[5] = {0, 0xFFF, 0xAB5, 0x5AD, 0x295};   /* none / the harmonics' 1 5 3) */
-        uint32_t set = d->names == N_RSCAL ? (v ? SC[v + 1] : 0x091u) : SC[v % 5];
+    case PK_SCALE: {                                     /* 12 semitones round a ring, the scale's lit: GRAIN's
+                                                          * (none at OFF), or the notes RIPPLE's four strings make */
+        uint32_t set = gr_mask(v);
         int32_t k;
+        if (d->names == N_RSCAL) {
+            for (set = 0, k = 0; k < (int32_t)RS_N; k++) {
+                uint32_t st = (uint32_t)(RS_PART16[clamp(v, 0, RS_SCALES)][k] + 8) >> 4;
+                while (st >= 12u)
+                    st -= 12u;
+                set |= 1u << st;
+            }
+        }
         for (k = 0; k < 12; k++) {
             int32_t a = k * 64 / 12, xx = px_px(cx, 8, a), yy = px_py(cy, 8, a);
             if ((set >> k) & 1u)

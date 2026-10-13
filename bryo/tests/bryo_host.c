@@ -2171,6 +2171,31 @@ static void test_grain(void)
             }
     }
     check("SCAL MAJ, PRND 12: every grain's pitch a major-scale semitone within an octave", ok);
+    p[GP_SCAL] = 1;                                      /* SCAL KEY: the project's scale (A MIN at power-on) */
+    keyp[KY_SCAL] = 13;                                  /* .. set to WHOL: even semitones only */
+    for (i = 0, ok = 1; i < NB; i++) {
+        uint32_t j;
+        render(1, 0);
+        for (j = 0; j < GR_SLOTS; j++)
+            if (gr_on(j) && gslot[j].trk == 0)
+                ok &= gslot[j].st16 % 32 == 0;
+    }
+    check("SCAL KEY, the project's SCAL WHOL: every grain's shift an even number of semitones", ok);
+    keyp[KY_SCAL] = 0;                                   /* KEY's SCAL OFF: KEY keeps every semitone */
+    for (i = 0, ok = 1, maxc = 0; i < NB; i++) {
+        uint32_t j;
+        render(1, 0);
+        for (j = 0; j < GR_SLOTS; j++)
+            if (gr_on(j) && gslot[j].trk == 0) {
+                ok &= gslot[j].st16 % 16 == 0;
+                maxc += gslot[j].st16 % 32 != 0;
+            }
+    }
+    check("..with KEY's SCAL OFF: whole semitones, odd ones too", ok && maxc > 0);
+    maxc = 0;
+    keyp[KY_SCAL] = 2;
+    check("..GRAIN's list: OFF KEY then the 15 scales, MIN still 3", DEV_P[DEV_GRAIN][GP_SCAL].max == 1 + NSCALE &&
+          !strcmp(N_GSCAL[3], "MIN") && !strcmp(N_GSCAL[16], "CHR") && gr_mask(16) == 0xFFFu && gr_mask(0) == 0u);
     p[GP_SCAL] = 0;
     p[GP_PRND] = 0;
 
@@ -2724,7 +2749,7 @@ static void test_grain_body(void)
     check(m, body_xings(200) >= 123u && body_xings(200) <= 127u);
     body_ptch = 0;
     body_prnd = 12;                                      /* PRND 12, SCAL PEN: the grains a pentatonic melody */
-    body_scal = 4;
+    body_scal = 11;
     body_run(body_off, 0, BODY_TRI, 45, 60, 100, -1, -1);
     body_run(body_on, 100, BODY_TRI, 45, 60, 100, -1, -1);
     {
@@ -3485,6 +3510,29 @@ static void test_reso(void)
         double q = (double)rs_period_q8(r0 + RS_PART16[1][1]) / rs_period_q8(r0), f = (double)rs_period_q8(r0 + RS_PART16[1][2]) / rs_period_q8(r0);
         snprintf(b, sizeof b, "SCAL MAJ: strings on the root, its third (%.4f of its period) and fifth (%.4f)", q, f);
         check(b, fabs(q - 0.7937) < 0.002 && fabs(f - 0.6674) < 0.002);
+    }
+    {
+        uint32_t sc, k, ok = 1, rows = 1;
+        static const int16_t FOUR[13][4] = {{0, 192, 304, 384}, {0, 64, 112, 192}, {0, 48, 112, 192}, {0, 32, 64, 112},
+                                            {0, 32, 112, 192}, {0, 80, 112, 192}, {0, 64, 112, 160}, {0, 64, 112, 176},
+                                            {0, 48, 112, 160}, {0, 48, 96, 144}, {0, 64, 128, 192}, {0, 112, 192, 304},
+                                            {0, 192, 384, 576}};
+        for (sc = 0; sc <= (uint32_t)RS_SCALES; sc++) {
+            ok &= RS_PART_N[sc] >= RS_N && RS_PART_N[sc] <= RS_PARTS;
+            for (k = 0; k < RS_N; k++)
+                ok &= RS_PART16[sc][k] == FOUR[sc][k];
+            for (k = 1; k < RS_PART_N[sc]; k++)         /* each row climbs */
+                rows &= RS_PART16[sc][k] > RS_PART16[sc][k - 1];
+        }
+        check("SCAL: 13 chord sets (HARM MAJ MIN PEN SUS2 SUS4 DOM7 MAJ7 MIN7 DIM AUG 5TH OCT), the strings on each "
+              "set's first four notes, the picture's partials climbing", ok && rows && RS_SCALES == 12);
+        p[RP_SCAL] = 12;                                 /* OCT: four octaves of the root */
+        ok = 1;
+        for (k = 1; k < RS_N; k++) {
+            double r = (double)rs_period_q8(45 * 16 + RS_PART16[12][k - 1]) / rs_period_q8(45 * 16 + RS_PART16[12][k]);
+            ok &= r > 1.99 && r < 2.01;
+        }
+        check("..OCT: each string half the period of the one below", ok);
     }
     p[RP_SCAL] = 0;
     p[RP_PTCH] = 50;
@@ -6756,20 +6804,32 @@ static void test_key_tuning(void)
     check("..C MAJ: C#3 plays C3, F#3 F3 (between two: the lower), B3 B3, C4 C4", key_snap(49) == 48 &&
           key_snap(54) == 53 && key_snap(59) == 59 && key_snap(60) == 60);
     keyp[KY_KEY] = 9;
-    keyp[KY_SCAL] = 6;                                   /* A PEN: A B C# E F# */
+    keyp[KY_SCAL] = 10;                                  /* A PEN: A B C# E F# */
     check("..A PEN: C plays B, D C#, G F# (the nearest)", key_snap(60) == 59 && key_snap(62) == 61 &&
           key_snap(67) == 66);
     for (k = 0; k < 12; k++)                             /* every key, every scale, every note */
-        for (sc = 1; sc < 8; sc++) {
+        for (sc = 1; sc <= NSCALE; sc++) {
             keyp[KY_KEY] = (int16_t)k;
             keyp[KY_SCAL] = (int16_t)sc;
             for (n = 12; n < 116; n++) {
                 int32_t q = key_snap(n), d = q - n;
-                out |= !((KSCAL_MASK[sc] >> ((q + 12 - k) % 12)) & 1u);
+                out |= !((key_mask(sc) >> ((q + 12 - k) % 12)) & 1u);
                 far |= d < -1 || d > 1;
             }
         }
     check("..every key and scale: a note snaps into the scale, never more than a semitone away", !out && !far);
+    {
+        static const uint8_t NOTES[NSCALE] = {7, 7, 7, 7, 7, 7, 7, 7, 7, 5, 5, 6, 6, 8, 12};
+        uint32_t ok = 1, c;
+        for (sc = 1; sc <= NSCALE; sc++) {
+            for (n = 0, c = 0; n < 12; n++)
+                c += (key_mask(sc) >> n) & 1u;
+            ok &= c == NOTES[sc - 1] && (key_mask(sc) & 1u) && key_mask(sc) < 0x1000u;
+        }
+        check("..15 scales (7 modes, HMIN MMIN, PEN MPEN, BLUE, WHOL DIM CHR), each with its root and its count of "
+              "notes; MAJ 1 and MIN 2 where they were", ok && !strcmp(N_KSCAL[1], "MAJ") && !strcmp(N_KSCAL[2], "MIN") &&
+              !strcmp(N_KSCAL[NSCALE], "CHR") && key_mask(0) == 0xFFFu && key_mask(16) == 0xFFFu);
+    }
 
     power_on();                                          /* a new POLY track: BELL, ROOT A3, so a key sounds its note */
     tp[0].src = SRC_POLY;

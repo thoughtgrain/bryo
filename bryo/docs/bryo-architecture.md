@@ -1907,10 +1907,25 @@ machine: its pitch is its speed, on purpose.
 `tpfactory.c` (the scene's ROOTs).
 
 **KEY and SCAL, one pair for the project.** The mixer got a page between MASTER and SETUP (EDIT tapped three
-times): KEY (C to B) and SCAL (OFF MAJ MIN DOR MIX HMIN PEN MPEN). I made it the project's rather than a knob per
+times): KEY (C to B) and SCAL (OFF, then 15 scales since 2026-10-13, below). I made it the project's rather than a knob per
 track because tracks that disagree on the key are almost never what I want, and one place to change it means the
 whole song moves together. It's stored with the project, after the master compressor, and SCL's snapshot keeps it
 like the master's knobs.
+
+**One list of scales (2026-10-13).** KEY, GRAIN's SCAL and the KEY picture had three lists of their own (eight,
+five and eight names) and three mask tables saying the same thing. Now `param.c` holds the list once: `SCALE_MASK`
+(15 masks, bit n: n semitones above the root) with `SCALE_NAMES` for the knobs and `N_SCALE_FULL` for the picture.
+The order is the seven modes (MAJ MIN DOR PHR LYD MIX LOC), the altered minors (HMIN MMIN), the pentatonics (PEN
+MPEN), BLUE, and the symmetric ones (WHOL DIM CHR); MAJ and MIN keep their old indices, so a project's KEY means
+what it did. KEY's list is OFF then the 15 (`key_mask()`); GRAIN's is OFF, KEY, then the 15 (`gr_mask()`), KEY
+being the project's scale as it stands, every semitone while the project's SCAL is OFF. A grain's SCAL holds the
+pitch *shift*, so the mask is read from the sound's own pitch, not transposed to the key: a sound in A with MIN keeps
+the grains on A minor's intervals. `gr_pitch()` used to find the semitone's place in the octave with `% 12` on a
+signed value, two hardware divides a grain; it now carries the place along as it walks. RIPPLE's SCAL is a chord
+list, not a scale list (a string set is a chord): HARM MAJ MIN PEN SUS2 SUS4 DOM7 MAJ7 MIN7 DIM AUG 5TH OCT, one
+table `RS_PART16[13][24]` in `reso.c` that the strings take the first four of and the picture draws whole (it was
+two tables, one each side, that had to agree). The SCAL pictogram on RIPPLE now lights the notes the four strings
+make rather than a scale with the same name.
 
 **Snap to the nearest, not skip.** With SCAL on, the keyboard stays a piano: every key still plays, but a note
 outside the scale sounds as the nearest one in it, and between two the lower (`key_snap`). The other way, white keys

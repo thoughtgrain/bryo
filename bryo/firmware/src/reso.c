@@ -26,8 +26,30 @@
 enum { RP_PTCH, RP_DEC, RP_TONE, RP_WET, RP_CUT, RP_RES, RP_SLOP, RP_SCAL, RP_ROUT, RP_PICK, RP_STRM, RP_VARY,
        RP_AMODE, RP_AORD, RP_ARNG, RP_ARAT };   /* (12-15: its arpeggio) */
 
-/* the strings above the root, 1/16 semitones, by SCAL (HARM MAJ MIN PEN): the first four of ui_viz.c's PART_16 */
-static const int16_t RS_PART16[4][RS_N] = {{0, 192, 304, 384}, {0, 64, 112, 192}, {0, 48, 112, 192}, {0, 32, 64, 112}};
+/* the partials above the root, 1/16 semitones, by SCAL: the strings take the first four (RS_N), the picture
+ * (ui_viz.c viz_reso) draws every one. HARM is the root's harmonics (12 log2 k); the rest are a chord's tones
+ * stacked over three octaves (2026-10-13: were HARM MAJ MIN PEN; the chord sets are what a second knob would have
+ * been for: a string set is a chord, and sus, sevenths, diminished and augmented are the chords a key has). The
+ * first four are what sounds: MAJ root third fifth octave, DOM7 root third fifth seventh (no octave: the seventh's
+ * rub is the point), 5TH root fifth octave twelfth (a power chord), OCT four octaves (one note, four registers). */
+#define RS_PARTS 24u
+static const int16_t RS_PART16[13][RS_PARTS] = {
+    {0, 192, 304, 384, 446, 496, 539, 576, 609, 638, 664, 688, 710, 731, 750, 768, 785, 801, 816, 830, 843, 856, 869,
+     880},                                                                   /* HARM */
+    {0, 64, 112, 192, 256, 304, 384, 448, 496, 576},                         /* MAJ */
+    {0, 48, 112, 192, 240, 304, 384, 432, 496, 576},                         /* MIN */
+    {0, 32, 64, 112, 144, 192, 224, 256, 304, 336, 384, 416, 448, 496, 528, 576},   /* PEN */
+    {0, 32, 112, 192, 224, 304, 384, 416, 496, 576},                         /* SUS2 */
+    {0, 80, 112, 192, 272, 304, 384, 464, 496, 576},                         /* SUS4 */
+    {0, 64, 112, 160, 192, 256, 304, 352, 384, 448, 496, 544, 576},          /* DOM7 */
+    {0, 64, 112, 176, 192, 256, 304, 368, 384, 448, 496, 560, 576},          /* MAJ7 */
+    {0, 48, 112, 160, 192, 240, 304, 352, 384, 432, 496, 544, 576},          /* MIN7 */
+    {0, 48, 96, 144, 192, 240, 288, 336, 384, 432, 480, 528, 576},           /* DIM (a diminished seventh) */
+    {0, 64, 128, 192, 256, 320, 384, 448, 512, 576},                         /* AUG */
+    {0, 112, 192, 304, 384, 496, 576},                                       /* 5TH */
+    {0, 192, 384, 576, 768}};                                                /* OCT */
+static const uint8_t RS_PART_N[13] = {24, 10, 10, 16, 10, 10, 13, 13, 13, 13, 10, 7, 5};
+#define RS_SCALES 12                 /* SCAL's last index */
 /* DEC as a ring time to -60 dB, ms, every 10 */
 static const uint16_t RS_T60[11] = {80, 140, 250, 440, 780, 1400, 2400, 4300, 7600, 13000, 20000};
 /* 2^(-i/16), Q15: a loop gain from its exponent */
@@ -211,7 +233,7 @@ static void HOT_CODE reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t key
     reso_t *R = &reso[t];
     const int16_t *p = TPD(t, DEV_RESO);
     int32_t wet1 = clamp(p[RP_WET], 0, 100), wet0 = R->wet, e[CTL], acc_e[CTL], acc_o[CTL], heard = 0;
-    int32_t a = RS_TONE_A[clamp(p[RP_TONE], 0, 100)], sc = clamp(p[RP_SCAL], 0, 3), root16;
+    int32_t a = RS_TONE_A[clamp(p[RP_TONE], 0, 100)], sc = clamp(p[RP_SCAL], 0, RS_SCALES), root16;
     uint32_t k, i, press = keys & ~R->keys, nstr = R->nch < reso_cap ? R->nch : reso_cap, t60 = rs_t60(p[RP_DEC]);
     R->keys = keys;
     R->wet = wet1;

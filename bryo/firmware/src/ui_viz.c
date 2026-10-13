@@ -444,15 +444,9 @@ labels:
 }
 
 /* --------------------------------------------------------- RIPPLE --- */
-/* the strings' partials above PTCH, in 1/16 semitones: SCAL HARM is the root's harmonics (12 log2 k); MAJ, MIN and
- * PEN are their scale's chord tones (1 3 5, or the pentatonic's notes) stacked over three octaves */
-static const int16_t PART_16[4][24] = {
-    {0, 192, 304, 384, 446, 496, 539, 576, 609, 638, 664, 688, 710, 731, 750, 768, 785, 801, 816, 830, 843, 856, 869,
-     880},
-    {0, 64, 112, 192, 256, 304, 384, 448, 496, 576},
-    {0, 48, 112, 192, 240, 304, 384, 432, 496, 576},
-    {0, 32, 64, 112, 144, 192, 224, 256, 304, 336, 384, 416, 448, 496, 528, 576}};
-static const uint8_t PART_N[4] = {24, 10, 10, 16};
+/* the partials: reso.c RS_PART16, the strings' table (the first four of a row sound) */
+#define PART_16 RS_PART16
+#define PART_N RS_PART_N
 
 /* x as a pitch: MIDI 28 (E1, 41 Hz) .. 124 (8 octaves), in 1/16 semitones */
 static int32_t reso_n16(int32_t x) { return 28 * 16 + (x - DX0) * 96 * 16 / DW; }
@@ -474,7 +468,7 @@ static int32_t reso_filter(const int16_t *v, int32_t n16)
  * shapes what reaches them; WET blends with the flat dry line (35 %), or (ROUT SEND) adds to it; 0..1000 */
 static int32_t reso_at(const int16_t *v, int32_t x)
 {
-    int32_t n16 = reso_n16(x), width16 = 4 + (100 - v[1]) * 28 / 100, best = 0, k, sc = clamp(v[7], 0, 3);
+    int32_t n16 = reso_n16(x), width16 = 4 + (100 - v[1]) * 28 / 100, best = 0, k, sc = clamp(v[7], 0, RS_SCALES);
     for (k = 0; k < PART_N[sc]; k++) {
         int32_t d = n16 - (v[0] * 16 + PART_16[sc][k]), amp = 1000 - k * (100 - v[2]) * 9, pk;
         if (amp <= 0)
@@ -495,7 +489,7 @@ static int32_t reso_at(const int16_t *v, int32_t x)
 #define RV_RING 192                   /* a string ringing, for the picture: its level (reso.c lvl) above about -45 dB */
 static void viz_reso(const int16_t *v, uint32_t f)
 {
-    int32_t x, k, py = 0, top = DY0 + 6, base = DY1 + 2, sc = clamp(v[7], 0, 3);
+    int32_t x, k, py = 0, top = DY0 + 6, base = DY1 + 2, sc = clamp(v[7], 0, RS_SCALES);
     px_line(DX0, base - 350 * (base - top) / 1000, DX1, base - 350 * (base - top) / 1000, px_dim, 2);   /* dry */
     px_line(DX0, base + 1, DX1, base + 1, px_dim, 2);
     if (v[4] < 127 || v[5] || v[6] || f == 4u || f == 5u || f == 6u)   /* the filter: dotted, once it does anything */
@@ -1555,10 +1549,9 @@ static void viz_setup(void)
  * many notes it keeps. SCAL OFF: every key solid. */
 static void viz_key(void)
 {
-    static const char *const FULL[8] = {"EVERY NOTE", "MAJOR", "MINOR", "DORIAN", "MIXOLYDIAN", "HARMONIC MIN",
-                                        "PENTATONIC", "MINOR PENT"};
     static const int8_t WHITE[7] = {0, 2, 4, 5, 7, 9, 11}, BLACK[5] = {1, 3, 6, 8, 10}, BAFTER[5] = {0, 1, 3, 4, 5};
-    uint32_t sc = (uint32_t)keyp[KY_SCAL] & 7u, key = (uint32_t)clamp(keyp[KY_KEY], 0, 11), m = KSCAL_MASK[sc], n, c;
+    uint32_t sc = (uint32_t)clamp(keyp[KY_SCAL], 0, NSCALE), key = (uint32_t)clamp(keyp[KY_KEY], 0, 11), n, c;
+    uint32_t m = key_mask((int32_t)sc);
     int32_t x0 = DX0 + 2, y0 = DY0 + 1, k, rx = 0;
     char b[16];
     for (k = 0; k < 7; k++) {                           /* the white keys: solid in the scale, dotted out of it */
@@ -1589,7 +1582,7 @@ static void viz_key(void)
     str_cpy(b + str_len(b), " ", 2);
     str_cpy(b + str_len(b), N_KSCAL[sc], 6);
     px_text_c(64, 54, DY0 + 1, PXF_5, b, px_ink);
-    px_text_c(64, 54, 13, PXF_3, FULL[sc], px_ink);
+    px_text_c(64, 54, 13, PXF_3, sc ? N_SCALE_FULL[sc - 1] : "EVERY NOTE", px_ink);
     if (sc) {
         fmt_int(b, (int32_t)c);
         str_cpy(b + str_len(b), " OF 12 NOTES", 14);

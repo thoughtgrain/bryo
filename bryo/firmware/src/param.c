@@ -54,12 +54,27 @@ static const char *const DEV_NAME[NDEV] = {"TAPE", "GRAIN", "RIPPLE", "COLOR", "
  * on; the PRD's knob positions stay. A device's pages run until one whose first label is empty. */
 static const char *const N_PATN[4] = {"EVEN", "SWNG", "CLST", "RND"};
 static const char *const N_SCAN[4] = {"TAPE", "STR", "POS", "DLY"};
-static const char *const N_GSCAL[5] = {"OFF", "CHR", "MAJ", "MIN", "PEN"};
+/* the scales, one list for the project's KEY, GRAIN's SCAL and the KEY picture (2026-10-13: were three lists of
+ * four to seven). SCALE_MASK is the semitones of an octave each keeps, bit n: n semitones above the root. The
+ * order puts the seven modes first (MAJ MIN DOR PHR LYD MIX LOC), then the altered minors, the pentatonics, the
+ * blues, and the symmetric ones; MAJ and MIN stay where they were (a project's index means the same). */
+#define NSCALE 15
+#define SCALE_NAMES "MAJ", "MIN", "DOR", "PHR", "LYD", "MIX", "LOC", "HMIN", "MMIN", "PEN", "MPEN", "BLUE", "WHOL", \
+                    "DIM", "CHR"
+static const char *const N_SCALE_FULL[NSCALE] = {"MAJOR", "MINOR", "DORIAN", "PHRYGIAN", "LYDIAN", "MIXOLYDIAN",
+                                                 "LOCRIAN", "HARMONIC MIN", "MELODIC MIN", "PENTATONIC",
+                                                 "MINOR PENT", "BLUES", "WHOLE TONE", "DIMINISHED", "CHROMATIC"};
+static const uint16_t SCALE_MASK[NSCALE] = {0xAB5u, 0x5ADu, 0x6ADu, 0x5ABu, 0xAD5u, 0x6B5u, 0x56Bu, 0x9ADu, 0xAADu,
+                                            0x295u, 0x4A9u, 0x4E9u, 0x555u, 0xB6Du, 0xFFFu};
+/* GRAIN's SCAL: OFF (the pitch as it is), KEY (the project's scale, every note while KEY's SCAL is OFF), then the
+ * list */
+static const char *const N_GSCAL[2 + NSCALE] = {"OFF", "KEY", SCALE_NAMES};
 static const char *const N_ROOMS[2] = {"A", "B"};       /* SPACE's ROOM: the shared room a track sends to */
 static const char *const N_QUAL[2] = {"HI", "LO"};      /* a room's QUAL: 22.05 or 11.025 kHz */
 #define GR_GRNS_MAX 40                /* GRAIN's GRNS: the most it can hold (the pool for one track, grain.c GR_POOL) */
 static const char *const N_GRNS[1 + GR_GRNS_MAX] = {"AUTO", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40"};
-static const char *const N_RSCAL[4] = {"HARM", "MAJ", "MIN", "PEN"};
+static const char *const N_RSCAL[13] = {"HARM", "MAJ", "MIN", "PEN", "SUS2", "SUS4", "DOM7", "MAJ7", "MIN7", "DIM",
+                                        "AUG", "5TH", "OCT"};   /* (the strings' chords: reso.c RS_PART16) */
 static const char *const N_SLOP[3] = {"LP", "BP", "HP"};
 static const char *const N_CMOD[3] = {"BIT", "RATE", "BOTH"};
 static const char *const N_ROUT[2] = {"INS", "SEND"};
@@ -108,7 +123,7 @@ static const pdesc_t DEV_P[NDEV][NPK] = {
         {"CONT", 0, 100, 50, F_PCT}, {"REV", 0, 100, 0, F_PCT},
         /* 3: the order grains fire in; their pitch held to a scale; a random pitch per grain, up to +-PRND
          * semitones */
-        {"PATN", 0, 3, 3, F_ENUM, N_PATN}, {"SCAL", 0, 4, 0, F_ENUM, N_GSCAL},
+        {"PATN", 0, 3, 3, F_ENUM, N_PATN}, {"SCAL", 0, 1 + NSCALE, 0, F_ENUM, N_GSCAL},
         {"PRND", 0, 12, 0, F_ST}, P_ROUT,
         /* 4: what grains read and where (grain.c), left to right as you set it up: SCAN, the track's TAPE or the
          * live buffer of the last bars, read stretching behind the write head (STR), at a spot (POS) or a delay
@@ -137,7 +152,7 @@ static const pdesc_t DEV_P[NDEV][NPK] = {
         /* 2: a filter before the strings (cutoff, resonance, its TYPE: low-, band- or high-pass, as POLY's), and the
          * strings' tuning: the root's harmonics, or a scale's chord tones from the root */
         {"CUT", 0, 127, 127, F_HZ}, {"RES", 0, 100, 0, F_PCT},
-        {"TYPE", 0, 2, 0, F_ENUM, N_SLOP}, {"SCAL", 0, 3, 0, F_ENUM, N_RSCAL},
+        {"TYPE", 0, 2, 0, F_ENUM, N_SLOP}, {"SCAL", 0, 12, 0, F_ENUM, N_RSCAL},
         /* 3: how WET mixes the strings in (ROUT: INS or SEND); a pluck's shape (reso.c rs_pluck): PICK, how hard
          * (an offset on TONE for the burst: - a soft mallet, + a pick), STRM, the strings strummed STRM ms apart,
          * VARY, each pluck a little different. 0 on all three: the pluck as it was (a stored 0 from before them) */
@@ -289,11 +304,11 @@ static int16_t mst[NMS];
  * starts on A MIN, the key every factory reel is in. */
 enum { KY_KEY, KY_SCAL, NKY };
 static const char *const N_KEYN[12] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
-static const char *const N_KSCAL[8] = {"OFF", "MAJ", "MIN", "DOR", "MIX", "HMIN", "PEN", "MPEN"};
-static const uint16_t KSCAL_MASK[8] = {   /* the notes in each scale, bit n: n semitones above the key */
-    0xFFFu, 0xAB5u, 0x5ADu, 0x6ADu, 0x6B5u, 0x9ADu, 0x295u, 0x4A9u};
+static const char *const N_KSCAL[1 + NSCALE] = {"OFF", SCALE_NAMES};
+/* the notes KEY's SCAL keeps, bit n: n semitones above the key (OFF: all twelve) */
+static uint32_t key_mask(int32_t sc) { return sc > 0 && sc <= NSCALE ? SCALE_MASK[sc - 1] : 0xFFFu; }
 static const pdesc_t KY_P[4] = {
-    {"KEY", 0, 11, 9, F_ENUM, N_KEYN, 1}, {"SCAL", 0, 7, 2, F_ENUM, N_KSCAL, 1}, {""}, {""}};   /* (A MIN: the
+    {"KEY", 0, 11, 9, F_ENUM, N_KEYN, 1}, {"SCAL", 0, NSCALE, 2, F_ENUM, N_KSCAL, 1}, {""}, {""}};   /* (A MIN: the
                                                                                                * factory reels' key) */
 static int16_t keyp[NKY];
 
@@ -301,7 +316,7 @@ static int16_t keyp[NKY];
  * when a note starts (the ISR, once a note), so the loop is fine */
 static int32_t key_snap(int32_t n)
 {
-    uint32_t m = KSCAL_MASK[(uint32_t)keyp[KY_SCAL] & 7u], pc = (uint32_t)(n + 120 - clamp(keyp[KY_KEY], 0, 11)), d;
+    uint32_t m = key_mask(keyp[KY_SCAL]), pc = (uint32_t)(n + 120 - clamp(keyp[KY_KEY], 0, 11)), d;
     while (pc >= 12u)
         pc -= 12u;
     m |= m << 12;                                        /* (two octaves: pc - d and pc + d without a wrap) */

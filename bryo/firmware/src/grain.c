@@ -78,8 +78,18 @@ static const int16_t GR_NORM[33] = {32767, 32767, 23170, 18918, 16384, 14654, 13
 /* the pool, by how many tracks have GRAIN on */
 static const uint8_t GR_POOL[NTRK + 1u] = {40, 40, 30, 18, 18};   /* (2026-10-11: were 32 24 16 16, before the
                                                                   * grains rendered at half rate) */
-/* the scales SCAL holds pitches to (OFF CHR MAJ MIN PEN): the semitones of an octave they keep */
-static const uint16_t GR_SCALE[5] = {0, 0xFFF, 0xAB5, 0x5AD, 0x295};
+/* the semitones SCAL holds pitches to, bit n: a shift of n semitones (an octave's worth; 0: OFF, the pitch as it
+ * is). KEY is the project's scale (param.c key_mask: every note while it's OFF); the rest are param.c's list. The
+ * grains' pitch is a shift from the sound's own, so the mask is read from the sound, not from the key's note: a
+ * MIN shift list on a sound in A keeps the grains in A minor's intervals */
+static uint32_t gr_mask(int32_t sc)
+{
+    if (sc <= 0)
+        return 0;
+    if (sc == 1)
+        return key_mask(keyp[KY_SCAL]);
+    return sc <= 1 + NSCALE ? SCALE_MASK[sc - 2] : 0xFFFu;
+}
 
 typedef struct {
     int32_t pos;                     /* the read position, Q12 samples */
@@ -583,19 +593,21 @@ static inline __attribute__((always_inline)) int32_t gr_env(const grain_t *g, ui
 /* PTCH + a random +-PRND, held to SCAL: 1/16 semitones */
 static int32_t gr_pitch(grain_trk_t *G, const int16_t *p)
 {
-    int32_t st16 = mod_pitch16((uint32_t)(G - grain), FN_GRAIN, p[GP_PTCH]), sc = clamp(p[GP_SCAL], 0, 4), k, best = 0;
+    int32_t st16 = mod_pitch16((uint32_t)(G - grain), FN_GRAIN, p[GP_PTCH]), k, best = 0;
     int32_t bd = 1 << 20;                               /* (PTCH to 1/16 semitone when it's modulated: mod.c) */
+    uint32_t m = gr_mask(p[GP_SCAL]), pc = 0;           /* (pc: k's semitone in the octave, -36 is a root) */
     if (p[GP_PRND])
         st16 += (int32_t)(gr_rnd(G) % (uint32_t)(p[GP_PRND] * 32 + 1)) - p[GP_PRND] * 16;
-    if (!sc)
+    if (!m)
         return st16;
     for (k = -36; k <= 36; k++) {                       /* the nearest semitone the scale keeps */
         int32_t d = k * 16 - st16;
         d = d < 0 ? -d : d;
-        if (((GR_SCALE[sc] >> (uint32_t)((k % 12 + 12) % 12)) & 1u) && d < bd) {
+        if (((m >> pc) & 1u) && d < bd) {
             bd = d;
             best = k * 16;
         }
+        pc = pc == 11u ? 0u : pc + 1u;
     }
     return best;
 }
