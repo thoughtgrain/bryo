@@ -1229,6 +1229,22 @@ AGE's repeats from the third on about five times darker and its read point movin
 52 samples where it was 4; DUCK's echoes far down under a playing tone and back within 3 dB once it stops; each TYPE
 its own tail, HALL longer than ROOM, none running away; MOD's tail different from MOD 0, no steps, the same length.
 
+**Turning them without a glitch (2026-10-13).** From playing it: "a little noise glitch" turning some of CHRONOS's
+knobs. Measured as the largest bend in the effects alone in the 100 ms after a knob is turned at once, against 40-70
+left alone: room SIZE 2,555, TYPE 1,946, QUAL 1,783, DLY 282, MOD 108, AGE 95 (from one setting to another while on).
+Each acted on the sound in one block. Now:
+- AGE, DIFF and MOD glide to their knobs (AGE a unit a block, DIFF's mix 2 % a block, MOD's depth ~55 ms end to
+  end), and DLY's level (and DUCK's dip) at most 1/16 of full a block, ~10 ms. DIFF is a mix of fixed-gain
+  allpasses (0.6) now, not their gain: an allpass at gain 0 is a bare 5-14 ms delay, so fading its gain was a jump
+  in itself; its lines are cleared once DIFF is back at 0, so turning it up again starts from silence.
+- A room's SIZE, QUAL or TYPE changes its lines' lengths or rate, which no glide can do: once the knob has stood
+  still ~18 ms (a sweep is one change, not many), the room fades out (~12 ms), its combs and allpasses are cleared
+  and retuned (a QUAL also clears the pre-delay and starts again at its rate), and it fades back in (~47 ms) with
+  the combs' input rising from 0 (~23 ms), so their first echoes come in under the fade instead of mid-waveform. The
+  pre-delay runs on through SIZE and TYPE, so the room's input never breaks. Resting, it retunes at once.
+Now SIZE 69, TYPE 52, QUAL 112, DLY 43, MOD 52, AGE 34 (`test_chronos_turns`, each checked against the old behaviour
+to fail it). Every audio fingerprint unchanged: nothing moves while the knobs stand still.
+
 ## The shared rooms, as built (2026-10-11)
 
 **Why.** Playing the factory scene with one LFO on a drum's LVL put the FM-1 over 80 % and it crackled. The depth

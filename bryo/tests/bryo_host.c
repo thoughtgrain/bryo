@@ -4036,6 +4036,70 @@ static void ch_room(int type, int mod)                       /* track 1 into roo
     memcpy(chr_, chl, sizeof chl);
     dev_run(sp_run, chl, chr_, CHN);
 }
+/* a knob turned at once while CHRONOS sounds (a 300 Hz tone into the delay and room A for 0.6 s): the largest bend in
+ * the effects alone (the tone taken out) in the 100 ms after the turn, against the same 100 ms unturned. which: 0 AGE,
+ * 1 DIFF, 2 MOD, 3 TYPE, 4 SIZE, 5 QUAL, 6 DLY; from, to. (2026-10-13, from playing it: "a little noise glitch" when
+ * turning them; before the fix SIZE bent 2,555, TYPE 1,946, QUAL 1,783, DLY 282, AGE 95, MOD 108, the tone's own
+ * effects 40-70) */
+static int32_t ch_turn(int which, int from, int to, int turn)
+{
+    int16_t *p;
+    uint32_t i, at = (CHN / 2) & ~(CTL - 1u);            /* (on a block's start, where the loop turns it) */
+    power_on();
+    p = tp[0].dev[DEV_SPACE];
+    p[SP_DLY] = 80;
+    p[SP_FDBK] = 60;
+    p[SP_TIME] = 120;
+    p[SP_VERB] = 80;
+    rmp[0][RM_DEC] = 70;
+    if (which == 0) p[SP_AGE] = (int16_t)from;
+    if (which == 1) p[SP_DIFF] = (int16_t)from;
+    if (which == 2) rmp[0][RM_MOD] = (int16_t)from;
+    if (which == 3) rmp[0][RM_TYPE] = (int16_t)from;
+    if (which == 4) rmp[0][RM_SIZE] = (int16_t)from;
+    if (which == 5) rmp[0][RM_QUAL] = (int16_t)from;
+    if (which == 6) p[SP_DLY] = (int16_t)from;
+    chain_poll();
+    for (i = 0; i < CHN; i++)
+        chl[i] = i < (uint32_t)(CHN * 6 / 10) ? (int32_t)lrint(8000 * sin(2 * M_PI * 300 * i / 44100.0)) : 0;
+    memcpy(chr_, chl, sizeof chl);
+    for (i = 0; i + CTL <= CHN; i += CTL) {
+        if (i == at && turn) {
+            if (which == 0) p[SP_AGE] = (int16_t)to;
+            if (which == 1) p[SP_DIFF] = (int16_t)to;
+            if (which == 2) rmp[0][RM_MOD] = (int16_t)to;
+            if (which == 3) rmp[0][RM_TYPE] = (int16_t)to;
+            if (which == 4) rmp[0][RM_SIZE] = (int16_t)to;
+            if (which == 5) rmp[0][RM_QUAL] = (int16_t)to;
+            if (which == 6) p[SP_DLY] = (int16_t)to;
+        }
+        sp_run(0, chl + i, chr_ + i, CTL);
+    }
+    for (i = 0; i < (uint32_t)(CHN * 6 / 10); i++)       /* (the effects alone: the dry tone taken out) */
+        chl[i] -= (int32_t)lrint(8000 * sin(2 * M_PI * 300 * i / 44100.0));
+    return ch_jump(at, at + 4410);
+}
+static void test_chronos_turns(void)
+{
+    static const struct { const char *what; int which, from, to; } T[] = {
+        {"AGE 40 -> 100", 0, 40, 100}, {"AGE 100 -> 40", 0, 100, 40}, {"DIFF 0 -> 100", 1, 0, 100},
+        {"DIFF 100 -> 0", 1, 100, 0}, {"MOD 0 -> 100", 2, 0, 100}, {"TYPE ROOM -> HALL", 3, 0, 2},
+        {"TYPE PLAT -> SPRG", 3, 1, 3}, {"room SIZE 30 -> 90", 4, 30, 90}, {"room QUAL HI -> LO", 5, 0, 1},
+        {"DLY 80 -> 10", 6, 80, 10},
+    };
+    char b[200];
+    uint32_t k;
+    for (k = 0; k < sizeof T / sizeof T[0]; k++) {
+        int32_t still = ch_turn(T[k].which, T[k].from, T[k].to, 0), turned;
+        int32_t still2 = ch_turn(T[k].which, T[k].to, T[k].to, 0);
+        turned = ch_turn(T[k].which, T[k].from, T[k].to, 1);
+        snprintf(b, sizeof b, "CHRONOS %s turned at once while it sounds: no glitch (largest bend %d after, %d and %d "
+                 "left alone at either end)", T[k].what, turned, still, still2);
+        check(b, turned <= 2 * (still > still2 ? still : still2) + 64);
+    }
+    power_on();
+}
+
 static void test_chronos_character(void)
 {
     char b[220];
@@ -9329,6 +9393,7 @@ int main(int argc, char **argv)
     test_color();
     test_space();
     test_chronos_character();
+    test_chronos_turns();
     test_usbrec();
     test_mixer();
     test_chan_glide();
