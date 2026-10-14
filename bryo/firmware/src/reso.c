@@ -416,15 +416,15 @@ static void HOT_CODE reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t key
          * Hz, a quarter turn a string, so the drift runs across the strings like a wave (the lines follow sample by
          * sample, the moving loop); and SPRD, on the strings and combs, a detune across them, -50 .. +50 cents from
          * the lowest to the highest at 100 (a chorus: the resonators take SPRD as their spacing instead, below) */
-        int32_t sprd = mode < RM_RESO ? clamp(p[RP_SPRD], -100, 100) : 0;
-        if (ripl && nstr)
+        int32_t sprd = mode < RM_RESO ? clamp(p[RP_SPRD], -100, 100) : 0, rp = ripl && nstr;
+        if (rp)
             R->rph += 623306u + (uint32_t)ripl * 31165u;   /* (2^32 x 32 / 44100 a Hz) */
-        for (k = 0; k < RS_N; k++) {
+        for (k = 0; k < RS_N && (rp || sprd || R->rc[k]); k++) {   /* (both 0: the cents stay 0, no work) */
             int32_t tri = (int32_t)((R->rph + (uint32_t)k * 0x40000000u) >> 16), c = 0;
             tri = tri < 32768 ? tri * 2 - 32768 : 98304 - tri * 2;
-            if (ripl && nstr)
+            if (rp)
                 c = (tri * ripl) >> 16;
-            R->rc[k] = c + ((2 * (int32_t)k - 3) * sprd) / 6;
+            R->rc[k] = c + (((2 * (int32_t)k - 3) * sprd * 43) >> 8);   /* (/ 6, near enough, no divide) */
         }
     }
     if (mode >= RM_RESO) {                               /* the resonators: each partial a band (below), DEC its

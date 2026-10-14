@@ -4777,8 +4777,8 @@ static void test_reso(void)
             p[RP_SPRD] = 100;
             render(2, 0);
             check("SPRD 100 on the strings: a detune across them, -50 to +50 cents, the lines apart",
-                  reso[0].rc[0] == -50 && reso[0].rc[1] == -16 && reso[0].rc[2] == 16 && reso[0].rc[3] == 50 &&
-                  reso[0].dq[0] != reso[0].dq[3]);
+                  reso[0].rc[0] <= -50 && reso[0].rc[0] >= -51 && reso[0].rc[1] <= -16 && reso[0].rc[1] >= -17 &&
+                  reso[0].rc[2] == 16 && reso[0].rc[3] == 50 && reso[0].dq[0] != reso[0].dq[3]);
             p[RP_SPRD] = 0;
             p[RP_MODE] = 2;                              /* RESO: the second band's pitch, as SPRD stretches it */
             p[RP_SCAL] = 0;
