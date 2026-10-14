@@ -2812,45 +2812,66 @@ static void test_grain_body(void)
     snprintf(m, sizeof m, "..TONE up (%u Hz): the 3 kHz comes through (%.0f)", CUTOFF_HZ[90], hi2);
     check(m, hi2 > 5 * hi);
     body_run(body_on, 100, BODY_TRI, 45, 60, 100, -1, -1);
-    snprintf(m, sizeof m, "BODY TRI at ROOT A2: 110 Hz (%u cycles in the last 0.85 s), whatever the source", body_xings(200));
-    check(m, body_xings(200) >= 92u && body_xings(200) <= 95u);
-    body_ptch = 7;                                       /* the grains a fifth up: the wave too, over ROOT */
-    body_run(body_off, 0, BODY_TRI, 45, 60, 100, -1, -1);
-    body_run(body_on, 100, BODY_TRI, 45, 60, 100, -1, -1);
-    snprintf(m, sizeof m, "..PTCH +7: it plays the grains' note, ROOT's fifth (E3, 165 Hz: %u cycles)", body_xings(200));
-    check(m, body_xings(200) >= 138u && body_xings(200) <= 142u);
-    body_ptch = -19;                                     /* (an octave and a fifth down: a fourth, over ROOT) */
-    body_run(body_off, 0, BODY_TRI, 45, 60, 100, -1, -1);
-    body_run(body_on, 100, BODY_TRI, 45, 60, 100, -1, -1);
-    snprintf(m, sizeof m, "..PTCH -19: the note folded into the octave over ROOT, a floor (ROOT's fourth, D3, 147 Hz: %u cycles)",
-             body_xings(200));
-    check(m, body_xings(200) >= 123u && body_xings(200) <= 127u);
-    body_ptch = 0;
-    body_prnd = 12;                                      /* PRND 12, SCAL PEN: the grains a pentatonic melody */
-    body_scal = 11;
+    {   /* (2026-10-14: each grain carries its own partial under its window, so the body is measured by what it holds,
+         * not by one wave's cycles) */
+        double a = body_amp(110, 200), e = body_amp(164.8, 200), d = body_amp(146.8, 200);
+        snprintf(m, sizeof m, "BODY TRI at ROOT A2: the grains' partials at 110 Hz (%.0f; at E3 %.0f, D3 %.0f), whatever the "
+                 "source", a, e, d);
+        check(m, a > 300 && a > 6 * e && a > 6 * d);
+    }
+    body_ptch = 7;                                       /* the grains a fifth up: their partials too, over ROOT */
     body_run(body_off, 0, BODY_TRI, 45, 60, 100, -1, -1);
     body_run(body_on, 100, BODY_TRI, 45, 60, 100, -1, -1);
     {
-        uint32_t b, notes = 0, odd = 0, there = 0, n = 0, k;
-        for (b = 200; b < BODY_N; b++) {
-            k = (uint32_t)body_to[b];
-            odd += k % 16u != 0u || k >= 192u || !((0x295u >> (k / 16u)) & 1u);
-            if (k < 192u && !((notes >> (k / 16u)) & 1u))
-                notes |= 1u << (k / 16u), n++;
-            there += body_seen[b] == body_to[b];
-        }
-        snprintf(m, sizeof m, "..PRND 12, SCAL PEN: the wave plays the grains' pentatonic notes (%u of its 5, %u blocks off "
-                 "the scale), arriving at them (%u of %u blocks there), gliding, no steps (largest move %d)", n, odd,
-                 there, BODY_N - 200u, body_jump());
-        check(m, n >= 4u && odd == 0u && there > (BODY_N - 200u) / 3u && there < BODY_N - 200u && body_jump() < 400);
+        double a = body_amp(110, 200), e = body_amp(164.8, 200);
+        snprintf(m, sizeof m, "..PTCH +7: they play the grains' note, ROOT's fifth (E3 %.0f, A2 %.0f)", e, a);
+        check(m, e > 300 && e > 6 * a);
     }
-    body_prnd = 0;                                       /* (PTCH +7, BODY turned up: at the grains' note at once, not
-                                                          * gliding up from ROOT) */
+    body_ptch = -19;                                     /* (an octave and a fifth down: a fourth, over ROOT) */
+    body_run(body_off, 0, BODY_TRI, 45, 60, 100, -1, -1);
+    body_run(body_on, 100, BODY_TRI, 45, 60, 100, -1, -1);
+    {
+        double a = body_amp(110, 200), d = body_amp(146.8, 200);
+        snprintf(m, sizeof m, "..PTCH -19: the note folded into the octave over ROOT, a floor (ROOT's fourth, D3 %.0f, A2 %.0f)",
+                 d, a);
+        check(m, d > 300 && d > 6 * a);
+    }
+    body_ptch = 0;
+    body_prnd = 12;                                      /* PRND 12, SCAL PEN: the grains a pentatonic melody, each */
+    body_scal = 11;                                      /* grain its own partial: several notes at once */
+    body_run(body_off, 0, BODY_TRI, 45, 60, 100, -1, -1);
+    body_run(body_on, 100, BODY_TRI, 45, 60, 100, -1, -1);
+    {
+        static const double PENT[5] = {110, 123.47, 138.59, 164.81, 185}, OFF[3] = {116.54, 155.56, 196};
+        double top = 0, worst = 0;
+        uint32_t k, n = 0;
+        for (k = 0; k < 5u; k++) {
+            double a = body_amp(PENT[k], 200);
+            top = a > top ? a : top;
+        }
+        for (k = 0; k < 5u; k++)
+            n += body_amp(PENT[k], 200) > top / 8;
+        for (k = 0; k < 3u; k++) {
+            double a = body_amp(OFF[k], 200);
+            worst = a > worst ? a : worst;
+        }
+        snprintf(m, sizeof m, "..PRND 12, SCAL PEN: the partials on the grains' pentatonic notes, several at once (%u of the 5 "
+                 "sounding in the same second; the loudest note between them at %.0f of %.0f: an 80 ms grain's smear)",
+                 n, worst, top);
+        check(m, n >= 3u && worst < top && top > 200);
+    }
+    {                                                    /* the partial is the grain's: it starts and ends with it */
+        uint32_t k, on = 0, with = 0;
+        for (k = 0; k < GR_SLOTS; k++)
+            if (gr_on(k) && gslot[k].trk == 0) {
+                on++;
+                with += gslot[k].binc != 0;
+            }
+        snprintf(m, sizeof m, "..each grain sounding carries a partial of its own (%u of %u)", with, on);
+        check(m, on >= 1u && with == on);
+    }
+    body_prnd = 0;
     body_scal = 0;
-    body_ptch = 7;
-    body_run(body_on, 0, BODY_TRI, 45, 60, 100, 600, -1);
-    check("..BODY turned up from 0: the wave starts on the grains' note (no glide up to it)",
-          body_to[600] == 112 && body_seen[600] == 112 && body_seen[599] != 112);
     body_ptch = 0;
     body_prnd = 0;
     body_scal = 0;
@@ -2862,9 +2883,9 @@ static void test_grain_body(void)
         char v[8];
         const char *u;
         param_format(&DEV_P[DEV_GRAIN][GP_ROOT], GR_ROOT_RES, v, &u);
-        snprintf(m, sizeof m, "BODY ROOT RES (it reads \"%s\"): the wave on RIPPLE's root, PTCH A3, 220 Hz (%u cycles)",
-                 v, body_xings(200));
-        check(m, !strcmp(v, "RES") && body_xings(200) >= 186u && body_xings(200) <= 189u);
+        snprintf(m, sizeof m, "BODY ROOT RES (it reads \"%s\"): the partials on RIPPLE's root, PTCH A3, 220 Hz (%.0f; at "
+                 "A2 %.0f)", v, body_amp(220, 200), body_amp(110, 200));
+        check(m, !strcmp(v, "RES") && body_amp(220, 200) > 300 && body_amp(220, 200) > 6 * body_amp(110, 200));
     }
     body_rptch = 48;                                     /* the strings on C3, RIPPLE's WET 100 (only them heard) */
     body_rwet = 100;
@@ -2883,8 +2904,9 @@ static void test_grain_body(void)
     body_rwet = 0;
     body_run(body_off, 0, BODY_TRI, 45, 60, 100, -1, -1);
     body_run(body_on, 100, BODY_SIN, 57, 60, 100, -1, -1);
-    snprintf(m, sizeof m, "BODY SIN at ROOT A3: 220 Hz (%u cycles)", body_xings(200));
-    check(m, body_xings(200) >= 186u && body_xings(200) <= 189u);
+    snprintf(m, sizeof m, "BODY SIN at ROOT A3: 220 Hz (%.0f; its third harmonic %.0f: a sine, not a triangle)",
+             body_amp(220, 200), body_amp(660, 200));
+    check(m, body_amp(220, 200) > 300 && body_amp(220, 200) > 20 * body_amp(660, 200));
     body_run(body_off, 0, BODY_SRC, 45, 38, 0, -1, -1);
     body_run(body_on, 100, BODY_SRC, 45, 38, 0, -1, -1);
     check("..WET 0: no BODY either (it's on the wet side)", body_amp(100, 200) < 1 && body_jump() == 0);
@@ -2909,8 +2931,7 @@ static void test_grain_body(void)
         }
         snprintf(m, sizeof m, "..MODE changed while it sounds (SRC to TRI, TONE open): down and back up, no step "
                  "(largest move at the switch %d, while it played %d)", at, before);
-        check(m, at <= 4 * before + 200 && body_xings(700) >= 50u && body_xings(700) <= 56u);   /* (0.49 s of 110
-                                                                                                * Hz) */
+        check(m, at <= 4 * before + 200 && body_amp(110, 700) > 300);   /* (and the partials at 110 Hz after it) */
     }
     power_on();
 }

@@ -789,15 +789,16 @@ floor back under them:
 - **BODY**: how loud the floor is (0 is off). It goes with the grains, so WET turns it down too.
 - **MODE**: what the floor is.
   - **SRC**: the track's own sound with its top taken off. Always in key and in time with what you're playing.
-  - **TRI**: a triangle wave that plays the grains' notes. It's heard on the FM-1's own speaker too.
-  - **SIN**: a sine that plays the grains' notes: the purest, best on headphones (the speaker barely plays it when
-    it's low).
-- The wave (TRI and SIN) sounds while the grains do: stop the transport, and it fades with them.
-- **ROOT**: where the wave sits (TRI and SIN), C1 to C5. Set it to the key you're in. The wave follows each grain's
-  note, so when **PTCH** (GRAIN 2), **PRND** and **SCAL** (GRAIN 3) send the grains around a scale, the wave walks the same
-  scale over ROOT, gliding from note to note. It always stays in the octave above ROOT, so it's a floor however high
-  or low the grains go. With PTCH and PRND at 0 it holds ROOT.
-- **ROOT RES** (turn ROOT all the way down, below C1): the wave takes RIPPLE's root instead (its PTCH, the white
+  - **TRI**: a triangle under every grain, at that grain's note. It's heard on the FM-1's own speaker too.
+  - **SIN**: a sine under every grain: the purest, best on headphones (the speaker barely plays it when it's low).
+- TRI and SIN give each grain a partial of its own: it starts with the grain, swells and fades with the grain's own
+  window, and sits at the grain's note. With many grains overlapping, the body is a chord of what they play, with
+  the grains' rhythm in it; with few, each grain thuds on its own note. Stop the transport and it stops with them.
+- **ROOT**: where the partials sit (TRI and SIN), C1 to C5. Set it to the key you're in. Each follows its grain's
+  note, so when **PTCH** (GRAIN 2), **PRND** and **SCAL** (GRAIN 3) send the grains around a scale, the body plays the
+  same scale over ROOT. It always stays in the octave above ROOT, so it's a floor however high or low the grains go.
+  With PTCH and PRND at 0 every partial is ROOT.
+- **ROOT RES** (turn ROOT all the way down, below C1): the partials take RIPPLE's root instead (its PTCH, the white
   key you played on its page, or RIPL ARP's note), so BODY always rings the strings. RIPPLE's strings only answer
   the notes they're tuned to: a BODY a third away from them passes through without ringing them.
 - **TONE**: how much top end the floor keeps, from a deep rumble to a full low-mid.

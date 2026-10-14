@@ -57,6 +57,8 @@ enum { GP_SIZE, GP_RATE, GP_PTCH, GP_SPRD, GP_WET, GP_SPRY, GP_CONT, GP_REV, GP_
        GP_WARP, GP_OFST, GP_FDBK, GP_BODY, GP_BMOD, GP_ROOT, GP_BTON,
        GP_GRNS, GP_SYNC };   /* (param.c DEV_P[DEV_GRAIN]) */
 enum { BODY_SRC, BODY_TRI, BODY_SIN };
+#define GR_ROOT_RES 23                /* ROOT's lowest, RES: RIPPLE's root (reso.c, after this file) */
+static int32_t reso_root16(uint32_t t);
 enum { SCAN_TAPE, SCAN_STR, SCAN_POS, SCAN_DLY };
 
 /* sin^2 (pi/2 i/128), Q15: a window's rising ramp */
@@ -103,6 +105,8 @@ typedef struct {
     int32_t qb;                      /* the block it last found silent or not (gr_quiet's answer, qq), or -1 */
     uint8_t qq;
     int16_t st16;                    /* its pitch, 1/16 semitone (for the tests and the screen) */
+    uint32_t bph, binc;              /* BODY TRI SIN (2026-10-14): its own partial's phase and step (half rate; binc
+                                      * 0: none), at its note in the octave over ROOT, under its window */
     uint8_t rev;
     uint8_t trk;                     /* whose it is */
 } grain_t;
@@ -707,7 +711,15 @@ static void HOT_CODE gr_start(uint32_t t, grain_trk_t *G, const int16_t *p, int3
     gr_tset(t, (uint32_t)(g - gslot));
     g->trk = (uint8_t)t;
     g->st16 = (int16_t)pan;                             /* (SPRY, PTCH, PRND: drawn above) */
-    G->bto = (int16_t)(((pan % 192) + 192) % 192);      /* (BODY's wave plays it: its degree over ROOT) */
+    G->bto = (int16_t)(((pan % 192) + 192) % 192);      /* (its degree over ROOT: the screen's) */
+    g->bph = 0;
+    g->binc = 0;
+    if (p[GP_BODY] > 0 && p[GP_BMOD] != BODY_SRC) {    /* BODY TRI SIN: a partial of its own at that degree over ROOT
+                                                         * (RES: RIPPLE's root), so the body follows each grain's
+                                                         * note, not the last one started */
+        int32_t r16 = p[GP_ROOT] <= GR_ROOT_RES ? reso_root16(t) : clamp(p[GP_ROOT], 0, 127) * 16;
+        g->binc = 2u * pitch_inc((uint32_t)clamp(r16 + G->bto, 0, 2047));
+    }
     g->rev = (uint8_t)((int32_t)(gr_rnd(G) % 100u) < p[GP_REV]);
     g->len = (uint32_t)p[GP_SIZE] * 441u / 10u;        /* SIZE ms -> output samples */
     g->fade = (uint32_t)p[GP_CONT] * g->len / 200u;    /* CONT: the ramps, up to half the grain each */
@@ -752,10 +764,8 @@ static int32_t gr_pace(const gr_buf_t *B, int32_t len)
  * a fast RATE blurs into a moving line, not a buzz of steps. Before any grain, ROOT itself; coming on from 0, straight
  * to the note. A new MODE: the old one down to 0 this block, the new from 0 the next (a 0.7 ms dip, no step). Returns 1 when it added something. Out of line: off (the default), grain_block's loops compile as
  * they did without it */
-#define GR_ROOT_RES 23                /* ROOT's lowest, RES: RIPPLE's root (reso.c, after this file) */
-static int32_t reso_root16(uint32_t t);
 static uint32_t HOT_CODE gr_body(grain_trk_t *G, const int16_t *p, const int32_t *dry, int32_t *xl,
-                                                  int32_t *xr, uint32_t h2, uint32_t sounding)
+                                                  int32_t *xr, uint32_t h2, uint32_t sounding, const int32_t *bb)
 {
     uint32_t mode = (uint32_t)clamp(p[GP_BMOD], 0, 2), k;
     int32_t g1 = clamp(p[GP_BODY], 0, 100) * 32767 / 100, g0 = G->bg, ev = G->benv;
@@ -779,29 +789,15 @@ static uint32_t HOT_CODE gr_body(grain_trk_t *G, const int16_t *p, const int32_t
         int32_t wq = (int32_t)CUTOFF_HZ[clamp(p[GP_BTON], 0, 127)] * 9337 / 1000;   /* 2 pi f / 22050, Q15 */
         int32_t kq = (int32_t)(((uint32_t)wq << 15) / (uint32_t)(32768 + wq));        /* w / (1 + w) */
         int32_t dg = (g1 - g0) / (int32_t)h2, gk = g0, lp = G->blp;
-        int32_t d = G->bto - G->bst;
-        uint32_t ph = G->bph, inc;
-        if (!g0)
-            G->bst = G->bto;                            /* (coming on: straight to the note, no glide up to it) */
-        else
-            G->bst = (int16_t)(G->bst + (d >= 0 ? (d + 15) >> 4 : -((15 - d) >> 4)));
-        {                                               /* ROOT, or RES: the strings' root (last block's, 0.7 ms) */
-            int32_t r16 = p[GP_ROOT] <= GR_ROOT_RES ? reso_root16((uint32_t)(G - grain)) : clamp(p[GP_ROOT], 0, 127) * 16;
-            inc = 2u * pitch_inc((uint32_t)clamp(r16 + G->bst, 0, 2047));
-        }
-        for (k = 0; k < h2; k++) {
+        for (k = 0; k < h2; k++) {                      /* SRC: the track low-passed; TRI SIN: the grains' own
+                                                         * partials, summed in bb by the grain loop (2026-10-14: one
+                                                         * wave gliding to the last grain's note sounded like a tone
+                                                         * under everything, not like the grains) */
             int32_t x, y;
-            if (G->bmode == BODY_SRC) {
+            if (G->bmode == BODY_SRC)
                 x = clamp(dry[2u * k], -32767, 32767);  /* (held: the low-pass product fits 32 bits) */
-            } else {
-                ph += inc;
-                if (G->bmode == BODY_TRI) {
-                    x = (int32_t)(ph >> 16);
-                    x = ((x < 32768 ? x : 65535 - x) - 16384) >> 1;
-                } else {
-                    x = sine_i(ph) >> 2;
-                }
-            }
+            else
+                x = bb[k];
             x = (x - lp) * kq;                          /* (TONE's new value toward 0, as RIPPLE's strings: a
                                                          * shift alone left a small offset for good after the sound
                                                          * stopped, and DEC 100's strings rang it up: reso.c rs_settle) */
@@ -813,7 +809,6 @@ static uint32_t HOT_CODE gr_body(grain_trk_t *G, const int16_t *p, const int32_t
             xr[k] += y;
         }
         G->blp = lp;
-        G->bph = ph;
     }
     return 1;
 }
@@ -1059,14 +1054,17 @@ static void HOT_CODE grain_block(uint32_t t, const int32_t *dry, uint32_t keys, 
     {                                                   /* the grains, at half rate (the buffer's and the tape's
                                                          * 22.05 kHz: nothing in them above 11 kHz), into xl xr
                                                          * after the last block's three; then 2x up into l and r */
-        int32_t xl[3u + CTL / 2u], xr[3u + CTL / 2u], seam, zh, busy;   /* (rec: the buffer recorded this block) */
+        int32_t xl[3u + CTL / 2u], xr[3u + CTL / 2u], bb[CTL / 2u], seam, zh, busy;   /* (rec: the buffer recorded
+                                                                                        * this block; bb: BODY's
+                                                                                        * partials, the grains') */
+        uint32_t bmode = (uint32_t)clamp(p[GP_BMOD], 0, 2);
         uint32_t h2 = n / 2u, any = 0;
         for (k = 0; k < 3u; k++) {
             xl[k] = G->hl[k];
             xr[k] = G->hr[k];
         }
         for (k = 0; k < h2; k++)
-            xl[3u + k] = xr[3u + k] = 0;
+            xl[3u + k] = xr[3u + k] = bb[k] = 0;
         /* where what it reads jumps, or is about to: recording, the TAPE_BLK behind the write head (the block being
          * written is stored when it's full: until then a grain reads a bar ago's sound there, after it the new) up
          * to the head (the newest against the oldest), moving with the head a sample a half-rate sample (sv), from
@@ -1133,12 +1131,29 @@ static void HOT_CODE grain_block(uint32_t t, const int32_t *dry, uint32_t keys, 
                     gr_mix(g, &v, len, ll, h, e0 << 5, de, gl, gr, xl + 3, xr + 3, 1, seam, zh, rec);
                 else
                     gr_mix(g, &v, len, ll, h, e0 << 5, de, gl, gr, xl + 3, xr + 3, 0, 0, 0, 0);
+                if (g->binc && !q) {                    /* BODY TRI SIN: its partial under its window, into bb */
+                    uint32_t ph = g->bph;
+                    int32_t e = e0 << 5, lv = (gl + gr) >> 1, kk;
+                    for (kk = 0; kk < h; kk++) {
+                        int32_t x;
+                        ph += g->binc;
+                        if (bmode == BODY_TRI) {
+                            x = (int32_t)(ph >> 16);
+                            x = ((x < 32768 ? x : 65535 - x) - 16384) >> 1;
+                        } else {
+                            x = sine_i(ph) >> 2;
+                        }
+                        e += de;
+                        bb[kk] += (((x * (e >> 5)) >> 15) * lv) >> 15;
+                    }
+                    g->bph = ph;
+                }
             }
             g->left -= (uint32_t)m;
             if (!g->left)
                 gr_tclr(t, k);
         }
-        any |= gr_body(G, p, dry, xl + 3, xr + 3, h2, any);   /* BODY: a floor under the grains (out of line) */
+        any |= gr_body(G, p, dry, xl + 3, xr + 3, h2, any, bb);   /* BODY: a floor under the grains (out of line) */
         {                                               /* WET on the track's grains together, ramped across the block
                                                          * from last block's (no step when it's turned or modulated;
                                                          * turned to 0, they fade out over this block, then stop).

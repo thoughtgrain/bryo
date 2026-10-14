@@ -2746,6 +2746,23 @@ past the audit's 3 s window (a two-bar loop at 120 BPM is 4 s).
 maracas are bright (energy to 17 kHz), the bass drum sits low for a small speaker. The cymbal takes 9 s to ring out
 at its designed decay. The patterns aren't saved yet (phase 8, with everything else).
 
+### BODY, a partial a grain (2026-10-14)
+
+"The body of the grains still doesn't follow each grain and just sounds like an overall tone." It was one
+oscillator a track, gliding a sixteenth of the way a block toward the last grain's note: under a cloud of grains
+that's a drone that wanders, and nothing in it moves with a grain. Now TRI and SIN give every grain a partial of its
+own. `gr_start` sets the grain's `binc` (its note in the octave over ROOT, or over RIPPLE's root on RES, at the
+half rate) and `bph`; the grain loop, right after `gr_mix`, runs the partial for the grain's samples under the same
+window ramp it passed to the mix (`e0 << 5`, `de`) at the grain's own level (`(gl + gr) / 2`, the overlap
+normalisation), into `bb[]`, a mono half-rate buffer a block; `gr_body` then takes `bb` where it took its oscillator,
+through TONE's low-pass and the level ramp as before (SRC unchanged). A silent stretch of the grain (`q`) carries no
+partial either: the body is exactly as present as the grain. The glide, `bst` and the track-level phase are gone;
+`bto` stays for the screen. Cost: about 8 instructions a grain a half-rate sample with BODY up on TRI or SIN, none
+at 0 or on SRC. Tested by what the body holds now rather than one wave's zero crossings: the partials at 110 Hz
+under A2, at E3 with PTCH +7, folded to D3 at -19, on RIPPLE's root on RES; with PRND 12 and SCAL PEN all five
+pentatonic notes sound within the same second; every grain sounding carries a partial; the SRC-to-TRI switch still
+ramps.
+
 ### TRAN: a transient on SYNTH, POLY and DRUM (2026-10-14)
 
 "I'd like to be able to add a transient to every engine except for tape." One generator (`dsp.c click_step`): 3 ms
