@@ -768,6 +768,20 @@ GRAIN, the USB audio ring). Something has to give before RIPPLE lands. The candi
 canvas's memory (it's only in use while a WAV arrives), a shorter CHRONOS delay (the plan's first choice), and a
 smaller canvas.
 
+
+### POLY's TWIN (2026-10-13)
+
+A page of four knobs, stored 16-19 (TWIN, RLB, TUNB, BLND), placed fourth so LVL stays the last page's KNOB 4. OFF
+runs the voice as it was (the fingerprints held). MIX and XFD read both reels in a voice: B's head (`pos2`, from STRT
+of B's own length) at its own step (`pol_tune_b`: TUNB semitones on A's pitch, a divide only when it moves), through
+`tape_read` with the reader of the spare voice above (`pol_rd[t][j + 2]`), VOIC held to two; the two summed at
+32767 - g and g (MIX: BLND; XFD: 4 % a semitone from middle C, BLND the offset) before the voice's filter. ALT and RND
+pick a reel per note (`v->b`: in turn, or B by BLND's chance), so four voices as ever and one read each; END and
+STRT take that reel's length. RLB is a reel choice like REEL (not a target, not a scene's), and a project saving the
+track's own tape points RLB at the reel it lands in too. Tested (`test_twin`): MIX at BLND 0 and 100 is A's and B's
+sound (correlation 1.0000), at 50 half of each (0.8 % left over); two voices in MIX; TUNB +12 doubles B's step; ALT
+alternates; RND at 100 and 0; XFD a low note A's, a high one B's.
+
 ## The screen as dots (2026-10-08)
 
 Bryo drew every screen strip into Felucca's full-colour canvas: 240 x 124 pixels of RGB565, 59.5 KB of the pool.

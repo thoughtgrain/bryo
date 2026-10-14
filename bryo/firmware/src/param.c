@@ -329,7 +329,12 @@ static const pdesc_t SYN_VX_P[NPK] = {
  * across the keys). The key ROOT names (A3 at first: BELL's note, the first reel POLY plays) plays it as it was
  * recorded, FINE cents off. */
 enum { PL_REEL, PL_STRT, PL_TUNE, PL_VOIC, PL_ATK, PL_DEC, PL_SUS, PL_REL, PL_CUT, PL_RES, PL_TYPE, PL_ENV, PL_LVL,
-       PL_END, PL_ROOT, PL_FINE };
+       PL_END, PL_ROOT, PL_FINE, PL_TWIN, PL_RLB, PL_TUNB, PL_BLND };
+/* TWIN (2026-10-13): a second reel, B, beside REEL (A). MIX both a voice, BLND the balance; XFD the key decides (B
+ * the higher the note, BLND where they cross); ALT a voice A, the next B (round robin); RND each note B by BLND's
+ * chance. MIX and XFD read two reels a voice: two voices at most then */
+enum { TW_OFF, TW_MIX, TW_XFD, TW_ALT, TW_RND };
+static const char *const N_TWIN[5] = {"OFF", "MIX", "XFD", "ALT", "RND"};
 #define POL_NV 4u                /* voices per track */
 static const pdesc_t POL_P[NPK] = {
     /* SAMPLE: which sound, where in it a note starts, the tuning, how many notes at once */
@@ -345,7 +350,10 @@ static const pdesc_t POL_P[NPK] = {
     {"LVL", -24, 6, 0, F_DB}, {"END", 100, 10000, 10000, F_PCT100},
     /* TUNING (page 4): ROOT, the note the sound was recorded at (that key plays it as it is; a setting, not a
      * modulation target: it would step by semitones), and FINE, cents, for a sound that sits between two notes */
-    {"ROOT", 24, 96, 57, F_NOTE, 0, 1}, {"FINE", -50, 50, 0, F_CT}};   /* (ROOT A3: BELL's, POLY's first reel) */
+    {"ROOT", 24, 96, 57, F_NOTE, 0, 1}, {"FINE", -50, 50, 0, F_CT},   /* (ROOT A3: BELL's, POLY's first reel) */
+    /* TWIN (page 4, 2026-10-13): the mode, reel B, B's tuning against A (semitones), the balance */
+    {"TWIN", 0, 4, 0, F_ENUM, N_TWIN, 1}, {"RLB", 0, NREEL + USLOT_N, 2, F_ENUM, N_REEL}, {"TUNB", -24, 24, 0, F_ST},
+    {"BLND", 0, 100, 50, F_PCT}};
 
 /* DRUM (drum.c): a drum machine. Sixteen synthesized instruments on the white keys, played from a pattern of 2..4
  * bars of sixteenths. Four pages: the PATTERN (a written rhythm to start from, its length, swing, how hard an
@@ -581,8 +589,9 @@ static const playout_t PLAYOUT[] = {
                                                     /* VOX: WAVE VOWL SHFT VENV, AMP, FILTER, VOICE, DRV BRTH CHRD LVL */
     {SYN_WT_P, 5, {0, 20, 1, 18, 8, 9, 10, 11, 4, 5, 6, 7, 12, 13, 15, 17, 14, 3, 19, 16, 2, 21, 22, 23}},
                                                     /* WT: WAVE TABL POS PENV, AMP, FILTER, VOICE, DRV NOIS CHRD LVL */
-    {POL_P, 4, {0, 1, 13, 2, 4, 5, 6, 7, 8, 9, 10, 11, 3, 14, 15, 12}},         /* POLY: REEL STRT END TUNE, ..., VOIC
-                                                                                 * ROOT FINE LVL */
+    {POL_P, 5, {0, 1, 13, 2, 4, 5, 6, 7, 8, 9, 10, 11, 16, 17, 18, 19, 3, 14, 15, 12}},   /* POLY: REEL STRT END
+                                                                                 * TUNE, ENV, FILTER, TWIN RLB TUNB
+                                                                                 * BLND, VOIC ROOT FINE LVL */
     {ME_P[ME_WAVE], 4, {0, 1, 2, 3, 4, 5, 6, 7, 12, 13, 14, 15, 10, 11, 8, 9}},  /* LFO: timing, then PHAS SPRD AMT OFS */
     {ME_P[ME_SEQ], 3, {0, 1, 2, 3, 4, 5, 6, 7, 11, 8, 9, 10}},                  /* SEQ: . SPRD AMT OFS */
     {ME_P[ME_FOLLOW], 2, {0, 1, 2, 3, 4, 7, 5, 6}},                             /* FOLLOW: HOLD SPRD AMT OFS */

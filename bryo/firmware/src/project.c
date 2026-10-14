@@ -818,7 +818,10 @@ static int32_t pj_reel_of(uint32_t s, uint32_t t)
 }
 
 /* track t plays its own RAM tape: TAPE on it (REEL 0), or POLY reading it (its REEL 0) */
-static int pj_own_tape(uint32_t t) { return tp[t].dev[DEV_SRC][TK_REEL] == 0 || tp[t].pol[PL_REEL] == 0; }
+static int pj_own_tape(uint32_t t)
+{
+    return tp[t].dev[DEV_SRC][TK_REEL] == 0 || tp[t].pol[PL_REEL] == 0 || (tp[t].pol[PL_TWIN] && tp[t].pol[PL_RLB] == 0);
+}
 
 /* main loop: track t's own tape into a user reel for project s, what played it switched to the reel. 1: done, 0:
  * nothing to keep, -1: no reel free for it, -2: the flash refused */
@@ -851,6 +854,8 @@ static int pj_keep_tape(uint32_t s, uint32_t t)
         tp[t].dev[DEV_SRC][TK_REEL] = (int16_t)(NREEL + 1u + (uint32_t)at);
     if (tp[t].pol[PL_REEL] == 0)
         tp[t].pol[PL_REEL] = (int16_t)(NREEL + 1u + (uint32_t)at);
+    if (tp[t].pol[PL_RLB] == 0)                         /* (POLY's TWIN, its reel B the same way) */
+        tp[t].pol[PL_RLB] = (int16_t)(NREEL + 1u + (uint32_t)at);
     tape_ctl[t].empty = 1;                                /* (its RAM goes back to the pool as memory is needed) */
     tape_ver[t]++;
     return 1;

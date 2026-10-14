@@ -1247,8 +1247,9 @@ static void viz_synth(const int16_t *v, uint32_t f)
  * FILTER: the response, its TYPE, dotted where ENV takes it */
 static void viz_poly(const int16_t *v, uint32_t f)
 {
-    uint32_t bp = ui.page == 3u ? 3u : pdesc_at(POL_P, 4u * ui.page) / 4u;   /* the stored block the page shows (page
-                                                                            * 4, VOIC ROOT FINE LVL: 3) */
+    uint32_t bp = ui.page == 4u ? 3u : ui.page == 3u ? 4u : pdesc_at(POL_P, 4u * ui.page) / 4u;   /* the stored block
+                                                                  * the page shows (page 4, TWIN: 4; page 5, VOIC ROOT
+                                                                  * FINE LVL: 3) */
     static const char NOTE[12][3] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
     int32_t x, k;
     if (bp == 0u && ui.zoom && (f == PL_STRT || f == PL_END)) {   /* HOME held + STRT or END: the zoom on that edge */
@@ -1309,6 +1310,33 @@ static void viz_poly(const int16_t *v, uint32_t f)
         a[3] = v[PL_REL];
         a[10] = 100;
         viz_adsr(a, f >= 4u && f < 8u ? f - 4u : 0xFFu);
+    } else if (bp == 4u) {                            /* TWIN: reel A over reel B, each as loud as the balance
+                                                         * gives it (MIX: BLND; XFD: across the keys; ALT, RND: each
+                                                         * a note's), the mode named */
+        uint32_t tw = (uint32_t)clamp(v[PL_TWIN], 0, TW_RND), r;
+        int32_t bl = clamp(v[PL_BLND], 0, 100);
+        for (r = 0; r < 2u; r++) {
+            tape_view_t vw;
+            int32_t mid = r ? 22 : 8, g = !tw ? (r ? 0 : 100) : tw == TW_MIX ? (r ? bl : 100 - bl) : tw == TW_RND
+                                                                                      ? (r ? bl : 100 - bl) : 100;
+            tape_view_of(sys.sel, (uint32_t)clamp(r ? v[PL_RLB] : v[PL_REEL], 0, (int32_t)(NREEL + USLOT_N)), &vw);
+            for (x = DX0 + 22; x <= DX1; x++) {
+                uint32_t blk = vw.len ? (uint32_t)(x - DX0 - 22) * (vw.len / TAPE_BLK) / (uint32_t)(DW - 21) : 0;
+                int32_t a = vw.len ? (int32_t)tv_peak(&vw, blk) * 6 / 255 : 0;
+                if (tw == TW_XFD) {                     /* (XFD: the keys left to right, low to high) */
+                    int32_t gk = clamp(((x - DX0 - 22) * 48 / (DW - 21) - 24) * 4 + bl, 0, 100);
+                    g = r ? gk : 100 - gk;
+                }
+                px_box(x, mid - a, 1, 2 * a + 1, g >= 50 || (g && (x & 1)) ? (r && !tw ? px_dim : px_ink) : px_dim);
+            }
+            px_text(DX0, mid - 2, PXF_3, r ? "B" : "A", px_ink);
+            px_text(DX0 + 6, mid - 2, PXF_3, tape_name_of(sys.sel, (uint32_t)clamp(r ? v[PL_RLB] : v[PL_REEL], 0,
+                                                                                (int32_t)(NREEL + USLOT_N))), px_dim);
+        }
+        vz_label(14, N_TWIN[tw], f == PL_TWIN);
+        vz_label(45, "RLB", f == PL_RLB);
+        vz_label(75, "TUNB", f == PL_TUNB);
+        vz_label(105, tw == TW_ALT ? "A B A" : "BLND", f == PL_BLND);
     } else if (bp >= 3u && f == PL_LVL) {
         vz_level(v[PL_LVL], &POL_P[PL_LVL], 1);
     } else if (bp >= 3u) {                            /* VOIC; ROOT, the key that plays the sound as it is; FINE */

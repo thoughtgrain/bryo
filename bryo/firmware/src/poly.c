@@ -12,6 +12,11 @@
  * sound's end) it fades over six blocks and frees itself. Voices are taken as SYNTH's are: a silent one, the quietest
  * releasing one, else the oldest (which keeps its filter state and ramps from its level, so a steal doesn't click).
  *
+ * TWIN (2026-10-13, page 4): a second reel, B. MIX and XFD play both in each voice (B read at its own head, TUNB
+ * semitones off A's pitch, from STRT of its own length; BLND, or the note in XFD, sets the balance), so two voices
+ * at most, B's reader the spare voice's (pol_rd[t][j + 2]); ALT and RND give each note one reel, A or B (in turn, or
+ * B by BLND's chance), four voices as ever. OFF is POLY as it was, to the bit.
+ *
  * Audio ISR only, like synth.c: the main loop writes tp[t].pol and the octave. */
 
 typedef struct {
@@ -28,12 +33,17 @@ typedef struct {
     int16_t tfine, fres;
     uint8_t tok, fok;
     tsvf_t flt;                  /* the filter's coefficients for fcut and fres */
+    uint8_t b;                   /* TWIN ALT, RND: this note plays reel B */
+    uint8_t tokb;                /* TWIN MIX, XFD: B's step worked out (for tn16b) */
+    int32_t pos2, inc2, tn16b;   /* .. B's head, its step, the pitch it was worked out from */
 } pol_voice_t;
 #define POL_ENDF 6u              /* END's fade, blocks (4.4 ms: one block, 0.7 ms, stepped when END was modulated) */
 
 typedef struct {
     pol_voice_t v[POL_NV];
     uint32_t keys, age;
+    uint8_t alt;                 /* TWIN ALT: the next note's reel */
+    int32_t rng;                 /* TWIN RND */
 } pol_t;
 
 static pol_t pol[NTRK];
@@ -56,6 +66,22 @@ static void HOT_CODE pol_tune(uint32_t t, pol_voice_t *v)
     v->tn16 = n16;
     v->tfine = p[PL_FINE];
     v->tok = 1;
+}
+
+/* TWIN MIX, XFD: B's step, TUNB semitones off A's (the divide only when the pitch moved) */
+static void HOT_CODE pol_tune_b(uint32_t t, pol_voice_t *v)
+{
+    const int16_t *p = TPD(t, MA_POL);
+    int32_t n16 = clamp(((int32_t)v->note + 48 - p[PL_ROOT] + p[PL_TUNB]) * 16 + mod_pitch16(t, FN_POL, p[PL_TUNE]), 0,
+                        127 * 16);
+    if (v->tokb && n16 == v->tn16b)
+        return;
+    {
+        uint32_t inc = p[PL_FINE] ? cents_inc(n16, p[PL_FINE], 0) : pitch_inc((uint32_t)n16);
+        v->inc2 = (int32_t)(inc / (pitch_inc(48u * 16u) >> 11));
+    }
+    v->tn16b = n16;
+    v->tokb = 1;
 }
 
 /* the voice's filter for a cutoff and RES: tsvf_coef's divides only when they moved */
@@ -90,7 +116,7 @@ static uint32_t pol_end(uint32_t t, uint32_t len)
     return pol_endc[t].end;
 }
 
-static void HOT_CODE pol_start(uint32_t t, uint32_t k, uint32_t nv, uint32_t len)
+static void HOT_CODE pol_start(uint32_t t, uint32_t k, uint32_t nv, uint32_t len, uint32_t b, uint32_t lenb)
 {
     pol_t *s = &pol[t];
     pol_voice_t *v = &s->v[0];
@@ -114,7 +140,10 @@ static void HOT_CODE pol_start(uint32_t t, uint32_t k, uint32_t nv, uint32_t len
         v->ic1 = v->ic2 = 0;
         v->env = 0;
     }
-    v->pos = pct100_of(len, TPD(t, MA_POL)[PL_STRT]) << 12;
+    v->b = (uint8_t)b;
+    v->pos = pct100_of(b ? lenb : len, TPD(t, MA_POL)[PL_STRT]) << 12;
+    v->pos2 = pct100_of(lenb, TPD(t, MA_POL)[PL_STRT]) << 12;   /* (TWIN MIX, XFD: B's head, from STRT of B) */
+    v->tokb = 0;
     v->note = (uint8_t)key_snap(clamp((int32_t)key_base[t] + (int32_t)k, 0, 127));   /* (the project's scale) */
     v->tok = 0;
     pol_tune(t, v);
@@ -123,9 +152,12 @@ static void HOT_CODE pol_start(uint32_t t, uint32_t k, uint32_t nv, uint32_t len
     v->endf = 0;
     v->age = ++s->age;
     pol_rd[t][v - s->v].ok = 0;
+    if (nv <= 2u)
+        pol_rd[t][(uint32_t)(v - s->v) + 2u].ok = 0;    /* (its B reader, when TWIN reads two reels) */
 }
 
-static void HOT_CODE pol_voice(uint32_t t, pol_voice_t *v, tape_rd_t *rd, const tape_view_t *vw, int32_t *out, uint32_t n)
+static void HOT_CODE pol_voice(uint32_t t, pol_voice_t *v, tape_rd_t *rd, const tape_view_t *vw, int32_t *out, uint32_t n,
+                               const tape_view_t *vwb, tape_rd_t *rdb, uint32_t tw)
 {
     const int16_t *p = TPD(t, MA_POL);
     uint32_t i, mode = (uint32_t)clamp(p[PL_TYPE], 0, 2);
@@ -168,7 +200,20 @@ static void HOT_CODE pol_voice(uint32_t t, pol_voice_t *v, tape_rd_t *rd, const 
     }
     c8 = mod_fine8(t, FN_PCUT, p[PL_CUT]);                  /* (CUT finer than its semitones when modulated: mod.c) */
     pol_filter(t, v, c8 + (p[PL_ENV] ? p[PL_ENV] * 96 * (e15 >> 7) / 100 : 0));   /* (ENV 0: no divide) */
-    {
+    if (tw == TW_MIX || tw == TW_XFD) {                     /* TWIN, both reels: B at its own head, the balance */
+        int32_t bl = tw == TW_MIX ? p[PL_BLND] : clamp(((int32_t)v->note - 60) * 4 + p[PL_BLND], 0, 100);
+        int32_t gb = bl * 32767 / 100, ga = 32767 - gb, pos2 = v->pos2, y;
+        int filt = mode || c8 < 127 << 8 || p[PL_RES] || p[PL_ENV], da = a1 - a0;
+        pol_tune_b(t, v);
+        for (i = 0; i < n; i++) {
+            int32_t x = mulq15(tape_read(vw, rd, pos), ga) + mulq15(tape_read(vwb, rdb, pos2), gb);
+            pos += v->inc;
+            pos2 += v->inc2;
+            y = filt ? tsvf_mode(&v->flt, x >> 1, &ic1, &ic2, mode) << 1 : x;
+            out[i] += mulq15(y, a0 + ((da * (int32_t)i) >> CTL_LOG2));
+        }
+        v->pos2 = pos2;
+    } else {
         int filt = mode || c8 < 127 << 8 || p[PL_RES] || p[PL_ENV];   /* (decided once a block, not a sample) */
         int32_t base = tape_run(vw, rd, pos, v->inc, n), da = a1 - a0, y;
         if (base >= 0) {                                    /* the block's run inside one decoded block (tape.c): the
@@ -201,11 +246,19 @@ static void HOT_CODE pol_block(uint32_t t, uint32_t keys, const int32_t *rec, in
 {
     pol_t *s = &pol[t];
     tape_view_t vw;
+    tape_view_t vwb;
     uint32_t on = keys & ~s->keys, off = s->keys & ~keys, nv = (uint32_t)clamp(TPD(t, MA_POL)[PL_VOIC], 1, POL_NV), j, k;
+    uint32_t tw = (uint32_t)clamp(tp[t].pol[PL_TWIN], 0, TW_RND);
     (void)rec;
     for (j = 0; j < n; j++)
         out[j] = 0;
     tape_view_of(t, (uint32_t)clamp(tp[t].pol[PL_REEL], 0, (int32_t)(NREEL + USLOT_N)), &vw);
+    vwb = vw;
+    if (tw) {
+        tape_view_of(t, (uint32_t)clamp(tp[t].pol[PL_RLB], 0, (int32_t)(NREEL + USLOT_N)), &vwb);
+        if ((tw == TW_MIX || tw == TW_XFD) && nv > 2u)
+            nv = 2;                                     /* (two reels a voice: two voices, their spares' readers) */
+    }
     s->keys = keys;
     for (k = 0; off && k < NKEYBIT; k++)                     /* keys let go: their voices release */
         if ((off >> k) & 1u)
@@ -221,10 +274,20 @@ static void HOT_CODE pol_block(uint32_t t, uint32_t keys, const int32_t *rec, in
             s->v[j].stage = 0, s->v[j].amp = 0, s->v[j].env = 0;
         return;
     }
-    for (k = 0; on && vw.len && k < NKEYBIT; k++)            /* new keys, lowest first (nothing to play: none) */
-        if ((on >> k) & 1u)
-            pol_start(t, k, nv, vw.len);
+    for (k = 0; on && (vw.len || (tw >= TW_ALT && vwb.len)) && k < NKEYBIT; k++)   /* new keys, lowest first
+                                                         * (nothing to play: none) */
+        if ((on >> k) & 1u) {
+            uint32_t b = 0;
+            if (tw == TW_ALT)                           /* (ALT: A, B, A ..; RND: B by BLND's chance) */
+                b = s->alt ^= 1u;
+            else if (tw == TW_RND && (s->rng || (s->rng = 0x2545F49 + (int32_t)t)))
+                b = (uint32_t)(noise32(&s->rng) % 100u) < (uint32_t)clamp(TPD(t, MA_POL)[PL_BLND], 0, 100);
+            if (!(b ? vwb.len : vw.len))
+                continue;
+            pol_start(t, k, nv, vw.len, b, vwb.len);
+        }
     for (j = 0; j < POL_NV; j++)
         if (s->v[j].stage || s->v[j].amp)
-            pol_voice(t, &s->v[j], &pol_rd[t][j], &vw, out, n);
+            pol_voice(t, &s->v[j], &pol_rd[t][j], s->v[j].b && tw >= TW_ALT ? &vwb : &vw, out, n, &vwb,
+                      &pol_rd[t][j < 2u ? j + 2u : j], tw);
 }

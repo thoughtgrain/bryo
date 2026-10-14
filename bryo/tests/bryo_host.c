@@ -1915,8 +1915,8 @@ static void test_poly(void)
     ui_input();
     let_go(B_HOME);
     p = tp[0].pol;
-    check("HOME held + SELECT: POLY, four pages (SAMPLE ENV FILTER LEVEL), its own knobs", tp[0].src == SRC_POLY &&
-          !strcmp(dev_name(0, DEV_SRC), "POLY") && pdesc_pages(dev_p(0, DEV_SRC)) == 4u && dev_v(0, DEV_SRC) == p &&
+    check("HOME held + SELECT: POLY, five pages (SAMPLE ENV FILTER TWIN LEVEL), its own knobs", tp[0].src == SRC_POLY &&
+          !strcmp(dev_name(0, DEV_SRC), "POLY") && pdesc_pages(dev_p(0, DEV_SRC)) == 5u && dev_v(0, DEV_SRC) == p &&
           p[PL_REEL] == 1);
     {
         int32_t q = 0;
@@ -2674,7 +2674,8 @@ static void test_zoom(void)
     tp[0].pol[PL_ROOT] = 48;                               /* (white key 1: the sound's pitch) */
     focus_dev(DEV_SRC, 0);
     check("POLY's first page: REEL STRT END TUNE", !strcmp(POL_P[pdesc_at(POL_P, 2u)].label, "END") &&
-          !strcmp(POL_P[pdesc_at(POL_P, 3u)].label, "TUNE") && !strcmp(POL_P[pdesc_at(POL_P, 12u)].label, "VOIC"));
+          !strcmp(POL_P[pdesc_at(POL_P, 3u)].label, "TUNE") && !strcmp(POL_P[pdesc_at(POL_P, 16u)].label, "VOIC") &&
+          !strcmp(POL_P[pdesc_at(POL_P, 12u)].label, "TWIN"));
     fm1_in.notes = note_bit_of_white(0);
     render(1, 0);
     for (i = 1; i < 1378u && pol_sounding(0); i++)
@@ -3917,6 +3918,158 @@ static void test_wt(void)
     p[SY_WAVE] = 3;
     chain_poll();
     check("..WAVE back to SAW: the table's chunks given back", mem_count(MEM_WT) == 0u && !wt[0].ready);
+}
+
+/* POLY's TWIN (2026-10-13): reel B beside A. Rendered on track 1's own output (track_rt last), POLY alone */
+static double tw_render(int32_t *o, uint32_t nb, uint32_t keys)
+{
+    uint32_t b;
+    double e = 0;
+    fm1_in.notes = keys;
+    for (b = 0; b < nb; b++) {
+        uint32_t i;
+        render(1, 0);
+        for (i = 0; i < CTL; i++) {
+            o[b * CTL + i] = track_rt[0].last[i];
+            e += (double)o[b * CTL + i] * o[b * CTL + i];
+        }
+    }
+    return sqrt(e / (nb * CTL));
+}
+static double tw_corr(const int32_t *a, const int32_t *b, uint32_t n)
+{
+    double ab = 0, aa = 0, bb = 0;
+    uint32_t i;
+    for (i = 0; i < n; i++) {
+        ab += (double)a[i] * b[i];
+        aa += (double)a[i] * a[i];
+        bb += (double)b[i] * b[i];
+    }
+    return aa > 0 && bb > 0 ? ab / sqrt(aa * bb) : 0;
+}
+static void test_twin(void)
+{
+    enum { NB = 200 };
+    static int32_t a[NB * CTL], bb[NB * CTL], m[NB * CTL];
+    int16_t *p;
+    char b[220];
+    uint32_t j, n;
+    double ea, eb;
+    power_on();
+    for (j = 1; j < NTRK; j++)
+        track[j].mute = 1;
+    tp[0].src = SRC_POLY;
+    p = tp[0].pol;
+    p[PL_REEL] = 2;                                      /* A: BELL */
+    p[PL_RLB] = 3;                                       /* B: DRON */
+    p[PL_SUS] = 100;
+    focus_dev(DEV_SRC, 3);
+    check("POLY page 4 is TWIN RLB TUNB BLND (OFF to start; LVL still the last page's KNOB 4)",
+          pdesc_at(POL_P, 12) == PL_TWIN && pdesc_at(POL_P, 15) == PL_BLND && pdesc_at(POL_P, 19) == PL_LVL &&
+          p[PL_TWIN] == TW_OFF);
+    ea = tw_render(a, NB, note_bit_of_white(9));
+    tw_render(m, 20, 0);
+    p[PL_REEL] = 3;                                      /* (B alone: DRON as A) */
+    eb = tw_render(bb, NB, note_bit_of_white(9));
+    tw_render(m, 20, 0);
+    p[PL_REEL] = 2;
+    p[PL_TWIN] = TW_MIX;
+    p[PL_BLND] = 0;
+    tw_render(m, NB, note_bit_of_white(9));
+    snprintf(b, sizeof b, "TWIN MIX, BLND 0: reel A (correlation %.4f); ", tw_corr(m, a, NB * CTL));
+    {
+        double c0 = tw_corr(m, a, NB * CTL), c1;
+        tw_render(m, 20, 0);
+        p[PL_BLND] = 100;
+        tw_render(m, NB, note_bit_of_white(9));
+        c1 = tw_corr(m, bb, NB * CTL);
+        snprintf(b + str_len(b), sizeof b - str_len(b), "BLND 100: reel B (%.4f)", c1);
+        check(b, c0 > 0.99 && c1 > 0.99 && ea > 100 && eb > 100);
+    }
+    tw_render(m, 20, 0);
+    p[PL_BLND] = 50;
+    tw_render(m, NB, note_bit_of_white(9));
+    {
+        double r = 0, e = 0;
+        uint32_t i;
+        for (i = 0; i < NB * CTL; i++) {                 /* (the mix against half of each, alone) */
+            double d = m[i] - 0.5 * a[i] - 0.5 * bb[i];
+            r += d * d;
+            e += (double)m[i] * m[i];
+        }
+        snprintf(b, sizeof b, "..BLND 50: half of each (what's left over: %.4f of it)", sqrt(r / (e + 1)));
+        check(b, sqrt(r / (e + 1)) < 0.05);
+    }
+    tw_render(m, 4, note_bit_of_white(1) | note_bit_of_white(3) | note_bit_of_white(5));
+    for (j = 0, n = 0; j < POL_NV; j++)
+        n += pol[0].v[j].stage == 1u || pol[0].v[j].stage == 2u;
+    check("..MIX: two voices at most (two reels each), three keys held", n == 2u);
+    tw_render(m, 30, 0);
+    p[PL_TUNB] = 12;
+    tw_render(m, 2, note_bit_of_white(9));
+    check("..TUNB +12: B's head runs at twice A's step", pol[0].v[0].inc2 > 2 * pol[0].v[0].inc - 4 &&
+          pol[0].v[0].inc2 < 2 * pol[0].v[0].inc + 4);
+    tw_render(m, 30, 0);
+    p[PL_TUNB] = 0;
+    p[PL_TWIN] = TW_ALT;                                 /* ALT: A, B, A, B */
+    {
+        uint32_t seq = 0, k;
+        for (k = 0; k < 4u; k++) {
+            uint32_t newest = 0;
+            tw_render(m, 3, note_bit_of_white(9));
+            for (j = 1; j < POL_NV; j++)
+                if (pol[0].v[j].age - pol[0].v[newest].age < 0x80000000u)
+                    newest = j;
+            seq = seq << 1 | pol[0].v[newest].b;
+            tw_render(m, 3, 0);
+        }
+        snprintf(b, sizeof b, "..ALT: four notes alternate reels (%u%u%u%u: B A B A from the first toggle)", (seq >> 3) & 1u,
+                 (seq >> 2) & 1u, (seq >> 1) & 1u, seq & 1u);
+        check(b, seq == 0xAu || seq == 0x5u);
+    }
+    p[PL_TWIN] = TW_RND;                                 /* RND, BLND 100: every note B; 0: every note A */
+    p[PL_BLND] = 100;
+    {
+        uint32_t k, allb = 1, alla = 1;
+        for (k = 0; k < 6u; k++) {
+            tw_render(m, 2, note_bit_of_white(9));
+            for (j = 0; j < POL_NV; j++)
+                if (pol[0].v[j].stage == 1u || pol[0].v[j].stage == 2u)
+                    allb &= pol[0].v[j].b;
+            tw_render(m, 30, 0);
+        }
+        p[PL_BLND] = 0;
+        for (k = 0; k < 6u; k++) {
+            tw_render(m, 2, note_bit_of_white(9));
+            for (j = 0; j < POL_NV; j++)
+                if (pol[0].v[j].stage == 1u || pol[0].v[j].stage == 2u)
+                    alla &= !pol[0].v[j].b;
+            tw_render(m, 30, 0);
+        }
+        check("..RND: BLND 100 every note B, BLND 0 every note A", allb && alla);
+    }
+    p[PL_TWIN] = TW_XFD;                                 /* XFD, B the track's own empty tape (silent): a low note
+                                                          * mostly A, a high one mostly B (quieter) */
+    p[PL_RLB] = 0;
+    p[PL_BLND] = 50;
+    track[0].octave = 2;
+    ea = tw_render(m, NB, note_bit_of_white(0));
+    tw_render(m, 30, 0);
+    track[0].octave = 5;
+    eb = tw_render(m, NB, note_bit_of_white(15));
+    tw_render(m, 30, 0);
+    snprintf(b, sizeof b, "..XFD: the low note A's (level %.0f), the high one B's, here silent (%.0f)", ea, eb);
+    check(b, ea > 4 * eb);
+    track[0].octave = 3;
+    p[PL_RLB] = 3;
+    p[PL_TWIN] = TW_MIX;
+    p[PL_BLND] = 40;
+    focus_dev(DEV_SRC, 3);
+    ui.msg_t = 0;
+    shot("BRYO", "poly_twin");
+    p[PL_TWIN] = TW_OFF;
+    for (j = 1; j < NTRK; j++)
+        track[j].mute = 0;
 }
 
 /* scenes (scene.c, 2026-10-13): the mixer's SCENES page (GLO, then EDIT): white keys 1-4 recall (held + SAVE:
@@ -8017,11 +8170,11 @@ static void test_key_tuning(void)
     tap(B_GLO);
     tp[0].src = SRC_POLY;
     tp[0].pol[PL_ROOT] = 48;
-    focus_dev(DEV_SRC, 3);                               /* POLY 4: VOIC ROOT FINE LVL */
+    focus_dev(DEV_SRC, 4);                               /* POLY 5: VOIC ROOT FINE LVL */
     turn(1, 9);
     turn(2, 12);
     ui.msg_t = 0;
-    snprintf(m, sizeof m, "POLY's page 4: KNOB 2 turns ROOT (C3 -> %d), KNOB 3 FINE (0 -> %d ct)", tp[0].pol[PL_ROOT],
+    snprintf(m, sizeof m, "POLY's page 5: KNOB 2 turns ROOT (C3 -> %d), KNOB 3 FINE (0 -> %d ct)", tp[0].pol[PL_ROOT],
              tp[0].pol[PL_FINE]);
     check(m, tp[0].pol[PL_ROOT] == 57 && tp[0].pol[PL_FINE] > 0);
     shot("BRYO", "poly_tuning");
@@ -10074,6 +10227,7 @@ int main(int argc, char **argv)
     test_chord();
     test_vox();
     test_wt();
+    test_twin();
     test_sleep();
     test_color();
     test_space();

@@ -556,9 +556,23 @@ POLY plays a reel (or the track's own tape) at the pitch of each key, up to four
 
 <img src="img/poly.png" width="240" alt="POLY: REEL STRT END TUNE"> <img src="img/poly_zoom.png" width="240" alt="HOME held + STRT: zoomed in on where notes start">
 
-Its other pages: **ENV** (ATK DEC SUS REL), **FILTER** (CUT RES TYPE ENV), **LEVEL** (VOIC ROOT FINE LVL).
+Its other pages: **ENV** (ATK DEC SUS REL), **FILTER** (CUT RES TYPE ENV), **TWIN** (below), **LEVEL** (VOIC ROOT FINE
+LVL).
 
 <img src="img/poly_tuning.png" width="240" alt="POLY's last page: VOIC ROOT FINE LVL">
+
+**TWIN: two sounds in one** (page 4). Give POLY a second reel, **B** (**RLB**), and **TWIN** decides how the two
+play together:
+
+- **MIX**: both at once in every note, **BLND** the balance (0 all A, 100 all B). A piano and a pad, a pluck and a
+  noise. Two notes at a time in this mode (each reads two reels).
+- **XFD**: the key decides: low notes A, high notes B, crossing over around middle C; **BLND** slides the crossing.
+- **ALT**: round robin: one note A, the next B, so a repeated note doesn't sound like a machine gun.
+- **RND**: each note picks B by chance, **BLND** the chance (0 always A, 100 always B).
+
+**TUNB** tunes B against A in semitones (an octave up with +12). **OFF** is POLY as it was.
+
+<img src="img/poly_twin.png" width="240" alt="POLY TWIN: MIX, BELL with DRON at 40 %">
 
 ### 5.4 DRUM: a drum machine
 
