@@ -13,7 +13,7 @@ the firmware's ui_pxfont.h is generated from), and writes two WOFF files into si
   img/wordmark.svg     BRYO in PX5, as the boot screen spells it (px_text_big), for the header
   img/favicon.svg      a B on black, the same way
 
-One dot is 100 units on a 1000-unit em, so a capital is 0.7 em tall. Lower case maps onto the capitals, as on the
+One dot is 100 units on a 1000-unit em, so a capital is 0.7 em tall, centred in the line box. Lower case maps onto the capitals, as on the
 screen (px_glyph folds a..z). A character PX5 doesn't draw isn't in the font at all, so the browser falls back to
 the next font in the stack instead of printing the firmware's "?". Run it again whenever PX5 changes.
 
@@ -33,6 +33,7 @@ OUT = ROOT / "site" / "fonts"
 DOT = 100           # font units a dot
 UPM = 1000
 ROWS = 7
+ASC, DESC = 850, 150  # the line box: centred on the capitals (see build())
 SEAM = 4            # each row's runs reach this far into the row below: no hairline between rows when antialiased
 
 
@@ -109,7 +110,10 @@ def build(px5, bold, path):
         g.recalcBounds(glyf)
         hmtx[n] = (metrics[n][0], getattr(g, "xMin", 0) if g.numberOfContours else 0)
     fb.setupHorizontalMetrics(hmtx)
-    fb.setupHorizontalHeader(ascent=800, descent=-200)
+    # The capitals stand 700 units above the baseline. A browser centres the line box on (ascent - descent) / 2,
+    # so ascent 850 and descent 150 put that centre at 350, the capitals' middle: a label in a button or a tab
+    # sits exactly in the middle of its box (it was 800/200, 50 units high).
+    fb.setupHorizontalHeader(ascent=ASC, descent=-DESC)
     fb.setupNameTable({
         "familyName": family,
         "styleName": style,
@@ -118,7 +122,7 @@ def build(px5, bold, path):
         "psName": f"BryoPX5-{style}",
         "copyright": "Bryo's 5x7 screen face (bryo/tools/gen_px_font.py), GPL-3.0-only",
     })
-    fb.setupOS2(sTypoAscender=800, sTypoDescender=-200, sTypoLineGap=0, usWinAscent=800, usWinDescent=200,
+    fb.setupOS2(sTypoAscender=ASC, sTypoDescender=-DESC, sTypoLineGap=0, usWinAscent=ASC, usWinDescent=DESC,
                 usWeightClass=700 if bold else 400, fsSelection=0x20 if bold else 0x40, sCapHeight=700,
                 sxHeight=700)
     fb.setupPost(isFixedPitch=1)
