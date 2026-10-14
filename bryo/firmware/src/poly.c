@@ -17,6 +17,11 @@
  * at most, B's reader the spare voice's (pol_rd[t][j + 2]); ALT and RND give each note one reel, A or B (in turn, or
  * B by BLND's chance), four voices as ever. OFF is POLY as it was, to the bit.
  *
+ * LOOP (2026-10-13, page 2): a held note (and its release) loops LSTR..END instead of ending at END. FWD jumps back
+ * to LSTR, the level faded LXF ms down into the seam and up out of it (one reader a voice: no second head to
+ * crossfade with); PING turns round at each end, seamless. The heads are read sample by sample then (tape_read).
+ * TWIN's B loops its own LSTR..END the same way, without the fade.
+ *
  * Audio ISR only, like synth.c: the main loop writes tp[t].pol and the octave. */
 
 typedef struct {
@@ -36,6 +41,8 @@ typedef struct {
     uint8_t b;                   /* TWIN ALT, RND: this note plays reel B */
     uint8_t tokb;                /* TWIN MIX, XFD: B's step worked out (for tn16b) */
     int32_t pos2, inc2, tn16b;   /* .. B's head, its step, the pitch it was worked out from */
+    uint8_t dir, dir2;           /* LOOP PING: the head (and B's) running backward */
+    uint8_t wrapped;             /* LOOP FWD: the head has come round the seam once (the fade-in at LSTR is due) */
 } pol_voice_t;
 #define POL_ENDF 6u              /* END's fade, blocks (4.4 ms: one block, 0.7 ms, stepped when END was modulated) */
 
@@ -144,6 +151,8 @@ static void HOT_CODE pol_start(uint32_t t, uint32_t k, uint32_t nv, uint32_t len
     v->pos = pct100_of(b ? lenb : len, TPD(t, MA_POL)[PL_STRT]) << 12;
     v->pos2 = pct100_of(lenb, TPD(t, MA_POL)[PL_STRT]) << 12;   /* (TWIN MIX, XFD: B's head, from STRT of B) */
     v->tokb = 0;
+    v->dir = v->dir2 = 0;
+    v->wrapped = 0;
     v->note = (uint8_t)key_snap(clamp((int32_t)key_base[t] + (int32_t)k, 0, 127));   /* (the project's scale) */
     v->tok = 0;
     pol_tune(t, v);
@@ -187,6 +196,83 @@ static void HOT_CODE pol_voice(uint32_t t, pol_voice_t *v, tape_rd_t *rd, const 
     e15 = v->env >> 9;
     a1 = e15;
     pol_tune(t, v);                                         /* (TUNE as it is now) */
+    {
+        uint32_t lpm = (uint32_t)clamp(tp[t].pol[PL_LOOP], 0, LP_PING), le = pol_end(t, vw->len), ls;
+        ls = lpm ? (uint32_t)pct100_of(vw->len, p[PL_LSTR]) : 0u;
+        if (lpm && le > ls + 64u) {                         /* LOOP: the head kept in LSTR..END, sample by sample */
+            int32_t lo = (int32_t)(ls << 12), hi = (int32_t)(le << 12), span = hi - lo, xf = p[PL_LXF] * 22, da;
+            int32_t los = 0, his = 0, span2 = 0, pos2 = v->pos2, y;
+            int two = tw == TW_MIX || tw == TW_XFD, filt;
+            int32_t gb = 0, ga = 32767;
+            if (xf > (int32_t)((le - ls) / 2u))
+                xf = (int32_t)((le - ls) / 2u);
+            if (two) {
+                int32_t bl = tw == TW_MIX ? p[PL_BLND] : clamp(((int32_t)v->note - 60) * 4 + p[PL_BLND], 0, 100);
+                uint32_t le2 = (uint32_t)pct100_of(vwb->len, p[PL_END]), ls2 = (uint32_t)pct100_of(vwb->len, p[PL_LSTR]);
+                gb = bl * 32767 / 100;
+                ga = 32767 - gb;
+                pol_tune_b(t, v);
+                if (le2 > ls2 + 64u) {
+                    los = (int32_t)(ls2 << 12);
+                    his = (int32_t)(le2 << 12);
+                    span2 = his - los;
+                }
+            }
+            c8 = mod_fine8(t, FN_PCUT, p[PL_CUT]);
+            pol_filter(t, v, c8 + (p[PL_ENV] ? p[PL_ENV] * 96 * (e15 >> 7) / 100 : 0));
+            filt = mode || c8 < 127 << 8 || p[PL_RES] || p[PL_ENV];
+            da = a1 - a0;
+            v->endf = 0;
+            for (i = 0; i < n; i++) {
+                int32_t x = tape_read(vw, rd, pos), at = pos >> 12;
+                if (lpm == LP_FWD && xf > 0) {               /* (the seam's fade: down into END, up out of LSTR) */
+                    int32_t d = hi > pos ? (hi - pos) >> 12 : 0;
+                    if (v->wrapped && at >= (int32_t)ls && at - (int32_t)ls < d)
+                        d = at - (int32_t)ls;
+                    if (d < xf)
+                        x = x * d / xf;
+                }
+                if (two) {
+                    x = mulq15(x, ga) + mulq15(tape_read(vwb, rdb, pos2), gb);
+                    pos2 += v->dir2 ? -v->inc2 : v->inc2;
+                    if (span2) {
+                        if (lpm == LP_FWD && pos2 >= his) {
+                            pos2 -= span2;
+                        } else if (lpm == LP_PING) {
+                            if (pos2 >= his) {
+                                pos2 = 2 * his - pos2;
+                                v->dir2 = 1;
+                            } else if (v->dir2 && pos2 <= los) {
+                                pos2 = 2 * los - pos2;
+                                v->dir2 = 0;
+                            }
+                        }
+                    }
+                }
+                pos += v->dir ? -v->inc : v->inc;
+                if (lpm == LP_FWD && pos >= hi) {
+                    pos -= span;
+                    v->wrapped = 1;
+                } else if (lpm == LP_PING) {
+                    if (pos >= hi) {
+                        pos = 2 * hi - pos;
+                        v->dir = 1;
+                    } else if (v->dir && pos <= lo) {
+                        pos = 2 * lo - pos;
+                        v->dir = 0;
+                    }
+                }
+                y = filt ? tsvf_mode(&v->flt, x >> 1, &ic1, &ic2, mode) << 1 : x;
+                out[i] += mulq15(y, a0 + ((da * (int32_t)i) >> CTL_LOG2));
+            }
+            v->pos = pos;
+            v->pos2 = pos2;
+            v->ic1 = ic1;
+            v->ic2 = ic2;
+            v->amp = a1;
+            return;
+        }
+    }
     if (!v->endf && (uint32_t)((pos + v->inc * (int32_t)n) >> 12) >= pol_end(t, vw->len))
         v->endf = POL_ENDF;                                 /* END passed: a short fade from here, then done */
     if (v->endf) {                                          /* (reading on a little past END: the sound's end itself

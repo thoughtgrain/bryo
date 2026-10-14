@@ -49,7 +49,10 @@
 
 /* the knobs (param.c DEV_P[DEV_SRC]) */
 enum { TK_STRT, TK_LEN, TK_SPD, TK_DUB, TK_FADE, TK_REV, TK_HALF, TK_GAIN, TK_REEL, TK_ROTA, TK_LVL, TK_SYNC, TK_ATK,
-       TK_DEC, TK_SUS, TK_REL };
+       TK_DEC, TK_SUS, TK_REL, TK_PTCH };
+/* PTCH (2026-10-13): the speed in semitones on top of SPD, 2^(s/12) Q16 for s -24..24 (so a tape plays in tune with
+ * the keys: SPD's percent never landed on a note) */
+static const int32_t TAPE_SEMI_Q16[49] = {16384, 17358, 18390, 19484, 20643, 21870, 23170, 24548, 26008, 27554, 29193, 30929, 32768, 34716, 36781, 38968, 41285, 43740, 46341, 49097, 52016, 55109, 58386, 61858, 65536, 69433, 73562, 77936, 82570, 87480, 92682, 98193, 104032, 110218, 116772, 123715, 131072, 138866, 147123, 155872, 165140, 174960, 185364, 196386, 208064, 220436, 233544, 247431, 262144};
 
 typedef struct {                     /* a reel in flash (bryo_reels.h REELS_INIT) */
     const char *name;
@@ -362,11 +365,13 @@ static uint32_t HOT_CODE tape_sync_frac(uint32_t t, uint32_t per, int rev)
 }
 
 /* the head's step per output sample, Q12 of a tape sample: 0.5 at 100 % (22.05 kHz under 44.1 kHz); SPD
- * -200..200 %, REV turns it round, HALF halves it */
+ * -200..200 %, PTCH semitones on it, REV turns it round, HALF halves it */
 static int32_t HOT_CODE tape_inc(uint32_t t)
 {
     const int16_t *k = TPD(t, DEV_SRC);
     int32_t inc = 2048 * k[TK_SPD] / 100;
+    if (k[TK_PTCH])                                     /* (|inc| <= 4,096 x 4 x 65,536: under 2^31) */
+        inc = (inc * TAPE_SEMI_Q16[clamp(k[TK_PTCH], -24, 24) + 24]) >> 16;
     if (k[TK_REV])
         inc = -inc;
     return k[TK_HALF] ? sdiv2(inc, 1) : inc;

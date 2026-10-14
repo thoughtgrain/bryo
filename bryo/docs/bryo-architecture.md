@@ -722,6 +722,26 @@ start), centred and normalised. The voice reads a frame linearly between samples
 sine, POS 58 the saw (2nd 0.48, 3rd 0.33); PENV's sweep; BELL's frames played as cycles at A3 (harmonics of 220
 over the in-betweens 126 x); WAVE back to SAW gives the chunks back. Host cost, three voices: about the saw's.
 
+### SYNTH's INTV, PW and TYPE; POLY's LOOP; TAPE's PTCH; ARP's GRND (2026-10-13)
+
+From the controls' assessment ("I agree on the synth updates, and poly loop, and tape semitone pitch", "can we update
+arp so it also randomizes length note is held"). Each at its default is the sound as it was (every fingerprint held).
+
+- **SYNTH**: INTV (21), the second oscillator's interval in semitones, its increment from the note + INTV with
+  DTUN's cents on it (classic waves); PW (22), SQR's width (PLS at half of it; 50 the 0x80000000 and 0x40000000 they
+  were); TYPE (23), the filter's output by `tsvf_mode` (LP keeps `tsvf_lp`). SYNTH's 24 knobs are all used now, so
+  SYN_P is the storage (projects, modulation, scenes) and the classic waves have a display table of their own
+  (`SYN_CL_P`) as FM, PD, VOX and WT do. Every wave's layout is six pages alike: its oscillator, AMP, FILTER (CUT RES
+  ENV TYPE), VOICE, MORE (its extras, KTRK, DRV), LEVEL (CHRD . . LVL).
+- **POLY**: LOOP (20: OFF FWD PING), LSTR (21), LXF (22), page 2. A held note (and its release) loops LSTR..END: FWD
+  wraps with a fade of LXF ms into and out of the seam (one reader a voice: no second head to crossfade with; the
+  fade-in only once it has wrapped, so a STRT before LSTR plays in clean), PING turns round at each end (seamless). The
+  heads go sample by sample then (`tape_read`); TWIN's B loops its own region without the fade. POLY is six pages;
+  ENV opens page 3 (`env_page`).
+- **TAPE**: PTCH (16), semitones on SPD (`TAPE_SEMI_Q16`, 2^(s/12) Q16), page 1 beside SPD. HALF (the same as PTCH
+  -12) went off the pages to OP6 alone, which made the room.
+- **ARP**: GRND (6), page 2: each step's gate GATE +- up to GRND points, its own generator (RND's order unchanged).
+
 ## POLY, as built (2026-10-07)
 
 POLY is the third source engine: a sound played across the keys, up to four notes at once.

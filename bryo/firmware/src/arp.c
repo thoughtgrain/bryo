@@ -43,6 +43,7 @@ typedef struct {
     int32_t phase, len, gate;        /* samples into this step, its length, how long its note sounds */
     uint32_t pos;                    /* steps played since the notes started */
     uint32_t rng;                    /* RND's generator */
+    uint32_t grng;                   /* GRND's */
 } arp_rt_t;
 
 static arp_rt_t arp_rt[NTRK];
@@ -223,7 +224,15 @@ static uint32_t HOT_CODE arp_run(arp_rt_t *r, const int16_t *a, int on, uint32_t
         r->len = arp_len(a, r->pos);
         r->cur = (uint8_t)arp_pick(a, r);
         r->pos++;
-        r->gate = clamp(r->len * clamp(a[AR_GATE], 10, 100) / 100, (int32_t)CTL, r->len - (int32_t)CTL);
+        {
+            int32_t g = clamp(a[AR_GATE], 10, 100), gr = clamp(a[AR_GRND], 0, 100);
+            if (gr) {                                    /* GRND: this step's gate GATE +- up to GRND points, at
+                                                          * random (its own generator: RND's order stays as it was) */
+                r->grng = r->grng * 1664525u + 1013904223u;
+                g = clamp(g + (int32_t)((r->grng >> 8) % (uint32_t)(2 * gr + 1)) - gr, 10, 100);
+            }
+            r->gate = clamp(r->len * g / 100, (int32_t)CTL, r->len - (int32_t)CTL);
+        }
         r->on = 1;
     }
     if (r->phase >= r->gate)

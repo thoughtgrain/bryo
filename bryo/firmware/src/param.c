@@ -91,7 +91,8 @@ static const char *const N_ROUT[2] = {"INS", "SEND"};
  * VERB are levels added to the dry). Not a modulation target: a switch flipping at an LFO's rate isn't a sound */
 #define P_ROUT {"ROUT", 0, 1, 0, F_ENUM, N_ROUT, 1}
 /* the arpeggiator's knobs and names (ARP_P below; RIPPLE's own arpeggio uses them too) */
-enum { AR_MODE, AR_ORDR, AR_RNGE, AR_RATE, AR_GATE, AR_SWNG, NARP = 8 };
+enum { AR_MODE, AR_ORDR, AR_RNGE, AR_RATE, AR_GATE, AR_SWNG, AR_GRND, NARP = 8 };   /* (GRND 2026-10-13: each
+                                                                                       * step's gate, at random) */
 enum { ARM_OFF, ARM_KEY, ARM_LTCH, ARM_ADD };
 enum { ARO_UP, ARO_DOWN, ARO_UPDN, ARO_RND, ARO_PLAY };   /* (PK_DIR's order, then PLAY) */
 static const char *const N_ARM[4] = {"OFF", "KEY", "LTCH", "ADD"};
@@ -144,7 +145,9 @@ static const pdesc_t DEV_P[NDEV][NPK] = {
          * the key's held and REL after; playing, a key's jump fades in over ATK (the loop itself isn't gated). The
          * defaults change nothing: REL long enough that a tapped slice plays to its end */
         {"ATK", 0, 127, 0, F_TIME}, {"DEC", 0, 127, 60, F_TIME}, {"SUS", 0, 100, 100, F_PCT},
-        {"REL", 0, 127, 127, F_TIME}},
+        {"REL", 0, 127, 127, F_TIME},
+        /* PTCH (page 1 beside SPD, 2026-10-13): the speed in semitones on top of SPD, in tune with the keys */
+        {"PTCH", -24, 24, 0, F_ST}},
     {   /* GRAIN (the S-4's MOSAIC) */
         {"SIZE", 5, 500, 80, F_MS}, {"RATE", 0, 100, 40, F_PCT},
         {"PTCH", -24, 24, 0, F_ST}, {"SPRD", 0, 100, 30, F_PCT},
@@ -223,7 +226,7 @@ static const char *const SRC_NAME[NSRC] = {"TAPE", "SYNTH", "POLY", "DRUM"};
  * the oscillators, the filter, the envelope (one ADSR for the level and, by ENV, the cutoff), how the keys play it
  * and the level; the pages show them in POLY's order (OSC, AMP, FILTER, VOICE, LEVEL: PLAYOUT below). */
 enum { SY_WAVE, SY_DTUN, SY_MIX, SY_NOIS, SY_CUT, SY_RES, SY_ENV, SY_KTRK, SY_ATK, SY_DEC, SY_SUS, SY_REL, SY_VOIC,
-       SY_GLID, SY_DRV, SY_TUNE, SY_LVL, SY_FINE, SY_IENV, SY_CHRD, SY_TABL };
+       SY_GLID, SY_DRV, SY_TUNE, SY_LVL, SY_FINE, SY_IENV, SY_CHRD, SY_TABL, SY_INTV, SY_PW, SY_FTYP };
 /* CHRD (2026-10-13): a key plays a chord, SYNTH's three voices on its tones (any wave): semitones over the key. The
  * sevenths leave out the fifth (root, third, seventh: three voices, the shell a pianist plays) */
 static const char *const N_CHRD[12] = {"OFF", "MAJ", "MIN", "SUS2", "SUS4", "DOM7", "MAJ7", "MIN7", "DIM", "AUG",
@@ -274,8 +277,21 @@ static const pdesc_t SYN_P[NPK] = {
     /* IENV (WAVE FM only, 2026-10-13): how far the envelope pushes INDX (the FM pluck: bright at the strike); CHRD
      * (every wave): a key plays a chord */
     {"IENV", -100, 100, 40, F_BIPCT}, {"CHRD", 0, 11, 0, F_ENUM, N_CHRD, 1},
-    /* TABL (WAVE WT only): its table */
-    {"TABL", 0, WT_NBUILT + NREEL + USLOT_N, 0, F_ENUM, N_WTAB, 1}};
+    /* TABL (WAVE WT only): its table; INTV, the second oscillator's interval (semitones, with DTUN's cents), PW,
+     * the pulse's width (SQR at PW, PLS at half of it: 50 the square and the 25 % pulse as they were), TYPE, the
+     * filter's (LP BP HP, every wave) (2026-10-13) */
+    {"TABL", 0, WT_NBUILT + NREEL + USLOT_N, 0, F_ENUM, N_WTAB, 1}, {"INTV", -24, 24, 0, F_ST}, {"PW", 5, 95, 50, F_PCT},
+    {"TYPE", 0, 2, 0, F_ENUM, N_SLOP}};
+/* SYN_P is SYNTH's storage (every knob any wave has: the projects, the modulation and the scenes read it); what the
+ * pages show is a wave's own table: the classic waves' (SIN TRI SQR SAW PLS) this one, FM's, PD's, VOX's, WT's */
+static const pdesc_t SYN_CL_P[NPK] = {
+    {"WAVE", 0, 8, 3, F_ENUM, N_OSC}, {"DTUN", 0, 100, 8, F_CT}, {"MIX", 0, 100, 50, F_PCT}, {"NOIS", 0, 100, 0, F_PCT},
+    {"CUT", 0, 127, 72, F_HZ}, {"RES", 0, 100, 25, F_PCT}, {"ENV", -100, 100, 45, F_BIPCT}, {"KTRK", 0, 100, 50, F_PCT},
+    {"ATK", 0, 127, 0, F_TIME}, {"DEC", 0, 127, 60, F_TIME}, {"SUS", 0, 100, 60, F_PCT}, {"REL", 0, 127, 45, F_TIME},
+    {"VOIC", 1, SYN_NV, SYN_NV, F_NUM}, {"GLID", 0, 127, 0, F_TIME}, {"DRV", 0, 100, 0, F_PCT},
+    {"TUNE", -24, 24, 0, F_ST},
+    {"LVL", -24, 6, 0, F_DB}, {"FINE", -50, 50, 0, F_CT}, {""}, {"CHRD", 0, 11, 0, F_ENUM, N_CHRD, 1}, {""},
+    {"INTV", -24, 24, 0, F_ST}, {"PW", 5, 95, 50, F_PCT}, {"TYPE", 0, 2, 0, F_ENUM, N_SLOP}};
 /* SYNTH with WAVE FM: the same knobs, FM's labels (a modulator sine bending a carrier's phase): RATI, the modulator's
  * pitch over the carrier's (DTUN's place); INDX, how hard it bends it (MIX's); FDBK, the modulator into itself (NOIS's,
  * sine to saw-ish to noise); IENV. Its own pages (PLAYOUT): WAVE RATI INDX IENV first, FDBK beside DRV */
@@ -287,7 +303,8 @@ static const pdesc_t SYN_FM_P[NPK] = {
     {"VOIC", 1, SYN_NV, SYN_NV, F_NUM}, {"GLID", 0, 127, 0, F_TIME}, {"DRV", 0, 100, 0, F_PCT},
     {"TUNE", -24, 24, 0, F_ST},
     {"LVL", -24, 6, 0, F_DB}, {"FINE", -50, 50, 0, F_CT}, {"IENV", -100, 100, 40, F_BIPCT},
-    {"CHRD", 0, 11, 0, F_ENUM, N_CHRD, 1}};
+    {"CHRD", 0, 11, 0, F_ENUM, N_CHRD, 1}, {""}, {""}, {""},
+    {"TYPE", 0, 2, 0, F_ENUM, N_SLOP}};
 /* SYNTH with WAVE PD (2026-10-13): the CZ's phase distortion. SHAP (DTUN's place) the shape; AMT (MIX's) how far the
  * phase bends, a sine at 0 to the whole shape (the CZ's DCW; on the resonant shapes the resonance's sweep); AENV
  * (IENV's) the envelope's push on AMT, the CZ's sweep; NOIS as it is. Its own pages: WAVE SHAP AMT AENV first */
@@ -299,7 +316,8 @@ static const pdesc_t SYN_PD_P[NPK] = {
     {"VOIC", 1, SYN_NV, SYN_NV, F_NUM}, {"GLID", 0, 127, 0, F_TIME}, {"DRV", 0, 100, 0, F_PCT},
     {"TUNE", -24, 24, 0, F_ST},
     {"LVL", -24, 6, 0, F_DB}, {"FINE", -50, 50, 0, F_CT}, {"AENV", -100, 100, 40, F_BIPCT},
-    {"CHRD", 0, 11, 0, F_ENUM, N_CHRD, 1}};
+    {"CHRD", 0, 11, 0, F_ENUM, N_CHRD, 1}, {""}, {""}, {""},
+    {"TYPE", 0, 2, 0, F_ENUM, N_SLOP}};
 /* SYNTH with WAVE WT (2026-10-13): a wavetable, eight single cycles in a row. TABL the table (BASC sine to pulse,
  * HARM a harmonic swept up, FORM a resonance swept up, or a reel cut into eight frames); POS (DTUN's place) where in
  * it, a morph between frames; PENV (IENV's) the envelope's push on POS; NOIS as it is */
@@ -310,7 +328,8 @@ static const pdesc_t SYN_WT_P[NPK] = {
     {"VOIC", 1, SYN_NV, SYN_NV, F_NUM}, {"GLID", 0, 127, 0, F_TIME}, {"DRV", 0, 100, 0, F_PCT},
     {"TUNE", -24, 24, 0, F_ST},
     {"LVL", -24, 6, 0, F_DB}, {"FINE", -50, 50, 0, F_CT}, {"PENV", -100, 100, 40, F_BIPCT},
-    {"CHRD", 0, 11, 0, F_ENUM, N_CHRD, 1}, {"TABL", 0, WT_NBUILT + NREEL + USLOT_N, 0, F_ENUM, N_WTAB, 1}};
+    {"CHRD", 0, 11, 0, F_ENUM, N_CHRD, 1}, {"TABL", 0, WT_NBUILT + NREEL + USLOT_N, 0, F_ENUM, N_WTAB, 1}, {""}, {""},
+    {"TYPE", 0, 2, 0, F_ENUM, N_SLOP}};
 /* SYNTH with WAVE VOX (2026-10-13): a saw through three formant bands, a vowel. VOWL (DTUN's place) A E I O U, a
  * morph between; SHFT (MIX's) the formants down or up, a big voice to a small one (0 at 50: a man's); VENV (IENV's)
  * the envelope's push on VOWL ("wah", "ow"); BRTH (NOIS's) breath into the formants. Its own pages, as FM's */
@@ -322,14 +341,19 @@ static const pdesc_t SYN_VX_P[NPK] = {
     {"VOIC", 1, SYN_NV, SYN_NV, F_NUM}, {"GLID", 0, 127, 0, F_TIME}, {"DRV", 0, 100, 0, F_PCT},
     {"TUNE", -24, 24, 0, F_ST},
     {"LVL", -24, 6, 0, F_DB}, {"FINE", -50, 50, 0, F_CT}, {"VENV", -100, 100, 40, F_BIPCT},
-    {"CHRD", 0, 11, 0, F_ENUM, N_CHRD, 1}};
+    {"CHRD", 0, 11, 0, F_ENUM, N_CHRD, 1}, {""}, {""}, {""},
+    {"TYPE", 0, 2, 0, F_ENUM, N_SLOP}};
 
 /* POLY (poly.c): a sound played at the keys' pitches, up to four at once, each through its own envelope and filter.
  * The sound is any reel choice: a factory reel, one of yours, or this track's own tape (record into it, then play it
  * across the keys). The key ROOT names (A3 at first: BELL's note, the first reel POLY plays) plays it as it was
  * recorded, FINE cents off. */
 enum { PL_REEL, PL_STRT, PL_TUNE, PL_VOIC, PL_ATK, PL_DEC, PL_SUS, PL_REL, PL_CUT, PL_RES, PL_TYPE, PL_ENV, PL_LVL,
-       PL_END, PL_ROOT, PL_FINE, PL_TWIN, PL_RLB, PL_TUNB, PL_BLND };
+       PL_END, PL_ROOT, PL_FINE, PL_TWIN, PL_RLB, PL_TUNB, PL_BLND, PL_LOOP, PL_LSTR, PL_LXF };
+/* LOOP (2026-10-13): a note holds by looping LSTR..END (on through its release). FWD jumps back, LXF ms of fade each
+ * side of the seam; PING turns round at each end (seamless, nothing to fade) */
+enum { LP_OFF, LP_FWD, LP_PING };
+static const char *const N_LOOP[3] = {"OFF", "FWD", "PING"};
 /* TWIN (2026-10-13): a second reel, B, beside REEL (A). MIX both a voice, BLND the balance; XFD the key decides (B
  * the higher the note, BLND where they cross); ALT a voice A, the next B (round robin); RND each note B by BLND's
  * chance. MIX and XFD read two reels a voice: two voices at most then */
@@ -353,7 +377,9 @@ static const pdesc_t POL_P[NPK] = {
     {"ROOT", 24, 96, 57, F_NOTE, 0, 1}, {"FINE", -50, 50, 0, F_CT},   /* (ROOT A3: BELL's, POLY's first reel) */
     /* TWIN (page 4, 2026-10-13): the mode, reel B, B's tuning against A (semitones), the balance */
     {"TWIN", 0, 4, 0, F_ENUM, N_TWIN, 1}, {"RLB", 0, NREEL + USLOT_N, 2, F_ENUM, N_REEL}, {"TUNB", -24, 24, 0, F_ST},
-    {"BLND", 0, 100, 50, F_PCT}};
+    {"BLND", 0, 100, 50, F_PCT},
+    /* LOOP (page 2, 2026-10-13): how a held note loops, where the loop starts (to END), the seam's fade */
+    {"LOOP", 0, 2, 0, F_ENUM, N_LOOP, 1}, {"LSTR", 0, 9900, 0, F_PCT100}, {"LXF", 0, 100, 10, F_MS}};
 
 /* DRUM (drum.c): a drum machine. Sixteen synthesized instruments on the white keys, played from a pattern of 2..4
  * bars of sixteenths. Four pages: the PATTERN (a written rhythm to start from, its length, swing, how hard an
@@ -473,7 +499,7 @@ static const uint8_t SP_RMK[NPK] = {0, 0, 0, RM_SIZE + 1, 0, 0, 0, 0, RM_DEC + 1
 static const pdesc_t ARP_P[NPK] = {   /* (NPK long: pdesc_pages looks past the last page) */
     {"MODE", 0, 3, ARM_OFF, F_ENUM, N_ARM, 1}, {"ORDR", 0, 4, ARO_UP, F_ENUM, N_ARO, 1}, {"RNGE", 1, 3, 1, F_NUM, 0, 1},
     {"RATE", 0, 5, 3, F_ENUM, N_ARATE, 1},
-    {"GATE", 10, 100, 50, F_PCT, 0, 1}, {"SWNG", 0, 100, 0, F_PCT, 0, 1}, {""}, {""},
+    {"GATE", 10, 100, 50, F_PCT, 0, 1}, {"SWNG", 0, 100, 0, F_PCT, 0, 1}, {"GRND", 0, 100, 0, F_PCT, 0, 1}, {""},
     /* page 3, RIPL ARP: RIPPLE's own arpeggio (stored in RIPPLE's knobs, 12-15, not in tp.arp: ui.c's
      * ui_page points there). The same knobs as page 1, the same ranges as RIPPLE's descriptors */
     {"MODE", 0, 3, ARM_OFF, F_ENUM, N_ARM, 1}, {"ORDR", 0, 4, ARO_UP, F_ENUM, N_ARO, 1}, {"RNGE", 1, 3, 1, F_NUM, 0, 1},
@@ -555,9 +581,10 @@ typedef struct {
     uint8_t at[NPK];
 } playout_t;
 static const playout_t PLAYOUT[] = {
-    {DEV_P[DEV_SRC], 4, {0, 1, 2, 3, 12, 13, 14, 15, 4, 5, 6, 7, 8, 9, 11, 10}},   /* TAPE: the envelope second (as
-                                                                                     * SYNTH's, POLY's), REEL ROTA SYNC
-                                                                                     * LVL */
+    {DEV_P[DEV_SRC], 4, {0, 1, 2, 16, 12, 13, 14, 15, 3, 7, 4, 5, 8, 9, 11, 10, 6, 17, 18, 19, 20, 21, 22, 23}},
+                                                    /* TAPE: STRT LEN SPD PTCH, the envelope, DUB GAIN XFAD REV, REEL
+                                                     * ROTA SYNC LVL (HALF, past the pages: OP6 flips it, and PTCH -12
+                                                     * is the same) */
     /* the effects open with their mix: ROUT and WET KNOB 3-4 of page 1 (SPACE: DLY and VERB, its sends), so the
      * first press of EDIT or FX can bring one in; the sound's knobs follow (2026-10-11) */
     {DEV_P[DEV_GRAIN], 6, {0, 1, 11, 4, 2, 3, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23}},
@@ -578,20 +605,21 @@ static const playout_t PLAYOUT[] = {
                                                                                  * PRE, TONE SPRD RTON QUAL, SYNC AGE
                                                                                  * DIFF DUCK, TYPE MOD (2-3, 8-11 and
                                                                                  * 16-17: the room's, SP_RMK) */
-    {SYN_P, 5, {0, 1, 2, 3, 8, 9, 10, 11, 4, 5, 6, 7, 12, 13, 15, 17, 14, 19, 21, 16, 18, 20, 22, 23}},
-                                                    /* SYNTH: OSC AMP FILTER, VOIC GLID TUNE FINE, DRV CHRD . LVL (18
-                                                     * IENV and 20 TABL: the other waves', past the pages) */
-    {SYN_FM_P, 5, {0, 1, 2, 18, 8, 9, 10, 11, 4, 5, 6, 7, 12, 13, 15, 17, 14, 3, 19, 16, 20, 21, 22, 23}},
-                                                    /* FM: WAVE RATI INDX IENV, AMP, FILTER, VOICE, DRV FDBK CHRD LVL */
-    {SYN_PD_P, 5, {0, 1, 2, 18, 8, 9, 10, 11, 4, 5, 6, 7, 12, 13, 15, 17, 14, 3, 19, 16, 20, 21, 22, 23}},
-                                                    /* PD: WAVE SHAP AMT AENV, AMP, FILTER, VOICE, DRV NOIS CHRD LVL */
-    {SYN_VX_P, 5, {0, 1, 2, 18, 8, 9, 10, 11, 4, 5, 6, 7, 12, 13, 15, 17, 14, 3, 19, 16, 20, 21, 22, 23}},
-                                                    /* VOX: WAVE VOWL SHFT VENV, AMP, FILTER, VOICE, DRV BRTH CHRD LVL */
-    {SYN_WT_P, 5, {0, 20, 1, 18, 8, 9, 10, 11, 4, 5, 6, 7, 12, 13, 15, 17, 14, 3, 19, 16, 2, 21, 22, 23}},
-                                                    /* WT: WAVE TABL POS PENV, AMP, FILTER, VOICE, DRV NOIS CHRD LVL */
-    {POL_P, 5, {0, 1, 13, 2, 4, 5, 6, 7, 8, 9, 10, 11, 16, 17, 18, 19, 3, 14, 15, 12}},   /* POLY: REEL STRT END
-                                                                                 * TUNE, ENV, FILTER, TWIN RLB TUNB
-                                                                                 * BLND, VOIC ROOT FINE LVL */
+    /* SYNTH, every wave (2026-10-13): its oscillator page, AMP, FILTER (CUT RES ENV TYPE), VOICE (VOIC GLID TUNE
+     * FINE), the wave's extras with KTRK and DRV, then CHRD . . LVL */
+    {SYN_CL_P, 6, {0, 21, 1, 2, 8, 9, 10, 11, 4, 5, 6, 23, 12, 13, 15, 17, 22, 3, 7, 14, 19, 18, 20, 16}},
+                                                    /* SYNTH: WAVE INTV DTUN MIX, .., PW NOIS KTRK DRV */
+    {SYN_FM_P, 6, {0, 1, 2, 18, 8, 9, 10, 11, 4, 5, 6, 23, 12, 13, 15, 17, 3, 7, 14, 21, 19, 20, 22, 16}},
+                                                    /* FM: WAVE RATI INDX IENV, .., FDBK KTRK DRV . */
+    {SYN_PD_P, 6, {0, 1, 2, 18, 8, 9, 10, 11, 4, 5, 6, 23, 12, 13, 15, 17, 3, 7, 14, 21, 19, 20, 22, 16}},
+                                                    /* PD: WAVE SHAP AMT AENV, .., NOIS KTRK DRV . */
+    {SYN_VX_P, 6, {0, 1, 2, 18, 8, 9, 10, 11, 4, 5, 6, 23, 12, 13, 15, 17, 3, 7, 14, 21, 19, 20, 22, 16}},
+                                                    /* VOX: WAVE VOWL SHFT VENV, .., BRTH KTRK DRV . */
+    {SYN_WT_P, 6, {0, 20, 1, 18, 8, 9, 10, 11, 4, 5, 6, 23, 12, 13, 15, 17, 3, 7, 14, 21, 19, 2, 22, 16}},
+                                                    /* WT: WAVE TABL POS PENV, .., NOIS KTRK DRV . */
+    {POL_P, 6, {0, 1, 13, 2, 20, 21, 22, 23, 4, 5, 6, 7, 8, 9, 10, 11, 16, 17, 18, 19, 3, 14, 15, 12}},
+                                                    /* POLY: REEL STRT END TUNE, LOOP LSTR LXF ., ENV, FILTER, TWIN RLB
+                                                     * TUNB BLND, VOIC ROOT FINE LVL */
     {ME_P[ME_WAVE], 4, {0, 1, 2, 3, 4, 5, 6, 7, 12, 13, 14, 15, 10, 11, 8, 9}},  /* LFO: timing, then PHAS SPRD AMT OFS */
     {ME_P[ME_SEQ], 3, {0, 1, 2, 3, 4, 5, 6, 7, 11, 8, 9, 10}},                  /* SEQ: . SPRD AMT OFS */
     {ME_P[ME_FOLLOW], 2, {0, 1, 2, 3, 4, 7, 5, 6}},                             /* FOLLOW: HOLD SPRD AMT OFS */
@@ -693,6 +721,8 @@ static const pdesc_t *dev_p(uint32_t t, uint32_t d)
                                                                                    * labels, its pages) */
         return tp[t].syn[SY_WAVE] == SY_FM ? SYN_FM_P : tp[t].syn[SY_WAVE] == SY_PD ? SYN_PD_P
              : tp[t].syn[SY_WAVE] == SY_VOX ? SYN_VX_P : SYN_WT_P;
+    if (d == DEV_SRC && tp[t].src == SRC_SYNTH)
+        return SYN_CL_P;                                 /* (the classic waves' pages: SYN_P is the storage) */
     if (d == DEV_RESO) {                                 /* (RIPPLE: its form's) */
         uint32_t m = (uint32_t)clamp(tp[t].dev[DEV_RESO][16], 0, 3);
         return m ? RS_FORM_P[m - 1u] : DEV_P[DEV_RESO];

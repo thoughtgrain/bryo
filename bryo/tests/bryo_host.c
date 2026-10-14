@@ -1659,7 +1659,7 @@ static void test_synth(void)
     let_go(B_HOME);
     p = tp[0].syn;
     check("HOME held + SELECT: track 1's source is SYNTH, its pages and name follow", tp[0].src == SRC_SYNTH &&
-          !strcmp(dev_name(0, DEV_SRC), "SYNTH") && pdesc_pages(dev_p(0, DEV_SRC)) == 5u && ui.page == 0 &&
+          !strcmp(dev_name(0, DEV_SRC), "SYNTH") && pdesc_pages(dev_p(0, DEV_SRC)) == 6u && ui.page == 0 &&
           dev_v(0, DEV_SRC) == p && !strcmp(dev_p(0, DEV_SRC)[0].label, "WAVE"));
     {
         int32_t pk = 0;
@@ -1915,8 +1915,8 @@ static void test_poly(void)
     ui_input();
     let_go(B_HOME);
     p = tp[0].pol;
-    check("HOME held + SELECT: POLY, five pages (SAMPLE ENV FILTER TWIN LEVEL), its own knobs", tp[0].src == SRC_POLY &&
-          !strcmp(dev_name(0, DEV_SRC), "POLY") && pdesc_pages(dev_p(0, DEV_SRC)) == 5u && dev_v(0, DEV_SRC) == p &&
+    check("HOME held + SELECT: POLY, six pages (SAMPLE LOOP ENV FILTER TWIN LEVEL), its own knobs", tp[0].src == SRC_POLY &&
+          !strcmp(dev_name(0, DEV_SRC), "POLY") && pdesc_pages(dev_p(0, DEV_SRC)) == 6u && dev_v(0, DEV_SRC) == p &&
           p[PL_REEL] == 1);
     {
         int32_t q = 0;
@@ -2674,8 +2674,8 @@ static void test_zoom(void)
     tp[0].pol[PL_ROOT] = 48;                               /* (white key 1: the sound's pitch) */
     focus_dev(DEV_SRC, 0);
     check("POLY's first page: REEL STRT END TUNE", !strcmp(POL_P[pdesc_at(POL_P, 2u)].label, "END") &&
-          !strcmp(POL_P[pdesc_at(POL_P, 3u)].label, "TUNE") && !strcmp(POL_P[pdesc_at(POL_P, 16u)].label, "VOIC") &&
-          !strcmp(POL_P[pdesc_at(POL_P, 12u)].label, "TWIN"));
+          !strcmp(POL_P[pdesc_at(POL_P, 3u)].label, "TUNE") && !strcmp(POL_P[pdesc_at(POL_P, 20u)].label, "VOIC") &&
+          !strcmp(POL_P[pdesc_at(POL_P, 16u)].label, "TWIN") && !strcmp(POL_P[pdesc_at(POL_P, 4u)].label, "LOOP"));
     fm1_in.notes = note_bit_of_white(0);
     render(1, 0);
     for (i = 1; i < 1378u && pol_sounding(0); i++)
@@ -3558,9 +3558,9 @@ static void test_fm(void)
     p[SY_IENV] = 0;
     p[SY_NOIS] = 0;
     focus_dev(DEV_SRC, 0);
-    check("WAVE FM: the header says FM SYNTH, page 1 is WAVE RATI INDX IENV, the last DRV FDBK . LVL, RATI 1 at 8",
+    check("WAVE FM: the header says FM SYNTH, page 1 is WAVE RATI INDX IENV, page 5 FDBK KTRK DRV, RATI 1 at 8",
           !strcmp(dev_name(0, DEV_SRC), "FM SYNTH") && dev_p(0, DEV_SRC) == SYN_FM_P &&
-          pdesc_at(SYN_FM_P, 1) == SY_DTUN && pdesc_at(SYN_FM_P, 3) == SY_IENV && pdesc_at(SYN_FM_P, 17) == SY_NOIS &&
+          pdesc_at(SYN_FM_P, 1) == SY_DTUN && pdesc_at(SYN_FM_P, 3) == SY_IENV && pdesc_at(SYN_FM_P, 16) == SY_NOIS &&
           N_RATIO[syn_ratio(8)][0] == '1' && N_RATIO[syn_ratio(8)][1] == 0 && N_RATIO[syn_ratio(100)][1] == '4');
     fm1_in.notes = note_bit_of_white(9);
     render(NB, s);
@@ -3963,9 +3963,9 @@ static void test_twin(void)
     p[PL_REEL] = 2;                                      /* A: BELL */
     p[PL_RLB] = 3;                                       /* B: DRON */
     p[PL_SUS] = 100;
-    focus_dev(DEV_SRC, 3);
-    check("POLY page 4 is TWIN RLB TUNB BLND (OFF to start; LVL still the last page's KNOB 4)",
-          pdesc_at(POL_P, 12) == PL_TWIN && pdesc_at(POL_P, 15) == PL_BLND && pdesc_at(POL_P, 19) == PL_LVL &&
+    focus_dev(DEV_SRC, 4);
+    check("POLY page 5 is TWIN RLB TUNB BLND (OFF to start; LVL still the last page's KNOB 4)",
+          pdesc_at(POL_P, 16) == PL_TWIN && pdesc_at(POL_P, 19) == PL_BLND && pdesc_at(POL_P, 23) == PL_LVL &&
           p[PL_TWIN] == TW_OFF);
     ea = tw_render(a, NB, note_bit_of_white(9));
     tw_render(m, 20, 0);
@@ -4064,12 +4064,189 @@ static void test_twin(void)
     p[PL_RLB] = 3;
     p[PL_TWIN] = TW_MIX;
     p[PL_BLND] = 40;
-    focus_dev(DEV_SRC, 3);
+    focus_dev(DEV_SRC, 4);
     ui.msg_t = 0;
     shot("BRYO", "poly_twin");
     p[PL_TWIN] = TW_OFF;
     for (j = 1; j < NTRK; j++)
         track[j].mute = 0;
+}
+
+/* ARP's GRND (2026-10-13): each step's gate at random, GATE +- GRND points */
+static void test_arp_grnd(void)
+{
+    char b[160];
+    uint32_t k, i, n0 = 0, n1 = 0, lo = 100, hi = 0;
+    int32_t g0[64], g1[64];
+    for (k = 0; k < 2u; k++) {
+        int32_t last = -1, *g = k ? g1 : g0;
+        uint32_t *nn = k ? &n1 : &n0;
+        power_on();
+        tp[0].src = SRC_SYNTH;
+        tp[0].arp[AR_MODE] = ARM_KEY;
+        tp[0].arp[AR_RATE] = 3;                          /* 1/16 */
+        tp[0].arp[AR_GATE] = 50;
+        tp[0].arp[AR_GRND] = k ? 40 : 0;
+        sys.playing = 1;
+        fm1_in.notes = note_bit_of_white(0) | note_bit_of_white(4);
+        for (i = 0; i < 4000u && *nn < 64u; i++) {
+            render(1, 0);
+            if (arp_rt[0].len && arp_rt[0].pos != (uint32_t)last) {
+                last = (int32_t)arp_rt[0].pos;
+                g[(*nn)++] = arp_rt[0].gate * 100 / arp_rt[0].len;
+            }
+        }
+        fm1_in.notes = 0;
+        sys.playing = 0;
+    }
+    for (i = 1; i < n1; i++) {
+        lo = (uint32_t)g1[i] < lo ? (uint32_t)g1[i] : lo;
+        hi = (uint32_t)g1[i] > hi ? (uint32_t)g1[i] : hi;
+    }
+    {
+        uint32_t same = 1;
+        for (i = 2; i < n0; i++)
+            same &= g0[i] == g0[1];
+        snprintf(b, sizeof b, "ARP GRND 40, GATE 50: each step's gate at random (%u%% .. %u%% over %u steps); GRND 0: all %d%%",
+                 lo, hi, n1, g0[1]);
+        check(b, same && n0 > 20u && n1 > 20u && lo >= 10u && lo < 30u && hi > 70u && hi <= 90u && g0[1] >= 48 &&
+              g0[1] <= 50);
+    }
+}
+
+/* TAPE's PTCH (2026-10-13): the speed in semitones on top of SPD */
+static void test_tape_ptch(void)
+{
+    char b[200];
+    int32_t i0, i12, i7, im12, ih;
+    power_on();
+    tp[0].dev[DEV_SRC][TK_SPD] = 100;
+    i0 = tape_inc(0);
+    tp[0].dev[DEV_SRC][TK_PTCH] = 12;
+    i12 = tape_inc(0);
+    tp[0].dev[DEV_SRC][TK_PTCH] = 7;
+    i7 = tape_inc(0);
+    tp[0].dev[DEV_SRC][TK_PTCH] = -12;
+    im12 = tape_inc(0);
+    tp[0].dev[DEV_SRC][TK_PTCH] = 0;
+    tp[0].dev[DEV_SRC][TK_HALF] = 1;
+    ih = tape_inc(0);
+    tp[0].dev[DEV_SRC][TK_HALF] = 0;
+    snprintf(b, sizeof b, "TAPE PTCH: +12 twice the speed (%d of %d), +7 a fifth (%.4f), -12 HALF's (%d, %d); page 1 STRT LEN "
+             "SPD PTCH", i12, i0, (double)i7 / i0, im12, ih);
+    check(b, i12 == 2 * i0 && fabs((double)i7 / i0 - 1.4983) < 0.001 && im12 == ih &&
+          pdesc_at(DEV_P[DEV_SRC], 3) == TK_PTCH);
+}
+
+/* POLY's LOOP (2026-10-13): a held note loops LSTR..END */
+static void test_poly_loop(void)
+{
+    enum { NB = 1400 };                                  /* ~1 s */
+    static int32_t o[NB * CTL];
+    char b[200];
+    uint32_t j, k;
+    int32_t jump[3];
+    double late[3];
+    for (k = 0; k < 3u; k++) {                           /* OFF, FWD (LXF 0, then 20), PING */
+        int16_t *p;
+        power_on();
+        for (j = 1; j < NTRK; j++)
+            track[j].mute = 1;
+        tp[0].src = SRC_POLY;
+        p = tp[0].pol;
+        p[PL_REEL] = 3;                                  /* DRON */
+        p[PL_SUS] = 100;
+        p[PL_END] = 1500;                                /* (15 %: a short sound, done well inside a second) */
+        p[PL_LSTR] = 500;
+        p[PL_LOOP] = (int16_t)k;
+        p[PL_LXF] = 20;
+        tw_render(o, NB, note_bit_of_white(9));
+        {
+            double e = 0;
+            int32_t m = 0;
+            for (j = (NB - 200u) * CTL; j < NB * CTL; j++)
+                e += (double)o[j] * o[j];
+            for (j = 2; j < NB * CTL; j++) {
+                int32_t d = abs(o[j] - 2 * o[j - 1] + o[j - 2]);
+                m = d > m ? d : m;
+            }
+            late[k] = sqrt(e / (200 * CTL));
+            jump[k] = m;
+        }
+        fm1_in.notes = 0;
+    }
+    snprintf(b, sizeof b, "POLY LOOP: OFF the note ends at END (level %.0f a second on); FWD and PING hold it (%.0f, %.0f)",
+             late[0], late[1], late[2]);
+    check(b, late[0] < 5 && late[1] > 300 && late[2] > 300);
+    snprintf(b, sizeof b, "..the loop's seams: FWD with LXF 20 ms and PING no bigger a bend than the sound's own (%d, %d)",
+             jump[1], jump[2]);
+    check(b, jump[1] < 4000 && jump[2] < 4000);
+    {
+        int16_t *p = tp[0].pol;
+        p[PL_LOOP] = LP_FWD;
+        p[PL_LSTR] = 3000;
+        p[PL_END] = 7000;
+        p[PL_STRT] = 1000;
+        focus_dev(DEV_SRC, 1);
+        ui.msg_t = 0;
+        shot("BRYO", "poly_loop");
+        check("..POLY page 2 is LOOP LSTR LXF; ENV on POLY opens page 3", pdesc_at(POL_P, 4) == PL_LOOP &&
+              pdesc_at(POL_P, 6) == PL_LXF && env_page() == 2u);
+    }
+    for (j = 1; j < NTRK; j++)
+        track[j].mute = 0;
+}
+
+/* SYNTH's INTV, PW and TYPE (2026-10-13) */
+static void test_synth_more(void)
+{
+    enum { NB = 300 };
+    static int32_t o[NB * CTL];
+    int16_t *p;
+    char b[220];
+    double f1, f5, h1, h2, h2b, lp1, hp1;
+    power_on();
+    tp[0].src = SRC_SYNTH;
+    p = tp[0].syn;
+    p[SY_WAVE] = 0;                                      /* SIN, MIX 50, osc 2 a fifth up (INTV 7, DTUN 0) */
+    p[SY_DTUN] = 0;
+    p[SY_MIX] = 50;
+    p[SY_INTV] = 7;
+    p[SY_CUT] = 127;
+    p[SY_ENV] = 0;
+    p[SY_SUS] = 100;
+    fm1_in.notes = note_bit_of_white(9);
+    render(NB, o);
+    f1 = sqrt(goertzel(o, 100 * CTL, NB * CTL, 220.0));
+    f5 = sqrt(goertzel(o, 100 * CTL, NB * CTL, 329.63));
+    snprintf(b, sizeof b, "SYNTH INTV +7: the second oscillator a fifth up (E4 %.0f beside A3 %.0f)", f5, f1);
+    check(b, f5 > f1 / 2 && f1 > 100);
+    p[SY_INTV] = 0;
+    p[SY_MIX] = 0;
+    p[SY_WAVE] = 2;                                      /* SQR: PW 50 the square (no even harmonics), PW 20 a pulse */
+    render(NB, o);
+    h1 = sqrt(goertzel(o, 100 * CTL, NB * CTL, 220.0));
+    h2 = sqrt(goertzel(o, 100 * CTL, NB * CTL, 440.0));
+    p[SY_PW] = 20;
+    render(NB, o);
+    h2b = sqrt(goertzel(o, 100 * CTL, NB * CTL, 440.0)) / (sqrt(goertzel(o, 100 * CTL, NB * CTL, 220.0)) + 1);
+    snprintf(b, sizeof b, "..PW: 50 a square (2nd %.3f of the 1st), 20 a pulse (2nd %.2f)", h2 / (h1 + 1), h2b);
+    check(b, h2 / (h1 + 1) < 0.05 && h2b > 0.3);
+    p[SY_PW] = 50;
+    p[SY_WAVE] = 3;                                      /* SAW through TYPE HP at 1.5 kHz: the fundamental down */
+    p[SY_CUT] = 80;
+    render(NB, o);
+    lp1 = sqrt(goertzel(o, 100 * CTL, NB * CTL, 220.0));
+    p[SY_FTYP] = 2;
+    render(NB, o);
+    hp1 = sqrt(goertzel(o, 100 * CTL, NB * CTL, 220.0));
+    snprintf(b, sizeof b, "..TYPE HP: the fundamental under the cutoff falls away (%.0f, LP %.0f); the page CUT RES ENV TYPE",
+             hp1, lp1);
+    check(b, hp1 < lp1 / 4 && pdesc_at(SYN_CL_P, 11) == SY_FTYP && pdesc_at(SYN_CL_P, 1) == SY_INTV &&
+          pdesc_at(SYN_CL_P, 16) == SY_PW);
+    p[SY_FTYP] = 0;
+    fm1_in.notes = 0;
+    render(NB, 0);
 }
 
 /* scenes (scene.c, 2026-10-13): the mixer's SCENES page (GLO, then EDIT): white keys 1-4 recall (held + SAVE:
@@ -7199,7 +7376,7 @@ static void test_mod(void)
     {
         static const struct { const pdesc_t *p; const char *a, *b; uint32_t away; const char *f3, *f4; } R[] = {
             /* (a b: KNOB 3-4 of the last page; f3 f4: of the first; away: knobs another pad's page shows) */
-            {DEV_P[DEV_SRC], 0, "LVL"}, {SYN_P, 0, "LVL", 1u << SY_IENV | 1u << SY_TABL}, {SYN_FM_P, 0, "LVL"}, {SYN_PD_P, 0, "LVL"},
+            {DEV_P[DEV_SRC], 0, "LVL", 1u << TK_HALF},   /* (HALF: OP6's, past the pages) */ {SYN_CL_P, 0, "LVL"}, {SYN_FM_P, 0, "LVL"}, {SYN_PD_P, 0, "LVL"},
             {SYN_VX_P, 0, "LVL"}, {SYN_WT_P, 0, "LVL"},
             {POL_P, 0, "LVL"},
             {DRM_P, 0, "LVL"},
@@ -8170,11 +8347,11 @@ static void test_key_tuning(void)
     tap(B_GLO);
     tp[0].src = SRC_POLY;
     tp[0].pol[PL_ROOT] = 48;
-    focus_dev(DEV_SRC, 4);                               /* POLY 5: VOIC ROOT FINE LVL */
+    focus_dev(DEV_SRC, 5);                               /* POLY 6: VOIC ROOT FINE LVL */
     turn(1, 9);
     turn(2, 12);
     ui.msg_t = 0;
-    snprintf(m, sizeof m, "POLY's page 5: KNOB 2 turns ROOT (C3 -> %d), KNOB 3 FINE (0 -> %d ct)", tp[0].pol[PL_ROOT],
+    snprintf(m, sizeof m, "POLY's page 6: KNOB 2 turns ROOT (C3 -> %d), KNOB 3 FINE (0 -> %d ct)", tp[0].pol[PL_ROOT],
              tp[0].pol[PL_FINE]);
     check(m, tp[0].pol[PL_ROOT] == 57 && tp[0].pol[PL_FINE] > 0);
     shot("BRYO", "poly_tuning");
@@ -10228,6 +10405,10 @@ int main(int argc, char **argv)
     test_vox();
     test_wt();
     test_twin();
+    test_arp_grnd();
+    test_tape_ptch();
+    test_poly_loop();
+    test_synth_more();
     test_sleep();
     test_color();
     test_space();

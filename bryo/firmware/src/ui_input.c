@@ -79,7 +79,7 @@ static void led_clear(uint8_t *nl, uint32_t id)
 
 /* the page of the focused track's source that ENV opens: SYNTH's AMP, POLY's ENV, TAPE's envelope (each the second
  * page), DRUM's KIT (every instrument's decay, with TUNE TONE DRV) */
-static uint32_t env_page(void) { return tp[sys.sel].src == SRC_DRUM ? 2u : 1u; }
+static uint32_t env_page(void) { return tp[sys.sel].src == SRC_DRUM || tp[sys.sel].src == SRC_POLY ? 2u : 1u; }   /* (POLY: after LOOP) */
 
 /* the pad that focuses what the screen shows */
 static uint32_t focus_btn(void)

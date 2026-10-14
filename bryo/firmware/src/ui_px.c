@@ -1037,7 +1037,8 @@ static const uint8_t DEV_PK[NDEV][NPK] = {
     {PK_START, PK_LENGTH, PK_SPEED, PK_LAYERS,       /* TAPE: STRT LEN SPD DUB */
      PK_FADE, PK_TOGGLE, PK_TOGGLE, PK_FADER,        /*       XFAD REV HALF GAIN */
      PK_SRC, PK_CLOCK, PK_FADER, PK_CLOCK,           /*       REEL ROTA LVL SYNC */
-     PK_ATTACK, PK_DECAY, PK_SUSTAIN, PK_RELEASE},   /*       ATK DEC SUS REL (its page 2: PLAYOUT) */
+     PK_ATTACK, PK_DECAY, PK_SUSTAIN, PK_RELEASE,    /*       ATK DEC SUS REL (its page 2: PLAYOUT) */
+     PK_KNOB},                                       /*       PTCH */
     {PK_SQUARE, PK_DOTS, PK_KNOB, PK_BOWTIE,         /* GRAIN: SIZE RATE PTCH SPRD */
      PK_MIX, PK_NOISE, PK_WINDOW, PK_DOTS,           /*        WET SPRY CONT REV */
      PK_PATTERN, PK_SCALE, PK_VAR, PK_ROUTE,         /*        PATN SCAL PRND ROUT */
@@ -1063,38 +1064,43 @@ static const uint8_t SYN_PK[NPK] = {
     PK_CUTOFF, PK_RES, PK_ENVAMT, PK_KTRK,           /*        CUT RES ENV KTRK */
     PK_ATTACK, PK_DECAY, PK_SUSTAIN, PK_RELEASE,     /*        ATK DEC SUS REL */
     PK_VOICES, PK_SLEW, PK_DRIVE, PK_KNOB,           /*        VOIC GLID DRV TUNE */
-    PK_FADER, PK_DETUNE, PK_ENVAMT, PK_SCALE};       /*        LVL FINE IENV CHRD */
+    PK_FADER, PK_DETUNE, PK_ENVAMT, PK_SCALE,       /*        LVL FINE IENV CHRD */
+    PK_SRC, PK_DETUNE, PK_GATE, PK_SLOPE};           /*        TABL INTV PW TYPE */
 static const uint8_t SYN_FM_PK[NPK] = {
     PK_OSC, PK_DETUNE, PK_MIX, PK_LOOP,              /* FM SYNTH: WAVE RATI INDX FDBK */
     PK_CUTOFF, PK_RES, PK_ENVAMT, PK_KTRK,           /*           CUT RES ENV KTRK */
     PK_ATTACK, PK_DECAY, PK_SUSTAIN, PK_RELEASE,     /*           ATK DEC SUS REL */
     PK_VOICES, PK_SLEW, PK_DRIVE, PK_KNOB,           /*           VOIC GLID DRV TUNE */
-    PK_FADER, PK_DETUNE, PK_ENVAMT, PK_SCALE};       /*           LVL FINE IENV CHRD */
+    PK_FADER, PK_DETUNE, PK_ENVAMT, PK_SCALE,       /*           LVL FINE IENV CHRD */
+    PK_SRC, PK_DETUNE, PK_GATE, PK_SLOPE};           /*        TABL INTV PW TYPE */
 static const uint8_t SYN_PD_PK[NPK] = {
     PK_OSC, PK_SHAPE, PK_MIX, PK_NOISE,              /* PD SYNTH: WAVE SHAP AMT NOIS */
     PK_CUTOFF, PK_RES, PK_ENVAMT, PK_KTRK,           /*           CUT RES ENV KTRK */
     PK_ATTACK, PK_DECAY, PK_SUSTAIN, PK_RELEASE,     /*           ATK DEC SUS REL */
     PK_VOICES, PK_SLEW, PK_DRIVE, PK_KNOB,           /*           VOIC GLID DRV TUNE */
-    PK_FADER, PK_DETUNE, PK_ENVAMT, PK_SCALE};       /*           LVL FINE AENV CHRD */
+    PK_FADER, PK_DETUNE, PK_ENVAMT, PK_SCALE,       /*           LVL FINE AENV CHRD */
+    PK_SRC, PK_DETUNE, PK_GATE, PK_SLOPE};           /*        TABL INTV PW TYPE */
 static const uint8_t SYN_WT_PK[NPK] = {
     PK_OSC, PK_SHAPE, PK_NONE, PK_NOISE,             /* WT SYNTH: WAVE POS . NOIS */
     PK_CUTOFF, PK_RES, PK_ENVAMT, PK_KTRK,           /*           CUT RES ENV KTRK */
     PK_ATTACK, PK_DECAY, PK_SUSTAIN, PK_RELEASE,     /*           ATK DEC SUS REL */
     PK_VOICES, PK_SLEW, PK_DRIVE, PK_KNOB,           /*           VOIC GLID DRV TUNE */
     PK_FADER, PK_DETUNE, PK_ENVAMT, PK_SCALE,        /*           LVL FINE PENV CHRD */
-    PK_SRC};                                         /*           TABL */
+    PK_SRC, PK_DETUNE, PK_GATE, PK_SLOPE};           /*           TABL INTV PW TYPE */
 static const uint8_t SYN_VX_PK[NPK] = {
     PK_OSC, PK_SHAPE, PK_DETUNE, PK_NOISE,           /* VOX SYNTH: WAVE VOWL SHFT BRTH */
     PK_CUTOFF, PK_RES, PK_ENVAMT, PK_KTRK,           /*            CUT RES ENV KTRK */
     PK_ATTACK, PK_DECAY, PK_SUSTAIN, PK_RELEASE,     /*            ATK DEC SUS REL */
     PK_VOICES, PK_SLEW, PK_DRIVE, PK_KNOB,           /*            VOIC GLID DRV TUNE */
-    PK_FADER, PK_DETUNE, PK_ENVAMT, PK_SCALE};       /*            LVL FINE VENV CHRD */
+    PK_FADER, PK_DETUNE, PK_ENVAMT, PK_SCALE,       /*            LVL FINE VENV CHRD */
+    PK_SRC, PK_DETUNE, PK_GATE, PK_SLOPE};           /*        TABL INTV PW TYPE */
 static const uint8_t POL_PK[NPK] = {
     PK_SRC, PK_START, PK_KNOB, PK_VOICES,            /* POLY: REEL STRT TUNE VOIC */
     PK_ATTACK, PK_DECAY, PK_SUSTAIN, PK_RELEASE,     /*       ATK DEC SUS REL */
     PK_CUTOFF, PK_RES, PK_SLOPE, PK_ENVAMT,          /*       CUT RES TYPE ENV */
     PK_FADER, PK_LENGTH, PK_KEYS, PK_DETUNE,         /*       LVL END ROOT FINE */
-    PK_LAYERS, PK_SRC, PK_KNOB, PK_MIX};             /*       TWIN RLB TUNB BLND */
+    PK_LAYERS, PK_SRC, PK_KNOB, PK_MIX,              /*       TWIN RLB TUNB BLND */
+    PK_LOOP, PK_START, PK_FADE};                     /*       LOOP LSTR LXF */
 static const uint8_t DRM_PK[NPK] = {
     PK_PATTERN, PK_LENGTH, PK_SWING, PK_FADER,       /* DRUM: PATN LEN SWNG ACNT */
     PK_DOTS, PK_VAR, PK_STAIRS, PK_LOOP,             /*       SEED VARY FILL EVOL */
@@ -1114,7 +1120,7 @@ static const uint8_t *dev_pk(uint32_t t, uint32_t d)
 static const uint8_t CH_PK[NCH] = {PK_SHELF_LO, PK_SHELF_HI, PK_FILTER, PK_PAN};
 static const uint8_t MS_PK[NMS] = {PK_KNOB, PK_ATTACK, PK_RELEASE, PK_MIX};   /* the master compressor */
 static const uint8_t ARP_PK[NARP] = {   /* the arpeggiator: MODE ORDR RNGE RATE, GATE SWNG */
-    PK_TOGGLE, PK_DIR, PK_VOICES, PK_CLOCK, PK_GATE, PK_SWING, PK_NONE, PK_NONE};
+    PK_TOGGLE, PK_DIR, PK_VOICES, PK_CLOCK, PK_GATE, PK_SWING, PK_VAR, PK_NONE};   /* (GRND: PK_VAR) */
 static const uint8_t KY_PK[4] = {PK_KEYS, PK_SCALE, PK_NONE, PK_NONE};   /* KEY: KEY SCAL */
 static const uint8_t SET_PK[NSET] = {PK_TOGGLE, PK_KNOB, PK_CLOCK, PK_STEPS};   /* SETUP: KEYS KNOB HOLD LEDS */
 static const uint8_t ME_PK[NME][NPK] = {   /* (in stored order: param.c's PLAYOUT places them on the pages) */

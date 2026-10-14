@@ -220,14 +220,17 @@ Stopped, a key plays its slice once.
 
 **You'll hear:** the pitch follows the speed, like a real tape.
 
+**In tune with the keys:** **KNOB 4 (PTCH)**, beside SPD, moves the speed in semitones (−24 to +24): +12 an octave
+up, +7 a fifth. SPD and PTCH multiply, so set SPD at 100 % and play PTCH like a transpose.
+
 ### 2.4 The quick ones: reverse and half speed
 
 - Black key **OP5**: the track's tape backwards, on or off.
 - Black key **OP6**: half speed, on or off.
 
-They're the same switches as REV and HALF on TAPE's page 3.
+REV is also on TAPE's page 3. Half speed is the same as PTCH −12, so it lives on OP6 only.
 
-<img src="img/tape2.png" width="240" alt="TAPE 3: XFAD REV HALF GAIN">
+<img src="img/tape2.png" width="240" alt="TAPE 3: DUB GAIN XFAD REV">
 
 ### 2.4b Shape the slices: TAPE's envelope
 
@@ -461,22 +464,23 @@ you can switch back and forth.
 Up to three notes at once. **The white keys play notes**, a semitone apart, starting from C; **OCT− / OCT+** move
 them down or up an octave.
 
-Press **HOME** again to go through its five pages:
+Press **HOME** again to go through its six pages:
 
 | Page | Knobs |
 | --- | --- |
-| 1, the oscillator | **WAVE** (SIN TRI SQR SAW PLS, and FM, PD, VOX and WT: below), **DTUN** (a second oscillator, detuned), **MIX** of the two, **NOIS** |
+| 1, the oscillators | **WAVE** (SIN TRI SQR SAW PLS, and FM, PD, VOX and WT: below), **INTV** (the second oscillator's interval in semitones: +7 a fifth, +12 an octave, −12 a sub), **DTUN** (its detune in cents, on top), **MIX** of the two |
 | 2, AMP | **ATK DEC SUS REL**: how a note starts, falls, holds and fades |
-| 3, FILTER | **CUT** (cutoff), **RES** (resonance), **ENV** (how much the envelope opens it), **KTRK** (follows the note) |
+| 3, FILTER | **CUT** (cutoff), **RES** (resonance), **ENV** (how much the envelope opens it), **TYPE** (LP, BP, HP) |
 | 4, VOICE | **VOIC** (1-3 notes), **GLID** (slides between notes), **TUNE** (semitones), **FINE** (cents) |
-| 5, LEVEL | **DRV** (drive), **CHRD** (a key plays a chord: below), **LVL** |
+| 5, MORE | **PW** (the pulse's width on SQR and PLS: modulate it for PWM), **NOIS**, **KTRK** (the cutoff follows the note), **DRV** (drive) |
+| 6, LEVEL | **CHRD** (a key plays a chord: below), **LVL** |
 
 <img src="img/synth.png" width="240" alt="SYNTH: WAVE DTUN MIX NOIS"> <img src="img/synth_filter.png" width="240" alt="SYNTH's FILTER">
 <img src="img/synth_tuning.png" width="240" alt="SYNTH's VOICE page: TUNE and FINE over a cents meter">
 
 **Try:** play a note, then turn **CUT** on the FILTER page while it sounds.
 
-**CHRD** (page 5, every wave, FM and PD too): one key plays a chord on SYNTH's three voices: **MAJ**, **MIN**,
+**CHRD** (page 6, every wave, FM and PD too): one key plays a chord on SYNTH's three voices: **MAJ**, **MIN**,
 **SUS2**, **SUS4**, **DOM7**, **MAJ7**, **MIN7** (the sevenths play root, third and seventh, the way a pianist
 leaves out the fifth), **DIM**, **AUG**, **5TH**, **OCT**. The lowest key you hold is the chord's root: press another
 key below while holding and the chord slides there without restriking; let go of everything and it releases. The
@@ -489,9 +493,9 @@ pianos, plucks and growls. The pages relabel:
 | Page | Knobs |
 | --- | --- |
 | 1, the operators | **WAVE** (FM), **RATI** (the modulator's pitch against the note's: 0.5, 1, 1.41, 1.5, 2 ... 14; whole numbers sound harmonic, 1.41 and the halves like bells), **INDX** (how hard it bends: 0 a sine, up for brighter and gnarlier), **IENV** (how far the envelope pushes INDX: up for a pluck, bright at the strike and mellower after) |
-| 5, LEVEL | **DRV**, **FDBK** (the modulator fed back into itself: a new edge, then grit, then noise), **LVL** |
+| 5, MORE | **FDBK** (the modulator fed back into itself: a new edge, then grit, then noise), **KTRK**, **DRV** |
 
-AMP, FILTER and VOICE work as on every wave (open **CUT** to hear all of it). The picture draws the wave as INDX
+AMP, FILTER, VOICE and LEVEL (CHRD, LVL) work as on every wave (open **CUT** to hear all of it). The picture draws the wave as INDX
 bends it now, and dotted as it's bent at the strike.
 
 **Try:** RATI 1, INDX 20, IENV +60, a short DEC and SUS at 0: an electric piano. RATI 3.5 or 1.41, INDX 40: a bell.
@@ -505,7 +509,7 @@ bends the more it becomes the shape you've picked. It sounds like a filter sweep
 | Page | Knobs |
 | --- | --- |
 | 1, the shape | **WAVE** (PD), **SHAP** (SAW, SQR, PLS, DSIN a double sine, SPLS a saw-pulse, and three resonant ones, RSAW RTRI RTRP), **AMT** (how far the phase bends: 0 a sine, 100 the whole shape; on the resonant shapes, how high the resonance sits), **AENV** (how far the envelope moves AMT: the CZ's sweep) |
-| 5, LEVEL | **DRV**, **NOIS**, **LVL** |
+| 5, MORE | **NOIS**, **KTRK**, **DRV** |
 
 **Try:** SAW, AMT 0, AENV +80, a medium DEC and SUS at 0: the classic CZ bass sweep. RSAW with AMT turned slowly:
 the resonant "wah" that made the CZ famous.
@@ -518,7 +522,7 @@ says **VOX SYNTH**).
 | Page | Knobs |
 | --- | --- |
 | 1, the vowel | **WAVE** (VOX), **VOWL** (A E I O U, and the sounds between), **SHFT** (every formant down or up: below 0 a bigger voice, above it a smaller one), **VENV** (how far the envelope moves the vowel: "wah", "ow") |
-| 5, LEVEL | **DRV**, **BRTH** (breath: noise through the same formants, a whisper at 100), **CHRD**, **LVL** |
+| 5, MORE | **BRTH** (breath: noise through the same formants, a whisper at 100), **KTRK**, **DRV** |
 
 **Try:** VOWL on U, VENV +50, a slow DEC: "ooh-wah". Turn on **CHRD MIN7** for a choir pad, and **RIPPLE** after it.
 
@@ -530,7 +534,7 @@ among them, morphing smoothly from one to the next (the header says **WT SYNTH**
 | Page | Knobs |
 | --- | --- |
 | 1, the table | **WAVE** (WT), **TABL** (the table: **BASC** sine, triangle, saw, square, pulse; **HARM** one harmonic swept up; **FORM** a resonance swept up; or any reel, **TAPE** included, cut into eight cycles), **POS** (where in it), **PENV** (how far the envelope moves POS) |
-| 5, LEVEL | **DRV**, **NOIS**, **CHRD**, **LVL** |
+| 5, MORE | **NOIS**, **KTRK**, **DRV** |
 
 A reel as a table: Bryo takes eight short windows evenly through it, makes each one loop, and plays them as the
 cycles of a tone, so a drum loop or a voice becomes an oscillator with its grain. Record something onto the track's
@@ -556,12 +560,20 @@ POLY plays a reel (or the track's own tape) at the pitch of each key, up to four
 
 <img src="img/poly.png" width="240" alt="POLY: REEL STRT END TUNE"> <img src="img/poly_zoom.png" width="240" alt="HOME held + STRT: zoomed in on where notes start">
 
-Its other pages: **ENV** (ATK DEC SUS REL), **FILTER** (CUT RES TYPE ENV), **TWIN** (below), **LEVEL** (VOIC ROOT FINE
-LVL).
+Its other pages: **LOOP** (below), **ENV** (ATK DEC SUS REL), **FILTER** (CUT RES TYPE ENV), **TWIN** (below),
+**LEVEL** (VOIC ROOT FINE LVL).
+
+**LOOP: hold a note as long as you like** (page 2). Without it, a note plays from STRT to END and stops. With
+**LOOP** on, a held note loops from **LSTR** (the loop's start) to **END**, and keeps looping through its release:
+
+- **FWD**: back to LSTR each time round, with **LXF** milliseconds of fade either side of the seam to hide the jump.
+- **PING**: forwards to END, backwards to LSTR, and round: seamless, good for pads and drones from short sounds.
+
+<img src="img/poly_loop.png" width="240" alt="POLY LOOP: FWD, the loop LSTR..END marked">
 
 <img src="img/poly_tuning.png" width="240" alt="POLY's last page: VOIC ROOT FINE LVL">
 
-**TWIN: two sounds in one** (page 4). Give POLY a second reel, **B** (**RLB**), and **TWIN** decides how the two
+**TWIN: two sounds in one** (page 5). Give POLY a second reel, **B** (**RLB**), and **TWIN** decides how the two
 play together:
 
 - **MIX**: both at once in every note, **BLND** the balance (0 all A, 100 all B). A piano and a pad, a pluck and a
@@ -654,6 +666,7 @@ The knobs:
 | **RATE** | how long each step is: 1/4, 1/8, 8T, 1/16, 16T, 1/32 (T is a triplet) |
 | **GATE** (page 2) | how much of each step the note sounds: short and plucky, or long |
 | **SWNG** (page 2) | pushes every other step late |
+| **GRND** (page 2) | each step's note length at random, up to GRND points either side of GATE, so the pattern breathes |
 
 **To build an endless pattern:** set MODE to **ADD**, then press keys one at a time. Each one joins the pattern and
 stays. **Hold black key POLY** (on the ARP page) to clear it and start again.

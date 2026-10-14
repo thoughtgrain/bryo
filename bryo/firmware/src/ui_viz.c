@@ -1046,8 +1046,11 @@ static void vz_filter(int32_t c, int32_t res, int32_t type, int32_t env, int32_t
 
 static void viz_synth(const int16_t *v, uint32_t f)
 {
-    uint32_t bp = ui.page >= 4u ? 4u : pdesc_at(SYN_P, 4u * ui.page) / 4u;   /* the stored block the page shows (page
-                                                                              * 5, DRV . . LVL: 4) */
+    /* what the page shows (every wave's layout alike since 2026-10-13): 0 its oscillator, 1 the filter, 2 the
+     * envelope, 3 the voices and tuning, 4 the drive's curve or the level. Page 5, the extras: the oscillator's
+     * picture (PW, NOIS, FDBK, BRTH), the filter's (KTRK) or the drive's (DRV); page 6 the level */
+    uint32_t bp = ui.page == 0u ? 0u : ui.page == 1u ? 2u : ui.page == 2u ? 1u : ui.page == 3u ? 3u
+                : ui.page == 4u ? (f == SY_DRV ? 4u : f == SY_KTRK ? 1u : 0u) : 4u;
     int32_t x, k;
     if (v[SY_WAVE] == SY_WT && bp == 0u) {             /* WT: the table's eight frames stacked back to front (each a
                                                          * step up and right), the one POS is nearest in ink, the
@@ -1168,7 +1171,9 @@ static void viz_synth(const int16_t *v, uint32_t f)
         vz_seed = 77u;
         px_line(DX0, DMID, DX1, DMID, px_dim, 2);
         for (x = DX0; x <= DX1; x++) {
-            int32_t p = (x - DX0) * 192 / DW, p2 = p + (x - DX0) * dr * 24 / (DW * 100);   /* 3 cycles; drift */
+            int32_t p = (x - DX0) * 192 / DW, p2 = p * TAPE_SEMI_Q16[clamp(v[SY_INTV], -24, 24) + 24] / 65536 +
+                                                                (x - DX0) * dr * 24 / (DW * 100);   /* 3 cycles; osc 2
+                                                                  * INTV off (TAPE's semitone table), drift */
             int32_t a = vz_osc(w, p), b2 = vz_osc(w, p2), o = (a * (100 - m2) + b2 * m2) / 100, yy;
             yy = DMID - o * (DH / 2 - 2) / 1000;
             if (x > DX0)
@@ -1180,11 +1185,24 @@ static void viz_synth(const int16_t *v, uint32_t f)
             py = yy;
         }
         vz_label(14, N_OSC[w], f == 0u);
-        vz_label(45, "DTUN", f == 1u);
-        vz_label(75, "MIX", f == 2u);
-        vz_label(105, "NOIS", f == 3u);
+        vz_label(45, "INTV", f == SY_INTV);
+        vz_label(75, "DTUN", f == SY_DTUN);
+        vz_label(105, "MIX", f == SY_MIX);
     } else if (bp == 1u) {
-        vz_filter(v[SY_CUT], v[SY_RES], 0, v[SY_ENV], v[SY_KTRK], f < NPK ? f % 4u : 0xFFu, SYN_P + 4, v + 4, 2u);
+        {                                             /* (the page's four: CUT RES ENV TYPE) */
+            static const pdesc_t *const PG[4] = {&SYN_P[SY_CUT], &SYN_P[SY_RES], &SYN_P[SY_ENV], &SYN_P[SY_FTYP]};
+            pdesc_t pg[4];
+            int16_t pv[4];
+            uint32_t j;
+            for (j = 0; j < 4u; j++)
+                pg[j] = *PG[j];
+            pv[0] = v[SY_CUT];
+            pv[1] = v[SY_RES];
+            pv[2] = v[SY_ENV];
+            pv[3] = v[SY_FTYP];
+            vz_filter(v[SY_CUT], v[SY_RES], clamp(v[SY_FTYP], 0, 2), v[SY_ENV], v[SY_KTRK],
+                      f == SY_CUT ? 0u : f == SY_RES ? 1u : f == SY_ENV ? 2u : f == SY_FTYP ? 3u : 0xFFu, pg, pv, 2u);
+        }
     } else if (bp == 2u) {
         int16_t a[NPK] = {0};
         a[0] = v[SY_ATK];
@@ -1247,9 +1265,9 @@ static void viz_synth(const int16_t *v, uint32_t f)
  * FILTER: the response, its TYPE, dotted where ENV takes it */
 static void viz_poly(const int16_t *v, uint32_t f)
 {
-    uint32_t bp = ui.page == 4u ? 3u : ui.page == 3u ? 4u : pdesc_at(POL_P, 4u * ui.page) / 4u;   /* the stored block
-                                                                  * the page shows (page 4, TWIN: 4; page 5, VOIC ROOT
-                                                                  * FINE LVL: 3) */
+    uint32_t bp = ui.page == 5u ? 3u : ui.page == 4u ? 4u : ui.page == 1u ? 5u : pdesc_at(POL_P, 4u * ui.page) / 4u;
+                                                    /* the stored block the page shows (2, LOOP: 5; 5, TWIN: 4; 6, VOIC
+                                                     * ROOT FINE LVL: 3) */
     static const char NOTE[12][3] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
     int32_t x, k;
     if (bp == 0u && ui.zoom && (f == PL_STRT || f == PL_END)) {   /* HOME held + STRT or END: the zoom on that edge */
@@ -1310,6 +1328,36 @@ static void viz_poly(const int16_t *v, uint32_t f)
         a[3] = v[PL_REL];
         a[10] = 100;
         viz_adsr(a, f >= 4u && f < 8u ? f - 4u : 0xFFu);
+    } else if (bp == 5u) {                            /* LOOP: the sound, STRT and the loop LSTR..END marked, arrows
+                                                         * at its ends the way it runs (FWD: back to LSTR; PING: both
+                                                         * ways), the seam's fade as a slope */
+        tape_view_t vw;
+        uint32_t lpm = (uint32_t)clamp(v[PL_LOOP], 0, LP_PING);
+        int32_t sx = DX0 + v[PL_STRT] * DW / 10000, lx = DX0 + v[PL_LSTR] * DW / 10000, ex = DX0 + v[PL_END] * DW / 10000;
+        int32_t mid = 11;
+        tape_view_of(sys.sel, (uint32_t)clamp(v[PL_REEL], 0, (int32_t)(NREEL + USLOT_N)), &vw);
+        for (x = DX0; x <= DX1; x++) {
+            uint32_t blk = vw.len ? (uint32_t)(x - DX0) * (vw.len / TAPE_BLK) / (uint32_t)(DW + 1) : 0;
+            int32_t a = vw.len ? (int32_t)tv_peak(&vw, blk) * 9 / 255 : 0;
+            px_box(x, mid - a, 1, 2 * a + 1, lpm && x >= lx && x <= ex ? px_ink : px_dim);
+        }
+        px_box(sx, DY0, 1, 22, px_dim);
+        if (lpm && ex > lx) {
+            px_box(lx, DY0, 1, 24, px_ink);
+            px_box(ex, DY0, 1, 24, px_ink);
+            px_line(lx, 24, ex, 24, px_ink, 1);
+            px_line(lx, 24, lx + 3, 22, px_ink, 1);         /* (the arrow back to LSTR) */
+            px_line(lx, 24, lx + 3, 26, px_ink, 1);
+            if (lpm == LP_PING) {
+                px_line(ex, 24, ex - 3, 22, px_ink, 1);
+                px_line(ex, 24, ex - 3, 26, px_ink, 1);
+            }
+        }
+        if (!vw.len)
+            px_text_c(0, 120, mid - 2, PXF_3, "EMPTY", px_ink);
+        vz_label(14, N_LOOP[lpm], f == PL_LOOP);
+        vz_label(45, "LSTR", f == PL_LSTR);
+        vz_label(75, lpm == LP_FWD ? "LXF" : "", f == PL_LXF);
     } else if (bp == 4u) {                            /* TWIN: reel A over reel B, each as loud as the balance
                                                          * gives it (MIX: BLND; XFD: across the keys; ALT, RND: each
                                                          * a note's), the mode named */
