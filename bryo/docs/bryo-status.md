@@ -189,24 +189,26 @@ this count can't see the inlining, the target can); then resting on silence (Tie
 playing runs 2 to 3 more for the silence scans); then RIPPLE 4 (2026-10-13: DRV 25 on by default, a cubic on every
 string every sample, about 15 a string: run 15 4,633 to 5,005 with sixteen strings, run 19 1,632 to 1,679; run 25
 now modulates RIPL and DRV among its 128 depths; and the checkpoint harness resets the master's states, the rooms
-and the shedding caps between runs, so every run is its own, which moved a few by a handful):
+and the shedding caps between runs, so every run is its own, which moved a few by a handful); then the day of 2026-10-14 (the bass drum's longer body, the resonators every sample, the
+cents loop, TRAN and BODY at 0; and the other session's CHRONOS and RIPPLE forms pulled in between: the two can't be
+told apart in these numbers):
 
 | Run | What | Cost |
 | --- | --- | ---: |
-| 1 | four reels, nothing on | 978 |
-| 19 | a realistic four-track groove | 1,679 |
-| 24 | the groove, modulated the way I'd play it | 1,878 (83 of it the modulators) |
-| 21 | the groove's busiest moment | 2,538 |
-| 23 | GRAIN at its densest on one track | 2,973 |
-| 25 | every slot on every track, 128 depths | 2,663 (470 of it the modulators) |
-| 26 | DRUM busy alone (FUNK, VARY 100, FILL 100, long decays), the others plain reels | 1,309 |
-| 27 | the groove with a DRUM track in place of its drum reel | 1,894 |
-| 28 | four DRUM tracks at once, every voice (20) | 2,335 |
-| 15 | everything on, all four tracks | 5,005 |
-| 29 | the busiest groove's devices all on, the transport stopped (what "nothing playing" costs) | 633 |
-| 30 | one track heard (dense grains, strings with RIPL ARP, a room), the other three muted | 2,238 |
-| 31 | the factory scene as it boots | 2,608 (119 of it the modulators) |
-| 32 | TEST, the project view's scene: every stage at work | 2,790 |
+| 1 | four reels, nothing on | 1,007 |
+| 19 | a realistic four-track groove | 1,747 |
+| 24 | the groove, modulated the way I'd play it | 1,950 (86 of it the modulators) |
+| 21 | the groove's busiest moment | 2,621 |
+| 23 | GRAIN at its densest on one track | 3,030 |
+| 25 | every slot on every track, 128 depths | 2,766 (480 of it the modulators) |
+| 26 | DRUM busy alone (FUNK, VARY 100, FILL 100, long decays), the others plain reels | 1,348 |
+| 27 | the groove with a DRUM track in place of its drum reel | 1,971 |
+| 28 | four DRUM tracks at once, every voice (20) | 2,408 |
+| 15 | everything on, all four tracks | 5,169 |
+| 29 | the busiest groove's devices all on, the transport stopped (what "nothing playing" costs) | 668 |
+| 30 | one track heard (dense grains, strings with RIPL ARP, a room), the other three muted | 2,302 |
+| 31 | the factory scene as it boots | 2,718 (123 of it the modulators) |
+| 32 | TEST, the project view's scene: every stage at work | 2,900 |
 
 My target for a realistic four-track scene is 2,000. The first device reading (run 1, 2026-10-10: 25 %, in 5 % steps)
 puts the ratio at about 37.6 host instructions a sample per percent, if the load scales with the host's count: the

@@ -2746,6 +2746,15 @@ past the audit's 3 s window (a two-bar loop at 120 BPM is 4 s).
 maracas are bright (energy to 17 kHz), the bass drum sits low for a small speaker. The cymbal takes 9 s to ring out
 at its designed decay. The patterns aren't saved yet (phase 8, with everything else).
 
+### The day's load (2026-10-14)
+
+The suite's count after the bass drum, the resonators, page 5, TRAN and BODY (and the pull's CHRONOS and RIPPLE
+forms, which these numbers can't separate): run 1 978 -> 1,007, 19 1,679 -> 1,747, 15 5,005 -> 5,169, 25 2,663 ->
+2,766, 29 633 -> 668, 30 2,238 -> 2,302, 31 2,608 -> 2,718. The scene's cache simulation 2,999 -> 3,077, divides
+1.74 -> 1.79 a sample (the cents loop's divide a string a block went in and came out again the same day). TRAN and
+BODY cost nothing at 0; the kick's body rings longer, so its voice is live longer; the resonators run every sample
+in their forms only.
+
 ### BODY, a partial a grain (2026-10-14)
 
 "The body of the grains still doesn't follow each grain and just sounds like an overall tone." It was one

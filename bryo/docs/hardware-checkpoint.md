@@ -166,6 +166,11 @@ under the address and undefined-behaviour sanitizers).
 | 30 | 2,652 | 71 % (was 85 %) | | |
 | 31 | 3,100 (the factory scene, measured as in the note of 2026-10-11 below; 2,831 the other way) | 75 % (was 81 %) | | |
 
+Measured again on 2026-10-14 (the bass drum's longer body, the resonators every sample, TRAN and BODY at 0, and
+the other session's CHRONOS and RIPPLE forms pulled in between): run 1 1,007, 15 5,169, 19 1,747, 25 2,766, 29 668,
+30 2,302, 31 2,718. The -Os cache simulation of the factory scene reads 3,077 (2,999 the day before), 1.79 divides
+a sample.
+
 Measured again on 2026-10-13 after RIPPLE 4 (MODE DRV RIPL, DRV 25 on by default: a cubic on every string every
 sample) and the harness resetting the master, the rooms and the shedding caps between runs: run 1 978, 15 5,005
 (sixteen strings), 19 1,679, 25 2,663, 29 633, 30 2,238, 31 2,608. The -Os cache simulation of the factory scene
