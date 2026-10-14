@@ -23,6 +23,7 @@ The rest of the hardware checkpoint (`docs/hardware-checkpoint.md`) is under way
 | 2 TAPE + reels | done: ADPCM tapes, factory reels, slices, REC and overdub, clear and undo |
 | 3 USB audio in + SYNTH + POLY | done: the USB record mode, the SYNTH and POLY sources |
 | 3b GRAIN, 3c memory by usage | done: the live buffer, one grain pool shared by demand; tapes that grow, TRACKS, REC IN |
+| TRAN (2026-10-14) | a 3 ms click at every note or hit on SYNTH, POLY and DRUM (NPK 28: SYNTH's storage was full) |
 | RIPPLE page 5 (2026-10-14) | PLVL (a pluck's level), SPRD (detune or spacing), EVEN (odd against even partials), MODE as a knob |
 | RIPPLE's RESO and 12-BAND (2026-10-14) | the bands' input scaled by their loss, every sample: no clamp, no block-rate buzz |
 | DRUM's BD (2026-10-14) | more body, a thump and a click; a restruck voice fades over a block instead of clicking |

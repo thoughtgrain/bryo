@@ -52,7 +52,8 @@ enum { MA_SYN = NDEV, MA_POL, MA_DRM, MA_CH, MA_DIN0, MOD_NARR = MA_DIN0 + 4 }; 
  * everything a dense table of every slot x target would (2,624 bytes of mostly zeros, plus as much again for MONO's
  * undo) in 97 bytes a track; and sorted, the same depths are always the same bytes (the project's fingerprint) */
 typedef struct {
-    uint8_t s, g;                    /* slot, target */
+    uint8_t s;                       /* slot */
+    uint16_t g;                      /* target (past 255 since NPK 28, 2026-10-14) */
     int8_t d;                        /* depth, % */
 } mod_dep_t;
 typedef struct {
@@ -113,7 +114,7 @@ static int mod_dep_set(uint32_t t, uint32_t s, uint32_t g, int32_t v)
     for (j = L->n; j > i; j--)                           /* a new one, in its place */
         L->e[j] = L->e[j - 1u];
     L->e[i].s = (uint8_t)s;
-    L->e[i].g = (uint8_t)g;
+    L->e[i].g = (uint16_t)g;
     L->e[i].d = (int8_t)v;
     L->n++;
     return 0;
@@ -133,8 +134,9 @@ static inline uint32_t mod_fine_of(uint32_t a, uint32_t k)
 }
 
 typedef struct {                     /* a depth, ready for the ISR */
-    uint8_t slot, arr, k, tgt;       /* from slot (bits 0..3; bits 4..7: the knob as a fine one, FN_*), to knob k of array
-                                      * arr (target tgt) */
+    uint8_t slot, arr, k;            /* from slot (bits 0..3; bits 4..7: the knob as a fine one, FN_*), to knob k of array
+                                      * arr */
+    uint16_t tgt;                    /* the target (past 255 since NPK 28, 2026-10-14) */
     int16_t lo, hi;                  /* the knob's range */
     int32_t fq;                      /* depth x range, scaled: (out >> 3) x fq >> 19 is the move at out (Q15) */
 } mod_ent_t;
@@ -213,7 +215,7 @@ static void mod_rebuild(uint32_t t)
         e->slot = (uint8_t)(s | mod_fine_of(a, k) << 4);
         e->arr = (uint8_t)a;
         e->k = (uint8_t)k;
-        e->tgt = (uint8_t)g;
+        e->tgt = (uint16_t)g;
         e->lo = d->min;
         e->hi = d->max;
         e->fq = mdl[t].e[i].d * (d->max - d->min) * 1280 / 1000;   /* (2^22 / (100 x 32767) = 1.28) */
@@ -324,7 +326,8 @@ typedef struct {
     uint32_t gen;
     int32_t add;                     /* the depths' full swing in the knob's units */
     int16_t lo, hi;
-    uint8_t g, ok;
+    uint16_t g;
+    uint8_t ok;
 } mod_pk_t;
 static mod_pk_t mod_pk[NTRK][4];
 static uint8_t mod_pk_next[NTRK];
@@ -356,7 +359,7 @@ static int32_t mod_peak_dev(uint32_t t, uint32_t dev, uint32_t k)
         c->add = span * (d->max - d->min) / 100;
         c->lo = d->min;
         c->hi = d->max;
-        c->g = (uint8_t)g;
+        c->g = (uint16_t)g;
         c->gen = mod_gen[t];
         c->ok = 1;
     }

@@ -50,6 +50,8 @@ typedef struct {
     int32_t gi;                  /* FM: the index last block, 0..1024; PD: the bend, 0..16384 (the next block ramps
                                   * from it) */
     uint32_t age;                /* when its note started (the oldest is stolen first) */
+    uint32_t tr;                 /* TRAN: the click's samples left (dsp.c click_step) */
+    int32_t trng, tlp;           /* .. its noise and its low-pass */
     uint8_t key, stage;          /* the white key; 0 silent, 1 attack, 2 decay and sustain, 3 release */
 } syn_voice_t;
 
@@ -258,6 +260,10 @@ static void syn_start(uint32_t t, uint32_t k, uint32_t nv)
     v->to16 = note;
     v->p16 = glide && s->last16 ? s->last16 : note;
     s->last16 = note;
+    v->tr = TPD(t, MA_SYN)[SY_TRAN] > 0 ? CLICK_N : 0u;   /* (TRAN: a click at every start, legato aside) */
+    v->tlp = 0;
+    if (!v->trng)
+        v->trng = 0x3C6EF372 + (int32_t)(t * 104729u + k);
 }
 
 /* PD: the voice's sample at phase ph, the bend d (0..16384: 0 a sine, 16384 the whole shape), shape sh (N_PDSH);
@@ -323,6 +329,8 @@ static void syn_voice(uint32_t t, syn_voice_t *v, int32_t *out, uint32_t n)
     uint32_t wave = (uint32_t)p[SY_WAVE], i, inc1, inc2, ph0 = v->ph[0], ph1 = v->ph[1];
     int32_t e15, a0 = v->amp, a1, cut, m2 = p[SY_MIX] * 327, m1 = 32767 - m2, nz = p[SY_NOIS] * 254;
     int32_t drv = p[SY_DRV], dg = (100 + 2 * drv) * 4096 / 100, ic1 = v->ic1, ic2 = v->ic2, nst = v->nst, pp;
+    uint32_t tr = v->tr;                                    /* (TRAN's click: into s before the filter) */
+    int32_t trng = v->trng, tlp = v->tlp, tg = clamp(p[SY_TRAN], 0, 100) * 327;
     uint32_t ft, pw;
     switch (v->stage) {                                     /* the envelope: one step per block (as Felucca's) */
     case 1:
@@ -384,6 +392,8 @@ static void syn_voice(uint32_t t, syn_voice_t *v, int32_t *out, uint32_t n)
                     s += mulq15((int32_t)(noise32(&nst) >> 17) - 16384, nz);
                 if (drv)
                     s = softclip((s * dg) >> 12);
+                if (tr)
+                    s += click_step(&tr, &trng, &tlp, tg);
                 y = (ft ? tsvf_mode(&flt, s >> 1, &ic1, &ic2, ft) : tsvf_lp(&flt, s >> 1, &ic1, &ic2));
                 k = y < 0 ? -y : y;
                 if (k > 16000) {
@@ -419,7 +429,9 @@ static void syn_voice(uint32_t t, syn_voice_t *v, int32_t *out, uint32_t n)
             s <<= 1;
             if (drv)
                 s = softclip((s * dg) >> 12);
-            y = (ft ? tsvf_mode(&flt, s >> 1, &ic1, &ic2, ft) : tsvf_lp(&flt, s >> 1, &ic1, &ic2));
+            if (tr)
+                    s += click_step(&tr, &trng, &tlp, tg);
+                y = (ft ? tsvf_mode(&flt, s >> 1, &ic1, &ic2, ft) : tsvf_lp(&flt, s >> 1, &ic1, &ic2));
             k = y < 0 ? -y : y;
             if (k > 16000) {
                 k = 16000 + (softclip((k - 16000) * 2) >> 1);
@@ -446,7 +458,9 @@ static void syn_voice(uint32_t t, syn_voice_t *v, int32_t *out, uint32_t n)
                 s += mulq15((int32_t)(noise32(&nst) >> 17) - 16384, nz);
             if (drv)
                 s = softclip((s * dg) >> 12);
-            y = (ft ? tsvf_mode(&flt, s >> 1, &ic1, &ic2, ft) : tsvf_lp(&flt, s >> 1, &ic1, &ic2));
+            if (tr)
+                    s += click_step(&tr, &trng, &tlp, tg);
+                y = (ft ? tsvf_mode(&flt, s >> 1, &ic1, &ic2, ft) : tsvf_lp(&flt, s >> 1, &ic1, &ic2));
             k = y < 0 ? -y : y;
             if (k > 16000) {
                 k = 16000 + (softclip((k - 16000) * 2) >> 1);
@@ -476,7 +490,9 @@ static void syn_voice(uint32_t t, syn_voice_t *v, int32_t *out, uint32_t n)
             s = a;
             if (drv)
                 s = softclip((s * dg) >> 12);
-            y = (ft ? tsvf_mode(&flt, s >> 1, &ic1, &ic2, ft) : tsvf_lp(&flt, s >> 1, &ic1, &ic2));
+            if (tr)
+                    s += click_step(&tr, &trng, &tlp, tg);
+                y = (ft ? tsvf_mode(&flt, s >> 1, &ic1, &ic2, ft) : tsvf_lp(&flt, s >> 1, &ic1, &ic2));
             k = y < 0 ? -y : y;
             if (k > 16000) {
                 k = 16000 + (softclip((k - 16000) * 2) >> 1);
@@ -519,7 +535,9 @@ static void syn_voice(uint32_t t, syn_voice_t *v, int32_t *out, uint32_t n)
             s += mulq15((int32_t)(noise32(&nst) >> 17) - 16384, nz);
         if (drv)                                            /* drive: up to 3x into the soft clip */
             s = softclip((s * dg) >> 12);
-        y = (ft ? tsvf_mode(&flt, s >> 1, &ic1, &ic2, ft) : tsvf_lp(&flt, s >> 1, &ic1, &ic2));             /* linear to half scale, then a soft knee */
+        if (tr)
+                    s += click_step(&tr, &trng, &tlp, tg);
+                y = (ft ? tsvf_mode(&flt, s >> 1, &ic1, &ic2, ft) : tsvf_lp(&flt, s >> 1, &ic1, &ic2));             /* linear to half scale, then a soft knee */
         k = y < 0 ? -y : y;
         if (k > 16000) {
             k = 16000 + (softclip((k - 16000) * 2) >> 1);
@@ -530,6 +548,9 @@ static void syn_voice(uint32_t t, syn_voice_t *v, int32_t *out, uint32_t n)
     v->ph[0] = ph0;
     v->ph[1] = ph1;
     v->ic1 = ic1;
+    v->tr = tr;
+    v->trng = trng;
+    v->tlp = tlp;
     v->ic2 = ic2;
     v->nst = nst;
     v->amp = a1;

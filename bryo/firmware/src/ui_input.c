@@ -1332,7 +1332,7 @@ static void ui_input(void)
     if (ui.scn_key && !((white_keys(fm1_in.notes) >> (ui.scn_key - 1u)) & 1u)) {   /* a scene's key let go: a tap
                                                                                  * recalls it */
         uint32_t n = ui.scn_key - 1u;
-        char m[32] = "SCENE ";
+        char m[40] = "SCENE ";                           /* (33 with " IS EMPTY: HOLD IT + SAVE": 32 overflowed) */
         ui.scn_key = 0;
         scn_morph_end();
         m[6] = (char)('1' + n);

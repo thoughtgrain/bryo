@@ -68,6 +68,7 @@ typedef struct {
     uint16_t level;                                      /* 100: as designed (up to 400: +12 dB) */
     uint8_t accent;                                      /* 0..127: up to +4 dB, more on the hit */
     uint8_t drive;                                       /* 0..127, added to the patch's */
+    uint8_t tran;                                        /* 0..127: TRAN, a click on top of every hit (dsp.c) */
 } dk_knobs_t;
 
 typedef struct {                                         /* a patch under its knobs, ready to run */
@@ -85,6 +86,7 @@ typedef struct {                                         /* a patch under its kn
     uint8_t filt, late, nm, pad;                         /* nm: metal squares in use */
     int32_t drive, dcomp;                                /* Q12; Q15 */
     int32_t out;                                         /* Q12 */
+    int32_t gtran;                                       /* the click's level, Q15 (0: none) */
 } dk_coef_t;
 
 typedef struct {
@@ -95,6 +97,8 @@ typedef struct {
     int32_t qbody, qtail;                                /* Q30 */
     int32_t s1, s2;                                      /* the filter */
     int32_t rng;
+    uint32_t tr;                                         /* the click's samples left */
+    int32_t trng, tlp;
 } dk_voice_t;
 
 /* the metal: square-wave ratios (Q12). The cluster's are spread so no two land near a simple interval (a clang,
@@ -184,6 +188,7 @@ static void HOT_CODE dk_setup(dk_coef_t *c, const dk_patch_t *p, const dk_knobs_
     /* LEVEL and the accent (1 + 0.6 a: +4 dB) */
     c->out = (int32_t)((uint32_t)p->gain * (k->level < 400u ? k->level : 400u) / 100u);
     c->out += (c->out * acc * 77) >> 14;
+    c->gtran = (int32_t)k->tran * 32767 / 127;
 }
 
 /* ----------------------------------------------------------------------- the voice --- */
@@ -202,6 +207,8 @@ static void HOT_CODE dk_strike(const dk_coef_t *c, dk_voice_t *v)
     v->qtail = v->tail_on && c->filt != DK_OFF ? 1 << 30 : 0;
     v->left = c->bursts;
     v->gap_n = c->gap;
+    v->tr = c->gtran ? CLICK_N : 0u;
+    v->trng = 0x7A5B1C3D;
 }
 
 static void dk_trigger(dk_voice_t *v) { v->trig = 1; }
@@ -325,6 +332,13 @@ static void HOT_CODE dk_run(const dk_coef_t *c, dk_voice_t *v, int32_t *out, uin
         case DK_BAND: dk_noise_loop(c, v, y, n, c->nm ? m : 0, at, dt, 1u); break;
         default: dk_noise_loop(c, v, y, n, c->nm ? m : 0, at, dt, 2u); break;
         }
+    }
+    if (v->tr) {                                         /* TRAN: the click on top, before DRIVE */
+        uint32_t tr = v->tr;
+        int32_t trng = v->trng, tlp = v->tlp;
+        for (i = 0; i < n && tr; i++)
+            y[i] += click_step(&tr, &trng, &tlp, c->gtran);
+        v->tr = tr, v->trng = trng, v->tlp = tlp;
     }
     if (c->drive != 4096)                                /* DRIVE */
         for (i = 0; i < n; i++)

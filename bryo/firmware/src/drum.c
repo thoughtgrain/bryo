@@ -79,6 +79,7 @@ static void drm_knobs_default(dk_knobs_t *k)
     k->level = 100;
     k->accent = 0;
     k->drive = 0;
+    k->tran = 0;
 }
 
 /* ------------------------------------------------------------------- the written rhythms --- */
@@ -529,6 +530,7 @@ static void HOT_CODE drm_strike(uint32_t t, const int16_t *p, uint32_t i, uint32
     k.level = (uint16_t)(db_q10(clamp(in[DIN_LVL], -24, 6)) * (soft ? 45 : 100) / 1024);
     k.accent = (uint8_t)(acc ? clamp(p[DM_ACNT], 0, 100) * 127 / 100 : 0);
     k.drive = (uint8_t)(clamp(p[DM_DRV], 0, 100) * 127 / 100);
+    k.tran = (uint8_t)(clamp(p[DM_TRAN], 0, 100) * 127 / 100);
     dk_setup(&r->c[j], &DRM_KIT[i], &k);
     dk_trigger(&r->v[j]);
     r->inst[j] = (uint8_t)i;

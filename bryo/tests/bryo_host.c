@@ -3534,6 +3534,55 @@ static void test_reso_pluck(void)
 }
 
 static double goertzel(const int32_t *x, uint32_t from, uint32_t to, double hz);   /* (below, with SPACE's tests) */
+
+/* TRAN (2026-10-14): a 3 ms click of noise at every note or hit on SYNTH, POLY and DRUM, in front of their filters;
+ * 0 (the default) is the source as it was, bit for bit */
+static double tran_hf(uint32_t src, int32_t tran)       /* the first 3 ms' energy at 5 kHz, a note's start */
+{
+    static int32_t s[5 * CTL];
+    power_on();
+    tp[0].src = (uint8_t)src;
+    if (src == SRC_SYNTH) {
+        tp[0].syn[SY_TRAN] = (int16_t)tran;
+        tp[0].syn[SY_CUT] = 127;                         /* (the filter open: it shapes the click, in front of it) */
+    }
+    else if (src == SRC_POLY)
+        tp[0].pol[PL_TRAN] = (int16_t)tran;
+    else
+        tp[0].drm[DM_TRAN] = (int16_t)tran;
+    sys.playing = src == SRC_DRUM;
+    focus_dev(DEV_SRC, 0);                               /* (the keys reach the source on its page) */
+    ui_input();
+    render(2, 0);
+    if (src == SRC_DRUM)
+        drm_strike(0, tp[0].drm, 7, 0, 0);               /* (the claves: no noise of their own) */
+    else
+        fm1_in.notes = note_bit_of_white(9);
+    render(5, s);
+    fm1_in.notes = 0;
+    return goertzel(s, 0, CLICK_N, 5000);
+}
+static void test_tran(void)
+{
+    static const char *const NM[3] = {"SYNTH", "POLY", "DRUM"};
+    static const uint32_t SRCS[3] = {SRC_SYNTH, SRC_POLY, SRC_DRUM};
+    uint32_t i;
+    char b[160];
+    for (i = 0; i < 3u; i++) {
+        double off = tran_hf(SRCS[i], 0), on = tran_hf(SRCS[i], 100);
+        snprintf(b, sizeof b, "TRAN 100 on %s: a note's first 3 ms carry a click (energy at 5 kHz %.0f against %.0f at 0)",
+                 NM[i], on, off);
+        check(b, on > 3 * off + 100);
+    }
+    check("..TRAN's knob: SYNTH's every wave table, POLY, DRUM (page 5 with LVL last); 0 by default",
+          !strcmp(SYN_P[SY_TRAN].label, "TRAN") && !strcmp(SYN_FM_P[SY_TRAN].label, "TRAN") &&
+          !strcmp(SYN_WT_P[SY_TRAN].label, "TRAN") && !strcmp(POL_P[PL_TRAN].label, "TRAN") &&
+          !strcmp(DRM_P[DM_TRAN].label, "TRAN") && !SYN_P[SY_TRAN].def && !POL_P[PL_TRAN].def && !DRM_P[DM_TRAN].def &&
+          pdesc_at(DRM_P, 19u) == DM_LVL && pdesc_at(DRM_P, 16u) == DM_TRAN && pdesc_at(POL_P, 7u) == PL_TRAN &&
+          pdesc_at(SYN_CL_P, 21u) == SY_TRAN && pdesc_at(SYN_FM_P, 19u) == SY_TRAN);
+    power_on();
+}
+
 /* SYNTH's FM (2026-10-13): WAVE FM, a modulator sine bending a carrier's phase. A3 held (220 Hz), the filter open:
  * INDX 0 a sine; INDX up, the harmonics; RATI 2, the odd ones only (the sidebands at 220 +- 2 x 220 k); IENV, bright
  * at the strike and mellower after; FDBK more again */
@@ -8025,7 +8074,11 @@ static void test_drum(void)
     ui_input();
     let_go(B_SAVE);
     check("SAVE held: it comes back, edits and all", tp[0].dpat[0][1] == (1u << DI_BD) && (tp[0].dpat[1][2] & (1u << DI_SD)));
-    press(B_HOME);                                       /* PATTERN: PATN over the edited pattern, SAVE undoes it */
+    press(B_HOME);                                       /* TRAN (page 5, 2026-10-14), then PATTERN: PATN over the
+                                                          * edited pattern, SAVE undoes it */
+    check("HOME again past STEP: TRAN (TRAN . . LVL), DRUM's fifth page", ui.page == 4u &&
+          ui_page(0, (int16_t **)&p) == &DRM_P[DM_TRAN] && ui_page(3, (int16_t **)&p) == &DRM_P[DM_LVL]);
+    press(B_HOME);
     turn(0, 1);
     check("PATN over an edited pattern: FUNK, and the edit kept for SAVE", tp[0].drm[DM_PATN] == 2 &&
           drm_undo_buf.valid && !strcmp(ui.msg, "FUNK WRITTEN. HOLD SAVE: UNDO"));
@@ -10502,6 +10555,7 @@ int main(int argc, char **argv)
     test_sync();
     test_grain_clicks();
     test_reso();
+    test_tran();
     test_reso_pluck();
     test_ripple_forms();
     test_scenes();

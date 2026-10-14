@@ -2746,6 +2746,28 @@ past the audit's 3 s window (a two-bar loop at 120 BPM is 4 s).
 maracas are bright (energy to 17 kHz), the bass drum sits low for a small speaker. The cymbal takes 9 s to ring out
 at its designed decay. The patterns aren't saved yet (phase 8, with everything else).
 
+### TRAN: a transient on SYNTH, POLY and DRUM (2026-10-14)
+
+"I'd like to be able to add a transient to every engine except for tape." One generator (`dsp.c click_step`): 3 ms
+(132 samples) of noise falling linearly, through a one-pole low-pass at about 9 kHz, at the knob's level (up to
+about -4 dBFS at the start), about 8 instructions a sample while it lasts and nothing after. Each voice keeps a
+counter, a noise state and the filter's state; a note's start (`syn_start`, `pol_start`) or a hit's strike
+(`dk_strike`) loads the counter, and the voice's loop adds the click into its sample before its own filter, so
+CUT shapes it (open, a click; low, a thump). SYNTH's five oscillator loops and POLY's four all carry the one line
+(`if (tr) s += click_step(...)`); DRUM adds it to the voice's sum before DRIVE. 0, the default, is every source as
+it was, bit for bit (the fingerprints did not move).
+
+**Where the knob lives.** SYNTH's storage (`SYN_P`) was full at 24: every wave's table had an empty slot but not
+the same one, and the slot is shared when the wave changes. So `NPK` went 24 to 28 (seven pages of four at most),
+which is the same storage format (an array is written to its last labelled knob) and the same modulation
+numbering, but the targets pass 255: `mod_dep_t.g`, `mod_ent_t.tgt` and the peak cache's `g` are 16 bits now
+(the depth list grows 32 x 3 bytes a track). TRAN is SYNTH's stored 24, shown in each wave's empty position (the
+classic waves' LEVEL page, CHRD TRAN . LVL; FM PD VOX WT's MORE page); POLY's stored 23, on the LOOP page (LOOP
+LSTR LXF TRAN); DRUM's stored 16 on a fifth page, TRAN . . LVL, LVL moved there from STEP so a source's LVL stays
+KNOB 4 of its last page and STEP stays page 4 (the gesture the manual teaches: HOME held + key 4). DRUM got a
+layout row for it. Tested: TRAN 100 puts three times the energy at 5 kHz into a note's first 3 ms on each of the
+three (the claves on DRUM, which have no noise of their own), and the knob sits where the layout says.
+
 ### The bass drum's body, and a restrike's click (2026-10-14)
 
 From playing it: "the bass drum is still very soft and needs more body, and is crackling with other audio; it

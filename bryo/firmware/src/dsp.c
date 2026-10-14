@@ -124,6 +124,20 @@ static inline __attribute__((always_inline)) int32_t tsvf_mode(const tsvf_t *c, 
     return mode == 1u ? v1 : mode == 2u ? in - ((c->k * v1) >> 12) - v2 : v2;
 }
 
+/* TRAN, a transient (SYNTH, POLY, DRUM, 2026-10-14): 3 ms of noise that falls as it goes, through a one-pole low-pass
+ * at about 9 kHz (bright, not harsh), at level g (Q15: up to about -4 dBFS at the start, so it can stand out of a
+ * sound at its own level). n counts the samples left (CLICK_N at a note's start), rng and lp are its noise and its
+ * filter; the caller adds the result where the source's own filter can shape it. About 8 instructions a sample
+ * while it lasts, nothing after */
+#define CLICK_N 132u
+static inline __attribute__((always_inline)) int32_t click_step(uint32_t *n, int32_t *rng, int32_t *lp, int32_t g)
+{
+    int32_t x = (int32_t)(noise32(rng) >> 17) - 16384, e = (int32_t)*n * 248;   /* (132 x 248: full at the start) */
+    (*n)--;
+    *lp += ((x - *lp) * 24000) >> 15;
+    return (((*lp * e) >> 15) * g) >> 14;
+}
+
 /* x / 2^k rounded toward zero, as `/` rounds, without the divide: the target compiler keeps a signed division by a
  * constant as a hardware divide, even a power of two (x86 at -Os does too, so the host counts them). For the
  * per-sample paths; a plain >> k rounds toward minus infinity, which a decaying tail never leaves (-1 >> k is -1) */

@@ -43,6 +43,8 @@ typedef struct {
     int32_t pos2, inc2, tn16b;   /* .. B's head, its step, the pitch it was worked out from */
     uint8_t dir, dir2;           /* LOOP PING: the head (and B's) running backward */
     uint8_t wrapped;             /* LOOP FWD: the head has come round the seam once (the fade-in at LSTR is due) */
+    uint32_t tr;                 /* TRAN: the click's samples left (dsp.c click_step) */
+    int32_t trng, tlp;           /* .. its noise and its low-pass */
 } pol_voice_t;
 #define POL_ENDF 6u              /* END's fade, blocks (4.4 ms: one block, 0.7 ms, stepped when END was modulated) */
 
@@ -154,6 +156,10 @@ static void HOT_CODE pol_start(uint32_t t, uint32_t k, uint32_t nv, uint32_t len
     v->dir = v->dir2 = 0;
     v->wrapped = 0;
     v->note = (uint8_t)key_snap(clamp((int32_t)key_base[t] + (int32_t)k, 0, 127));   /* (the project's scale) */
+    v->tr = TPD(t, MA_POL)[PL_TRAN] > 0 ? CLICK_N : 0u;   /* (TRAN: a click at every start) */
+    v->tlp = 0;
+    if (!v->trng)
+        v->trng = 0x2545F491 + (int32_t)(t * 7919u + k);
     v->tok = 0;
     pol_tune(t, v);
     v->key = (uint8_t)k;
@@ -171,6 +177,8 @@ static void HOT_CODE pol_voice(uint32_t t, pol_voice_t *v, tape_rd_t *rd, const 
     const int16_t *p = TPD(t, MA_POL);
     uint32_t i, mode = (uint32_t)clamp(p[PL_TYPE], 0, 2);
     int32_t a0 = v->amp, a1, e15, pos = v->pos, ic1 = v->ic1, ic2 = v->ic2, c8;
+    uint32_t tr = v->tr;                                    /* (TRAN's click: into x before the filter) */
+    int32_t trng = v->trng, tlp = v->tlp, tg = clamp(p[PL_TRAN], 0, 100) * 327;
     switch (v->stage) {                                     /* the envelope, a step per block (as SYNTH's) */
     case 1:
         v->env += (int32_t)ENV_LIN[p[PL_ATK] & 127];
@@ -262,12 +270,17 @@ static void HOT_CODE pol_voice(uint32_t t, pol_voice_t *v, tape_rd_t *rd, const 
                         v->dir = 0;
                     }
                 }
+                if (tr)
+                    x += click_step(&tr, &trng, &tlp, tg);
                 y = filt ? tsvf_mode(&v->flt, x >> 1, &ic1, &ic2, mode) << 1 : x;
                 out[i] += mulq15(y, a0 + ((da * (int32_t)i) >> CTL_LOG2));
             }
             v->pos = pos;
             v->pos2 = pos2;
             v->ic1 = ic1;
+    v->tr = tr;
+    v->trng = trng;
+    v->tlp = tlp;
             v->ic2 = ic2;
             v->amp = a1;
             return;
@@ -295,7 +308,9 @@ static void HOT_CODE pol_voice(uint32_t t, pol_voice_t *v, tape_rd_t *rd, const 
             int32_t x = mulq15(tape_read(vw, rd, pos), ga) + mulq15(tape_read(vwb, rdb, pos2), gb);
             pos += v->inc;
             pos2 += v->inc2;
-            y = filt ? tsvf_mode(&v->flt, x >> 1, &ic1, &ic2, mode) << 1 : x;
+            if (tr)
+                    x += click_step(&tr, &trng, &tlp, tg);
+                y = filt ? tsvf_mode(&v->flt, x >> 1, &ic1, &ic2, mode) << 1 : x;
             out[i] += mulq15(y, a0 + ((da * (int32_t)i) >> CTL_LOG2));
         }
         v->pos2 = pos2;
@@ -308,6 +323,8 @@ static void HOT_CODE pol_voice(uint32_t t, pol_voice_t *v, tape_rd_t *rd, const 
                 int32_t o = (pos >> 12) - base, a = rd->s[o], b = rd->s[o + 1];
                 int32_t x = a + (((b - a) * (pos & 4095)) >> 12);
                 pos += v->inc;
+                if (tr)
+                    x += click_step(&tr, &trng, &tlp, tg);
                 y = filt ? tsvf_mode(&v->flt, x >> 1, &ic1, &ic2, mode) << 1 : x;
                 out[i] += mulq15(y, a0 + ((da * (int32_t)i) >> CTL_LOG2));
             }
@@ -315,6 +332,8 @@ static void HOT_CODE pol_voice(uint32_t t, pol_voice_t *v, tape_rd_t *rd, const 
             for (i = 0; i < n; i++) {
                 int32_t x = tape_read(vw, rd, pos);
                 pos += v->inc;
+                if (tr)
+                    x += click_step(&tr, &trng, &tlp, tg);
                 y = filt ? tsvf_mode(&v->flt, x >> 1, &ic1, &ic2, mode) << 1 : x;
                 out[i] += mulq15(y, a0 + ((da * (int32_t)i) >> CTL_LOG2));
             }
@@ -322,6 +341,9 @@ static void HOT_CODE pol_voice(uint32_t t, pol_voice_t *v, tape_rd_t *rd, const 
     }
     v->pos = pos;
     v->ic1 = ic1;
+    v->tr = tr;
+    v->trng = trng;
+    v->tlp = tlp;
     v->ic2 = ic2;
     v->amp = a1;
 }

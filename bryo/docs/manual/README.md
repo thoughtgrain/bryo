@@ -473,12 +473,17 @@ Press **HOME** again to go through its six pages:
 | 3, FILTER | **CUT** (cutoff), **RES** (resonance), **ENV** (how much the envelope opens it), **TYPE** (LP, BP, HP) |
 | 4, VOICE | **VOIC** (1-3 notes), **GLID** (slides between notes), **TUNE** (semitones), **FINE** (cents) |
 | 5, MORE | **PW** (the pulse's width on SQR and PLS: modulate it for PWM), **NOIS**, **KTRK** (the cutoff follows the note), **DRV** (drive) |
-| 6, LEVEL | **CHRD** (a key plays a chord: below), **LVL** |
+| 6, LEVEL | **CHRD** (a key plays a chord: below), **TRAN** (a click at every note's start: below), **LVL** |
 
 <img src="img/synth.png" width="240" alt="SYNTH: WAVE DTUN MIX NOIS"> <img src="img/synth_filter.png" width="240" alt="SYNTH's FILTER">
 <img src="img/synth_tuning.png" width="240" alt="SYNTH's VOICE page: TUNE and FINE over a cents meter">
 
 **Try:** play a note, then turn **CUT** on the FILTER page while it sounds.
+
+**TRAN** (page 6 on the classic waves, page 5 on FM, PD, VOX and WT; POLY's LOOP page and DRUM's fifth page have it
+too): a transient, 3 ms of bright noise at the start of every note or hit, as loud as the knob says. It goes in
+front of the source's filter, so CUT shapes it: open, a click; low, a thump. It gives a soft sound an edge, a pad a
+pick, a kit more attack through the small speaker. 0 is the sound as it was.
 
 **CHRD** (page 6, every wave, FM and PD too): one key plays a chord on SYNTH's three voices: **MAJ**, **MIN**,
 **SUS2**, **SUS4**, **DOM7**, **MAJ7**, **MIN7** (the sevenths play root, third and seventh, the way a pianist
@@ -550,7 +555,8 @@ POLY plays a reel (or the track's own tape) at the pitch of each key, up to four
 1. Switch the track to **POLY** (hold HOME, turn SELECT).
 2. **KNOB 1 (REEL)** picks the sound. **STRT** moves where in it each note starts, **END** where it stops, **TUNE**
    shifts the pitch. Hold **HOME** and turn STRT or END to zoom in on that edge, as on TAPE
-   ([2.2](#22-make-the-loop-shorter)). **VOIC**, how many notes at once, is on the last page with LVL.
+   ([2.2](#22-make-the-loop-shorter)). **VOIC**, how many notes at once, is on the last page with LVL. **TRAN**
+   (page 2, with LOOP) adds a click at every note's start ([5.2](#52-synth-a-small-synth)).
    With the mixer's SCAL on, the keys stay in its scale ([3.6](#36-key-the-projects-key-and-scale)).
 3. Play the white keys.
 4. **Tune the sound** on the last page: **ROOT** is the note the sound was recorded at (that key plays it as it
@@ -597,6 +603,9 @@ play together:
 
 **The white keys play the kit**, left to right: bass drum, snare, clap, rim shot, low conga, low bongo, high bongo,
 claves, cowbell, maracas, tambourine, guiro, hi-hat, open hat, metal beat, cymbal.
+
+DRUM's fifth page (HOME again past STEP) holds **TRAN**, a click on top of every hit
+([5.2](#52-synth-a-small-synth)), and **LVL**, the track's level of the kit.
 
 ### 5.5 DRUM: let it play like a drummer
 
