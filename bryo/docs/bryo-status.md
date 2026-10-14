@@ -23,6 +23,7 @@ The rest of the hardware checkpoint (`docs/hardware-checkpoint.md`) is under way
 | 2 TAPE + reels | done: ADPCM tapes, factory reels, slices, REC and overdub, clear and undo |
 | 3 USB audio in + SYNTH + POLY | done: the USB record mode, the SYNTH and POLY sources |
 | 3b GRAIN, 3c memory by usage | done: the live buffer, one grain pool shared by demand; tapes that grow, TRACKS, REC IN |
+| DRUM's BD (2026-10-14) | more body, a thump and a click; a restruck voice fades over a block instead of clicking |
 | 4 RIPPLE (RESONATOR until 2026-10-13) | done: four strings, keys set the root; MODE STRG COMB BANK, DRV, RIPL (2026-10-13) |
 | 5 COLOR + CHRONOS | done |
 | 6 Mixer + routing | done: channel strips (LOW HIGH FILT PAN), master compressor; routing is REC IN |

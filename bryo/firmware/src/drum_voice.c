@@ -275,9 +275,15 @@ static void HOT_CODE dk_run(const dk_coef_t *c, dk_voice_t *v, int32_t *out, uin
     static const uint32_t KB_CHOKE = 40265u;             /* dk_kslow(1500): a 1.5 ms release */
     uint32_t i, j;
     int32_t ab, db, at, dt, m[CTL], y[CTL];
-    int tone, noise;
-    if (v->trig)
+    int tone, noise, fade = 0;
+    if (v->trig && !v->live)
         dk_strike(c, v);
+    else if (v->trig)                                    /* struck while it rings (its own instrument again, or the
+                                                          * oldest voice taken): this block fades what rings to 0,
+                                                          * the strike starts the next (0.7 ms). Restarted from rest
+                                                          * at the block's edge, the tail jumped to 0: a click on
+                                                          * every repeated kick (2026-10-14, "crackling") */
+        fade = 1;
     if (!v->live)                                        /* (nothing to add) */
         return;
     if (!v->tail_on && !v->left) {                       /* the last burst struck: the tail starts */
@@ -323,7 +329,10 @@ static void HOT_CODE dk_run(const dk_coef_t *c, dk_voice_t *v, int32_t *out, uin
     if (c->drive != 4096)                                /* DRIVE */
         for (i = 0; i < n; i++)
             y[i] = (softclip((clamp(y[i], -65535, 65535) * c->drive) >> 12) * c->dcomp) >> 15;
+    if (fade)                                            /* (the old hit out, a line down the block) */
+        for (i = 0; i < n; i++)
+            y[i] = (y[i] * (int32_t)(n - 1u - i)) >> CTL_LOG2;
     for (i = 0; i < n; i++)                              /* (into the kit's mix: no pass of its own in drm_block) */
         out[i] += soft_knee((clamp(y[i], -65535, 65535) * (c->out >> 1)) >> 11, 16384);   /* (out up to ~42000) */
-    v->live = v->qbody > DK_QUIET || v->qtail > DK_QUIET || v->ehit > 4 || v->left || !v->tail_on;
+    v->live = !fade && (v->qbody > DK_QUIET || v->qtail > DK_QUIET || v->ehit > 4 || v->left || !v->tail_on);
 }

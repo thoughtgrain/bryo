@@ -18,9 +18,11 @@ enum {
  *       NOISE: filt cut q16 mset mp16 metal rise10 hit_ms hit_lv bursts gap10 late tail_ms tail_lv,
  *       drive gain chokes */
 static const dk_patch_t DRM_KIT[DRM_NINST] = {
-    /* bass drum: a 58 Hz sine that drops 2.5 semitones in its first few ms, a soft 2nd harmonic, a felt thud */
-    {"BD", 543, 8192, 22, 40, 6, 110, 127,
-     DK_LOW, 1331, 11, DK_M_NONE, 0, 0, 0, 2, 25, 0, 0, 0, 2, 0, 30, 3779, 0},
+    /* bass drum: a 58 Hz sine that drops 4.5 semitones over its first 15 ms (the thump), a 2nd harmonic for the
+     * small speaker, a 200 ms body, a click of low noise at the strike, driven a little (2026-10-14: it was a 110 ms
+     * body with a 2.5-semitone drop over 6 ms and a faint thud, "very soft, needs more body") */
+    {"BD", 543, 8192, 32, 72, 14, 200, 127,
+     DK_LOW, 1395, 11, DK_M_NONE, 0, 0, 0, 3, 70, 0, 0, 0, 2, 0, 42, 7000, 0},
     /* snare: two shell tones (190 Hz, x1.72) under a band of noise at 4.5 kHz, a quick snap on top */
     {"SD", 871, 7045, 70, 16, 5, 45, 75,
      DK_BAND, 1748, 11, DK_M_NONE, 0, 0, 0, 4, 70, 0, 0, 0, 95, 110, 10, 2644, 0},

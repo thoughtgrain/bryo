@@ -2719,6 +2719,22 @@ past the audit's 3 s window (a two-bar loop at 120 BPM is 4 s).
 maracas are bright (energy to 17 kHz), the bass drum sits low for a small speaker. The cymbal takes 9 s to ring out
 at its designed decay. The patterns aren't saved yet (phase 8, with everything else).
 
+### The bass drum's body, and a restrike's click (2026-10-14)
+
+From playing it: "the bass drum is still very soft and needs more body, and is crackling with other audio; it
+clips on the transient I think". I measured before touching it (`tests/bryo_host.c drum_hit`, and the kick through
+the whole chain): the BD peaked at -7 dBFS alone and -10 in the mix, so nothing clipped; its body was a 110 ms time
+constant with a 2.5-semitone drop over 6 ms, which is why it was soft. The crackle was something else: a hit on an
+instrument whose voice still rings (its own voice again, or the oldest taken) restarted that voice from rest at the
+block's edge, `dk_strike` zeroing phases and envelopes, so the tail jumped to 0. At eighths the BD's tail was still
+at -20 dB when it was struck again: a click on every repeated kick, louder the longer the decay (DUB's DECY 30 made
+it worse). `dk_run` now fades a ringing voice to exactly 0 over the block a strike arrives in (a line down 32
+samples) and strikes at the next, 0.7 ms later than before; the step round a restrike is under 2,500 where it was
+the tail's whole level. The BD patch: a 4.5-semitone drop over 15 ms (the thump), a 200 ms body, the second
+harmonic a little up for the small speaker, a 3 ms click of low noise at the strike, a little more drive, and 5.4 dB
+more gain: -3 dBFS alone, -8 in the mix. DUB's DM_LVL went -7 to -10 to stay within 3 dB of the defaults
+(`test_tpfactory`). Every fingerprint with a kick in it moved, on purpose.
+
 ## Consistency review: sources, devices, modulators (2026-10-10)
 
 I went through every page (the descriptor tables in `param.c`), every gesture (`controls.tsv`, `ui_input.c`) and

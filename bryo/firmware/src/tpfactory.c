@@ -86,7 +86,7 @@ static const tpf_set_t TPF_DUB_S[] = {
     {MA_DRM, DM_DECY, 30}, {MA_DRM, DM_TONE, -20}, {MA_DRM, DM_SEED, 7}, {MA_DRM, DM_VARY, 50},
     {MA_DRM, DM_FILL, 40}, {DEV_SPACE, SP_DLY, 35}, {DEV_SPACE, SP_TIME, 370}, {DEV_SPACE, SP_FDBK, 55},
     {DEV_SPACE, SP_VERB, 20}, {DEV_SPACE, SP_TONE, -30}, {DEV_COLOR, CP_DRIV, 25}, {DEV_COLOR, CP_TILT, -20},
-    {MA_DRM, DM_LVL, -7},
+    {MA_DRM, DM_LVL, -10},                               /* (-7 until the bass drum got its body, 2026-10-14) */
     {TPF_S(0), 0, 48}};
 static const tpf_dep_t TPF_DUB_D[] = {{0, DEV_SPACE, SP_FDBK, 15}};
 

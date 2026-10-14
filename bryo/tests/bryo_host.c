@@ -7638,6 +7638,7 @@ static uint32_t drum_hit(uint32_t i, uint32_t acc, uint32_t choke_at, int32_t *o
 static void test_drum_voices(void)
 {
     static int32_t a[44100 * 12], b[44100 * 12];
+    char m[160];
     uint32_t i, rings = 1, quiet = 1, nodc = 1, same = 1, louder = 1, k, n, nb, choked;
     int32_t pk, pkb;
     for (i = 0; i < DRM_NINST; i++) {
@@ -7658,6 +7659,35 @@ static void test_drum_voices(void)
     check("DRUM: each of the 16 instruments rings out to silence within 4 s", rings);
     check("..peaks between -18 and -0.8 dBFS, without DC, the same every hit", quiet && nodc && same);
     check("..and an accent makes every one louder", louder);
+    {   /* a hit on a voice still ringing: the old tail fades over one block, the new hit starts the next; it
+         * used to restart from rest at the block's edge, the tail jumping to 0 (a click on every repeated kick) */
+        dk_knobs_t kn;
+        dk_coef_t c;
+        dk_voice_t v;
+        int32_t step = 0, last = 0, y[CTL];
+        uint32_t b, j;
+        drm_knobs_default(&kn);
+        dk_setup(&c, &DRM_KIT[0], &kn);
+        memset(&v, 0, sizeof v);
+        dk_trigger(&v);
+        for (b = 0; b < 140u; b++) {                     /* 100 ms of the first kick, then the second */
+            if (b == 138u)
+                dk_trigger(&v);
+            for (j = 0; j < CTL; j++)
+                y[j] = 0;
+            dk_run(&c, &v, y, CTL);
+            for (j = 0; j < CTL; j++) {
+                if (b >= 137u && abs(y[j] - last) > step)
+                    step = abs(y[j] - last);
+                last = y[j];
+            }
+            if (b == 138u)
+                check("..struck again while it rings: the block fades the old tail to exactly 0, the voice not yet restarted",
+                      y[CTL - 1] == 0 && !v.live && v.trig);
+        }
+        snprintf(m, sizeof m, "..and the biggest sample-to-sample step round the second strike is %d (under 2500: no click)", step);
+        check(m, step < 2500 && v.live);
+    }
     n = drum_hit(DI_OH, 0, ~0u, a, 44100u * 12u, &pk);
     choked = drum_hit(DI_OH, 0, CTL * 20u, a, 44100u * 12u, &pk);
     check("the open hat rings past half a second; choked (HH, MB) it stops within 25 ms",
