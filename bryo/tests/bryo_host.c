@@ -4471,6 +4471,27 @@ static void test_ripple_forms(void)
         snprintf(b, sizeof b, "12-BAND: noise in sorted into the chord (A C# E, A5: the 9th band), %.0f of 12 bands lit", pk);
         check(b, ok && pk == 12);
     }
+    {   /* a tone at a band's pitch, held: it builds up a few times and no further, with nothing at the block rate
+         * round it (2026-10-14: the input was scaled by the loss x 4 against a gain of 2^20 / loss at resonance, so
+         * a held tone built up thousands of times into a hard clamp, and the loss came off once a block, a 6 %
+         * step at DEC 0: "glitches when played through") */
+        double at, lo, hi, in;
+        p[RP_DEC] = 60;
+        for (k = 0; k < NB; k++) {
+            for (i = 0; i < CTL; i++)
+                l[i] = r[i] = (int32_t)(8000 * sin(2 * M_PI * 220 * (k * CTL + i) / 44100.0));
+            reso_block(0, l, r, 0u, 1, -1, CTL);
+            for (i = 0; i < CTL; i++)
+                s[k * CTL + i] = l[i];
+        }
+        at = sqrt(goertzel(s, 300 * CTL, NB * CTL, 220));
+        in = sqrt(goertzel(s, 300 * CTL, NB * CTL, 220)) / 4000.0;   /* (over the tone's own amplitude, 8000 / 2) */
+        lo = goertzel(s, 300 * CTL, NB * CTL, 220 + 1378.125);
+        hi = goertzel(s, 300 * CTL, NB * CTL, 1378.125);
+        snprintf(b, sizeof b, "..a 220 Hz tone held through it at DEC 60: %.1f x its level (2 to 10), under full scale, "
+                 "nothing at the block rate (%.0f dB down)", in, 10 * log10((lo + hi + 1) / (at * at + 1)));
+        check(b, in > 2 && in < 10 && peak_of(s, NB * CTL) < 32000 && (lo + hi) < at * at / 1000);
+    }
     reso_cap = 2u;                                       /* shed to two chunks: six bands */
     RF_RUN(0u, 1, s);
     for (k = 6, i = 0; k < RS_NB; k++)

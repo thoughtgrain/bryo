@@ -23,7 +23,7 @@
 
 #define RS_N 4u                      /* strings a track */
 #define RS_NB 12u                    /* BANK's bands (three a string's chunk: shedding takes them three at a time) */
-#define RS_BANK_TOP (120 * 16)       /* BANK: no band above C9 (8.4 kHz: it runs at half rate, 22.05 kHz) */
+#define RS_BANK_TOP (120 * 16)       /* BANK: no band above C9 (8.4 kHz) */
 #define RS_LEN (sizeof(mem_chunk_t) / 2u)   /* a string's delay line: a chunk as samples (1,056) */
 enum { RP_PTCH, RP_DEC, RP_TONE, RP_WET, RP_CUT, RP_RES, RP_SLOP, RP_SCAL, RP_ROUT, RP_PICK, RP_STRM, RP_VARY,
        RP_AMODE, RP_AORD, RP_ARNG, RP_ARAT, RP_MODE, RP_DRV, RP_RIPL, RP_KEYS };   /* (12-15: its arpeggio; 16: its
@@ -376,7 +376,8 @@ static void HOT_CODE reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t key
         int filt = c8 < 127 << 8 || p[RP_RES] || slope;
         /* the input's share, by the root string's ring: less as the ring gets longer, so a long DEC rings louder but
          * not without bound (the loop clamps besides); applied as the input is read, not in a pass of its own */
-        int32_t in = clamp((32768 - rs_gain(rs_period_q8(root16) >> 8, t60)) * 16, 4096, 16384);
+        int32_t in = mode >= RM_RESO ? 16384              /* (the resonators scale their own input by their loss) */
+                   : clamp((32768 - rs_gain(rs_period_q8(root16) >> 8, t60)) * 16, 4096, 16384);
         int32_t ic1 = R->ic1, ic2 = R->ic2, any = 0;    /* (the filter's state in locals across the block) */
         if (filt) {
             for (i = 0; i < n; i++)
@@ -426,27 +427,30 @@ static void HOT_CODE reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t key
     if (mode >= RM_RESO) {                               /* the resonators: each partial a band (below), DEC its
                                                          * ring (the same ms as a string's), TONE a tilt over the
                                                          * bands (the picture's), a pluck a burst of noise into it.
-                                                         * The track feeds it scaled by the ring's loss (as the
-                                                         * strings' input share: a long ring builds up, not without
-                                                         * bound). RESO: four bands, every sample; BANK: twelve, at
-                                                         * half rate (a step a pair of samples, the pair's sum in,
-                                                         * the output stepped halfway between: two strings' work) */
-        uint32_t tone = (uint32_t)clamp(p[RP_TONE], 0, 100), half = mode == RM_BANK;
-        int32_t gb = rs_gain(CTL, t60), dq = 32768 - gb, ins = clamp(dq * 4, 2048, 16384);
-        int32_t tstep = (100 - (int32_t)tone) * (half ? 3 : 9);
+                                                         * RESO: four bands; BANK: twelve. Both every sample
+                                                         * (2026-10-14: BANK ran at half rate with its output stepped
+                                                         * between, images of the top bands up to 13 kHz: "glitches
+                                                         * when played through") */
+        uint32_t tone = (uint32_t)clamp(p[RP_TONE], 0, 100), rt;
+        int32_t gb = rs_gain(CTL, t60), dq = 32768 - gb, sq;   /* (the ring's loss a block, Q15; a sample's is
+                                                                * dq / 2^20) */
+        int32_t tstep = (100 - (int32_t)tone) * (mode == RM_BANK ? 3 : 9);
+        for (rt = 0, i = 1u << 7; i; i >>= 1)           /* (the square root of the loss: the input's scale) */
+            if ((rt | i) * (rt | i) <= (uint32_t)dq)
+                rt |= i;
+        sq = 12 * (int32_t)rt;
         for (k = 0; k < nstr; k++) {
-            int32_t n16 = root16 + rs_part16(sc, k), tilt = 1000 - (int32_t)k * tstep, rc = R->rc[half ? k / 3u : k];
+            int32_t n16 = root16 + rs_part16(sc, k), tilt = 1000 - (int32_t)k * tstep, rc = R->rc[mode == RM_BANK ? k / 3u : k];
             uint32_t inc, burst = R->burst[k];
-            int32_t th, th2, eps, eq, sh = 14, s1 = R->bs1[k], s2 = R->bs2[k], by = R->by[k], last = R->lp[k], gain;
+            int32_t th, th2, eps, eq, sh = 14, s1 = R->bs1[k], s2 = R->bs2[k], by = R->by[k], last = 0, gain, blv;
             int32_t *acc = k & 1u ? acc_o : acc_e;
-            if (tilt <= 0 || (half && n16 > RS_BANK_TOP)) {   /* (tilted away, or past the top: silent) */
+            if (tilt <= 0 || n16 > RS_BANK_TOP) {        /* (tilted away, or past the top: silent) */
                 R->bs1[k] = R->bs2[k] = R->lp[k] = 0;
                 R->burst[k] = 0;
                 R->lvl[k] = 0;
                 continue;
             }
             inc = rc ? cents_inc(clamp(n16, 29 * 16, 2047), rc, 0) : pitch_inc((uint32_t)clamp(n16, 29 * 16, 2047));
-            inc <<= half;                               /* (a step two samples long: twice the turn) */
             th = (int32_t)((inc >> 16) * 1608u) + (int32_t)((((inc >> 8) & 255u) * 1608u) >> 8);   /* 2 pi f / fs,
                                                                                                    * Q24 */
             th2 = (th >> 12) * (th >> 12);              /* (th^2, then th^3: Q24, under 2^25) */
@@ -457,37 +461,32 @@ static void HOT_CODE reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t key
             while ((eps >> (14 - sh)) >= 32768 && sh)   /* (eps in 15 bits: the shift takes the rest) */
                 sh--;
             eq = eps >> (14 - sh);
-            gain = half ? tilt << 4 : tilt << 5;        /* (Q15, near enough; BANK's twelve at half each) */
-            if (!half)
-                last = 0;
-            for (i = 0; i < n; i += 1u + half) {
-                int32_t x = ((half ? e[i] + e[i + 1] : e[i]) * ins) >> 15, y;
-                if (burst) {                            /* (a period of noise, an eighth of a string's: the
-                                                         * resonator stores it, so that lands near full scale) */
+            gain = tilt << 5;                           /* (Q15: TONE's tilt, 1.0 at the top) */
+            blv = R->blv[k];
+            for (i = 0; i < n; i++) {
+                int32_t x = e[i];
+                if (burst) {                            /* (a period of noise: the resonator stores it) */
                     int32_t nz = (int32_t)(noise32(&R->rng) >> 17) - 16384;
                     by += (R->pa * (nz - by)) >> 15;
-                    x += (by * R->blv[k]) >> (18 - half);
-                    burst = burst > half ? burst - 1u - half : 0u;
+                    s1 += (by * blv) >> 8;
+                    burst--;
                 }
-                /* the resonator: a rotation of (s1, s2) by th a step, the "magic circle" (area-preserving: the
+                /* the resonator: a rotation of (s1, s2) by th a sample, the "magic circle" (area-preserving: the
                  * second step uses the first's result), the states Q23 so the small steps keep their precision.
-                 * Products stay under 2^31: |s| < 2^26 (the clamp), eq < 2^15, the state read 10 bits down */
+                 * The track goes in scaled by the square root of the loss, so a tone held at a band's pitch builds
+                 * up about 3 x at DEC 60 as heard (1 x at 0, 8 x at 100) and noise keeps one level whatever the ring (it built
+                 * up 2^20 / dq, thousands of times, into a hard clamp: the glitch of 2026-10-14); the loss comes
+                 * off one state a sample (the rotation shares it out: twice a block's, halved). Products stay
+                 * under 2^31: eq < 2^15, the state read 10 bits down, |s1| clamped at 2^26 (a pluck's burst on a
+                 * tone could pass it) */
                 s1 += ((s2 >> 10) * eq) >> sh;
                 s2 -= ((s1 >> 10) * eq) >> sh;
-                s1 += x << 8;
+                s1 += (x * sq) >> 8;
+                s1 -= ((s1 >> 10) * dq) >> 9;
                 s1 = s1 > (1 << 26) ? 1 << 26 : s1 < -(1 << 26) ? -(1 << 26) : s1;
-                s2 = s2 > (1 << 26) ? 1 << 26 : s2 < -(1 << 26) ? -(1 << 26) : s2;
-                y = ((s2 >> 8) * gain) >> 15;
-                if (half) {
-                    acc[i] += (last + y) >> 1;
-                    acc[i + 1] += y;
-                } else {
-                    acc[i] += y;
-                }
-                last = y;
+                last = ((s2 >> 8) * gain) >> 15;
+                acc[i] += last;
             }
-            s1 -= ((s1 >> 10) * dq) >> 5;              /* (the ring's loss, once a block: 2^-(32 x 9.97 / (44.1 t60))) */
-            s2 -= ((s2 >> 10) * dq) >> 5;
             R->bs1[k] = s1;
             R->bs2[k] = s2;
             R->by[k] = by;

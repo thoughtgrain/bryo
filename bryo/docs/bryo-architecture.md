@@ -1208,6 +1208,19 @@ seconds. The first try drew each string's wave on its own, spreading from the no
 strings' waves over each other and over the curve were a mess, above all with a chord's nodes three dots apart. On
 the curve it's one line that comes alive.
 
+**The resonators' input, and their rate (2026-10-14).** "The 12-band resonator is creating glitches when played
+through." Three faults, all in the loop I wrote the day before. The input went in scaled by the loss times four,
+against a gain at resonance of 2^20 over the loss: a tone held at a band's pitch built up thousands of times into
+the hard clamp at 2^26, and the clamp is the glitch. The loss came off once a block, a 6 % step at DEC 0 (a buzz
+at the block rate, 1,378 Hz, on anything sustained). And 12-BAND ran at half rate with its output stepped between
+samples, which puts images of the top bands up to 13 kHz. Now: both forms run every sample; the loss comes off one
+state a sample (the rotation shares it out); the track goes in scaled by the square root of the loss, so a tone at
+a band's pitch builds up about 3 x at DEC 60 (1 x at 0, 8 x at 100) and noise keeps one level whatever the ring,
+and the strings' input share (`in`, an eighth at a long DEC) no longer applies on top. The clamp stays on one
+state for a pluck's burst on a held tone. Tested: a 220 Hz tone held through 12-BAND at DEC 60 comes out 2.6 x,
+under full scale, with nothing at the block rate (-63 dB). Cost: about 15 a band a sample, 180 for 12-BAND's
+twelve (about 5 % of the FM-1, in that form only).
+
 **Defaults.** TONE 60 -> 45 (the brightness the request was about), DRV 25. Both change the factory scene's sound
 on purpose; the fingerprints were rewritten. **Cost**: the scene went from 2,924 to 2,999 instructions a sample
 (about 2 % of the FM-1): the cubic, on four strings every sample; the loop's own path costs one branch more with
