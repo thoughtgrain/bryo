@@ -47,13 +47,14 @@
       <nav aria-label="Main">
         <ul class="menu__list">
           <li><a href="./#instrument"><span>01</span>Instrument</a></li>
-          <li><a href="./#chain"><span>02</span>The chain</a></li>
-          <li><a href="./#sources"><span>03</span>Sources</a></li>
-          <li><a href="./#arps"><span>04</span>Arpeggiators</a></li>
-          <li><a href="./#scenes"><span>05</span>Scenes</a></li>
-          <li><a href="./#specs"><span>06</span>Specs</a></li>
-          <li><a href="./#get"><span>07</span>Get it</a></li>
-          <li><a href="./#thanks"><span>08</span>Thanks, Felucca</a></li>
+          <li><a href="./#tour"><span>02</span>Watch your hands</a></li>
+          <li><a href="./#chain"><span>03</span>The chain</a></li>
+          <li><a href="./#sources"><span>04</span>Sources</a></li>
+          <li><a href="./#arps"><span>05</span>Arpeggiators</a></li>
+          <li><a href="./#scenes"><span>06</span>Scenes</a></li>
+          <li><a href="./#specs"><span>07</span>Specs</a></li>
+          <li><a href="./#get"><span>08</span>Get it</a></li>
+          <li><a href="./#thanks"><span>09</span>Thanks, Felucca</a></li>
           <li><a href="docs.html"><span>//</span>Documentation</a></li>
           <li><a href="https://github.com/thoughtgrain/moss-and-air"><span>&gt;&gt;</span>GitHub</a></li>
         </ul>
@@ -106,14 +107,54 @@
           <p>Let's start with the tape, because everything grows from it. A tape is a loop that lives in memory. Press PLAY and it plays. Press a white key and you hear one of its sixteen slices. Press REC and it records the other three tracks onto itself, so you can bounce an idea down and keep building on top.</p>
           <p>The four tracks share about <strong>20 seconds</strong> of memory. A track only takes what it records, so three short loops leave room for one long one.</p>
           <p>There are no menus. Each page shows four values, and the four knobs change those four values. Press a pad again to see its next page. Hold a pad and the white keys light up, one for each page, so you can jump straight there.</p>
-          <p>Every screen on this site comes from the same code that runs on the FM-1. What you see here is what you'll see on the device.</p>
+          <p>Every screen on this site comes from the same code that runs on the FM-1. What you see here is what you'll see on the device. <a href="#tour">Watch it in action below.</a></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="tour" aria-labelledby="tour-title">
+      <div class="wrap">
+        <span class="section__num px"><span class="slash" aria-hidden="true">/</span> 02</span>
+        <h2 class="section__title" id="tour-title">Watch your hands</h2>
+        <div class="prose">
+          <p>Here's the FM-1 with Bryo on it. Pick a routine and follow along: the pads and keys light up as they're pressed, the knobs turn, and the screen shows what Bryo shows at each step.</p>
+        </div>
+
+        <div class="tour" data-tour>
+          <div class="tour__routines" role="group" aria-label="Routines">
+            <button class="btn tour__routine" type="button" data-routine="pages" aria-pressed="true">Pages</button>
+            <button class="btn tour__routine" type="button" data-routine="grain" aria-pressed="false">Grains</button>
+            <button class="btn tour__routine" type="button" data-routine="scenes" aria-pressed="false">Scenes</button>
+            <button class="btn tour__routine" type="button" data-routine="arp" aria-pressed="false">Arp</button>
+          </div>
+
+          <div class="tour__stage">
+            <div class="tour__panel" data-tour-panel>
+              <img src="img/panel.svg" width="960" height="540" alt="The FM-1's panel, labelled for Bryo.">
+            </div>
+            <div class="tour__side">
+              <figure class="screen tour__screen">
+                <img class="pixelated" src="img/tape.png" width="480" height="480" alt="The TAPE page" data-tour-screen>
+                <figcaption class="px" data-tour-label>Home / Tape</figcaption>
+              </figure>
+              <ol class="tour__steps" data-tour-steps>
+                <li aria-current="step"><button type="button">Press HOME. You're on the track's source, here the TAPE page.</button></li>
+              </ol>
+              <div class="tour__controls">
+                <button class="btn" type="button" data-tour-prev aria-label="Previous step">&lt;</button>
+                <button class="btn" type="button" data-tour-play aria-pressed="false">Pause</button>
+                <button class="btn" type="button" data-tour-next aria-label="Next step">&gt;</button>
+              </div>
+              <p class="visually-hidden" aria-live="polite" data-tour-live></p>
+            </div>
+          </div>
         </div>
       </div>
     </section>
 
     <section class="section" id="chain" aria-labelledby="chain-title">
       <div class="wrap">
-        <span class="section__num px"><span class="slash" aria-hidden="true">/</span> 02</span>
+        <span class="section__num px"><span class="slash" aria-hidden="true">/</span> 03</span>
         <h2 class="section__title" id="chain-title">One line, five stages</h2>
         <div class="prose">
           <p>A sound always takes the same path: the source, then GRAIN, RIPPLE, COLOR and CHRONOS. Since the order never changes, you always know where to look. Each effect's first page ends with its mix knobs. Press EDIT or FX, turn KNOB&nbsp;4, and you'll hear the effect fade in.</p>
@@ -192,7 +233,7 @@
 
     <section class="section" id="sources" aria-labelledby="sources-title">
       <div class="wrap">
-        <span class="section__num px"><span class="slash" aria-hidden="true">/</span> 03</span>
+        <span class="section__num px"><span class="slash" aria-hidden="true">/</span> 04</span>
         <h2 class="section__title" id="sources-title">Four ways to make a sound</h2>
         <div class="cards">
           <article class="card">
@@ -245,7 +286,7 @@
     <section class="section" id="arps" aria-labelledby="arps-title">
       <div class="wrap split">
         <div>
-          <span class="section__num px"><span class="slash" aria-hidden="true">/</span> 04</span>
+          <span class="section__num px"><span class="slash" aria-hidden="true">/</span> 05</span>
           <h2 class="section__title" id="arps-title">Hold a chord, hear a pattern</h2>
           <div class="figure-row figure-row--2">
             <figure class="screen"><img class="pixelated" src="img/arp.png" width="480" height="480" alt="ARP page: two notes held, the one playing filled" loading="lazy"><figcaption class="px">ARP / KEY</figcaption></figure>
@@ -275,7 +316,7 @@
     <section class="section" id="scenes" aria-labelledby="scenes-title">
       <div class="wrap split">
         <div>
-          <span class="section__num px"><span class="slash" aria-hidden="true">/</span> 05</span>
+          <span class="section__num px"><span class="slash" aria-hidden="true">/</span> 06</span>
           <h2 class="section__title" id="scenes-title">Four scenes to jump or drift between</h2>
           <div class="figure-row figure-row--2">
             <figure class="screen"><img class="pixelated" src="img/mixer_scenes.png" width="480" height="480" alt="SCENES: scenes 1 and 2 stored, 2 the current one" loading="lazy"><figcaption class="px">Glo / Scenes</figcaption></figure>
@@ -298,7 +339,7 @@
 
     <section class="section" id="specs" aria-labelledby="specs-title">
       <div class="wrap">
-        <span class="section__num px"><span class="slash" aria-hidden="true">/</span> 06</span>
+        <span class="section__num px"><span class="slash" aria-hidden="true">/</span> 07</span>
         <h2 class="section__title" id="specs-title">Specs</h2>
         <dl class="specs">
           <div><dt class="px">Hardware</dt><dd>M-VAVE FM-1 (JieLi AC79), bare metal</dd></div>
@@ -321,7 +362,7 @@
     <section class="section" id="get" aria-labelledby="get-title">
       <div class="wrap split">
         <div>
-          <span class="section__num px"><span class="slash" aria-hidden="true">/</span> 07</span>
+          <span class="section__num px"><span class="slash" aria-hidden="true">/</span> 08</span>
           <h2 class="section__title" id="get-title">Get it</h2>
         </div>
         <div class="prose">
@@ -338,7 +379,7 @@
     <section class="section thanks" id="thanks" aria-labelledby="thanks-title">
       <div class="wrap split">
         <div>
-          <span class="section__num px"><span class="slash" aria-hidden="true">/</span> 08</span>
+          <span class="section__num px"><span class="slash" aria-hidden="true">/</span> 09</span>
           <h2 class="section__title" id="thanks-title">Thank you, Felucca</h2>
         </div>
         <div class="prose">

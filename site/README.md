@@ -79,7 +79,7 @@ When the firmware's look changes, regenerate from the repository root:
 ```sh
 python3 site/tools/gen_px_webfont.py     # PX5 changed: fonts, wordmark, favicon
 python3 site/tools/gen_panel.py          # a control's job or a colour changed: the panel
-cp bryo/docs/manual/img/{boot,tape,grain_playing,reso_live,space_live,space_long,mixer,mixer_scenes,mixer_morph,projects_scenes,mod1,synth,synth_fm,synth_pd,synth_vox,synth_wt,poly,poly_twin,drum,arp,arp_add,arp_drum,arp_res,ripple2,ripple_comb,ripple_bank,color,crash}.png site/img/
+cp bryo/docs/manual/img/{boot,tape,tape_playing,grain,grain_frozen,space,grain_playing,reso_live,space_live,space_long,mixer,mixer_scenes,mixer_morph,projects_scenes,mod1,synth,synth_fm,synth_pd,synth_vox,synth_wt,poly,poly_twin,drum,arp,arp_add,arp_drum,arp_res,ripple2,ripple_comb,ripple_bank,color,crash}.png site/img/
 ```
 
 Both scripts need fontTools only for the fonts (`pip3 install fonttools`); the panel needs nothing beyond Python.
@@ -87,6 +87,25 @@ Both scripts need fontTools only for the fonts (`pip3 install fonttools`); the p
 Colour isn't decoration. It follows Bryo's own screen rule: white on black, and colour only says where you are or
 what's alive. Blue is a page, purple is modulation, orange is sound, red is recording, yellow is something to know.
 The tokens live at the top of `css/style.css`.
+
+## The walkthrough ("Watch your hands")
+
+The homepage's section 02 plays the FM-1 for you. I wanted people to see the instrument's whole idea (hold a pad,
+turn a knob, no menus) before reading about it, so the panel drawing is the stage:
+
+- `js/main.js` (`initTour`) fetches `img/panel.svg` and puts it inline. `tools/gen_panel.py` gives every control a
+  group, `<g id="ctl-NAME">`, with its outline as `rect.hit` and a knob's pointer as `rect.ptr`, so CSS can light
+  them. The names are listed at the top of the generator.
+- Each routine (Pages, Grains, Scenes, Arp) is a list of steps in `TOUR`. A step can **press** controls (a short
+  orange flash, one after another), **hold** them (lit with a faint fill for the whole step) and **turn** knobs (the
+  pointer swings to an angle), then it swaps the screen: the big one beside the panel and the panel's own.
+- Every screen is a real render from the manual, picked so it matches the step. Where no render exists for a moment
+  (GRAIN switched on but stopped, say), I ordered the steps so the picture is always true.
+- If the fetch fails, the plain `<img>` panel stays and the steps and screen still work.
+
+It plays by itself only while it's on screen and the tab is visible, never with `prefers-reduced-motion`, and stops
+once you use Prev, Next or a step (then each step is announced in a polite live region). The panel itself is
+`aria-hidden`: the numbered steps say in words what the hands are doing.
 
 ## Accessibility
 
