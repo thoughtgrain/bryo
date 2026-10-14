@@ -10,6 +10,13 @@ is the screen's (firmware/src/ui_px.c: px_page sky blue for the page pads, px_mo
 pads, as the screen colours their pages), and the screen shows a real render (bryo/docs/manual/img/tape.png, embedded
 so the SVG works on its own in an <img>). The labels follow docs/controls.tsv: a control marked "planned" there is
 drawn dim and says so. Run it again when a control's job changes.
+
+Every control is a group, <g id="ctl-NAME" class="ctl">, its outline the rect with class "hit", and a knob's
+pointer a rect with class "ptr" whose transform-origin is the knob's centre. The screen's <image> is
+id="panel-screen". The homepage's walkthrough (js/main.js, initTour) lights, presses and turns them by those names
+and swaps the screen; as an <img> (the docs) they're inert. Names: MASTER SELECT PRESETS ALGORITHM OCTDN OCTUP,
+K1-K4, the pads by their labels (FX SCL ENV LFO EDIT GLO HOME SAVE ARP SEQ PLAY REC), the black keys OP1-OP6 PIT
+BGLO MONO POLY ZERO, the white keys W1-W16.
 """
 import base64
 import importlib.util
@@ -67,21 +74,26 @@ def lines(s, x, y, dot, fill):
     return "".join(text(t.strip(), x, y + i * (9 * dot), dot, fill) for i, t in enumerate(s.split("/")))
 
 
-def knob(x, y, name, job, job_fill=LIVE):
-    return "".join([
-        f'<rect x="{x - 19}" y="{y - 19}" width="38" height="38" fill="none" stroke="{WIRE}" stroke-width="1.5"/>',
-        f'<rect x="{x - 2}" y="{y - 15}" width="4" height="14" fill="{INK}"/>',
+def group(cid, body):
+    return f'<g id="ctl-{cid}" class="ctl">{body}</g>'
+
+
+def knob(x, y, name, job, job_fill=LIVE, cid=None):
+    return group(cid or name, "".join([
+        f'<rect class="hit" x="{x - 19}" y="{y - 19}" width="38" height="38" fill="none" stroke="{WIRE}" stroke-width="1.5"/>',
+        f'<rect class="ptr" x="{x - 2}" y="{y - 15}" width="4" height="14" fill="{INK}" '
+        f'style="transform-origin:{x}px {y}px"/>',
         text(name, x, y + 28, 1.5, INK, bold=True),
         text(job, x, y + 44, 1.5, job_fill) if job else "",
-    ])
+    ]))
 
 
 def pad(x, y, name, job, edge):
-    return "".join([
-        f'<rect x="{x - 32}" y="{y}" width="64" height="30" fill="none" stroke="{edge}" stroke-width="2"/>',
+    return group(name, "".join([
+        f'<rect class="hit" x="{x - 32}" y="{y}" width="64" height="30" fill="none" stroke="{edge}" stroke-width="2"/>',
         text(name, x, y + 8, 2, INK, bold=True),
         lines(job, x, y + 38, 1.5, SOFT) if job else "",
-    ])
+    ]))
 
 
 def main():
@@ -103,18 +115,19 @@ def main():
     # the four labelled knobs, the octave buttons
     out += [knob(70, 46, "MASTER", "VOLUME"), knob(178, 46, "SELECT", "TEMPO"),
             knob(70, 134, "PRESETS", "PROJECTS"), knob(178, 134, "ALGORITHM", "REC IN")]
-    for x, name, job in ((70, "OCT-", "OCTAVE DOWN"), (178, "OCT+", "OCTAVE UP")):
-        out += [f'<rect x="{x - 30}" y="200" width="60" height="26" fill="none" stroke="{WIRE}" stroke-width="1.5"/>',
-                text(name, x, 206, 2, INK, bold=True), text(job, x, 234, 1.5, SOFT)]
+    for x, name, job, cid in ((70, "OCT-", "OCTAVE DOWN", "OCTDN"), (178, "OCT+", "OCTAVE UP", "OCTUP")):
+        out.append(group(cid, f'<rect class="hit" x="{x - 30}" y="200" width="60" height="26" fill="none" '
+                              f'stroke="{WIRE}" stroke-width="1.5"/>'
+                              + text(name, x, 206, 2, INK, bold=True) + text(job, x, 234, 1.5, SOFT)))
 
     # the screen, a real render at 0.8x its 240 px
     out += [f'<rect x="252" y="14" width="204" height="204" fill="#000" stroke="{WIRE}" stroke-width="1.5"/>',
-            f'<image x="258" y="20" width="192" height="192" style="image-rendering:pixelated" '
+            f'<image id="panel-screen" x="258" y="20" width="192" height="192" style="image-rendering:pixelated" '
             f'href="data:image/png;base64,{screen}"/>']
 
     # KNOB 1-4: the four values on the screen
     for i, x in enumerate((520, 620, 720, 820)):
-        out.append(knob(x, 40, f"KNOB {i + 1}", ""))
+        out.append(knob(x, 40, f"KNOB {i + 1}", "", cid=f"K{i + 1}"))
     out.append(text("THE FOUR VALUES ON THE SCREEN", 670, 82, 1.5, LIVE))
 
     # the pads, as they sit on the panel; the edge is the colour the screen gives their pages
@@ -137,15 +150,18 @@ def main():
     for x, n, j, c in black:
         dim = c == DIM
         dash = ' stroke-dasharray="3 3"' if dim else ""
-        out += [lines(j, x, 272, 1.5, c),
-                f'<rect x="{x - 21}" y="304" width="42" height="52" fill="none" stroke="{EDGE if dim else WIRE}" '
-                f'stroke-width="1.5"{dash}/>',
-                text(n, x, 323 if len(n) < 4 else 325, 2 if len(n) < 4 else 1.5, DIM if dim else INK, bold=len(n) < 4)]
+        cid = {"GLO": "BGLO", "0": "ZERO"}.get(n, n)
+        out.append(group(cid, lines(j, x, 272, 1.5, c)
+                         + f'<rect class="hit" x="{x - 21}" y="304" width="42" height="52" fill="none" '
+                           f'stroke="{EDGE if dim else WIRE}" stroke-width="1.5"{dash}/>'
+                         + text(n, x, 323 if len(n) < 4 else 325, 2 if len(n) < 4 else 1.5, DIM if dim else INK,
+                                bold=len(n) < 4)))
     step = 53
     for k in range(16):
         x = 60 + k * step
-        out += [f'<rect x="{x}" y="366" width="{step - 7}" height="112" fill="none" stroke="{EDGE}" stroke-width="1.5"/>',
-                text(str(k + 1), x + (step - 7) / 2, 456, 2, INK, bold=True)]
+        out.append(group(f"W{k + 1}", f'<rect class="hit" x="{x}" y="366" width="{step - 7}" height="112" fill="none" '
+                                      f'stroke="{EDGE}" stroke-width="1.5"/>'
+                         + text(str(k + 1), x + (step - 7) / 2, 456, 2, INK, bold=True)))
 
     out.append(text("WHITE KEYS: SLICES (TAPE) / NOTES (SYNTH POLY) / THE KIT (DRUM)", W / 2, 506, 1.5, SOFT))
     out.append(text("GLO HELD + WHITE 1-4: PICK THE TRACK.  PIT AND GLO (BLACK): PLANNED", W / 2, 522, 1.5, DIM))
