@@ -938,3 +938,14 @@ tr:last-child td { border-bottom: 0; }
 }
 .specs--compact div { padding: 12px 0; }
 .specs--compact dd { color: var(--ink-soft); }
+
+/* On narrow phones five stage names don't fit side by side in the pixel face (CHRONOS is 7 letters), so the
+ * strip keeps each tab at a readable width and scrolls sideways inside itself instead of shrinking the type.
+ * The page itself never scrolls sideways. */
+@media (max-width: 479px) {
+  .chain__tabs {
+    grid-template-columns: repeat(5, minmax(84px, 1fr));
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+}

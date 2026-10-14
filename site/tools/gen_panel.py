@@ -119,8 +119,8 @@ def main():
 
     # the pads, as they sit on the panel; the edge is the colour the screen gives their pages
     xs = (504, 584, 664, 744, 824, 904)
-    row1 = (("FX", "COLOR/SPACE", PAGE), ("SCL", "HOLD:/RESET", SOFT), ("ENV", "ENVELOPE", MOD),
-            ("LFO", "M1 M2 M3", MOD), ("EDIT", "GRAIN/RESO", PAGE), ("GLO", "MIXER", PAGE))
+    row1 = (("FX", "COLOR/CHRONOS", PAGE), ("SCL", "HOLD:/RESET", SOFT), ("ENV", "ENVELOPE", MOD),
+            ("LFO", "M1 M2 M3", MOD), ("EDIT", "GRAIN/RIPPLE", PAGE), ("GLO", "MIXER/SCENES", PAGE))
     row2 = (("HOME", "SOURCE", PAGE), ("SAVE", "HOLD:/UNDO", SOFT), ("ARP", "ARPEGGIO", MOD),
             ("SEQ", "M4 STEPS", MOD), ("PLAY", "START/STOP", GO), ("REC", "RECORD", GO))
     for x, (n, j, c) in zip(xs, row1):

@@ -5,7 +5,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Bryo documentation</title>
-  <meta name="description" content="How to install, play, arpeggiate, record, save and build Bryo, the four-track sound-sculpting firmware for the M-VAVE FM-1.">
+  <meta name="description" content="What's new, and how to install, play, arpeggiate, morph scenes, record, save and build Bryo, the four-track sound-sculpting firmware for the M-VAVE FM-1.">
   <meta name="theme-color" content="#121212">
   <link rel="icon" href="img/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -50,9 +50,10 @@
           <li><a href="./#chain"><span>02</span>The chain</a></li>
           <li><a href="./#sources"><span>03</span>Sources</a></li>
           <li><a href="./#arps"><span>04</span>Arpeggiators</a></li>
-          <li><a href="./#specs"><span>05</span>Specs</a></li>
-          <li><a href="./#get"><span>06</span>Get it</a></li>
-          <li><a href="./#thanks"><span>07</span>Thanks, Felucca</a></li>
+          <li><a href="./#scenes"><span>05</span>Scenes</a></li>
+          <li><a href="./#specs"><span>06</span>Specs</a></li>
+          <li><a href="./#get"><span>07</span>Get it</a></li>
+          <li><a href="./#thanks"><span>08</span>Thanks, Felucca</a></li>
           <li><a href="docs.html" aria-current="page"><span>//</span>Documentation</a></li>
           <li><a href="https://github.com/thoughtgrain/moss-and-air"><span>&gt;&gt;</span>GitHub</a></li>
         </ul>
@@ -74,7 +75,7 @@
         <span class="section__num px"><span class="slash" aria-hidden="true">/</span> Docs</span>
         <h1 class="section__title">Documentation</h1>
         <div class="prose">
-          <p>This is the short version. It's enough to install Bryo, find your way around the panel, play with the arpeggiators, record a loop and save it. When you want more, the <a href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/docs/manual/README.md">full manual</a> walks through every page with the real screens, and each section here links to its longer version.</p>
+          <p>This is the short version. It's enough to install Bryo, find your way around the panel, try the sources and effects, play with the arpeggiators and scenes, record a loop and save it. When you want more, the <a href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/docs/manual/README.md">full manual</a> walks through every page with the real screens, and each section here links to its longer version.</p>
         </div>
       </div>
     </div>
@@ -85,12 +86,16 @@
         <nav aria-label="On this page">
           <ol>
             <li><a href="#overview">Overview</a></li>
+            <li><a href="#new">What's new</a></li>
             <li><a href="#install">Install</a></li>
             <li><a href="#panel">The panel</a></li>
             <li><a href="#screen">Reading the screen</a></li>
             <li><a href="#first">First sounds</a></li>
             <li><a href="#pages">Pages and modulation</a></li>
+            <li><a href="#sources">Sources</a></li>
+            <li><a href="#effects">Effects</a></li>
             <li><a href="#arps">Arpeggiators</a></li>
+            <li><a href="#mixer">Mixer and scenes</a></li>
             <li><a href="#record">Recording</a></li>
             <li><a href="#save">Saving and undo</a></li>
             <li><a href="#usb">With a computer</a></li>
@@ -105,7 +110,7 @@
       <article class="doc">
         <section id="overview" aria-labelledby="h-overview">
           <h2 id="h-overview"><span class="px">01</span>Overview</h2>
-          <p>Bryo turns the M-VAVE FM-1 into a four-track instrument for sculpting sound. Each track starts with a <strong>source</strong>: a tape loop, a synth, a sampler or a drum machine. The sound then goes through four effects, always in this order: <strong>GRAIN, RESONATOR, COLOR, SPACE</strong>. Each track also has four <strong>modulators</strong> that can move any knob, and an <strong>arpeggiator</strong> that plays the keys you hold.</p>
+          <p>Bryo turns the M-VAVE FM-1 into a four-track instrument for sculpting sound. Each track starts with a <strong>source</strong>: a tape loop, a synth, a sampler or a drum machine. The sound then goes through four effects, always in this order: <strong>GRAIN, RIPPLE, COLOR, CHRONOS</strong>. Each track also has four <strong>modulators</strong> that can move any knob, and an <strong>arpeggiator</strong> that plays the keys you hold. Four <strong>scenes</strong> per project let you jump or morph between whole sounds.</p>
           <p>There are no menus. You hold a pad and turn a knob. I made it this way because a menu is where an idea goes to wait. If the four knobs always change the four values on the screen, your hands never have to stop and go looking for something.</p>
           <div class="callout">
             <span class="px">Where it stands</span>
@@ -113,8 +118,37 @@
           </div>
         </section>
 
+        <section id="new" aria-labelledby="h-new">
+          <h2 id="h-new"><span class="px">02</span>What's new</h2>
+          <p>Here's what changed in the latest round of work (2026-10-13). If you used Bryo before, start here.</p>
+          <h3>Two effects got new names, and grew</h3>
+          <ul>
+            <li><strong>RESONATOR is now RIPPLE.</strong> It has four forms: strings, COMB, four resonant bands and a 12-band filter bank. Hold EDIT and turn SELECT to switch. It also gained a longer list of chords, DRV, RIPL (a slow drift across the pitches), and a fourth page for how the keys play it: PLCK or TUNE, PICK, STRM (strum) and VARY. <a href="#effects">More below.</a></li>
+            <li><strong>SPACE is now CHRONOS.</strong> The echoes can age like tape (AGE), smear into a wash (DIFF) or duck under the track (DUCK). A new fifth page sets each room's TYPE (room, plate, hall or spring) and MOD.</li>
+            <li><strong>RES ARP is now RIPL ARP.</strong> With RIPPLE's KEYS on TUNE, it retunes RIPPLE instead of plucking it.</li>
+          </ul>
+          <h3>New sounds</h3>
+          <ul>
+            <li><strong>SYNTH has four new waves:</strong> FM (a two-operator FM synth), PD (the Casio CZ's phase distortion), VOX (a voice through three formants) and WT (a wavetable, which can be cut from any reel).</li>
+            <li><strong>SYNTH's CHRD</strong> plays a whole chord from one key, on every wave.</li>
+            <li><strong>POLY's TWIN</strong> gives it a second reel, mixed, split across the keys, alternated or picked at random.</li>
+          </ul>
+          <h3>Scenes</h3>
+          <ul>
+            <li>Each project now has <strong>four scenes</strong>. Store a sound, recall it, or morph between scenes with a knob. They live on the mixer's first EDIT page. <a href="#mixer">More below.</a></li>
+          </ul>
+          <h3>Smaller changes</h3>
+          <ul>
+            <li>KEY has <strong>15 scales</strong> now, and GRAIN can follow the project's scale.</li>
+            <li>Each modulator moves up to <strong>twelve knobs</strong>. The screen counts them while you hold its pad.</li>
+            <li>The shared tape memory is <strong>about 20 seconds</strong> (it was 28). In play, 20 seconds turned out to be plenty, and the freed RAM makes room for new features. The whole audio path now runs from fast RAM, too.</li>
+            <li>A muted track sleeps, so it costs nothing while it's quiet.</li>
+            <li>SETUP shows where the CPU goes, stage by stage. Past FACTORY in the projects there's a TEST project for comparing builds.</li>
+          </ul>
+        </section>
+
         <section id="install" aria-labelledby="h-install">
-          <h2 id="h-install"><span class="px">02</span>Install</h2>
+          <h2 id="h-install"><span class="px">03</span>Install</h2>
           <p>There's no Bryo release yet, so for now you build it yourself. Bryo keeps Felucca's update loader exactly as it was. That means installing Bryo works the same way as installing Felucca, and you can always put the FM-1 back the way it was.</p>
 
           <h3>1. Build the package</h3>
@@ -143,7 +177,7 @@ cd /tmp/bryo-site &amp;&amp; python3 -m http.server 8000
         </section>
 
         <section id="panel" aria-labelledby="h-panel">
-          <h2 id="h-panel"><span class="px">03</span>The panel</h2>
+          <h2 id="h-panel"><span class="px">04</span>The panel</h2>
           <figure class="panel-figure">
             <img src="img/panel.svg" width="960" height="540" alt="The FM-1 panel labelled for Bryo, in the screen's own lettering: MASTER, SELECT, PRESETS and ALGORITHM top left over OCT- and OCT+; the screen showing the TAPE page; KNOB 1 to 4; the pads in two rows, page pads edged blue, modulator pads purple, PLAY and REC green; the black keys' jobs over them; white keys 1 to 16.">
             <figcaption>The FM-1's panel as Bryo uses it. Each pad's edge is the colour the screen uses for its pages. PIT and GLO on the black keys don't do anything yet.</figcaption>
@@ -151,7 +185,7 @@ cd /tmp/bryo-site &amp;&amp; python3 -m http.server 8000
           <ul>
             <li><strong>Top left:</strong> MASTER (volume), SELECT (tempo), PRESETS (projects and presets), ALGORITHM (what REC records). Under them, OCT&minus; and OCT+.</li>
             <li><strong>Top right:</strong> KNOB 1 to 4. They always change the four values on the screen.</li>
-            <li><strong>Blue pads, the pages:</strong> HOME (the track's source), EDIT (GRAIN, RESONATOR), FX (COLOR, SPACE), GLO (the mixer).</li>
+            <li><strong>Blue pads, the pages:</strong> HOME (the track's source), EDIT (GRAIN, RIPPLE), FX (COLOR, CHRONOS), GLO (the mixer and scenes).</li>
             <li><strong>Purple pads, what moves:</strong> LFO holds modulators M1 to M3, SEQ is M4 (a step sequencer), ENV is the source's own envelope, and ARP is the arpeggiator.</li>
             <li><strong>Green pads, the transport:</strong> PLAY and REC. SAVE saves, and holding it undoes. Holding SCL resets things.</li>
             <li><strong>Keys:</strong> the 16 white keys play the track. The 11 black keys above them mute tracks, flip the tape, clear things and freeze GRAIN.</li>
@@ -160,8 +194,8 @@ cd /tmp/bryo-site &amp;&amp; python3 -m http.server 8000
         </section>
 
         <section id="screen" aria-labelledby="h-screen">
-          <h2 id="h-screen"><span class="px">04</span>Reading the screen</h2>
-          <p>Along the top you'll see the track (T1 to T4), the page's name with a dot for each of its pages, then the transport (&#9632; stopped, &#9654; playing, &#9679; recording) and the tempo. A <strong>&#10033;</strong> means you have changes you haven't saved yet.</p>
+          <h2 id="h-screen"><span class="px">05</span>Reading the screen</h2>
+          <p>Along the top you'll see the track (T1 to T4), the page's name with a dot for each of its pages, then the transport (&#9632; stopped, &#9654; playing, &#9679; recording) and the tempo. On pages that belong to the whole project (SCENES, MASTER, KEY) the box shows the project, like P1, instead of a track. A <strong>&#10033;</strong> means you have changes you haven't saved yet.</p>
           <p>Below that are the four knobs. Each one is a little picture, a four-letter name and a value. The picture shows the value too: a dial points, a fader fills. The knob you turned last has its name inverted, so you can find your place.</p>
           <p>The screen is white on black, and colour only tells you two things: where you are, and what's making sound. A shape or a word always says the same thing, so you never need to tell the colours apart.</p>
           <div class="table-wrap" tabindex="0" role="region" aria-label="What the screen's colours mean">
@@ -180,7 +214,7 @@ cd /tmp/bryo-site &amp;&amp; python3 -m http.server 8000
         </section>
 
         <section id="first" aria-labelledby="h-first">
-          <h2 id="h-first"><span class="px">05</span>First sounds</h2>
+          <h2 id="h-first"><span class="px">06</span>First sounds</h2>
           <ol class="steps">
             <li><strong>Turn it on.</strong> BRYO shows for a moment, then you're on track 1's TAPE page. Don't hold OCT&minus; and OCT+ while it starts, or you'll land in calibration.</li>
             <li><strong>Press PLAY.</strong> You'll hear the factory scene: a drum machine that changes its own pattern, FM bells played by the arpeggiator, a drone ringing through the strings, and plucks bouncing into an echo. It's all in A minor.</li>
@@ -192,24 +226,25 @@ cd /tmp/bryo-site &amp;&amp; python3 -m http.server 8000
         </section>
 
         <section id="pages" aria-labelledby="h-pages">
-          <h2 id="h-pages"><span class="px">06</span>Pages and modulation</h2>
+          <h2 id="h-pages"><span class="px">07</span>Pages and modulation</h2>
           <p>Every pad opens a page. Press the same pad again and you get its next page, and after the last one it goes back to the first. To jump straight to a page, <strong>hold its pad and press a white key</strong>. While you hold the pad, one key lights up for each page.</p>
           <div class="table-wrap" tabindex="0" role="region" aria-label="Pads and their pages">
             <table>
               <thead><tr><th scope="col">Pad</th><th scope="col">Pages, in order</th></tr></thead>
               <tbody>
-                <tr><td>HOME</td><td>The source's pages (TAPE 4, SYNTH 5, POLY 4, DRUM 4). Hold it and turn SELECT to change the source.</td></tr>
-                <tr><td>EDIT</td><td>GRAIN 1 to 6, then RESONATOR 1 to 3</td></tr>
-                <tr><td>FX</td><td>COLOR 1 to 3, then SPACE 1 to 4</td></tr>
+                <tr><td>HOME</td><td>The source's pages (TAPE 4, SYNTH 5, POLY 5, DRUM 4). Hold it and turn SELECT to change the source.</td></tr>
+                <tr><td>EDIT</td><td>GRAIN 1 to 6, then RIPPLE 1 to 4. Hold it and turn SELECT to change RIPPLE's form.</td></tr>
+                <tr><td>FX</td><td>COLOR 1 to 3, then CHRONOS 1 to 5</td></tr>
                 <tr><td>ENV</td><td>The source's envelope (on DRUM, its KIT)</td></tr>
                 <tr><td>LFO, SEQ</td><td>A modulator's pages (LFO: M1, M2 or M3; SEQ: M4)</td></tr>
-                <tr><td>ARP</td><td>The arpeggiator's 2 pages, then RES ARP</td></tr>
-                <tr><td>GLO</td><td>The mixer. EDIT then steps through CHANNEL, MASTER, KEY and SETUP.</td></tr>
+                <tr><td>ARP</td><td>The arpeggiator's 2 pages, then RIPL ARP</td></tr>
+                <tr><td>GLO</td><td>The mixer. EDIT then steps through SCENES, CHANNEL, MASTER, KEY and SETUP.</td></tr>
               </tbody>
             </table>
           </div>
           <h3>Make a knob move</h3>
           <p>Hold <strong>LFO</strong> or <strong>SEQ</strong> and turn any knob on a source, effect or channel page. How far you turn sets how far that modulator moves the knob, from &minus;100 to 100&nbsp;%. The knob gets a purple mark so you can see it's moving.</p>
+          <p>Each modulator can move up to twelve knobs. While you hold its pad, the bottom of the screen counts them (DEPTH 1/12). If you reach twelve, turn one back to 0, or hold the pad and MONO to clear that modulator's knobs on the page.</p>
           <p>The LFO pad holds three modulators. Hold LFO and press OP1, OP2 or OP3 to pick which one it shows. Hold LFO and turn SELECT to change what it is: an LFO, an ADSR envelope or an envelope follower. The knobs it moves stay the same. SEQ is always the step sequencer.</p>
           <div class="figure-row">
             <figure class="screen"><img class="pixelated" src="img/mod1.png" width="480" height="480" alt="An LFO modulator page" loading="lazy"><figcaption class="px">LFO / M1</figcaption></figure>
@@ -217,11 +252,103 @@ cd /tmp/bryo-site &amp;&amp; python3 -m http.server 8000
           <a class="more" href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/docs/manual/README.md#7-modulation">Manual 7 &gt;</a>
         </section>
 
+        <section id="sources" aria-labelledby="h-sources">
+          <h2 id="h-sources"><span class="px">08</span>Sources</h2>
+          <p>Each track starts with one of four sources. Hold <strong>HOME</strong> and turn <strong>SELECT</strong> to switch. Each one keeps its own knobs, so switching back loses nothing.</p>
+
+          <h3>TAPE</h3>
+          <p>A loop in memory. The white keys play its sixteen slices. You can move where the loop starts and ends, change its speed, play it backwards or at half speed, and with SYNC on TAPE 4, lock it to a number of bars at the tempo.</p>
+
+          <h3>SYNTH, and its new waves</h3>
+          <p>A small synth with up to three voices, an envelope and a filter. Turn <strong>WAVE</strong> past the classic shapes (SIN, TRI, SQR, SAW, PLS) and SYNTH becomes something else. The first page relabels for each one:</p>
+          <div class="table-wrap" tabindex="0" role="region" aria-label="SYNTH's waves">
+            <table>
+              <thead><tr><th scope="col">Wave</th><th scope="col">What it is</th><th scope="col">Knobs</th></tr></thead>
+              <tbody>
+                <tr><td>FM</td><td>Two sine waves, one bending the other. From a pure tone to bells, electric pianos and growls.</td><td>RATI, INDX, IENV; FDBK on page 5</td></tr>
+                <tr><td>PD</td><td>Phase distortion, the way Casio's CZ synths worked. Sounds like a filter sweep without a filter.</td><td>SHAP, AMT, AENV</td></tr>
+                <tr><td>VOX</td><td>A buzz through three formants, so it speaks vowels.</td><td>VOWL, SHFT, VENV; BRTH on page 5</td></tr>
+                <tr><td>WT</td><td>A wavetable of eight cycles. POS moves through them. The table can be built in, or cut from any reel, even your own tape.</td><td>TABL, POS, PENV</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>Some starting points from the manual: for an electric piano, FM with RATI 1, INDX 20, IENV +60 and a short decay. For the classic CZ bass, PD with SAW, AMT 0 and AENV +80. For "ooh-wah", VOX on U with VENV +50.</p>
+          <p><strong>CHRD</strong> (page 5, every wave) plays a chord from one key: MAJ, MIN, SUS2, SUS4, DOM7, MAJ7, MIN7, DIM, AUG, 5TH or OCT. The lowest key you hold is the root. Slide to a lower key while holding and the chord moves there without restriking.</p>
+          <div class="figure-row">
+            <figure class="screen"><img class="pixelated" src="img/synth_fm.png" width="480" height="480" alt="FM SYNTH: WAVE RATI INDX IENV" loading="lazy"><figcaption class="px">FM</figcaption></figure>
+            <figure class="screen"><img class="pixelated" src="img/synth_pd.png" width="480" height="480" alt="PD SYNTH: WAVE SHAP AMT AENV" loading="lazy"><figcaption class="px">PD</figcaption></figure>
+            <figure class="screen"><img class="pixelated" src="img/synth_vox.png" width="480" height="480" alt="VOX SYNTH: WAVE VOWL SHFT VENV" loading="lazy"><figcaption class="px">VOX</figcaption></figure>
+            <figure class="screen"><img class="pixelated" src="img/synth_wt.png" width="480" height="480" alt="WT SYNTH: WAVE TABL POS PENV" loading="lazy"><figcaption class="px">WT</figcaption></figure>
+          </div>
+
+          <h3>POLY, and TWIN</h3>
+          <p>POLY plays a reel, or the track's own tape, across the keys, up to four notes at once. On page 4, <strong>TWIN</strong> adds a second reel (RLB) and decides how the two play together:</p>
+          <ul>
+            <li><strong>MIX:</strong> both in every note, with BLND setting the balance. Two notes at a time in this mode.</li>
+            <li><strong>XFD:</strong> low notes play A and high notes play B, crossing around middle C. BLND moves the crossing.</li>
+            <li><strong>ALT:</strong> they take turns, so a repeated note doesn't sound like a machine.</li>
+            <li><strong>RND:</strong> each note picks B by chance, with BLND as the chance.</li>
+          </ul>
+          <p>TUNB tunes B against A in semitones. OFF is POLY as it was.</p>
+          <div class="figure-row">
+            <figure class="screen"><img class="pixelated" src="img/poly_twin.png" width="480" height="480" alt="POLY TWIN: MIX, BELL with DRON at 40 %" loading="lazy"><figcaption class="px">TWIN</figcaption></figure>
+          </div>
+
+          <h3>DRUM</h3>
+          <p>Sixteen synthesized drums on the white keys, inspired by the CR-78. Pick one of ten patterns, write your own steps, or turn SEED away from 0 and it plays its own version of the pattern, with ghost notes and fills, the way a drummer would.</p>
+          <a class="more" href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/docs/manual/README.md#5-other-sources">Manual 5 &gt;</a>
+        </section>
+
+        <section id="effects" aria-labelledby="h-effects">
+          <h2 id="h-effects"><span class="px">09</span>Effects</h2>
+          <p>Every track goes through GRAIN, RIPPLE, COLOR and CHRONOS, in that order. They all start off. Each effect's first page ends with its mix, so press EDIT or FX and turn KNOB 4 to bring one in.</p>
+
+          <h3>GRAIN</h3>
+          <p>Keeps the last few bars of the track and plays them back as small overlapping grains: stretched, held on one spot, or trailing behind with SCAN. Hold the black 0 key to freeze it, or tap to latch. Its SCAL can now be set to KEY, so the grains follow the project's scale.</p>
+
+          <h3>RIPPLE (was RESONATOR)</h3>
+          <p>The track rings through something tuned. Press EDIT seven times to reach it, then <strong>hold EDIT and turn SELECT</strong> to choose its form:</p>
+          <ul>
+            <li><strong>RIPPLE:</strong> four plucked strings, like a sitar's sympathetic strings.</li>
+            <li><strong>COMB:</strong> the same lines at half length, fed back inverted. Only the odd harmonics ring, for a hollow, clarinet-like body.</li>
+            <li><strong>RESO:</strong> four resonant bands on the chord's notes. DEC becomes RING and TONE becomes TILT.</li>
+            <li><strong>12-BAND:</strong> twelve bands climbing through the octaves, a filter bank that sorts whatever comes in into the chord.</li>
+          </ul>
+          <p>Its pages, after the first (PTCH, DEC and the mix):</p>
+          <ul>
+            <li><strong>RIPPLE 2, what rings:</strong> SCAL picks the chord (HARM, MAJ, MIN, PEN, SUS2, SUS4, DOM7, MAJ7, MIN7, DIM, AUG, 5TH, OCT). TONE sets the brightness. DRV saturates the ring, so loud attacks get warm and gritty and the tail rings clean. RIPL lets the pitches drift, each a little behind the one below, like a ripple on water.</li>
+            <li><strong>RIPPLE 3:</strong> a filter in front (CUT, RES, TYPE), for what of the track reaches it.</li>
+            <li><strong>RIPPLE 4, the keys:</strong> KEYS on PLCK sets the root and plucks; on TUNE it only sets the root, so the track's own sound rings in that key. PICK goes from a soft mallet to a bright pick, STRM strums the strings one after another, and VARY makes each pluck a little different.</li>
+          </ul>
+          <div class="figure-row">
+            <figure class="screen"><img class="pixelated" src="img/reso_live.png" width="480" height="480" alt="RIPPLE ringing" loading="lazy"><figcaption class="px">Ripple</figcaption></figure>
+            <figure class="screen"><img class="pixelated" src="img/ripple2.png" width="480" height="480" alt="RIPPLE 2: SCAL TONE DRV RIPL" loading="lazy"><figcaption class="px">Ripple 2</figcaption></figure>
+            <figure class="screen"><img class="pixelated" src="img/ripple_comb.png" width="480" height="480" alt="COMB: the odd harmonics' teeth" loading="lazy"><figcaption class="px">Comb</figcaption></figure>
+            <figure class="screen"><img class="pixelated" src="img/ripple_bank.png" width="480" height="480" alt="12-BAND: a meter for each band" loading="lazy"><figcaption class="px">12-Band</figcaption></figure>
+          </div>
+
+          <h3>COLOR</h3>
+          <p>Drive and bit crush on the first page, noise that rides the sound and a tilt EQ on the second, and what the crusher crushes on the third.</p>
+
+          <h3>CHRONOS (was SPACE)</h3>
+          <p>A delay and two shared rooms. Press FX four times to reach it.</p>
+          <ul>
+            <li><strong>CHRONOS 1:</strong> TIME, FDBK, and the two sends, DLY and VERB.</li>
+            <li><strong>CHRONOS 2 and 3:</strong> which room the track sends to (A or B), the room's size, decay and pre-delay, and the tone and spread of the echoes. Room knobs are shared by every track on that room.</li>
+            <li><strong>CHRONOS 4, the echoes' character:</strong> SYNC puts the delay on the tempo. AGE makes each repeat darker and more saturated, with a tape-like wow and flutter. DIFF smears each repeat into a wash. DUCK dips the echoes while the track plays and lets them swell back in the gaps.</li>
+            <li><strong>CHRONOS 5, the room's character:</strong> TYPE is ROOM, PLAT (a plate, dense and bright), HALL (long and dark) or SPRG (a spring, short and twangy). MOD makes the tail waver so it sounds less metallic.</li>
+          </ul>
+          <div class="figure-row">
+            <figure class="screen"><img class="pixelated" src="img/space_long.png" width="480" height="480" alt="CHRONOS: TIME FDBK DLY VERB" loading="lazy"><figcaption class="px">Chronos</figcaption></figure>
+          </div>
+          <a class="more" href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/docs/manual/README.md#6-the-effects">Manual 6 &gt;</a>
+        </section>
+
         <section id="arps" aria-labelledby="h-arps">
-          <h2 id="h-arps"><span class="px">07</span>Arpeggiators</h2>
+          <h2 id="h-arps"><span class="px">10</span>Arpeggiators</h2>
           <p>The arpeggiator plays the keys you hold one at a time, in time with the tempo. Every track has one, and it adapts to the source:</p>
           <ul>
-            <li><strong>SYNTH and POLY:</strong> it plays notes.</li>
+            <li><strong>SYNTH and POLY:</strong> it plays notes. With SYNTH's CHRD on, every step is a whole chord.</li>
             <li><strong>TAPE:</strong> it steps through the slices you hold.</li>
             <li><strong>DRUM:</strong> it walks through the drums you hold. Hold kick, snare and hat with UPDN and you get kick, snare, hat, snare, kick.</li>
           </ul>
@@ -255,25 +382,60 @@ cd /tmp/bryo-site &amp;&amp; python3 -m http.server 8000
             <figure class="screen"><img class="pixelated" src="img/arp_drum.png" width="480" height="480" alt="ARP on a DRUM track walking three drums up and down" loading="lazy"><figcaption class="px">ARP / Drum</figcaption></figure>
           </div>
 
-          <h3>RES ARP: an arpeggio for the strings</h3>
-          <p>Press ARP a third time, or hold ARP and press white key 3. This is RESONATOR's own arpeggiator, separate from the track's. Each step plucks RESONATOR's four strings at a new note, whatever the track itself is playing.</p>
+          <h3>RIPL ARP: an arpeggio for RIPPLE</h3>
+          <p>Press ARP a third time, or hold ARP and press white key 3. This is RIPPLE's own arpeggiator, separate from the track's. Each step plays RIPPLE at a new note, whatever the track itself is playing.</p>
           <ul>
             <li><strong>MODE</strong> turns it on (OFF, KEY, LTCH, ADD). ORDR, RNGE and RATE work the same as above.</li>
-            <li>With MODE on, the white keys on this page set the strings' pattern and the track stays quiet. With MODE off, they play the track as usual.</li>
-            <li>Turn RESONATOR's <strong>WET</strong> up to hear it (EDIT seven times, then KNOB 4).</li>
-            <li>A latched or piled-up pattern keeps plucking after you leave the page. Hold POLY here to clear it.</li>
+            <li>With RIPPLE's KEYS on <strong>PLCK</strong>, each step plucks the strings. On <strong>TUNE</strong>, each step retunes RIPPLE, so the track's own sound rings in the pattern.</li>
+            <li>With MODE on, the white keys on this page set the pattern and the track stays quiet. With MODE off, they play the track as usual.</li>
+            <li>Turn RIPPLE's <strong>WET</strong> up to hear it (EDIT seven times, then KNOB 4).</li>
+            <li>A latched or piled-up pattern keeps going after you leave the page. Hold POLY here to clear it.</li>
           </ul>
           <div class="figure-row">
-            <figure class="screen"><img class="pixelated" src="img/arp_res.png" width="480" height="480" alt="RES ARP: two notes held, the strings plucked in turn" loading="lazy"><figcaption class="px">RES ARP</figcaption></figure>
+            <figure class="screen"><img class="pixelated" src="img/arp_res.png" width="480" height="480" alt="RIPL ARP: two notes held, the strings plucked in turn" loading="lazy"><figcaption class="px">RIPL ARP</figcaption></figure>
           </div>
 
           <h3>How they follow the transport</h3>
-          <p>Keys you hold play right away, whether the transport is running or not. A latched or piled-up pattern keeps going when you switch to another track. STOP quiets it and keeps the notes, and PLAY starts it again from the top. Each track has its own, and saving a project keeps the notes it holds.</p>
+          <p>Keys you hold play right away, whether the transport is running or not. A latched or piled-up pattern keeps going when you switch to another track. STOP quiets it and keeps the notes, and PLAY starts it again from the top. Each track has its own, and saving a project keeps the notes it holds. Scenes leave arpeggios alone.</p>
           <a class="more" href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/docs/manual/README.md#58-arp-the-arpeggiator">Manual 5.8 &gt;</a>
         </section>
 
+        <section id="mixer" aria-labelledby="h-mixer">
+          <h2 id="h-mixer"><span class="px">11</span>Mixer and scenes</h2>
+          <p><strong>Hold GLO</strong> for the mixer: white keys 1 to 4 pick a track, KNOB 1 to 4 set the four levels, and SELECT sets how many tracks are on (fewer tracks leave more memory for the rest). <strong>Tap GLO</strong> and the mixer stays up. Then each tap of EDIT moves through its pages:</p>
+          <div class="table-wrap" tabindex="0" role="region" aria-label="The mixer's pages">
+            <table>
+              <thead><tr><th scope="col">Page</th><th scope="col">What it does</th></tr></thead>
+              <tbody>
+                <tr><td>SCENES</td><td>Four sounds to recall or morph between (below)</td></tr>
+                <tr><td>CHANNEL</td><td>The selected track's LOW, HIGH, FILT and PAN</td></tr>
+                <tr><td>MASTER</td><td>The master compressor: AMT, ATK, REL, MIX</td></tr>
+                <tr><td>KEY</td><td>The project's key and scale. 15 scales: the seven modes, harmonic and melodic minor, both pentatonics, blues, whole tone, diminished and chromatic.</td></tr>
+                <tr><td>SETUP</td><td>How the panel behaves (KEYS, KNOB, HOLD, LEDS), and where the CPU goes, stage by stage</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>Scenes</h3>
+          <p>A scene is a snapshot of how the whole project sounds: every track's source, every knob that shapes its sound (the source, GRAIN, RIPPLE, COLOR, CHRONOS and the channel strip), the levels and the rooms. It leaves what's playing alone. Tapes, patterns, steps, modulation, mutes, arpeggios, the tempo and the key all stay as they are when you change scenes.</p>
+          <p>Tap GLO, then EDIT, to reach SCENES. A scene moves every track at once, so the box at the top shows the project instead of a track. The white keys 1 to 4 are the scenes (they don't play notes here), and each knob sits under its scene.</p>
+          <ul>
+            <li><strong>Store:</strong> hold a scene's white key and tap SAVE.</li>
+            <li><strong>Recall:</strong> tap a scene's white key. Everything glides there in about a third of a second.</li>
+            <li><strong>Morph:</strong> turn a scene's knob. Each click moves 5&nbsp;% of the way toward that scene, and you can stop anywhere. Turn another scene's knob to head toward that one instead.</li>
+          </ul>
+          <p>If a track has the same source in both scenes, its knobs glide. Settings that can't be halfway, like RIPPLE's form or a room's TYPE, switch at the midpoint. If the source changes, the track fades out, switches while it's silent, and fades back in.</p>
+          <p>The SCENES page draws a box for each scene: filled for the current one, framed for a stored one, dotted for an empty one. Under each, the letters T S P D show its tracks' sources, bright where a track would change source. Scenes are saved with the project, and the PROJECTS view shows how many each project holds before you load it. With the mixer up, you can also hold EDIT for a quick recall: SCENES shows while you hold it.</p>
+          <div class="figure-row">
+            <figure class="screen"><img class="pixelated" src="img/mixer_scenes.png" width="480" height="480" alt="SCENES: 1 and 2 stored, 2 the current one" loading="lazy"><figcaption class="px">Scenes</figcaption></figure>
+            <figure class="screen"><img class="pixelated" src="img/mixer_morph.png" width="480" height="480" alt="SCENES: KNOB 2 halfway to scene 2" loading="lazy"><figcaption class="px">Morph</figcaption></figure>
+            <figure class="screen"><img class="pixelated" src="img/projects_scenes.png" width="480" height="480" alt="PROJECTS: P1 holds 2 scenes" loading="lazy"><figcaption class="px">Projects</figcaption></figure>
+          </div>
+          <a class="more" href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/docs/manual/README.md#39-scenes-four-sounds-to-jump-or-morph-between">Manual 3.9 &gt;</a>
+        </section>
+
         <section id="record" aria-labelledby="h-record">
-          <h2 id="h-record"><span class="px">08</span>Recording</h2>
+          <h2 id="h-record"><span class="px">12</span>Recording</h2>
           <p>REC records onto <strong>the track you're on</strong>. On a TAPE track it records the other three playing. That's how you bounce a scene down and keep building on it. ALGORITHM changes what each track's REC listens to: AUTO, the others, one track, or itself.</p>
           <ol class="steps">
             <li><strong>Pick track 2</strong> (hold GLO and press white key 2).</li>
@@ -281,16 +443,16 @@ cd /tmp/bryo-site &amp;&amp; python3 -m http.server 8000
             <li><strong>Press PLAY, then REC.</strong> The header shows &#9679; and the tape grows as it records.</li>
             <li><strong>Press REC again</strong> after 10 to 15 seconds. Track 2 now loops what the others played.</li>
           </ol>
-          <p>For drum loops, hold REC and turn SELECT to record an exact number of bars. Cleared something by mistake? Hold SAVE to bring it back.</p>
+          <p>For drum loops, hold REC and turn SELECT to record an exact number of bars. Cleared something by mistake? Hold SAVE to bring it back. The four tracks share about 20 seconds, so a long take leaves less for the others.</p>
           <a class="more" href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/docs/manual/README.md#4-recording">Manual 4 &gt;</a>
         </section>
 
         <section id="save" aria-labelledby="h-save">
-          <h2 id="h-save"><span class="px">09</span>Saving and undo</h2>
+          <h2 id="h-save"><span class="px">13</span>Saving and undo</h2>
           <ul>
-            <li><strong>Nothing is kept until you tap SAVE.</strong> It saves everything (every knob, source, pattern, modulation, arpeggio, the mixer and the tempo) into the current project, P1 to start with. A tape you recorded goes into a user reel named after it, like <code>P1T2</code>.</li>
+            <li><strong>Nothing is kept until you tap SAVE.</strong> It saves everything (every knob, source, pattern, modulation, arpeggio, scene, the mixer and the tempo) into the current project, P1 to start with. A tape you recorded goes into a user reel named after it, like <code>P1T2</code>.</li>
             <li><strong>Hold SAVE</strong> to undo the last clear, reset or load.</li>
-            <li><strong>Turn PRESETS</strong> to see the six project slots. OCT+ loads one, SAVE saves into it, holding POLY deletes it, and OCT&minus; leaves. Pick an empty slot and press OCT+ to start a blank project. Past P6, FACTORY brings back the factory scene.</li>
+            <li><strong>Turn PRESETS</strong> to see the six project slots. OCT+ loads one, SAVE saves into it, holding POLY deletes it, and OCT&minus; leaves. Pick an empty slot and press OCT+ to start a blank project. Past P6, FACTORY brings back the factory scene, and TEST is a fixed project for comparing builds.</li>
             <li><strong>Track presets</strong> (A to H, plus eight factory ones) keep one track's sound. Turn PRESETS, then press EDIT.</li>
           </ul>
           <p>Saving while it plays doesn't stop the sound. If there's a new recording to write, the sound fades out for a moment and back in. Bryo prepares the next save during a quiet moment, so a save in the middle of a set stays short.</p>
@@ -298,22 +460,22 @@ cd /tmp/bryo-site &amp;&amp; python3 -m http.server 8000
         </section>
 
         <section id="usb" aria-labelledby="h-usb">
-          <h2 id="h-usb"><span class="px">10</span>With a computer</h2>
+          <h2 id="h-usb"><span class="px">14</span>With a computer</h2>
           <h3>Files</h3>
           <p>Plug the FM-1 into a computer and it shows up as a small drive called <strong>BRYO</strong>.</p>
           <ul>
             <li><code>TAPE1.WAV</code> to <code>TAPE4.WAV</code> are what each track plays. Copy them off to keep them.</li>
             <li>Copy a WAV on and name it <code>TAPE2.WAV</code> to replace track 2's tape.</li>
-            <li>A WAV with any other name becomes one of six user reels (up to 21.5&nbsp;s).</li>
+            <li>A WAV with any other name becomes one of six user reels (up to 21.5&nbsp;s). Any reel can also become a wavetable for SYNTH's WT.</li>
             <li>Eject and plug back in to see new files. Deleting a file on the computer doesn't delete the sound; you do that on the REELS page.</li>
           </ul>
           <h3>Record what the computer plays</h3>
-          <p>With the transport stopped, <strong>hold REC for a second</strong>. Set Bryo as the computer's sound output, then press REC to start a take and REC again to stop it (up to 23.6&nbsp;s). Trim it with STRT and LEN, set GAIN and FADE, pick a track with white keys 1 to 4, and press REC to keep it. HOME takes you back a step.</p>
+          <p>With the transport stopped, <strong>hold REC for a second</strong>. Set Bryo as the computer's sound output, then press REC to start a take and REC again to stop it. A take can be as long as the free memory. Trim it with STRT and LEN, set GAIN and FADE, pick a track with white keys 1 to 4, and press REC to keep it. HOME takes you back a step.</p>
           <a class="more" href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/docs/manual/README.md#10-with-a-computer">Manual 10 &gt;</a>
         </section>
 
         <section id="trouble" aria-labelledby="h-trouble">
-          <h2 id="h-trouble"><span class="px">11</span>When something goes wrong</h2>
+          <h2 id="h-trouble"><span class="px">15</span>When something goes wrong</h2>
           <div class="figure-row">
             <figure class="screen"><img class="pixelated" src="img/crash.png" width="480" height="480" alt="The red BRYO CRASH screen" loading="lazy"><figcaption class="px">Crash</figcaption></figure>
           </div>
@@ -321,13 +483,14 @@ cd /tmp/bryo-site &amp;&amp; python3 -m http.server 8000
             <li><strong>A red BRYO CRASH screen:</strong> it restarts on its own after 4 seconds. Anything you hadn't saved is gone, but saved projects, reels and settings are safe. If it freezes instead, it restarts after 8 seconds. If it crashes twice within 30 seconds of turning on, it starts in update mode so you can reinstall it.</li>
             <li><strong>UPDATE MODE IN 3&hellip;:</strong> you're holding OCT&minus; and OCT+ together. Five seconds puts it in update mode. Let go to cancel.</li>
             <li><strong>A calibration screen:</strong> OCT&minus; and OCT+ were held while it turned on. Follow the screen, or turn it off and on again.</li>
+            <li><strong>12 DEPTHS ON M1</strong> (or M2, M3, M4): that modulator already moves twelve knobs. Turn one back to 0, or hold its pad and MONO to clear its knobs on the page.</li>
           </ul>
           <p>If you hit a crash, please write down what you were doing and <a href="https://github.com/thoughtgrain/moss-and-air/issues">open an issue</a>. That's the quickest way for me to find the bug.</p>
           <a class="more" href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/docs/manual/README.md#11-when-something-goes-wrong">Manual 11 &gt;</a>
         </section>
 
         <section id="reference" aria-labelledby="h-reference">
-          <h2 id="h-reference"><span class="px">12</span>Quick reference</h2>
+          <h2 id="h-reference"><span class="px">16</span>Quick reference</h2>
           <div class="table-wrap" tabindex="0" role="region" aria-label="Quick reference: controls">
             <table>
               <thead><tr><th scope="col">Do this</th><th scope="col">To</th></tr></thead>
@@ -338,22 +501,26 @@ cd /tmp/bryo-site &amp;&amp; python3 -m http.server 8000
                 <tr><td>GLO held + white key 1 to 4</td><td>Pick a track</td></tr>
                 <tr><td>GLO held + KNOB 1 to 4</td><td>Track levels</td></tr>
                 <tr><td>GLO held + SELECT</td><td>How many tracks are on</td></tr>
-                <tr><td>GLO tapped, then EDIT</td><td>CHANNEL, MASTER, KEY, SETUP</td></tr>
+                <tr><td>GLO tapped, then EDIT</td><td>SCENES, CHANNEL, MASTER, KEY, SETUP</td></tr>
+                <tr><td>SCENES: white key 1 to 4</td><td>Recall a scene (held + SAVE stores it)</td></tr>
+                <tr><td>SCENES: KNOB 1 to 4</td><td>Morph toward that scene</td></tr>
                 <tr><td>OP1 to OP4</td><td>Mute tracks</td></tr>
                 <tr><td>OP5 / OP6</td><td>Tape backwards / half speed</td></tr>
                 <tr><td>HOME</td><td>The source's pages</td></tr>
                 <tr><td>HOME held + SELECT</td><td>Change the source</td></tr>
-                <tr><td>EDIT</td><td>GRAIN, then RESONATOR</td></tr>
-                <tr><td>FX</td><td>COLOR, then SPACE</td></tr>
+                <tr><td>EDIT</td><td>GRAIN, then RIPPLE</td></tr>
+                <tr><td>EDIT held + SELECT</td><td>RIPPLE's form: RIPPLE, COMB, RESO, 12-BAND</td></tr>
+                <tr><td>FX</td><td>COLOR, then CHRONOS</td></tr>
                 <tr><td>ENV</td><td>The source's envelope page</td></tr>
                 <tr><td>LFO / SEQ tapped</td><td>That modulator's pages</td></tr>
-                <tr><td>LFO / SEQ held + a knob</td><td>How much that modulator moves the knob</td></tr>
+                <tr><td>LFO / SEQ held + a knob</td><td>How much that modulator moves the knob (up to 12 knobs each)</td></tr>
                 <tr><td>LFO held + OP1 / OP2 / OP3</td><td>Which modulator LFO shows: M1, M2, M3</td></tr>
                 <tr><td>LFO held + SELECT</td><td>What the modulator is: LFO, ADSR or FOLLOW</td></tr>
-                <tr><td>ARP</td><td>The arpeggiator; its third page is RES ARP</td></tr>
+                <tr><td>ARP</td><td>The arpeggiator; its third page is RIPL ARP</td></tr>
                 <tr><td>ARP page, black POLY held</td><td>Clear the arpeggio's notes</td></tr>
                 <tr><td>GLO held + OCT+</td><td>Black keys: shortcuts or notes</td></tr>
                 <tr><td>REC</td><td>Record onto the track</td></tr>
+                <tr><td>REC held + SELECT</td><td>Record an exact number of bars</td></tr>
                 <tr><td>REC held 1&nbsp;s, stopped</td><td>Record the computer</td></tr>
                 <tr><td>ALGORITHM</td><td>What REC records</td></tr>
                 <tr><td>Black POLY held</td><td>Clear the tape (on DRUM, the pattern)</td></tr>
@@ -372,18 +539,18 @@ cd /tmp/bryo-site &amp;&amp; python3 -m http.server 8000
         </section>
 
         <section id="build" aria-labelledby="h-build">
-          <h2 id="h-build"><span class="px">13</span>Building and testing</h2>
+          <h2 id="h-build"><span class="px">17</span>Building and testing</h2>
           <p>You don't need the device toolchain to work on Bryo. The host tests build the whole sound chain, the controls and the screens with any C compiler, then check every screen against its pixel fingerprint. The pictures on this site come from those tests.</p>
           <div class="code"><pre><code>pip3 install Pillow fonttools
 cd bryo
 tests/run_tests.sh            # should end with "ALL HOST TESTS PASSED"</code></pre></div>
           <p>To see what each modulation target costs (needs numpy, and valgrind for <code>--cost</code>):</p>
           <div class="code"><pre><code>sh tests/mod_audit.sh --cost</code></pre></div>
-          <p><a href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/docs/bryo-architecture.md">bryo-architecture.md</a> explains how each part is built. If you'd like to help, start with <a href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/CONTRIBUTING.md">CONTRIBUTING.md</a>.</p>
+          <p>On the device, load the TEST project, press PLAY, and read SETUP's load lines to see what a new build changed. <a href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/docs/bryo-architecture.md">bryo-architecture.md</a> explains how each part is built, and <a href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/docs/performance-plan.md">performance-plan.md</a> covers the recent speed work. If you'd like to help, start with <a href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/CONTRIBUTING.md">CONTRIBUTING.md</a>.</p>
         </section>
 
         <section id="credits" aria-labelledby="h-credits">
-          <h2 id="h-credits"><span class="px">14</span>Credits and licence</h2>
+          <h2 id="h-credits"><span class="px">18</span>Credits and licence</h2>
           <p>Bryo is a fork of <a href="https://github.com/hugelton/Felucca">Felucca</a>, the open firmware for the FM-1 by <a href="https://github.com/kurogedelic">Leo Kuroshita (@kurogedelic)</a> and Hügelton Instruments. They worked out how the FM-1 works and wrote the firmware Bryo still stands on: the hardware layer, the update loader, USB, storage, the display and the installer. Thank you, Leo.</p>
           <p>Felucca credits DaisySP and Rings (Electrosmith, Emilie Gillet), msfa (Google, Pascal Gauthier, via Dexed), klattsch (Tony Gies), the Inter Tight font (The Inter Project Authors), the Fukiai icon font (Hügelton), the VSCO-2 CE and VCSL sample libraries (Versilian Studios) and three files from the JieLi AC79 SDK. Those credits carry through to Bryo.</p>
           <div class="btn-row">

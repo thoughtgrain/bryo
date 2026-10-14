@@ -79,7 +79,7 @@ When the firmware's look changes, regenerate from the repository root:
 ```sh
 python3 site/tools/gen_px_webfont.py     # PX5 changed: fonts, wordmark, favicon
 python3 site/tools/gen_panel.py          # a control's job or a colour changed: the panel
-cp bryo/docs/manual/img/{boot,tape,grain_playing,reso_live,space_live,mixer,mod1,synth,poly,drum,arp,arp_add,arp_drum,arp_res,color,crash}.png site/img/
+cp bryo/docs/manual/img/{boot,tape,grain_playing,reso_live,space_live,space_long,mixer,mixer_scenes,mixer_morph,projects_scenes,mod1,synth,synth_fm,synth_pd,synth_vox,synth_wt,poly,poly_twin,drum,arp,arp_add,arp_drum,arp_res,ripple2,ripple_comb,ripple_bank,color,crash}.png site/img/
 ```
 
 Both scripts need fontTools only for the fonts (`pip3 install fonttools`); the panel needs nothing beyond Python.

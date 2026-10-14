@@ -5,7 +5,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Bryo, 4-track sound sculpting for the FM-1</title>
-  <meta name="description" content="Bryo is open firmware that turns the M-VAVE FM-1 into a four-track instrument for sculpting sound: tape, synth, poly and drum sources, four effects, modulators and arpeggiators. A fork of Felucca.">
+  <meta name="description" content="Bryo is open firmware that turns the M-VAVE FM-1 into a four-track instrument for sculpting sound: tape, synth, poly and drum sources, four effects, modulators, arpeggiators and scenes. A fork of Felucca.">
   <meta name="theme-color" content="#121212">
   <link rel="icon" href="img/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -50,9 +50,10 @@
           <li><a href="./#chain"><span>02</span>The chain</a></li>
           <li><a href="./#sources"><span>03</span>Sources</a></li>
           <li><a href="./#arps"><span>04</span>Arpeggiators</a></li>
-          <li><a href="./#specs"><span>05</span>Specs</a></li>
-          <li><a href="./#get"><span>06</span>Get it</a></li>
-          <li><a href="./#thanks"><span>07</span>Thanks, Felucca</a></li>
+          <li><a href="./#scenes"><span>05</span>Scenes</a></li>
+          <li><a href="./#specs"><span>06</span>Specs</a></li>
+          <li><a href="./#get"><span>07</span>Get it</a></li>
+          <li><a href="./#thanks"><span>08</span>Thanks, Felucca</a></li>
           <li><a href="docs.html"><span>//</span>Documentation</a></li>
           <li><a href="https://github.com/thoughtgrain/moss-and-air"><span>&gt;&gt;</span>GitHub</a></li>
         </ul>
@@ -77,12 +78,12 @@
           <p class="hero__lede">Bryo turns the FM-1 into a four-track instrument for growing sounds. Play a loop, record over it, and let it drift. Everything is a pad and a knob away.</p>
           <div class="btn-row">
             <a class="btn btn--solid" href="docs.html">Read the docs</a>
-            <a class="btn" href="#thanks">Built on Felucca</a>
+            <a class="btn" href="docs.html#new">What's new</a>
           </div>
         </div>
 
         <div class="device" data-screens
-             data-list='[["img/boot.png","Boot","Boot screen: BRYO, 4-track sound sculpting"],["img/tape.png","Home / Tape","The TAPE page: the reel, the loop bracketed IN to OUT"],["img/grain_playing.png","Edit / Grain","GRAIN with grains playing, lit in orange"],["img/reso_live.png","Edit / Resonator","RESONATOR: four strings ringing"],["img/space_live.png","FX / Space","SPACE: echoes and the tail of the room, in orange"],["img/arp_add.png","ARP","The arpeggiator with four notes piled up"],["img/mixer.png","Glo / Mixer","The mixer: four track levels"],["img/mod1.png","LFO / M1","An LFO modulator drawing its wave"]]'>
+             data-list='[["img/boot.png","Boot","Boot screen: BRYO, 4-track sound sculpting"],["img/tape.png","Home / Tape","The TAPE page: the reel, the loop bracketed IN to OUT"],["img/synth_fm.png","Home / FM Synth","SYNTH as a two-operator FM synth"],["img/grain_playing.png","Edit / Grain","GRAIN with grains playing, lit in orange"],["img/reso_live.png","Edit / Ripple","RIPPLE: four strings ringing"],["img/space_live.png","FX / Chronos","CHRONOS: echoes and the tail of the room, in orange"],["img/arp_add.png","ARP","The arpeggiator with four notes piled up"],["img/mixer_morph.png","Glo / Scenes","SCENES: knob 2 halfway to scene 2"],["img/mod1.png","LFO / M1","An LFO modulator drawing its wave"]]'>
           <figure class="device__screen">
             <img class="pixelated" src="img/boot.png" width="480" height="480" alt="Bryo's boot screen: BRYO, 4-track sound sculpting" data-screen-img>
           </figure>
@@ -103,7 +104,7 @@
         <div class="prose">
           <p class="lead">Bryo is new firmware for the M-VAVE FM-1. It gives you four tracks. Each one starts with a sound and sends it through four effects, always in the same order.</p>
           <p>Let's start with the tape, because everything grows from it. A tape is a loop that lives in memory. Press PLAY and it plays. Press a white key and you hear one of its sixteen slices. Press REC and it records the other three tracks onto itself, so you can bounce an idea down and keep building on top.</p>
-          <p>The four tracks share <strong>28 seconds</strong> of memory. A track only takes what it records, so three short loops leave room for one long one.</p>
+          <p>The four tracks share about <strong>20 seconds</strong> of memory. A track only takes what it records, so three short loops leave room for one long one.</p>
           <p>There are no menus. Each page shows four values, and the four knobs change those four values. Press a pad again to see its next page. Hold a pad and the white keys light up, one for each page, so you can jump straight there.</p>
           <p>Every screen on this site comes from the same code that runs on the FM-1. What you see here is what you'll see on the device.</p>
         </div>
@@ -115,16 +116,16 @@
         <span class="section__num px"><span class="slash" aria-hidden="true">/</span> 02</span>
         <h2 class="section__title" id="chain-title">One line, five stages</h2>
         <div class="prose">
-          <p>A sound always takes the same path: the source, then GRAIN, RESONATOR, COLOR and SPACE. Since the order never changes, you always know where to look. Each effect's first page ends with its mix knobs. Press EDIT or FX, turn KNOB&nbsp;4, and you'll hear the effect fade in.</p>
+          <p>A sound always takes the same path: the source, then GRAIN, RIPPLE, COLOR and CHRONOS. Since the order never changes, you always know where to look. Each effect's first page ends with its mix knobs. Press EDIT or FX, turn KNOB&nbsp;4, and you'll hear the effect fade in.</p>
         </div>
 
         <div class="chain" data-tabs>
           <div class="chain__tabs" role="tablist" aria-label="The signal chain">
             <button class="chain__tab" role="tab" id="tab-source" aria-controls="panel-source" aria-selected="true"><small>1</small>Source</button>
             <button class="chain__tab" role="tab" id="tab-grain" aria-controls="panel-grain" aria-selected="false" tabindex="-1"><small>2</small>Grain</button>
-            <button class="chain__tab" role="tab" id="tab-reso" aria-controls="panel-reso" aria-selected="false" tabindex="-1"><small>3</small>Reso</button>
+            <button class="chain__tab" role="tab" id="tab-ripple" aria-controls="panel-ripple" aria-selected="false" tabindex="-1"><small>3</small>Ripple</button>
             <button class="chain__tab" role="tab" id="tab-color" aria-controls="panel-color" aria-selected="false" tabindex="-1"><small>4</small>Color</button>
-            <button class="chain__tab" role="tab" id="tab-space" aria-controls="panel-space" aria-selected="false" tabindex="-1"><small>5</small>Space</button>
+            <button class="chain__tab" role="tab" id="tab-chronos" aria-controls="panel-chronos" aria-selected="false" tabindex="-1"><small>5</small>Chronos</button>
           </div>
 
           <div class="chain__panel" role="tabpanel" id="panel-source" aria-labelledby="tab-source" tabindex="0">
@@ -134,7 +135,7 @@
             </figure>
             <div class="prose">
               <h3>Source <span class="tag px">Home</span></h3>
-              <p>Pick a tape loop, a small synth, a sampler that spreads one sound across the keys, or a drum machine. Hold <strong>HOME</strong> and turn <strong>SELECT</strong> to switch. Each source remembers its own knobs, so you can switch back without losing anything.</p>
+              <p>Pick a tape loop, a synth, a sampler that spreads sounds across the keys, or a drum machine. Hold <strong>HOME</strong> and turn <strong>SELECT</strong> to switch. Each source remembers its own knobs, so you can switch back without losing anything.</p>
               <p>The first time you turn it on, the four tracks play four factory reels: BEAT, BELL, DRON and FOLD.</p>
             </div>
           </div>
@@ -147,19 +148,19 @@
             <div class="prose">
               <h3>Grain <span class="tag px">Edit</span></h3>
               <p>GRAIN listens to the last few bars of the track and plays them back as tiny overlapping pieces. You can stretch them out, hold them on one spot, or let them trail behind with SCAN.</p>
-              <p>Hold the black <strong>0</strong> key to freeze what it heard into a loop. Tap it instead and the freeze stays on until you tap again. BODY adds a low floor under the grains.</p>
+              <p>Hold the black <strong>0</strong> key to freeze what it heard into a loop. Tap it instead and the freeze stays on until you tap again. The grains can follow the project's key, so changing the scale on the mixer moves them too.</p>
             </div>
           </div>
 
-          <div class="chain__panel" role="tabpanel" id="panel-reso" aria-labelledby="tab-reso" tabindex="0" hidden>
+          <div class="chain__panel" role="tabpanel" id="panel-ripple" aria-labelledby="tab-ripple" tabindex="0" hidden>
             <figure class="screen">
-              <img class="pixelated" src="img/reso_live.png" width="480" height="480" alt="RESONATOR with strings ringing" loading="lazy">
-              <figcaption class="px">Edit / Resonator</figcaption>
+              <img class="pixelated" src="img/reso_live.png" width="480" height="480" alt="RIPPLE with its four strings ringing" loading="lazy">
+              <figcaption class="px">Edit / Ripple</figcaption>
             </figure>
             <div class="prose">
-              <h3>Resonator <span class="tag px">Edit</span></h3>
-              <p>Four tuned strings that the track's sound rings through. Their notes come from the project's key and scale, so they always agree with each other.</p>
-              <p>On this page the white keys set the root note and pluck the strings. The strings also have an arpeggiator of their own, <a href="#arps">RES ARP</a>.</p>
+              <h3>Ripple <span class="tag px">Edit</span></h3>
+              <p>Something tuned that the track's sound rings through. Hold <strong>EDIT</strong> and turn <strong>SELECT</strong> to pick what: four plucked strings, a hollow COMB that only rings the odd harmonics, four resonant bands, or a 12-band filter bank that sorts whatever comes in into a chord.</p>
+              <p>The notes come from a chord you choose, from major and minor to sevenths and power chords. DRV saturates the ring, and RIPL lets the pitches drift slowly, one after another, like a ripple on water. On its page the white keys set the root. With KEYS on PLCK they pluck it too; on TUNE they only retune it, so what rings is the track's own sound.</p>
             </div>
           </div>
 
@@ -174,15 +175,15 @@
             </div>
           </div>
 
-          <div class="chain__panel" role="tabpanel" id="panel-space" aria-labelledby="tab-space" tabindex="0" hidden>
+          <div class="chain__panel" role="tabpanel" id="panel-chronos" aria-labelledby="tab-chronos" tabindex="0" hidden>
             <figure class="screen">
-              <img class="pixelated" src="img/space_live.png" width="480" height="480" alt="SPACE with its echoes and tail sounding" loading="lazy">
-              <figcaption class="px">FX / Space</figcaption>
+              <img class="pixelated" src="img/space_live.png" width="480" height="480" alt="CHRONOS with its echoes and tail sounding" loading="lazy">
+              <figcaption class="px">FX / Chronos</figcaption>
             </figure>
             <div class="prose">
-              <h3>Space <span class="tag px">FX</span></h3>
-              <p>A delay and a small room. All four tracks share them, and each track decides how much to send with its own DLY and VERB knobs.</p>
-              <p>They only use memory while you're using them, so a dry project has more room for tape.</p>
+              <h3>Chronos <span class="tag px">FX</span></h3>
+              <p>A delay and two rooms. The tracks share the rooms, and each track decides how much to send with its own DLY and VERB knobs.</p>
+              <p>The echoes can wear like old tape (AGE), melt into a wash (DIFF), or duck out of the way while the track plays (DUCK). Each room can be a room, a plate, a hall or a spring, and MOD makes its tail waver so it sounds less metallic. They only use memory while you're using them, so a dry project has more room for tape.</p>
             </div>
           </div>
         </div>
@@ -198,21 +199,21 @@
             <img class="pixelated" src="img/tape.png" width="480" height="480" alt="TAPE page" loading="lazy">
             <div class="card__body">
               <h3 class="px">Tape</h3>
-              <p>A loop in memory with sixteen slices on the keys. Move where it starts and ends, change its speed, or flip it backwards.</p>
+              <p>A loop in memory with sixteen slices on the keys. Move where it starts and ends, change its speed, flip it backwards, or lock it to the tempo.</p>
             </div>
           </article>
           <article class="card">
-            <img class="pixelated" src="img/synth.png" width="480" height="480" alt="SYNTH page" loading="lazy">
+            <img class="pixelated" src="img/synth_fm.png" width="480" height="480" alt="SYNTH as an FM synth" loading="lazy">
             <div class="card__body">
               <h3 class="px">Synth</h3>
-              <p>A small subtractive synth with up to three voices, a filter and its own envelope.</p>
+              <p>Three voices and nine waves. The classic shapes, plus FM for bells and electric pianos, PD for the Casio CZ's sweep, VOX for vowels, and WT, a wavetable that can be cut from any reel. CHRD plays a whole chord from one key.</p>
             </div>
           </article>
           <article class="card">
-            <img class="pixelated" src="img/poly.png" width="480" height="480" alt="POLY page" loading="lazy">
+            <img class="pixelated" src="img/poly_twin.png" width="480" height="480" alt="POLY with TWIN mixing two reels" loading="lazy">
             <div class="card__body">
               <h3 class="px">Poly</h3>
-              <p>Plays any reel, or the track's own tape, across the keys. Up to four notes at once, each with its own envelope and filter.</p>
+              <p>Plays any reel, or the track's own tape, across the keys. TWIN adds a second reel: blend them, split them across the keyboard, or take turns note by note.</p>
             </div>
           </article>
           <article class="card">
@@ -236,7 +237,7 @@
           <h2 class="section__title" id="mod-title">Hold a pad. Turn a knob.</h2>
           <p class="lead">Each track has four modulators. They move knobs for you, so a sound keeps changing while your hands are busy.</p>
           <p>Three of them live on the <strong>LFO</strong> pad, and each can be an LFO, an ADSR envelope or an envelope follower. The fourth, on <strong>SEQ</strong>, is a step sequencer.</p>
-          <p>To make a knob move, hold LFO or SEQ and turn that knob. How far you turn sets how far it moves, from &minus;100 to 100&nbsp;%. A knob that's moving gets a purple mark, so you can see what's alive at a glance.</p>
+          <p>To make a knob move, hold LFO or SEQ and turn that knob. How far you turn sets how far it moves, from &minus;100 to 100&nbsp;%. Each modulator can move up to twelve knobs, and while you hold its pad the screen counts them for you. A knob that's moving gets a purple mark, so you can see what's alive at a glance.</p>
         </div>
       </div>
     </section>
@@ -250,12 +251,12 @@
             <figure class="screen"><img class="pixelated" src="img/arp.png" width="480" height="480" alt="ARP page: two notes held, the one playing filled" loading="lazy"><figcaption class="px">ARP / KEY</figcaption></figure>
             <figure class="screen"><img class="pixelated" src="img/arp_add.png" width="480" height="480" alt="ARP in ADD mode with four notes piled up" loading="lazy"><figcaption class="px">ARP / ADD</figcaption></figure>
             <figure class="screen"><img class="pixelated" src="img/arp_drum.png" width="480" height="480" alt="ARP on a DRUM track walking three drums up and down" loading="lazy"><figcaption class="px">ARP / Drum</figcaption></figure>
-            <figure class="screen"><img class="pixelated" src="img/arp_res.png" width="480" height="480" alt="RES ARP: two notes held, the strings plucked in turn" loading="lazy"><figcaption class="px">RES ARP</figcaption></figure>
+            <figure class="screen"><img class="pixelated" src="img/arp_res.png" width="480" height="480" alt="RIPL ARP: two notes held, the strings plucked in turn" loading="lazy"><figcaption class="px">RIPL ARP</figcaption></figure>
           </div>
         </div>
         <div class="prose">
           <p class="lead">Hold a few keys and the arpeggiator plays them one at a time, in time with the tempo.</p>
-          <p>Every track has one, and it does something a little different on each source. On SYNTH and POLY it plays notes. On TAPE it steps through the slices you hold. On DRUM it walks through the drums you hold: hold kick, snare and hat with UPDN and you get kick, snare, hat, snare, kick.</p>
+          <p>Every track has one, and it does something a little different on each source. On SYNTH and POLY it plays notes. On TAPE it steps through the slices you hold. On DRUM it walks through the drums you hold: hold kick, snare and hat with UPDN and you get kick, snare, hat, snare, kick. With SYNTH's CHRD on, every step is a whole chord.</p>
           <dl class="specs specs--compact">
             <div><dt class="px">Mode</dt><dd><strong>KEY</strong> plays while you hold the keys. <strong>LTCH</strong> keeps the last chord going after you let go. <strong>ADD</strong> keeps every key you press, so a pattern grows one note at a time.</dd></div>
             <div><dt class="px">Order</dt><dd>Up, down, up and down, random, or the order you pressed them.</dd></div>
@@ -264,28 +265,53 @@
             <div><dt class="px">Page 2</dt><dd>GATE for short or long notes, SWNG to push every other step late.</dd></div>
           </dl>
           <p>To clear a latched or piled-up pattern, hold the black <strong>POLY</strong> key on the ARP page.</p>
-          <h3>A second one, for the strings</h3>
-          <p>Press ARP a third time and you're on <strong>RES ARP</strong>. It plucks RESONATOR's four strings, one note per step, whatever the track itself is playing. Turn RESONATOR's WET up to hear it. A latched pattern keeps plucking after you leave the page, so you can set it going and go shape something else.</p>
+          <h3>A second one, for RIPPLE</h3>
+          <p>Press ARP a third time and you're on <strong>RIPL ARP</strong>. It plays RIPPLE, one note per step, whatever the track itself is playing. With RIPPLE's KEYS on PLCK each step plucks the strings; on TUNE each step retunes RIPPLE, so the track's own sound rings in the pattern. Turn RIPPLE's WET up to hear it. A latched pattern keeps going after you leave the page, so you can set it running and go shape something else.</p>
           <p>Both follow the transport. STOP quiets them and keeps the notes, and PLAY starts them again from the top. Saving a project keeps the notes too.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="scenes" aria-labelledby="scenes-title">
+      <div class="wrap split">
+        <div>
+          <span class="section__num px"><span class="slash" aria-hidden="true">/</span> 05</span>
+          <h2 class="section__title" id="scenes-title">Four scenes to jump or drift between</h2>
+          <div class="figure-row figure-row--2">
+            <figure class="screen"><img class="pixelated" src="img/mixer_scenes.png" width="480" height="480" alt="SCENES: scenes 1 and 2 stored, 2 the current one" loading="lazy"><figcaption class="px">Glo / Scenes</figcaption></figure>
+            <figure class="screen"><img class="pixelated" src="img/mixer_morph.png" width="480" height="480" alt="SCENES: knob 2 halfway to scene 2" loading="lazy"><figcaption class="px">Morphing</figcaption></figure>
+          </div>
+        </div>
+        <div class="prose">
+          <p class="lead">A scene is a snapshot of how the whole project sounds. Each project has four.</p>
+          <p>A scene holds every track's source and every knob that shapes its sound, plus the track levels and the rooms. It leaves what's playing alone: the tapes, the patterns, the modulation, the arpeggios, the tempo and the key all carry on when you change scenes.</p>
+          <p>Tap GLO, then EDIT, and you're on <strong>SCENES</strong>. The white keys 1 to 4 are the four scenes, and each knob sits under its scene.</p>
+          <dl class="specs specs--compact">
+            <div><dt class="px">Store</dt><dd>Hold a scene's key and tap SAVE.</dd></div>
+            <div><dt class="px">Recall</dt><dd>Tap a scene's key. Everything glides there in about a third of a second.</dd></div>
+            <div><dt class="px">Morph</dt><dd>Turn a scene's knob. Each click moves the sound 5&nbsp;% of the way there, and you can stop anywhere, halfway between two sounds if you like.</dd></div>
+          </dl>
+          <p>If a track uses the same source in both scenes, its knobs morph smoothly. If the source changes, the track fades out, switches, and fades back in. Scenes are saved with the project, and the PROJECTS view shows how many each project has.</p>
         </div>
       </div>
     </section>
 
     <section class="section" id="specs" aria-labelledby="specs-title">
       <div class="wrap">
-        <span class="section__num px"><span class="slash" aria-hidden="true">/</span> 05</span>
+        <span class="section__num px"><span class="slash" aria-hidden="true">/</span> 06</span>
         <h2 class="section__title" id="specs-title">Specs</h2>
         <dl class="specs">
           <div><dt class="px">Hardware</dt><dd>M-VAVE FM-1 (JieLi AC79), bare metal</dd></div>
           <div><dt class="px">Tracks</dt><dd>4, each with a source and the full chain</dd></div>
-          <div><dt class="px">Sources</dt><dd>TAPE, SYNTH, POLY, DRUM</dd></div>
-          <div><dt class="px">Effects</dt><dd>GRAIN, RESONATOR, COLOR, SPACE (the delay and room are shared sends)</dd></div>
-          <div><dt class="px">Modulation</dt><dd>4 per track: 3 that can each be an LFO, ADSR or FOLLOW, and a step sequencer</dd></div>
-          <div><dt class="px">Arpeggiators</dt><dd>1 per track (notes, slices or drums), plus RES ARP for RESONATOR's strings</dd></div>
-          <div><dt class="px">Tape memory</dt><dd>28&nbsp;s shared across the tracks, IMA ADPCM at 22.05&nbsp;kHz</dd></div>
-          <div><dt class="px">Mixer</dt><dd>Level, LOW, HIGH, FILT and PAN per track; a master compressor; the project's key and scale</dd></div>
+          <div><dt class="px">Sources</dt><dd>TAPE; SYNTH (SIN TRI SQR SAW PLS, FM, PD, VOX, WT, with chords); POLY (with TWIN, a second reel); DRUM</dd></div>
+          <div><dt class="px">Effects</dt><dd>GRAIN; RIPPLE (strings, comb, resonators or a 12-band bank); COLOR; CHRONOS (a delay and two shared rooms: room, plate, hall or spring)</dd></div>
+          <div><dt class="px">Modulation</dt><dd>4 per track: 3 that can each be an LFO, ADSR or FOLLOW, and a step sequencer; up to 12 knobs each</dd></div>
+          <div><dt class="px">Arpeggiators</dt><dd>1 per track (notes, chords, slices or drums), plus RIPL ARP for RIPPLE</dd></div>
+          <div><dt class="px">Scenes</dt><dd>4 per project: recall, or morph between them with a knob</dd></div>
+          <div><dt class="px">Tape memory</dt><dd>About 20&nbsp;s shared across the tracks, IMA ADPCM at 22.05&nbsp;kHz</dd></div>
+          <div><dt class="px">Mixer</dt><dd>Level, LOW, HIGH, FILT and PAN per track; a master compressor; the project's key and 15 scales</dd></div>
           <div><dt class="px">Storage</dt><dd>6 projects, 8 track presets plus 8 factory ones, 4 factory reels plus 6 of yours</dd></div>
-          <div><dt class="px">USB</dt><dd>Shows up as a drive called BRYO (WAV in and out), and records what the computer plays, up to 23.6&nbsp;s</dd></div>
+          <div><dt class="px">USB</dt><dd>Shows up as a drive called BRYO (WAV in and out), and records what the computer plays</dd></div>
           <div><dt class="px">Status</dt><dd>Phases 1 to 9 of 10 built; running on an FM-1 since 2026-10-10</dd></div>
           <div><dt class="px">Licence</dt><dd>GPL-3.0-only, same as Felucca</dd></div>
         </dl>
@@ -295,7 +321,7 @@
     <section class="section" id="get" aria-labelledby="get-title">
       <div class="wrap split">
         <div>
-          <span class="section__num px"><span class="slash" aria-hidden="true">/</span> 06</span>
+          <span class="section__num px"><span class="slash" aria-hidden="true">/</span> 07</span>
           <h2 class="section__title" id="get-title">Get it</h2>
         </div>
         <div class="prose">
@@ -312,7 +338,7 @@
     <section class="section thanks" id="thanks" aria-labelledby="thanks-title">
       <div class="wrap split">
         <div>
-          <span class="section__num px"><span class="slash" aria-hidden="true">/</span> 07</span>
+          <span class="section__num px"><span class="slash" aria-hidden="true">/</span> 08</span>
           <h2 class="section__title" id="thanks-title">Thank you, Felucca</h2>
         </div>
         <div class="prose">

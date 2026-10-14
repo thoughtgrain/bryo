@@ -134,6 +134,7 @@
           if (panel) panel.hidden = !on;
         });
         if (focus) tab.focus();
+        if (tab.scrollIntoView) tab.scrollIntoView({ block: "nearest", inline: "nearest" });
       }
 
       tabs.forEach(function (tab, idx) {
