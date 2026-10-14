@@ -949,3 +949,22 @@ tr:last-child td { border-bottom: 0; }
     scrollbar-width: thin;
   }
 }
+
+/* Phones: a screen picture on its own would fill the whole view, so it sits at 65 % of the column, centred,
+ * with the page around it. Pairs (.figure-row--2) are already two to a row, and the panel drawing keeps the
+ * full width because its lettering would get too small to read. */
+@media (max-width: 719px) {
+  .device { width: 65%; }
+  .device__controls { flex-wrap: wrap; }
+  .chain__panel > .screen,
+  .split > .screen,
+  .card > img {
+    width: 65%;
+    margin-inline: auto;
+  }
+  .card > img { margin-top: 16px; }
+  .figure-row:not(.figure-row--2) {
+    grid-template-columns: minmax(0, 65%);
+    justify-content: center;
+  }
+}
