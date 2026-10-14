@@ -102,7 +102,7 @@ static const char *const N_TSYNC[6] = {"OFF", "1BR", "2BR", "4BR", "8BR", "16BR"
 
 /* RIPPLE's knobs, the same stored places in every form (MODE, the form: reso.c RM_*), the labels the form's (dec:
  * DEC's, tone: TONE's; the resonators call DEC their RING and TONE their TILT) */
-#define RS_DESC(dec, tone) {                                                                                     \
+#define RS_DESC(dec, tone, k22) {                                                                                \
         {"PTCH", 33, 81, 45, F_NOTE}, {dec, 0, 100, 60, F_PCT},                                                    \
         {tone, 0, 100, 45, F_PCT}, {"WET", 0, 100, 0, F_PCT},   /* (TONE 60 until 2026-10-13: too bright) */      \
         /* 2: a filter before the strings (cutoff, resonance, its TYPE: low-, band- or high-pass, as POLY's), and the  \
@@ -122,7 +122,12 @@ static const char *const N_TSYNC[6] = {"OFF", "1BR", "2BR", "4BR", "8BR", "16BR"
          * back (the resonators: of what reaches the bands); RIPL, the pitches drifting slowly, each a quarter turn   \
          * behind the last; KEYS, PLCK (a key or a step plucks) or TUNE (it retunes what the track's sound rings) */ \
         {"MODE", 0, 3, 0, F_ENUM, N_RMODE, 1}, {"DRV", 0, 100, 25, F_PCT}, {"RIPL", 0, 100, 0, F_PCT},              \
-        {"KEYS", 0, 1, 0, F_ENUM, N_RKEYS, 1}}
+        {"KEYS", 0, 1, 0, F_ENUM, N_RKEYS, 1},                                                                     \
+        /* 20 (2026-10-14, page 5 with MODE and VARY): PLVL, a pluck's level (the keys', the arpeggio's); SPRD, the  \
+         * strings detuned across (cents, a chorus) or the bands' spacing stretched; k22, EVEN on the resonators   \
+         * (the odd partials against the even: - the 1st 3rd 5th alone, + the 2nd 4th 6th) */                     \
+        {"PLVL", 0, 100, 100, F_PCT}, {"SPRD", -100, 100, 0, F_BIPCT}, k22, {""}}
+#define RS_EVEN {"EVEN", -100, 100, 0, F_BIPCT}
 
 /* (each table in the order its knobs are stored; the "1:", "2:" notes are those blocks of four. Where a page shows
  * them otherwise, PLAYOUT below says so) */
@@ -180,7 +185,7 @@ static const pdesc_t DEV_P[NDEV][NPK] = {
         {"GRNS", 0, GR_GRNS_MAX, 0, F_ENUM, N_GRNS, 1},
         /* SYNC: RATE in the tempo's divisions (1 bar .. 1/64), the grains on that grid, PATN shaping it (grain.c) */
         {"SYNC", 0, 1, 0, F_ENUM, N_OFFON, 1}},
-    RS_DESC("DEC", "TONE"),   /* RIPPLE (the S-4's RING): its first form's table; the others below (RS_FORM_P) */
+    RS_DESC("DEC", "TONE", {""}),   /* RIPPLE (the S-4's RING): its first form's table; the others below (RS_FORM_P) */
     {   /* COLOR (the S-4's DEFORM) */
         {"DRV", 0, 100, 0, F_PCT}, {"CRSH", 0, 100, 0, F_PCT},
         {"NOIS", 0, 100, 0, F_PCT}, {"TILT", -100, 100, 0, F_BIPCT},
@@ -214,7 +219,8 @@ static const pdesc_t DEV_P[NDEV][NPK] = {
         {"TYPE", 0, 3, 0, F_ENUM, N_RTYPE, 1}, {"MOD", 0, 100, 0, F_PCT, 0, 1}},
 };
 /* RIPPLE's other forms (reso.c RM_COMB on): the same knobs, each form's labels, its own pages (PLAYOUT) */
-static const pdesc_t RS_FORM_P[3][NPK] = {RS_DESC("DEC", "TONE"), RS_DESC("RING", "TILT"), RS_DESC("RING", "TILT")};
+static const pdesc_t RS_FORM_P[3][NPK] = {RS_DESC("DEC", "TONE", {""}), RS_DESC("RING", "TILT", RS_EVEN),
+                                          RS_DESC("RING", "TILT", RS_EVEN)};
 
 /* The source engines: what starts a track's chain (docs/bryo-architecture.md, "Source engines"). TAPE's knobs are
  * DEV_P[DEV_SRC]; each other source has its own table, and each track keeps every source's values, so switching
@@ -593,11 +599,13 @@ static const playout_t PLAYOUT[] = {
     /* RIPPLE, every form (2026-10-13): PTCH DEC ROUT WET, SCAL TONE DRV RIPL (what rings), CUT RES TYPE . (the
      * filter in front), KEYS PICK STRM VARY (what the keys do; a pluck's shape). Stored 12-15, RIPL ARP: the ARP
      * pad's page 3; 16, MODE: the form, EDIT held + SELECT; past the pages here */
-#define RS_AT {0, 1, 8, 3, 7, 2, 17, 18, 4, 5, 6, 20, 19, 9, 10, 11, 12, 13, 14, 15, 16, 21, 22, 23}
-    {DEV_P[DEV_RESO], 4, RS_AT},
-    {RS_FORM_P[0], 4, RS_AT},
-    {RS_FORM_P[1], 4, RS_AT},
-    {RS_FORM_P[2], 4, RS_AT},
+/* RIPPLE: PTCH DEC ROUT WET; SCAL TONE DRV RIPL; CUT RES TYPE SPRD; KEYS PLVL PICK STRM; MODE EVEN VARY . (the
+ * arpeggio's 12-15 past the pages: the ARP pad's) */
+#define RS_AT {0, 1, 8, 3, 7, 2, 17, 18, 4, 5, 6, 21, 19, 20, 9, 10, 16, 22, 11, 23, 12, 13, 14, 15}
+    {DEV_P[DEV_RESO], 5, RS_AT},
+    {RS_FORM_P[0], 5, RS_AT},
+    {RS_FORM_P[1], 5, RS_AT},
+    {RS_FORM_P[2], 5, RS_AT},
     {DEV_P[DEV_COLOR], 3, {0, 1, 9, 7, 2, 3, 4, 5, 6, 10, 11, 8}},              /* COLOR: DRV CRSH ROUT WET, NOIS TILT
                                                                                  * NDEC NTON, CMOD . . LVL */
     {DEV_P[DEV_SPACE], 5, {0, 1, 4, 5, 2, 3, 8, 11, 6, 7, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19}},   /* CHRONOS:

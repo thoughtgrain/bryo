@@ -1049,7 +1049,8 @@ static const uint8_t DEV_PK[NDEV][NPK] = {
      PK_CUTOFF, PK_RES, PK_SLOPE, PK_SCALE,          /*            CUT RES TYPE SCAL */
      PK_ROUTE, PK_ATTACK, PK_STEPAT, PK_VAR,         /*            ROUT PICK STRM VARY */
      PK_TOGGLE, PK_DIR, PK_VOICES, PK_CLOCK,         /*            its arpeggio: MODE ORDR RNGE RATE */
-     PK_RMODE, PK_DRIVE, PK_RIPPLE},                 /*            MODE DRV RIPL */
+     PK_RMODE, PK_DRIVE, PK_RIPPLE, PK_TOGGLE,       /*            MODE DRV RIPL KEYS */
+     PK_FADER, PK_BOWTIE, PK_PAN},                   /*            PLVL SPRD EVEN */
     {PK_DRIVE, PK_STAIRS, PK_NOISE, PK_TONE,         /* COLOR: DRV CRSH NOIS TILT */
      PK_DECAY, PK_TONE, PK_CMOD, PK_MIX,             /*        NDEC NTON CMOD WET */
      PK_FADER, PK_ROUTE, PK_NONE, PK_NONE},          /*        LVL ROUT */

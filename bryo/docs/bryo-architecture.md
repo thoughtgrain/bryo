@@ -1221,6 +1221,20 @@ state for a pluck's burst on a held tone. Tested: a 220 Hz tone held through 12-
 under full scale, with nothing at the block rate (-63 dB). Cost: about 15 a band a sample, 180 for 12-BAND's
 twelve (about 5 % of the FM-1, in that form only).
 
+**Page 5: PLVL, SPRD, EVEN (2026-10-14).** "All versions of the resonator lack enough controls to shape each one",
+and "add the ability to turn down the level of the keys resonator". Three knobs, stored 20-22, and the pages laid
+out again: PTCH DEC ROUT WET; SCAL TONE DRV RIPL; CUT RES TYPE SPRD; KEYS PLVL PICK STRM; MODE EVEN VARY. PLVL
+scales a pluck's level before VARY (100: as it was). SPRD is one knob with a meaning a form: on the strings and
+combs a detune across the four, -50 to +50 cents from the lowest to the highest at 100, through the cents path RIPL
+uses (`rc`), so it costs nothing new and the lines stand still; on the resonators it stretches the partials'
+spacing instead, each partial's offset from the root times 1 + SPRD / 256 (up to 40 % either way): a bell's or a
+skin's inharmonic set. EVEN is on the resonators' tables only (`RS_DESC`'s third argument, an empty knob on the
+strings'): each band's gain times 1 + EVEN / 100 for the even-numbered partials and 1 - EVEN / 100 for the odd, so
+-100 leaves the 1st 3rd 5th (hollow) and +100 the 2nd 4th 6th. MODE, the form, shows as a knob on page 5 as well as
+switching with EDIT held + SELECT. A band's level meter now decays to 0 (it stalled under 8, which only the tests
+saw). Tested: PLVL 50 halves a pluck's peak; SPRD 100's cents are -50 -16 16 50; SPRD 100 on RESO moves the 2nd
+partial from 440 toward 572 Hz; EVEN -100 silences the 2nd and 4th bands, +100 the 1st and 3rd.
+
 **Defaults.** TONE 60 -> 45 (the brightness the request was about), DRV 25. Both change the factory scene's sound
 on purpose; the fingerprints were rewritten. **Cost**: the scene went from 2,924 to 2,999 instructions a sample
 (about 2 % of the FM-1): the cubic, on four strings every sample; the loop's own path costs one branch more with

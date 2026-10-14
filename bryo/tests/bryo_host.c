@@ -441,7 +441,8 @@ static void test_input(void)
     press(B_EDIT);
     press(B_EDIT);
     press(B_EDIT);
-    check("EDIT again, past RIPPLE's pages 2 to 4: GRAIN", ui.dev == DEV_GRAIN && ui.page == 0u);
+    press(B_EDIT);
+    check("EDIT again, past RIPPLE's pages 2 to 5: GRAIN", ui.dev == DEV_GRAIN && ui.page == 0u);
     press(B_FX);
     check("FX: COLOR", ui.dev == DEV_COLOR);
     press(B_FX);
@@ -495,14 +496,21 @@ static void test_input(void)
           pdesc_at(DEV_P[DEV_RESO], 4u) == RP_SCAL && pdesc_at(DEV_P[DEV_RESO], 5u) == RP_TONE &&
           pdesc_at(DEV_P[DEV_RESO], 6u) == RP_DRV && pdesc_at(DEV_P[DEV_RESO], 7u) == RP_RIPL);
     press(B_EDIT);
-    check("..again: RIPPLE's page 3, the filter in front (CUT RES TYPE)", ui.dev == DEV_RESO && ui.page == 2u &&
-          pdesc_at(DEV_P[DEV_RESO], 8u) == RP_CUT && pdesc_empty(&DEV_P[DEV_RESO][pdesc_at(DEV_P[DEV_RESO], 11u)]) &&
-          pdesc_pages(DEV_P[DEV_RESO]) == 4u);
+    check("..again: RIPPLE's page 3, the filter in front (CUT RES TYPE) and SPRD", ui.dev == DEV_RESO && ui.page == 2u &&
+          pdesc_at(DEV_P[DEV_RESO], 8u) == RP_CUT && pdesc_at(DEV_P[DEV_RESO], 11u) == RP_SPRD &&
+          pdesc_pages(DEV_P[DEV_RESO]) == 5u);
     press(B_EDIT);
-    check("..again: RIPPLE's page 4, the keys (KEYS PICK STRM VARY); MODE, its form, on no page (EDIT + SELECT)",
+    check("..again: RIPPLE's page 4, the keys (KEYS PLVL PICK STRM)",
           ui.dev == DEV_RESO && ui.page == 3u && pdesc_at(DEV_P[DEV_RESO], 12u) == RP_KEYS &&
-          pdesc_at(DEV_P[DEV_RESO], 13u) == RP_PICK && pdesc_at(DEV_P[DEV_RESO], 15u) == RP_VARY &&
+          pdesc_at(DEV_P[DEV_RESO], 13u) == RP_PLVL && pdesc_at(DEV_P[DEV_RESO], 15u) == RP_STRM &&
           !strcmp(DEV_P[DEV_RESO][RP_KEYS].label, "KEYS") && DEV_P[DEV_RESO][RP_MODE].max == 3);
+    press(B_EDIT);
+    check("..again: RIPPLE's page 5 (MODE, its form, as a knob too; EVEN on the resonators' tables only; VARY)",
+          ui.dev == DEV_RESO && ui.page == 4u && pdesc_at(DEV_P[DEV_RESO], 16u) == RP_MODE &&
+          pdesc_at(DEV_P[DEV_RESO], 17u) == RP_EVEN && pdesc_empty(&DEV_P[DEV_RESO][RP_EVEN]) &&
+          pdesc_empty(&RS_FORM_P[0][RP_EVEN]) && !strcmp(RS_FORM_P[1][RP_EVEN].label, "EVEN") &&
+          !strcmp(RS_FORM_P[2][RP_EVEN].label, "EVEN") && pdesc_at(DEV_P[DEV_RESO], 18u) == RP_VARY &&
+          !strcmp(DEV_P[DEV_RESO][RP_PLVL].label, "PLVL") && DEV_P[DEV_RESO][RP_PLVL].def == 100);
     press(B_EDIT);
     check("..again: back to GRAIN, page 1", ui.dev == DEV_GRAIN && ui.page == 0u);
     press(B_FX);
@@ -957,7 +965,7 @@ static void screens_in(const char *pal)
             render(200, 0);
             shot(pal, SHOT[m]);
             ok &= tp[0].dev[DEV_RESO][RP_MODE] == (int16_t)m && ui.dev == DEV_RESO && ui.page == 1u &&
-                  !strcmp(dev_name(0, DEV_RESO), RS_FORM_NAME[m]) && pdesc_pages(dev_p(0, DEV_RESO)) == 4u;
+                  !strcmp(dev_name(0, DEV_RESO), RS_FORM_NAME[m]) && pdesc_pages(dev_p(0, DEV_RESO)) == 5u;
         }
         ok &= !strcmp(dev_p(0, DEV_RESO)[RP_TONE].label, "TILT") && !strcmp(dev_p(0, DEV_RESO)[RP_DEC].label, "RING");
         hold(B_EDIT);
@@ -4683,6 +4691,52 @@ static void test_reso(void)
                   d1 != d0 && reso[0].rc[0] != reso[0].rc[1] && reso[0].rc[1] != reso[0].rc[2]);
             p[RP_RIPL] = 0;
         }
+        {   /* page 5 (2026-10-14): PLVL, SPRD, EVEN */
+            int32_t pk100, pk50;
+            double f1, f1s;
+            p[RP_MODE] = 0;
+            render(8, 0);
+            RS_PLUCK(s);
+            pk100 = peak_of(s, NB * CTL);
+            p[RP_PLVL] = 50;
+            RS_PLUCK(s);
+            pk50 = peak_of(s, NB * CTL);
+            snprintf(b, sizeof b, "PLVL 50: a pluck at half the level (peak %d against %d)", pk50, pk100);
+            check(b, pk50 > pk100 * 35 / 100 && pk50 < pk100 * 65 / 100);
+            p[RP_PLVL] = 100;
+            p[RP_SPRD] = 100;
+            render(2, 0);
+            check("SPRD 100 on the strings: a detune across them, -50 to +50 cents, the lines apart",
+                  reso[0].rc[0] == -50 && reso[0].rc[1] == -16 && reso[0].rc[2] == 16 && reso[0].rc[3] == 50 &&
+                  reso[0].dq[0] != reso[0].dq[3]);
+            p[RP_SPRD] = 0;
+            p[RP_MODE] = 2;                              /* RESO: the second band's pitch, as SPRD stretches it */
+            p[RP_SCAL] = 0;
+            p[RP_DEC] = 70;
+            render(2, 0);
+            RS_PLUCK(s);
+            f1 = goertzel(s, 50 * CTL, NB * CTL, 440);
+            p[RP_SPRD] = 100;
+            render(2, 0);
+            RS_PLUCK(s);
+            f1s = goertzel(s, 50 * CTL, NB * CTL, 440);
+            snprintf(b, sizeof b, "SPRD 100 on RESO: the 2nd partial moves off the octave (energy at 440 Hz %.0f -> %.0f) and "
+                     "on, toward 572 Hz", f1, f1s);
+            check(b, f1s < f1 / 4 && goertzel(s, 50 * CTL, NB * CTL, 572) > f1s * 4 && reso[0].rc[0] == 0);
+            p[RP_SPRD] = 0;
+            p[RP_EVEN] = -100;                           /* the odd partials alone: the 2nd band silent */
+            render(2, 0);
+            RS_PLUCK(s);
+            check("EVEN -100 on RESO: the 2nd and 4th bands silent, the 1st and 3rd ringing",
+                  reso[0].lvl[1] == 0 && reso[0].lvl[3] == 0 && reso[0].lvl[0] > RV_RING && reso[0].lvl[2] > RV_RING);
+            p[RP_EVEN] = 100;
+            render(2, 0);
+            RS_PLUCK(s);
+            check("..EVEN +100: the other way round", reso[0].lvl[0] == 0 && reso[0].lvl[2] == 0 &&
+                  reso[0].lvl[1] > RV_RING);
+            p[RP_EVEN] = 0;
+            p[RP_MODE] = 0;
+        }
 #undef RS_PLUCK
         power_on();
         p = tp[0].dev[DEV_RESO];
@@ -7402,10 +7456,11 @@ static void test_mod(void)
             {POL_P, 0, "LVL"},
             {DRM_P, 0, "LVL"},
             {DEV_P[DEV_COLOR], 0, "LVL", 0, "ROUT", "WET"}, {DEV_P[DEV_GRAIN], 0, 0, 0, "ROUT", "WET"},
-            {DEV_P[DEV_RESO], 0, 0, 0x1F000u, "ROUT", "WET"},   /* (12-15: RIPL ARP, the ARP pad's page 3; 16:
-                                                                 * the form, EDIT held + SELECT) */
-            {RS_FORM_P[0], 0, 0, 0x1F000u, "ROUT", "WET"}, {RS_FORM_P[1], 0, 0, 0x1F000u, "ROUT", "WET"},
-            {RS_FORM_P[2], 0, 0, 0x1F000u, "ROUT", "WET"},
+            {DEV_P[DEV_RESO], 0, 0, 0xF000u, "ROUT", "WET"},   /* (12-15: RIPL ARP, the ARP pad's page 3; 16, the
+                                                                 * form: EDIT held + SELECT, and page 5 since
+                                                                 * 2026-10-14) */
+            {RS_FORM_P[0], 0, 0, 0xF000u, "ROUT", "WET"}, {RS_FORM_P[1], 0, 0, 0xF000u, "ROUT", "WET"},
+            {RS_FORM_P[2], 0, 0, 0xF000u, "ROUT", "WET"},
             {ME_P[ME_WAVE], "AMT", "OFS"}, {ME_P[ME_ADSR], "AMT", "OFS"}, {ME_P[ME_SEQ], "AMT", "OFS"},
             {ME_P[ME_FOLLOW], "AMT", "OFS"}, {DEV_P[DEV_SPACE], 0, 0, 0, "DLY", "VERB"}};
         uint32_t i, k, ok = 1, rule = 1;

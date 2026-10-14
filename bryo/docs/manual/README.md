@@ -847,7 +847,10 @@ forms. Each track has its own.
      more than the tail. On the resonators it drives what reaches the bands. It starts at 25.
    - **RIPL**: the pitches drift slowly, each a quarter turn behind the one below, so the drift runs across them
      like a ripple on water. It reaches up to half a semitone either way at 100 and gets faster as it rises.
-6. **RIPPLE 3** is a filter in front (**CUT**, **RES**, **TYPE**): what of the track reaches it.
+6. **RIPPLE 3** is a filter in front (**CUT**, **RES**, **TYPE**): what of the track reaches it, and **SPRD**: on
+   the strings and combs a detune across them, from the lowest a little flat to the highest a little sharp (half a
+   semitone across at 100: a chorus, and with RIPL a slow shimmer); on RESO and 12-BAND it stretches or squeezes the
+   spacing of the partials instead, up to 40 % either way, out of tune with itself like a bell or a drum skin.
 7. **RIPPLE 4** is what the keys do:
    - **KEYS**: **PLCK** or **TUNE**.
      - **PLCK**: a white key on RIPPLE's page sets the root and plucks it. On a TAPE or DRUM track it plays without
@@ -856,12 +859,16 @@ forms. Each track has its own.
        keys' tune.
 
      On SYNTH and POLY the keys play the source either way, and RIPPLE follows its notes.
+   - **PLVL**: how loud a pluck is (the keys' and RIPL ARP's), so it sits against the track's own sound.
    - **PICK**: how hard a pluck strikes. Turn it left for a soft mallet (dark and round), right for a pick (bright
      and snappy).
    - **STRM**: strum. The strings sound one after another, lowest first, this many milliseconds apart (0: all at
      once). A new pluck cuts a strum that hasn't finished.
-   - **VARY**: each pluck comes out a little different, in level and brightness.
-8. To play a pattern on it, use **RIPL ARP**, the ARP pad's third page ([5.8](#58-arp-the-arpeggiator)).
+8. **RIPPLE 5**: **MODE**, the form as a knob (the same as EDIT held + SELECT); on RESO and 12-BAND **EVEN**, the
+   odd partials against the even ones (left: the 1st, 3rd, 5th alone, a hollow set; right: the 2nd, 4th, 6th, an
+   octave up and emptier in the middle); and **VARY**: each pluck comes out a little different, in level and
+   brightness.
+9. To play a pattern on it, use **RIPL ARP**, the ARP pad's third page ([5.8](#58-arp-the-arpeggiator)).
 
 The picture shows it: while a string rings, the curve waves round its node in orange, as high as the string is
 loud and as tight as it is high, and the waves drift along with RIPL. On 12-BAND each band's meter lights orange
