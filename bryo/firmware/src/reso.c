@@ -449,8 +449,11 @@ static void HOT_CODE reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t key
             inc <<= half;                               /* (a step two samples long: twice the turn) */
             th = (int32_t)((inc >> 16) * 1608u) + (int32_t)((((inc >> 8) & 255u) * 1608u) >> 8);   /* 2 pi f / fs,
                                                                                                    * Q24 */
-            th2 = (th >> 12) * (th >> 12);
-            eps = th - ((((th2 >> 12) * (th >> 12)) * 2731) >> 16);   /* 2 sin(th/2) */
+            th2 = (th >> 12) * (th >> 12);              /* (th^2, then th^3: Q24, under 2^25) */
+            th2 = (th2 >> 12) * (th >> 12);
+            eps = th - (((th2 >> 8) * 2731) >> 8);     /* 2 sin(th/2) = th - th^3 / 24 (2731 / 2^16; th^3 x 2731
+                                                         * whole overflowed, 2026-10-14: found by the sanitizer
+                                                         * when two machines' goldens disagreed) */
             while ((eps >> (14 - sh)) >= 32768 && sh)   /* (eps in 15 bits: the shift takes the rest) */
                 sh--;
             eq = eps >> (14 - sh);
