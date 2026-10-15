@@ -822,6 +822,14 @@ display tables only, so it wasn't saved, modulated or in scenes); the strings sh
 (KEYS PLVL; the resonators DRV RIPL); 4 CUT RES TYPE and one more; 5 MODE VARY and what's left (the resonators: 5
 KEYS PLVL PICK STRM, 6 VARY). The picture follows the spotlight (`reso_amp`): a band out of it has no peak or node.
 
+### CHRONOS's pages grouped (2026-10-15)
+
+"Make sure to group related parameters more." CHRONOS 3 had mixed the delay's TONE SPRD with the room's RTON QUAL, and
+the delay's character was split from its SYNC by a room page. Now the delay's pages come first, then the room's (only
+PLAYOUT moved; the stored order, projects and modulation numbering are as they were): TIME FDBK DLY VERB; SYNC TONE
+SPRD DUCK (how the echoes sit); AGE DIFF . . (what the repeats become: room for more there); ROOM TYPE SIZE DEC; PRE
+RTON MOD QUAL.
+
 ## POLY, as built (2026-10-07)
 
 POLY is the third source engine: a sound played across the keys, up to four notes at once.

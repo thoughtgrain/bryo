@@ -646,11 +646,13 @@ static const playout_t PLAYOUT[] = {
                        14, 15}},                    /* 12-BAND: the same */
     {DEV_P[DEV_COLOR], 3, {0, 1, 9, 7, 2, 3, 4, 5, 6, 10, 11, 8}},              /* COLOR: DRV CRSH ROUT WET, NOIS TILT
                                                                                  * NDEC NTON, CMOD . . LVL */
-    {DEV_P[DEV_SPACE], 5, {0, 1, 4, 5, 2, 3, 8, 11, 6, 7, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19}},   /* CHRONOS:
-                                                                                 * TIME FDBK DLY VERB, ROOM SIZE DEC
-                                                                                 * PRE, TONE SPRD RTON QUAL, SYNC AGE
-                                                                                 * DIFF DUCK, TYPE MOD (2-3, 8-11 and
-                                                                                 * 16-17: the room's, SP_RMK) */
+    {DEV_P[DEV_SPACE], 5, {0, 1, 4, 5, 12, 6, 7, 15, 13, 14, 18, 19, 2, 16, 3, 8, 11, 9, 17, 10}},   /* CHRONOS
+                                                                                 * (2026-10-15: the delay's pages, then
+                                                                                 * the room's): TIME FDBK DLY VERB,
+                                                                                 * SYNC TONE SPRD DUCK, AGE DIFF . .,
+                                                                                 * ROOM TYPE SIZE DEC, PRE RTON MOD
+                                                                                 * QUAL (2-3, 8-11 and 16-17: the
+                                                                                 * room's, SP_RMK) */
     /* SYNTH, every wave (2026-10-13): its oscillator page, AMP, FILTER (CUT RES ENV TYPE), VOICE (VOIC GLID TUNE
      * FINE), the wave's extras with KTRK and DRV, then CHRD . . LVL */
     {SYN_CL_P, 6, {0, 21, 1, 2, 8, 9, 10, 11, 4, 5, 6, 23, 12, 13, 15, 17, 22, 3, 7, 14, 19, 24, 20, 16}},

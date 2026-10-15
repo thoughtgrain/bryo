@@ -951,33 +951,31 @@ as it rings.
 1. Press **FX four times**: **CHRONOS**. **TIME** is the echo's time, **FDBK** how many echoes; turn up **DLY** (the
    echoes) and **VERB** (how much goes to the room), its two sends. VERB follows the track's level: turn the track
    down or mute it and its share of the room goes with it.
-2. Press **FX** again for **CHRONOS 2**: **ROOM** picks which room the track sends to, **A** or **B**, then that room's
-   **SIZE**, **DEC** (how long it rings) and **PRE** (a gap before it starts).
-3. **CHRONOS 3**: **TONE** darkens or brightens the echoes, **SPRD** spreads them across the stereo field; **RTON** is
-   the room's tone and **QUAL** its quality: **HI** (the full 22 kHz) or **LO** (half the rate: half the CPU, and a
-   darker, softer tail that suits a big ambient room).
-
-Bryo has two rooms, A and B, and the tracks share them: tracks 1-2 start on A, 3-4 on B. A room costs the same
-whether one track or four send to it, so a room per pair is the cheap way to put everything in a space. The room's
-knobs on CHRONOS 2 and 3 belong to the room, so turning them on one track changes it for every track on it; the label
-under the picture names the others when there are any ("B: T1 T2"). They're saved with the project, and they can't
-be modulated (the room is shared). A track preset keeps the track's room choice.
-
-4. **CHRONOS 4**: **SYNC** puts the delay on the tempo: **TIME** then picks a division (1/64 to 1/2, with dotted and
-   triplet ones) and the strip shows it. The delay line holds 370 ms, so a division longer than that at your tempo is
-   halved until it fits (a 1/4 at 120 BPM plays as 1/8), which keeps it on the beat; the strip shows what plays.
-   The other three knobs give the echoes a character (all at 0: plain, clean echoes):
+2. Press **FX** again for **CHRONOS 2**, how the echoes sit:
+   - **SYNC** puts the delay on the tempo: **TIME** then picks a division (1/64 to 1/2, with dotted and triplet
+     ones) and the strip shows it. The delay line holds 370 ms, so a division longer than that at your tempo is
+     halved until it fits (a 1/4 at 120 BPM plays as 1/8), which keeps it on the beat; the strip shows what plays.
+   - **TONE** darkens or brightens the echoes, and **SPRD** spreads them across the stereo field.
+   - **DUCK**: the echoes dip while the track plays and swell back in the gaps, so they stay out of your way.
+3. **CHRONOS 3**, what the repeats become (both at 0: plain, clean echoes):
    - **AGE**: tape. Each repeat comes back a little more saturated and darker than the last, and the time wavers
      (a slow, wandering wow and a quick flutter: a clear warble at 100), so the echoes drift and wear like an old
      tape delay.
    - **DIFF**: each repeat is smeared a little more than the last, so the echoes melt into a wash.
-   - **DUCK**: the echoes dip while the track plays and swell back in the gaps, so they stay out of your way.
-5. **CHRONOS 5**: the room's character (shared, like its other knobs):
-   - **TYPE**: **ROOM** (as before), **PLAT** (a plate: dense and bright), **HALL** (long and dark), **SPRG** (a
-     spring: short, bright and ringing).
-   - **MOD**: the tail wavers slowly, so it sounds less metallic and more alive.
+4. **CHRONOS 4**, the room: **ROOM** picks which room the track sends to, **A** or **B**; then that room's **TYPE**:
+   **ROOM** (as before), **PLAT** (a plate: dense and bright), **HALL** (long and dark), **SPRG** (a spring: short,
+   bright and ringing); its **SIZE**; and **DEC**, how long it rings.
+5. **CHRONOS 5**, the room's finer points: **PRE** (a gap before it starts), **RTON** (its tone), **MOD** (the tail
+   wavers slowly, so it sounds less metallic and more alive) and **QUAL**: **HI** (the full 22 kHz) or **LO** (half
+   the rate: half the CPU, and a darker, softer tail that suits a big ambient room).
 
-<img src="img/space_long.png" width="240" alt="CHRONOS: TIME FDBK DLY VERB"> <img src="img/space2.png" width="240" alt="CHRONOS 2: ROOM SIZE DEC PRE, T1 and T2 sharing room B"> <img src="img/space3.png" width="240" alt="CHRONOS 3: TONE SPRD RTON QUAL">
+Bryo has two rooms, A and B, and the tracks share them: tracks 1-2 start on A, 3-4 on B. A room costs the same
+whether one track or four send to it, so a room per pair is the cheap way to put everything in a space. The room's
+knobs on CHRONOS 4 and 5 (all but ROOM itself) belong to the room, so turning them on one track changes it for every
+track on it; the label under the picture names the others when there are any ("B: T1 T2"). They're saved with the
+project, and they can't be modulated (the room is shared). A track preset keeps the track's room choice.
+
+<img src="img/space_long.png" width="240" alt="CHRONOS: TIME FDBK DLY VERB"> <img src="img/space2.png" width="240" alt="CHRONOS 2: SYNC TONE SPRD DUCK"> <img src="img/space4.png" width="240" alt="CHRONOS 4: ROOM TYPE SIZE DEC, T1 and T2 sharing room B"> <img src="img/space5.png" width="240" alt="CHRONOS 5: PRE RTON MOD QUAL">
 
 ### 6.8 Insert or send
 

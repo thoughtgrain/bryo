@@ -1025,19 +1025,30 @@ static void screens_in(const char *pal)
     shot(pal, "space_long");
     tp[1].dev[DEV_SPACE][SP_VERB] = 40;                  /* (T2 sends to room B too) */
     tp[1].dev[DEV_SPACE][SP_ROOM] = 1;
-    press(B_FX);                                         /* SPACE 2: ROOM B, its SIZE 80, DEC 70 (T1 and T2 share it) */
-    turn(0, 1);
-    turn(1, 30);
-    turn(2, 30);
-    chain_poll();
+    press(B_FX);                                         /* SPACE 2: the echoes' TONE -40, DUCK 30 */
+    turn(1, -40);
+    turn(3, 30);
     shot(pal, "space2");
-    press(B_FX);                                         /* SPACE 3: the echoes' TONE -40, the room's QUAL LO */
-    turn(0, -40);
-    turn(3, 1);
+    press(B_FX);                                         /* SPACE 3: AGE 50, DIFF 20 */
+    turn(0, 50);
+    turn(1, 20);
     shot(pal, "space3");
+    press(B_FX);                                         /* SPACE 4: ROOM B, HALL, its SIZE 80, DEC 70 (T1 and T2
+                                                          * share it) */
+    turn(0, 1);
+    turn(1, 2);
+    turn(2, 30);
+    turn(3, 30);
+    chain_poll();
+    shot(pal, "space4");
+    press(B_FX);                                         /* SPACE 5: the room's QUAL LO */
+    turn(3, 1);
+    shot(pal, "space5");
     for (s = 0; s < NROOM * NRM; s++)
         rmp[s / NRM][s % NRM] = RM_P[s % NRM].def;
     tp[1].dev[DEV_SPACE][SP_VERB] = 0;
+    tp[0].dev[DEV_SPACE][SP_AGE] = tp[0].dev[DEV_SPACE][SP_DIFF] = tp[0].dev[DEV_SPACE][SP_DUCK] = 0;   /* (SPACE 2-3's,
+                                                          * as the screens after had them) */
     for (s = 0; s < NSLOT; s++) {                        /* (by slot: mod3 is the SEQ, M4; mod4 slot 3, M3) */
         static const uint8_t B[NSLOT] = {B_LFO, B_LFO, B_SEQ, B_LFO};
         char nm[8] = {'m', 'o', 'd', (char)('1' + s), 0};
@@ -5873,24 +5884,24 @@ static void test_space(void)
 
     power_on();                                          /* the room's knobs on SPACE's pages: the room's, shared */
     sys.sel = 0;
-    focus_dev(DEV_SPACE, 1);
-    turn(1, 6);
-    check("SPACE 2 on T1 (room A): KNOB 2 turns room A's SIZE (50 -> 56), not a knob of the track's",
+    focus_dev(DEV_SPACE, 3);                             /* (CHRONOS 4: ROOM TYPE SIZE DEC) */
+    turn(2, 6);
+    check("SPACE 4 on T1 (room A): KNOB 3 turns room A's SIZE (50 -> 56), not a knob of the track's",
           rmp[0][RM_SIZE] == 56 && rmp[1][RM_SIZE] == 50 && tp[0].dev[DEV_SPACE][3] == 0);
     sys.sel = 2;
-    focus_dev(DEV_SPACE, 1);
-    check("..T3's SPACE 2 shows room B's (50)", ui.view == VIEW_PAGE && rmp[1][RM_SIZE] == 50);
-    turn(2, 10);
+    focus_dev(DEV_SPACE, 3);
+    check("..T3's SPACE 4 shows room B's (50)", ui.view == VIEW_PAGE && rmp[1][RM_SIZE] == 50);
+    turn(3, 10);
     turn(0, -1);                                         /* T3 to room A: its page now shows and turns A's */
-    turn(1, 4);
+    turn(2, 4);
     check("..its DEC turns B's; ROOM A then puts T3 on A, and SIZE turns A's (56 -> 60)",
           rmp[1][RM_DEC] == 50 && tp[2].dev[DEV_SPACE][SP_ROOM] == 0 && rmp[0][RM_SIZE] == 60);
-    focus_dev(DEV_SPACE, 2);
+    focus_dev(DEV_SPACE, 4);
     turn(3, 1);
-    check("..SPACE 3's QUAL is the room's too (A to LO)", rmp[0][RM_QUAL] == RQ_LO);
-    focus_dev(DEV_SPACE, 1);
+    check("..SPACE 5's QUAL is the room's too (A to LO)", rmp[0][RM_QUAL] == RQ_LO);
+    focus_dev(DEV_SPACE, 3);
     hold(B_LFO);
-    turn(1, 20);
+    turn(2, 20);
     let_go(B_LFO);
     check("..LFO held + the room's SIZE: no depth (the room is shared), and it says so",
           mod_count(2) == 0 && rmp[0][RM_SIZE] == 60 && !strncmp(ui.msg, "THE ROOM IS SHARED", 18));
