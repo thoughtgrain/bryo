@@ -1023,6 +1023,10 @@ step sequencer.
 
 <img src="img/mod2.png" width="240" alt="ADSR"> <img src="img/mod4_follow.png" width="240" alt="FOLLOW">
 
+**FOLLOW levels itself:** it measures each track against that track's own recent loudest, so a quiet pad or
+tape pushes its knobs as far as a loud drum does. **GAIN** works on top: up and it reaches the top sooner (more
+pumping), down for a gentler push. Near-silence stays at the bottom.
+
 **FOLLOW's picture:** on a TAPE track it previews the follower over the tape's loop. On SYNTH, POLY and DRUM, which
 have no tape to preview, it shows the last second and a half live: what it hears (dim bars) and what it gives (the
 line), **LIVE** in the corner. It runs while its page is up even before it moves any knob, so you can set RISE, FALL

@@ -4427,6 +4427,37 @@ static void test_drum_len1(void)
           maxs == 15u && wraps >= 2u);
 }
 
+/* FOLLOW's auto-level (2026-10-14): a quiet source's hits reach the top as a loud one's do; silence stays down */
+static void test_follow_auto(void)
+{
+    static int32_t in[CTL];
+    char b[160];
+    int16_t v[NPK];
+    mod_rt_t mq = {0}, ml = {0}, mz = {0};
+    int32_t q = 0, l = 0, z = 0;
+    uint32_t i, k, j;
+    for (k = 0; k < NPK; k++)
+        v[k] = pdesc_empty(&ME_P[ME_FOLLOW][k]) ? 0 : ME_P[ME_FOLLOW][k].def;
+    for (i = 0; i < 3000u; i++) {                        /* a hit a quarter second (345 blocks), 40 blocks long */
+        int on = i % 345u < 40u;
+        for (j = 0; j < CTL; j++)
+            in[j] = on ? ((j & 1u) ? 3000 : -3000) : 0;  /* (-21 dBFS) */
+        mod_follow(&mq, v, in);
+        for (j = 0; j < CTL; j++)
+            in[j] *= 10;                                 /* (-1 dBFS) */
+        mod_follow(&ml, v, in);
+        mod_follow(&mz, v, 0);
+        if (i > 1000u) {
+            q = mq.out > q ? mq.out : q;
+            l = ml.out > l ? ml.out : l;
+            z = mz.out > z ? mz.out : z;
+        }
+    }
+    snprintf(b, sizeof b, "FOLLOW auto-level: hits at -21 dBFS reach %d%%, at -1 dBFS %d%%; silence %d%%", q * 100 / 32767,
+             l * 100 / 32767, z * 100 / 32767);
+    check(b, q > 26000 && l > 26000 && z == 0);
+}
+
 /* scenes (scene.c, 2026-10-13): the mixer's SCENES page (GLO, then EDIT): white keys 1-4 recall (held + SAVE:
  * store), KNOB 1-4 morph. A track whose source differs fades out, switches, fades in; choices switch at the
  * midpoint; the playing isn't theirs; saved in the project as their differences */
@@ -10692,6 +10723,7 @@ int main(int argc, char **argv)
     test_synth_more();
     test_follow_live();
     test_drum_len1();
+    test_follow_auto();
     test_sleep();
     test_color();
     test_space();

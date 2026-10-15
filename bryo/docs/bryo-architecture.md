@@ -742,6 +742,14 @@ arp so it also randomizes length note is held"). Each at its default is the soun
   -12) went off the pages to OP6 alone, which made the room.
 - **ARP**: GRND (6), page 2: each step's gate GATE +- up to GRND points, its own generator (RND's order unchanged).
 
+### FOLLOW's auto-level (2026-10-14)
+
+"The follow doesn't seem as strong on other tracks": a block's peak was the follower's input as it was, so a loud
+DRUM track drove it to 90 % and the factory scene's POLY and TAPE tracks to 19-30 %. Now each slot keeps its source's
+recent loudest (`ref`: up at once, down 1/2048 a block, about 1.5 s; never under -30 dBFS) and reads the peak against
+it, GAIN on top. The factory scene's tracks, defaults: 95 91 96 79 % (were 90 23 19 30). Tested
+(`test_follow_auto`): hits at -21 and -1 dBFS both reach 99 %, silence 0.
+
 ### FOLLOW, live on its page (2026-10-14)
 
 "Drum doesn't seem to generate a follow by itself": FOLLOW's picture was a preview over the source track's tape (flat

@@ -468,6 +468,7 @@ typedef struct {                     /* ISR only: a slot's running state */
                                       * it glides (before AMT and OFS), and the glide's start */
     int32_t out, outr;               /* this block's outputs, Q15: left, right (SPRD) */
     int32_t env, held;               /* FOLLOW */
+    int32_t ref;                     /* FOLLOW: the source's recent loudest (its auto-level), Q15 */
     int16_t rnd[16];                 /* LFO: RND's steps, and the other shapes' level per cycle (VAR) */
     uint32_t seed;
     int16_t step;                    /* SEQ: the step playing (-1: none yet); its value */
@@ -764,7 +765,12 @@ static void HOT_CODE mod_seq(mod_rt_t *m, const int16_t *v, const int8_t *steps,
     m->outr = v[8] ? mod_slew(m->outr, m->out, mod_lag(v[8])) : m->out;   /* SPRD: the right side lags */
 }
 
-/* FOLLOW: the envelope of a block of sound in (0: silence), GAIN into it, RISE and FALL, HOLD to the tempo */
+/* FOLLOW: the envelope of a block of sound in (0: silence), auto-levelled, GAIN into it, RISE and FALL, HOLD to the
+ * tempo. The auto-level (2026-10-14: "the follow doesn't seem as strong on other tracks"): a block's peak is read
+ * against the source's recent loudest (`ref`: up at once, down by 1/2048 a block, about 1.5 s; never under -30 dBFS,
+ * so near-silence isn't lifted to full), so any track's hits reach the top; GAIN then over that (+: sooner at the
+ * top, -: less of it) */
+#define FOL_FLOOR 1036                       /* -30 dBFS, Q15 */
 static void HOT_CODE mod_follow(mod_rt_t *m, const int16_t *v, const int32_t *in)
 {
     static const uint16_t DB_Q12[25] = {1029, 1155, 1296, 1454, 1631, 1830, 2053, 2304, 2585, 2900, 3254, 3651, 4096,
@@ -777,6 +783,8 @@ static void HOT_CODE mod_follow(mod_rt_t *m, const int16_t *v, const int32_t *in
             if (x > pk)
                 pk = x;
         }
+    m->ref = pk > m->ref ? pk : m->ref - (m->ref >> 11) - (m->ref > 0);
+    pk = (int32_t)((uint32_t)pk * 32767u / (uint32_t)(m->ref > FOL_FLOOR ? m->ref : FOL_FLOOR));   /* (auto-level) */
     pk = clamp(pk * DB_Q12[clamp(v[1], -12, 12) + 12] >> 12, 0, 32767);
     m->env = mod_slew(m->env, pk, mod_coef(pk > m->env ? v[2] : v[3]));
     if (!hd) {
