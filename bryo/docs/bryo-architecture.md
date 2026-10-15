@@ -771,6 +771,18 @@ is stored last so it's what plays. T1's level is 0 in AMBIENT, so nothing ducks 
 WAVE became a choice for scenes (`scn_kind`), so VOX to SAW switches at the midpoint rather than passing FM and PD.
 TEST is the factory scene at GLITCH (`tpf_test`, the heaviest by stages at work).
 
+**AMBIENT, as built 2026-10-15.** "It should be sounds that have slow attacks and long decays: sounds swell into
+existence and fade out gradually; sharp, percussive transients are softened." The scene's list (`TPS_AMB`) now reads
+that way on every track: T2's VOX keeps its slow attack (ATK 95, about a second) with SUS 100 and REL 127 (ten
+seconds), so each arpeggio step is a swell that never finishes before the next and fades under the ones after it;
+T3's grains grow from 200 to 350 ms at the same sparse rate, and its RESO resonators decay at 110 with the tone darker
+(45), so the walk from note to note rings out rather than stops; T4's bells are bowed, not struck: ATK 64 (about 100
+ms, against the old 5), SUS 100 so the swell holds for the gate, REL 127, and the filter closed to 70 with ENV 30, so
+each note opens as it swells. T1 stays at level 0: a softened kick was the other option, but the FOLLOW ducks are
+shared by all three scenes (depths aren't scene state), so any kick heard in AMBIENT would pump the rest at TECHNO's
+depth, which is the one thing this scene can't have. Host cost 3,200 to 3,226 instr/sample (the longer grains and
+tails); run 31's fingerprint rewritten, nothing else changed.
+
 Measured on the host (instructions retired a sample, Apple's counters: valgrind won't run under the emulation here):
 AMBIENT 2,255, TECHNO 1,857, GLITCH 2,123, against the old factory scene's 2,140 and the old TEST's 2,267 (65-70 % on
 the FM-1). AMBIENT was 2,845 at first; it lost T4's grains and echo, T2's echo, room A (everything in room B), sparser

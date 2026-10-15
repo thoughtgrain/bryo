@@ -139,10 +139,15 @@ bright. Let go without pressing a key and the pad turns its page as usual.
 **You'll hear:** the factory scene. It's one groove in A minor with three **scenes** of it, and it starts on the
 first, **AMBIENT**:
 - **Track 1:** a four-on-the-floor drum bar, silent here (its level is down in this scene).
-- **Track 2:** a choir: **VOX**, each note of its arpeggio a minor-seventh chord with a slow attack, so the notes smear
-  into a pad that moves with the chords (Am, Dm, Em).
-- **Track 3:** a drone (**DRON**) through a wash of grains and four resonators walking from note to note.
-- **Track 4:** bells (**BELL**) arpeggiated up and down, ringing into the large room.
+- **Track 2:** a choir: **VOX**, each note of its arpeggio a minor-seventh chord with a slow attack and the longest
+  release, so the notes smear into a pad that moves with the chords (Am, Dm, Em).
+- **Track 3:** a drone (**DRON**) through a wash of long grains and four resonators walking from note to note and
+  ringing out.
+- **Track 4:** bells (**BELL**) arpeggiated up and down, bowed rather than struck: each swells in and fades out slowly
+  into the large room.
+
+Everything in this scene swells into existence and fades out gradually: slow attacks, the longest releases, long
+tails, and nothing percussive (the drums are silent here, since their kick would duck the other tracks).
 
 **Then morph it.** Tap **GLO**, tap **EDIT** for **SCENES**, and turn **KNOB 2** to morph into **TECHNO**: the drums
 come up and everything else ducks on the kick (each track has a FOLLOW of track 1 on its level), track 2 becomes a saw

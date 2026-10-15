@@ -208,7 +208,7 @@ told apart in these numbers):
 | 15 | everything on, all four tracks | 5,169 |
 | 29 | the busiest groove's devices all on, the transport stopped (what "nothing playing" costs) | 668 |
 | 30 | one track heard (dense grains, strings with RIPL ARP, a room), the other three muted | 2,302 |
-| 31 | the factory scene as it boots | 2,718 (123 of it the modulators) |
+| 31 | the factory scene as it boots (AMBIENT, after 2026-10-15's swell; with the FOLLOW auto-levels) | 2,934 (120 of it the modulators) |
 | 32 | TEST, the project view's scene: every stage at work | 2,900 |
 
 My target for a realistic four-track scene is 2,000. The first device reading (run 1, 2026-10-10: 25 %, in 5 % steps)
@@ -252,6 +252,11 @@ number.
   four), split by what each track's settings ask for when it runs short; what's left over is everyone's (since
   2026-10-11: a track alone has all 40, not just what RATE and SIZE ask). GRAIN 6's GRNS can hold a number for a
   track instead (1-40, taken from the AUTO tracks first, kept whatever the others do).
+- **2026-10-15: AMBIENT swells.** The factory's first scene is now what the word means: slow attacks, the longest
+  releases and tails, nothing percussive. T2's VOX holds (SUS 100) and fades over ten seconds, T3's grains are
+  350 ms and its resonators ring out, T4's bells are bowed (ATK 64, SUS 100, REL 127, the filter opening with the
+  swell). T1 stays silent there on purpose: FOLLOW's depths are shared by the scenes, so a kick heard in AMBIENT
+  would duck everything at TECHNO's depth. Under 1 % more on the host (3,226 from 3,200 instr/sample).
 - **2026-10-12: the performance pass, with the sound bit for bit the same.** The scene had gone from 65-70 % to
   80 % on the FM-1 and the host count hadn't moved: the target does every `/` and `%` in hardware, even by a
   constant, even by a power of two for a signed value, and the shared rooms had put four of those in the combs'

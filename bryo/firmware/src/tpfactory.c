@@ -205,11 +205,13 @@ static int tpf_load(uint32_t f, uint32_t t)
  *   T1 DRUM   a 4/4 kick, claps, open hats on the off-beats, closed sixteenths (one bar). AMBIENT: level 0; TECHNO:
  *             tight and driven; GLITCH: varied, filled, crushed, stuttered by grains, a sixteenth echo
  *   T2 SYNTH  its arpeggiator, Am7 up in sixteenths, the chord a bar at a time (M4: Am Am Dm Em). AMBIENT: VOX, each
- *             note a MIN7 chord with a slow attack, so the steps smear into a choir; TECHNO: a saw bass an octave down
- *             with a sub, its filter snapping; GLITCH: PD's resonant saw, crushed, into a sixteenth echo
- *   T3 TAPE   DRON. AMBIENT: a grain wash with strings, the large room; TECHNO: high-passed, pumping under the kick;
- *             GLITCH: stuttering grains through the 12-band bank
- *   T4 POLY   BELL, its arpeggiator A minor pentatonic up and down, swung. AMBIENT: long bells into a dotted echo;
+ *             note a MIN7 chord with a slow attack and the longest release, so the steps smear into a choir;
+ *             TECHNO: a saw bass an octave down with a sub, its filter snapping; GLITCH: PD's resonant saw, crushed,
+ *             into a sixteenth echo
+ *   T3 TAPE   DRON. AMBIENT: a wash of long grains, resonators ringing out, the large room; TECHNO: high-passed,
+ *             pumping under the kick; GLITCH: stuttering grains through the 12-band bank
+ *   T4 POLY   BELL, its arpeggiator A minor pentatonic up and down, swung. AMBIENT: bowed bells, a swell and a long
+ *             fade into the large room;
  *             TECHNO: short stabs; GLITCH: TWIN RND, each note BELL or BEAT at random, chopped
  * The arpeggiators' notes wait for PLAY (arp.c). M4 is the SEQ (slot 2), M3 the random LFO (slot 3), M1 the FOLLOW
  * (slot 0) */
@@ -250,19 +252,20 @@ typedef struct {
     int16_t v;
 } tps_k_t;
 #define TPS_NSC 3u
-static const tps_k_t TPS_AMB[] = {
+static const tps_k_t TPS_AMB[] = {   /* 2026-10-15: every sound swells and fades: slow attacks, the longest
+                                      * releases and tails, no transients (T1 silent: its kick would duck the rest) */
     {1, MA_SYN, SY_WAVE, SY_VOX}, {1, MA_SYN, SY_DTUN, 80}, {1, MA_SYN, SY_MIX, 45}, {1, MA_SYN, SY_IENV, 30},
-    {1, MA_SYN, SY_NOIS, 20}, {1, MA_SYN, SY_ATK, 95}, {1, MA_SYN, SY_DEC, 100}, {1, MA_SYN, SY_SUS, 85},
-    {1, MA_SYN, SY_REL, 110}, {1, MA_SYN, SY_CUT, 100}, {1, MA_SYN, SY_RES, 10}, {1, MA_SYN, SY_ENV, 0},
+    {1, MA_SYN, SY_NOIS, 20}, {1, MA_SYN, SY_ATK, 95}, {1, MA_SYN, SY_DEC, 100}, {1, MA_SYN, SY_SUS, 100},
+    {1, MA_SYN, SY_REL, 127}, {1, MA_SYN, SY_CUT, 100}, {1, MA_SYN, SY_RES, 10}, {1, MA_SYN, SY_ENV, 0},
     {1, MA_SYN, SY_CHRD, 7}, {1, MA_SYN, SY_TUNE, 12}, {1, MA_SYN, SY_LVL, 4},
     {1, DEV_SPACE, SP_VERB, 60}, {1, DEV_SPACE, SP_ROOM, 1},   /* (everything in room B: room A rests) */
-    {2, DEV_GRAIN, GP_WET, 60}, {2, DEV_GRAIN, GP_SIZE, 200}, {2, DEV_GRAIN, GP_RATE, 12}, {2, DEV_GRAIN, GP_SPRY, 70},
+    {2, DEV_GRAIN, GP_WET, 60}, {2, DEV_GRAIN, GP_SIZE, 350}, {2, DEV_GRAIN, GP_RATE, 12}, {2, DEV_GRAIN, GP_SPRY, 70},
     {2, DEV_GRAIN, GP_SPRD, 80}, {2, DEV_GRAIN, GP_SCAL, 3}, {2, DEV_GRAIN, GP_PRND, 12}, {2, DEV_GRAIN, GP_REV, 40},
-    {2, DEV_RESO, RP_WET, 45}, {2, DEV_RESO, RP_PTCH, 45}, {2, DEV_RESO, RP_DEC, 90}, {2, DEV_RESO, RP_TONE, 55},
+    {2, DEV_RESO, RP_WET, 45}, {2, DEV_RESO, RP_PTCH, 45}, {2, DEV_RESO, RP_DEC, 110}, {2, DEV_RESO, RP_TONE, 45},
     {2, DEV_RESO, RP_SCAL, 2}, {2, DEV_RESO, RP_MODE, RM_RESO}, {2, DEV_SPACE, SP_VERB, 70}, {2, DEV_SPACE, SP_ROOM, 1},
-    {3, MA_POL, PL_ATK, 5}, {3, MA_POL, PL_DEC, 100}, {3, MA_POL, PL_SUS, 30},
-    {3, MA_POL, PL_CUT, 90}, {3, MA_POL, PL_ENV, 15},
-    {3, MA_POL, PL_REL, 120}, {3, DEV_SPACE, SP_VERB, 60}, {3, DEV_SPACE, SP_ROOM, 1}};   /* (no echo: the room) */
+    {3, MA_POL, PL_ATK, 64}, {3, MA_POL, PL_DEC, 100}, {3, MA_POL, PL_SUS, 100},   /* the bells bowed, not struck */
+    {3, MA_POL, PL_CUT, 70}, {3, MA_POL, PL_ENV, 30},                             /* (the filter opens with the swell) */
+    {3, MA_POL, PL_REL, 127}, {3, DEV_SPACE, SP_VERB, 60}, {3, DEV_SPACE, SP_ROOM, 1}};   /* (no echo: the room) */
 static const tps_k_t TPS_TEC[] = {
     {0, MA_DRM, DM_DECY, -30}, {0, MA_DRM, DM_TONE, 20}, {0, MA_DRM, DM_DRV, 10}, {0, MA_DRM, DM_ACNT, 70},
     {0, MA_DRM, DM_TRAN, 40}, {0, MA_DRM, DM_LVL, -3}, {0, MA_CH, CH_LOW, 3}, {0, DEV_SPACE, SP_VERB, 10},
@@ -270,7 +273,8 @@ static const tps_k_t TPS_TEC[] = {
     {1, MA_SYN, SY_CUT, 45}, {1, MA_SYN, SY_RES, 50}, {1, MA_SYN, SY_ENV, 60}, {1, MA_SYN, SY_KTRK, 40},
     {1, MA_SYN, SY_ATK, 0}, {1, MA_SYN, SY_DEC, 55}, {1, MA_SYN, SY_SUS, 20}, {1, MA_SYN, SY_REL, 25},
     {1, MA_SYN, SY_DRV, 35}, {1, MA_SYN, SY_TUNE, -12}, {1, MA_SYN, SY_LVL, 6},
-    {2, MA_CH, CH_FILT, 25}, {2, DEV_SRC, TK_LVL, 6}, {2, DEV_GRAIN, GP_WET, 25}, {2, DEV_GRAIN, GP_SIZE, 120}, {2, DEV_GRAIN, GP_RATE, 60},
+    {2, MA_CH, CH_FILT, 25}, {2, DEV_SRC, TK_LVL, 6}, {2, DEV_GRAIN, GP_WET, 25}, {2, DEV_GRAIN, GP_SIZE, 120},
+    {2, DEV_GRAIN, GP_RATE, 60},
     {2, DEV_RESO, RP_WET, 25}, {2, DEV_RESO, RP_MODE, RM_COMB}, {2, DEV_RESO, RP_DEC, 50},
     {2, DEV_SPACE, SP_VERB, 35}, {2, DEV_SPACE, SP_DLY, 25}, {2, DEV_SPACE, SP_SYNC, 1}, {2, DEV_SPACE, SP_TIME, 191},
     {3, MA_POL, PL_ATK, 0}, {3, MA_POL, PL_DEC, 70}, {3, MA_POL, PL_SUS, 10}, {3, MA_POL, PL_REL, 30},
