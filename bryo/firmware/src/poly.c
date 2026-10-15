@@ -99,7 +99,7 @@ static void HOT_CODE pol_filter(uint32_t t, pol_voice_t *v, int32_t cut)
     int16_t res = TPD(t, MA_POL)[PL_RES];
     if (v->fok && cut == v->fcut && res == v->fres)
         return;
-    tsvf_coef(&v->flt, cut, PCT_127[clamp(res, 0, 100)]);
+    tsvf_coef_k(&v->flt, cut, tsvf_kres(res));         /* (RES past 92: it sings on its own, dsp.c) */
     v->fcut = cut;
     v->fres = res;
     v->fok = 1;
@@ -171,11 +171,14 @@ static void HOT_CODE pol_start(uint32_t t, uint32_t k, uint32_t nv, uint32_t len
         pol_rd[t][(uint32_t)(v - s->v) + 2u].ok = 0;    /* (its B reader, when TWIN reads two reels) */
 }
 
+/* the voice's filter on x: TYPE's output, through tsvf_sat when RES is high (fs) */
+#define PL_FLT(x) (fs ? tsvf_sat(&v->flt, (x), &ic1, &ic2, mode) : tsvf_mode(&v->flt, (x), &ic1, &ic2, mode))
 static void HOT_CODE pol_voice(uint32_t t, pol_voice_t *v, tape_rd_t *rd, const tape_view_t *vw, int32_t *out, uint32_t n,
                                const tape_view_t *vwb, tape_rd_t *rdb, uint32_t tw)
 {
     const int16_t *p = TPD(t, MA_POL);
     uint32_t i, mode = (uint32_t)clamp(p[PL_TYPE], 0, 2);
+    int fs = p[PL_RES] > TSVF_SAT_RES;                  /* (RES high: the filter's soft limit, tsvf_sat) */
     int32_t a0 = v->amp, a1, e15, pos = v->pos, ic1 = v->ic1, ic2 = v->ic2, c8;
     uint32_t tr = v->tr;                                    /* (TRAN's click: into x before the filter) */
     int32_t trng = v->trng, tlp = v->tlp, tg = clamp(p[PL_TRAN], 0, 100) * 327;
@@ -272,7 +275,7 @@ static void HOT_CODE pol_voice(uint32_t t, pol_voice_t *v, tape_rd_t *rd, const 
                 }
                 if (tr)
                     x += click_step(&tr, &trng, &tlp, tg);
-                y = filt ? tsvf_mode(&v->flt, x >> 1, &ic1, &ic2, mode) << 1 : x;
+                y = filt ? PL_FLT(x >> 1) << 1 : x;
                 out[i] += mulq15(y, a0 + ((da * (int32_t)i) >> CTL_LOG2));
             }
             v->pos = pos;
@@ -310,7 +313,7 @@ static void HOT_CODE pol_voice(uint32_t t, pol_voice_t *v, tape_rd_t *rd, const 
             pos2 += v->inc2;
             if (tr)
                     x += click_step(&tr, &trng, &tlp, tg);
-                y = filt ? tsvf_mode(&v->flt, x >> 1, &ic1, &ic2, mode) << 1 : x;
+                y = filt ? PL_FLT(x >> 1) << 1 : x;
             out[i] += mulq15(y, a0 + ((da * (int32_t)i) >> CTL_LOG2));
         }
         v->pos2 = pos2;
@@ -325,7 +328,7 @@ static void HOT_CODE pol_voice(uint32_t t, pol_voice_t *v, tape_rd_t *rd, const 
                 pos += v->inc;
                 if (tr)
                     x += click_step(&tr, &trng, &tlp, tg);
-                y = filt ? tsvf_mode(&v->flt, x >> 1, &ic1, &ic2, mode) << 1 : x;
+                y = filt ? PL_FLT(x >> 1) << 1 : x;
                 out[i] += mulq15(y, a0 + ((da * (int32_t)i) >> CTL_LOG2));
             }
         } else {
@@ -334,7 +337,7 @@ static void HOT_CODE pol_voice(uint32_t t, pol_voice_t *v, tape_rd_t *rd, const 
                 pos += v->inc;
                 if (tr)
                     x += click_step(&tr, &trng, &tlp, tg);
-                y = filt ? tsvf_mode(&v->flt, x >> 1, &ic1, &ic2, mode) << 1 : x;
+                y = filt ? PL_FLT(x >> 1) << 1 : x;
                 out[i] += mulq15(y, a0 + ((da * (int32_t)i) >> CTL_LOG2));
             }
         }

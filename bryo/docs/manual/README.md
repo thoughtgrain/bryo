@@ -504,6 +504,11 @@ Press **HOME** again to go through its four pages, and **ENV** for its two shapi
 
 **Try:** play a note, then press **ENV** twice and turn **CUT** on the FILTER page while it sounds.
 
+**RES** past about 93 makes the filter **self-resonate**: it rings on its own at the cutoff, a pure tone that sings
+over the note and follows CUT (and the envelope, and an LFO on CUT). Turn MIX and NOIS down and play it as a sine
+voice, or sweep CUT for a whistle. Above 70 the filter also squashes a loud input a little into its resonance, as an
+analog one does. POLY's filter does the same.
+
 **TRAN** (HOME's last page on the classic waves, its third on FM, PD, VOX and WT; POLY's LOOP page and DRUM's KIT 2,
 under ENV, have it too): a transient, 3 ms of bright noise at the start of every note or hit, as loud as the knob says. It goes in
 front of the source's filter, so CUT shapes it: open, a click; low, a thump. It gives a soft sound an edge, a pad a

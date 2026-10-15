@@ -124,6 +124,33 @@ static inline __attribute__((always_inline)) int32_t tsvf_mode(const tsvf_t *c, 
     return mode == 1u ? v1 : mode == 2u ? in - ((c->k * v1) >> 12) - v2 : v2;
 }
 
+/* RES 0..100 as the damping (Q12) for SYNTH's and POLY's filter (2026-10-15: "it would be great if the filters
+ * actually would self-resonate; I can't really get much"). To 80 as it was (2.0 down to 0.52); then on to zero at 92
+ * and past it, to -0.13 at 100: the loop's gain over one, so from about 93 it rings on its own at the cutoff, a sine
+ * that sings over whatever goes in. Past 70 the caller runs tsvf_sat, whose soft limit on the band's state holds
+ * that ring at about -6 dBFS whatever the cutoff (and squashes a loud input into it, as an analog filter does) */
+static inline __attribute__((always_inline)) int32_t tsvf_kres(int32_t res)
+{
+    res = clamp(res, 0, 100);
+    return res <= 80 ? 8192 - (res * 127 / 100) * 7600 / 127   /* (bit for bit tsvf_coef's: the sounds as they were) */
+                     : res <= 92 ? 2148 - (res - 80) * 179 : -(res - 92) * 65;
+}
+#define TSVF_SAT_RES 70          /* (RES over this: tsvf_sat) */
+#define TSVF_KNEE 8000           /* (the band's state: linear to this, a quarter of the rest past it) */
+/* tsvf_mode with the soft limit on the band's state: a negative damping's ring grows until it reaches the knee and
+ * no further (measured: about 16,500 at the output's << 1, CUT 20 to 120). Two compares a sample over tsvf_mode */
+static inline __attribute__((always_inline)) int32_t tsvf_sat(const tsvf_t *c, int32_t in, int32_t *ic1, int32_t *ic2,
+                                                              uint32_t mode)
+{
+    int32_t v3 = in - *ic2;
+    int32_t v1 = (c->a1 * *ic1 + c->a2 * v3) >> 13;
+    int32_t v2 = *ic2 + ((c->a2 * *ic1 + c->a3 * v3) >> 13);
+    int32_t b = clamp(2 * v1 - *ic1, -150000, 150000);
+    *ic1 = b > TSVF_KNEE ? TSVF_KNEE + ((b - TSVF_KNEE) >> 2) : b < -TSVF_KNEE ? -TSVF_KNEE + ((b + TSVF_KNEE) >> 2) : b;
+    *ic2 = clamp(2 * v2 - *ic2, -150000, 150000);
+    return mode == 1u ? v1 : mode == 2u ? in - ((c->k * v1) >> 12) - v2 : v2;
+}
+
 /* TRAN, a transient (SYNTH, POLY, DRUM, 2026-10-14): 3 ms of noise that falls as it goes, through a one-pole low-pass
  * at about 9 kHz (bright, not harsh), at level g (Q15: up to about -4 dBFS at the start, so it can stand out of a
  * sound at its own level). n counts the samples left (CLICK_N at a note's start), rng and lp are its noise and its

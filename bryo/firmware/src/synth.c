@@ -321,6 +321,9 @@ static void syn_chord_voice(uint32_t t, uint32_t j, uint32_t k, int32_t note16, 
     v->to16 = note16;
 }
 
+/* the voice's filter on x: TYPE's output (LP the plain one), through tsvf_sat when RES is high (fs) */
+#define SY_FLT(x) (fs ? tsvf_sat(&flt, (x), &ic1, &ic2, ft) : ft ? tsvf_mode(&flt, (x), &ic1, &ic2, ft) \
+                      : tsvf_lp(&flt, (x), &ic1, &ic2))
 /* one block of one voice, added into out */
 static void syn_voice(uint32_t t, syn_voice_t *v, int32_t *out, uint32_t n)
 {
@@ -332,6 +335,7 @@ static void syn_voice(uint32_t t, syn_voice_t *v, int32_t *out, uint32_t n)
     uint32_t tr = v->tr;                                    /* (TRAN's click: into s before the filter) */
     int32_t trng = v->trng, tlp = v->tlp, tg = clamp(p[SY_TRAN], 0, 100) * 327;
     uint32_t ft, pw;
+    int fs;                                             /* (RES high: the filter's soft limit, tsvf_sat) */
     switch (v->stage) {                                     /* the envelope: one step per block (as Felucca's) */
     case 1:
         v->env += (int32_t)ENV_LIN[p[SY_ATK] & 127];
@@ -371,7 +375,8 @@ static void syn_voice(uint32_t t, syn_voice_t *v, int32_t *out, uint32_t n)
         inc2 = p[SY_DTUN] ? cents_inc(pp, p[SY_DTUN] + p[SY_FINE], 0) : inc1;
     cut = mod_fine8(t, FN_SCUT, p[SY_CUT]) + p[SY_ENV] * 96 * (e15 >> 7) / 100 + p[SY_KTRK] * (pp - 60 * 16) * 16 / 100;
                                                             /* (CUT finer than its semitones when modulated: mod.c) */
-    tsvf_coef(&flt, cut, p[SY_RES] * 127 / 100);
+    tsvf_coef_k(&flt, cut, tsvf_kres(p[SY_RES]));       /* (RES past 92: it sings on its own, dsp.c) */
+    fs = p[SY_RES] > TSVF_SAT_RES;
     ft = (uint32_t)clamp(p[SY_FTYP], 0, 2);             /* (TYPE: the filter's output; LP the loop as it was) */
     pw = p[SY_PW] == 50 ? 0x80000000u : (uint32_t)clamp(p[SY_PW], 5, 95) * 42949673u;   /* (PW: SQR's width) */
     if (wave == SY_WT) {                                /* WT: the two frames POS falls between, this block */
@@ -394,7 +399,7 @@ static void syn_voice(uint32_t t, syn_voice_t *v, int32_t *out, uint32_t n)
                     s = softclip((s * dg) >> 12);
                 if (tr)
                     s += click_step(&tr, &trng, &tlp, tg);
-                y = (ft ? tsvf_mode(&flt, s >> 1, &ic1, &ic2, ft) : tsvf_lp(&flt, s >> 1, &ic1, &ic2));
+                y = SY_FLT(s >> 1);
                 k = y < 0 ? -y : y;
                 if (k > 16000) {
                     k = 16000 + (softclip((k - 16000) * 2) >> 1);
@@ -431,7 +436,7 @@ static void syn_voice(uint32_t t, syn_voice_t *v, int32_t *out, uint32_t n)
                 s = softclip((s * dg) >> 12);
             if (tr)
                     s += click_step(&tr, &trng, &tlp, tg);
-                y = (ft ? tsvf_mode(&flt, s >> 1, &ic1, &ic2, ft) : tsvf_lp(&flt, s >> 1, &ic1, &ic2));
+                y = SY_FLT(s >> 1);
             k = y < 0 ? -y : y;
             if (k > 16000) {
                 k = 16000 + (softclip((k - 16000) * 2) >> 1);
@@ -460,7 +465,7 @@ static void syn_voice(uint32_t t, syn_voice_t *v, int32_t *out, uint32_t n)
                 s = softclip((s * dg) >> 12);
             if (tr)
                     s += click_step(&tr, &trng, &tlp, tg);
-                y = (ft ? tsvf_mode(&flt, s >> 1, &ic1, &ic2, ft) : tsvf_lp(&flt, s >> 1, &ic1, &ic2));
+                y = SY_FLT(s >> 1);
             k = y < 0 ? -y : y;
             if (k > 16000) {
                 k = 16000 + (softclip((k - 16000) * 2) >> 1);
@@ -492,7 +497,7 @@ static void syn_voice(uint32_t t, syn_voice_t *v, int32_t *out, uint32_t n)
                 s = softclip((s * dg) >> 12);
             if (tr)
                     s += click_step(&tr, &trng, &tlp, tg);
-                y = (ft ? tsvf_mode(&flt, s >> 1, &ic1, &ic2, ft) : tsvf_lp(&flt, s >> 1, &ic1, &ic2));
+                y = SY_FLT(s >> 1);
             k = y < 0 ? -y : y;
             if (k > 16000) {
                 k = 16000 + (softclip((k - 16000) * 2) >> 1);
@@ -537,7 +542,7 @@ static void syn_voice(uint32_t t, syn_voice_t *v, int32_t *out, uint32_t n)
             s = softclip((s * dg) >> 12);
         if (tr)
                     s += click_step(&tr, &trng, &tlp, tg);
-                y = (ft ? tsvf_mode(&flt, s >> 1, &ic1, &ic2, ft) : tsvf_lp(&flt, s >> 1, &ic1, &ic2));             /* linear to half scale, then a soft knee */
+                y = SY_FLT(s >> 1);             /* linear to half scale, then a soft knee */
         k = y < 0 ? -y : y;
         if (k > 16000) {
             k = 16000 + (softclip((k - 16000) * 2) >> 1);

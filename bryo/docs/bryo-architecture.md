@@ -841,6 +841,17 @@ white key picks by the pad's own order (`pdesc_set`). The page numbers themselve
 the DRUM keys' page logic and the projects are as they were; the header's dots count the pad's set. The rule that a
 source's LVL is KNOB 4 of its last page is now "of its last HOME page". DRUM's layout is now its stored order.
 
+### SYNTH's and POLY's filters self-resonate (2026-10-15)
+
+"It would be great if the filters actually would self-resonate; I can't really get much in that regard." The SVF's
+damping k stopped at 0.15 (Q about 7) at RES 100: a ring, never a tone. `tsvf_kres` keeps RES 0-80 bit for bit as
+it was (the audio fingerprints didn't move), then takes k on to zero at 92 and to -0.13 at 100. A negative damping
+means a loop gain over one, so the filter rings up on its own; `tsvf_sat` (used past RES 70, decided once a block)
+holds it with a soft knee on the band integrator's state (linear to 8,000, a quarter past it): measured, a push of
+64 samples leaves a ring at 17,500-18,000 at CUT 40-120 1.5 s later (about -6 dBFS), and RES 90's dies away. Two
+compares a sample over tsvf_mode, only when RES is up. RIPPLE's filter in front, the drums' and the mixer's are as
+they were.
+
 ## POLY, as built (2026-10-07)
 
 POLY is the third source engine: a sound played across the keys, up to four notes at once.

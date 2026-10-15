@@ -4352,6 +4352,33 @@ static void test_poly_loop(void)
         track[j].mute = 0;
 }
 
+/* the source filter's self-resonance (2026-10-15): RES past 92 rings on its own at the cutoff, held by tsvf_sat's
+ * knee; under it a ring dies away as it did */
+static void test_self_res(void)
+{
+    static const int16_t CUTS[3] = {40, 80, 120};
+    char b[200];
+    uint32_t c, r, n;
+    int32_t pk[3][2], k80 = tsvf_kres(80);
+    for (c = 0; c < 3u; c++)
+        for (r = 0; r < 2u; r++) {
+            tsvf_t f;
+            int32_t i1 = 0, i2 = 0, m = 0;
+            tsvf_coef_k(&f, CUTS[c] << 8, tsvf_kres(r ? 100 : 90));
+            for (n = 0; n < 44100u * 2u; n++) {
+                int32_t y = tsvf_sat(&f, n < 64u ? 8000 : 0, &i1, &i2, 0u) << 1;   /* (a short push, then nothing) */
+                if (n > 44100u + 22050u)
+                    m = y > m ? y : -y > m ? -y : m;
+            }
+            pk[c][r] = m;
+        }
+    snprintf(b, sizeof b, "self-resonance: RES 100 rings on its own 1.5 s after a push (CUT 40 80 120: peaks %d %d %d, "
+             "about -6 dBFS); RES 90 has died away (%d %d %d); RES 80 as it always was", pk[0][1], pk[1][1], pk[2][1],
+             pk[0][0], pk[1][0], pk[2][0]);
+    check(b, pk[0][1] > 9000 && pk[1][1] > 9000 && pk[2][1] > 6000 && pk[0][1] < 24000 && pk[1][1] < 24000 &&
+             pk[2][1] < 24000 && pk[0][0] < 200 && pk[1][0] < 200 && pk[2][0] < 200 && k80 == 8192 - 101 * 7600 / 127);
+}
+
 /* SYNTH's INTV, PW and TYPE (2026-10-13) */
 static void test_synth_more(void)
 {
@@ -11006,6 +11033,7 @@ int main(int argc, char **argv)
     test_tape_ptch();
     test_poly_loop();
     test_synth_more();
+    test_self_res();
     test_follow_live();
     test_drum_len1();
     test_follow_auto();
