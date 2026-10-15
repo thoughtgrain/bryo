@@ -4378,6 +4378,33 @@ static void test_synth_more(void)
     render(NB, 0);
 }
 
+/* FOLLOW on screen with no depths (2026-10-14): it runs, and on a DRUM track its page shows it live */
+static void test_follow_live(void)
+{
+    char b[160];
+    uint32_t i, mx = 0, k;
+    int32_t omx = 0;
+    power_on();
+    tp[0].src = SRC_DRUM;
+    param_engine(0, 0, ME_FOLLOW);
+    focus_slot(0);
+    sys.playing = 1;
+    for (i = 0; i < 2000u; i++) {
+        render(1, 0);
+        if (!(i & 15u))
+            ui_input();
+        omx = mrt[0][0].out > omx ? mrt[0][0].out : omx;
+    }
+    for (k = 0; k < FOL_NH; k++)
+        mx = fol_hin[k] > mx ? fol_hin[k] : mx;
+    snprintf(b, sizeof b, "FOLLOW on screen, no depths, a DRUM track: it follows the drums (out up to %d), the page's "
+             "history moving (loudest %u of 255)", omx, mx);
+    check(b, mod_count(0) == 0u && omx > 4000 && mx > 40u && mod_show != 0u);
+    ui.msg_t = 0;
+    shot("BRYO", "follow_live");
+    sys.playing = 0;
+}
+
 /* scenes (scene.c, 2026-10-13): the mixer's SCENES page (GLO, then EDIT): white keys 1-4 recall (held + SAVE:
  * store), KNOB 1-4 morph. A track whose source differs fades out, switches, fades in; choices switch at the
  * midpoint; the playing isn't theirs; saved in the project as their differences */
@@ -10641,6 +10668,7 @@ int main(int argc, char **argv)
     test_tape_ptch();
     test_poly_loop();
     test_synth_more();
+    test_follow_live();
     test_sleep();
     test_color();
     test_space();

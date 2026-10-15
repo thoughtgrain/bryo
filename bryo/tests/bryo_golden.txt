@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-only
-# Bryo: SHA-256 of every Bryo screen render (tests/bryo_host.c, tests/ui_golden.py)
+# Bryo: SHA-256 of every UI render (tests/ui_golden.py)
 708dbc57e3adfebde210bc1294fb8d1970fb8607a3eb67cef883b53bf7de4406  BRYO_arp.ppm
 b71d62934fea9629504f07b09cabb61a3fc3db67bed7f85ecd641af55713d38a  BRYO_arp_add.ppm
 eb98042a0dcffbc0176b4977710e22f2d2d2f48a93e26ff3053688d925a96086  BRYO_arp_drum.ppm
@@ -22,6 +22,7 @@ f816a4369215cab13385302c571ae4afddea65ec53f595611568b3f6b47932ed  BRYO_drum_live
 92db0973758d76bbd213300625867a35c21af94775e36ab6cf66a9173f927557  BRYO_drum_playing.ppm
 f404e5530d1ad133ba5d738782606221c41b7b4f927a456eb8109e3a0b44a0ce  BRYO_drum_step.ppm
 fe933732d3c7597eeee7060f46cd68d7de3b46e523d0db1a25e8bf101cf38ad9  BRYO_drum_vary.ppm
+5a4fa31c9e3ab1a7ef1c78e0e70b15a132d0c956ec42854c000fe1f6627a0317  BRYO_follow_live.ppm
 3b097b1643304a0bf55b77030c6262411d0a887d8943aae9570106136a87ba71  BRYO_grain.ppm
 51929ca34fda16e50e0b8c29d329b3edf71700867fc5c4a46ad558d2ede237bf  BRYO_grain2.ppm
 801aba4c958d2a8b5fd06910f411c13ecda626ff1e1ceb36fb10013523eeea09  BRYO_grain3.ppm

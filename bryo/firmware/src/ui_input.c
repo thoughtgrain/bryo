@@ -1430,7 +1430,10 @@ static void ui_input(void)
     sys.keys_grain = (uint8_t)(ui.view == VIEW_PAGE && ui.kind == FOCUS_DEV && ui.dev == DEV_GRAIN);
     sys.keys_reso = (uint8_t)(ui.view == VIEW_PAGE && ui.kind == FOCUS_DEV && ui.dev == DEV_RESO);
     sys.keys_rarp = (uint8_t)(ui.view == VIEW_PAGE && ui.kind == FOCUS_ARP && ui.page == 2u);
-    mod_show = (uint8_t)(seq_page() ? 1u + sys.sel * NSLOT + ui.slot % NSLOT : 0u);   /* (its keys show its step) */
+    mod_show = (uint8_t)(seq_page() || (ui.view == VIEW_PAGE && ui.kind == FOCUS_SLOT &&
+                                        tp[sys.sel].engine[ui.slot] == ME_FOLLOW)
+                         ? 1u + sys.sel * NSLOT + ui.slot % NSLOT : 0u);   /* (a SEQ's keys show its step; a FOLLOW's
+                                                         * picture its history) */
     if ((uint32_t)(fm1_ms - ui.unsaved_t) >= 250u) {    /* the header's unsaved mark: the state against the last save
                                                         * or load (a hash of 3.3 KB: four times a second, not a frame) */
         ui.unsaved_t = fm1_ms;

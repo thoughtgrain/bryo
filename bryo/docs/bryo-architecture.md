@@ -742,6 +742,16 @@ arp so it also randomizes length note is held"). Each at its default is the soun
   -12) went off the pages to OP6 alone, which made the room.
 - **ARP**: GRND (6), page 2: each step's gate GATE +- up to GRND points, its own generator (RND's order unchanged).
 
+### FOLLOW, live on its page (2026-10-14)
+
+"Drum doesn't seem to generate a follow by itself": FOLLOW's picture was a preview over the source track's tape (flat
+on DRUM, SYNTH or POLY, which have none), and a slot runs only when it has depths. Now the slot on screen runs
+(`mod_show`, as the SEQ's page already did) even without depths, and keeps a history for the picture (`fol_hin`,
+`fol_hout`: 120 points, one every 16 blocks, 1.4 s, a byte each: what it hears, the loudest of the 16 blocks, and
+what it gives). On a source that isn't TAPE the page draws that history live ("LIVE"); on TAPE the preview stays.
+Tested (`test_follow_live`): a DRUM track, a FOLLOW with no depths, its page up: it follows (to 15,194) and the
+history moves.
+
 ## POLY, as built (2026-10-07)
 
 POLY is the third source engine: a sound played across the keys, up to four notes at once.

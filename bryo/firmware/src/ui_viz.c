@@ -1612,8 +1612,22 @@ static void viz_follow(const int16_t *v, uint32_t f)
     int32_t gain = db_x1000(v[1]), hd = HOLD_DOTS[clamp(v[4], 0, 4)], src = clamp(v[0], 0, 5);
     uint32_t t = src >= 1 && src <= 4 ? (uint32_t)(src - 1) : sys.sel;
     char b[12];
+    int live = tp[t].src != SRC_TAPE;                  /* (SYNTH POLY DRUM: no tape to preview, the follower as it runs) */
     px_line(DX0, DY1 + 1, DX1, DY1 + 1, px_dim, 2);
-    for (x = DX0; x <= DX1; x++) {
+    if (live) {                                        /* the last 1.4 s, oldest at the left: what it hears (dim), what
+                                                         * it gives (ink) */
+        uint32_t w0 = fol_hw;
+        for (x = DX0; x <= DX1; x++) {
+            uint32_t k = (w0 + (uint32_t)(x - DX0) * FOL_NH / (uint32_t)(DW + 1)) % FOL_NH;
+            int32_t in = fol_hin[k] * 1000 / 255, out = fol_hout[k] * 1000 / 255, yy = DY1 - out * (DH - 2) / 1000;
+            if ((x & 1) == 0)
+                px_line(x, DY1, x, DY1 - in * (DH - 2) / 1000, px_dim, 1);
+            if (x > DX0)
+                px_line(x - 1, py, x, yy, px_ink, 1);
+            py = yy;
+        }
+    }
+    for (x = DX0; !live && x <= DX1; x++) {
         int32_t in = clamp(tape_peak_at(t, (x - DX0) * 1000 / DW) * gain / 1000, 0, 1000), out, yy;
         if ((x & 1) == 0)
             px_line(x, DY1, x, DY1 - in * (DH - 2) / 1000, px_dim, 1);   /* what it listens to */
@@ -1637,7 +1651,7 @@ static void viz_follow(const int16_t *v, uint32_t f)
     if (f >= 1u && f < NPK)
         vz_ktag(118, DLBL - 1, &ME_P[ME_FOLLOW][f], v[f]);
     else
-        px_text(118 - px_text_w(PXF_3, tape_name(t)), DLBL, PXF_3, tape_name(t), px_dim);
+        px_text(118 - px_text_w(PXF_3, live ? "LIVE" : tape_name(t)), DLBL, PXF_3, live ? "LIVE" : tape_name(t), px_dim);
 }
 
 static void viz_seq(const int16_t *v, uint32_t f)
@@ -2769,9 +2783,11 @@ static uint32_t viz_sig(void)
         h = (h ^ (tape_ver[sys.sel] * 31u)) * 16777619u;
     if (ui.kind == FOCUS_DEV && ((ui.dev == DEV_SRC && tp[sys.sel].src == SRC_TAPE) || ui.dev == DEV_GRAIN))   /* the tape, the head */
         h = (h ^ (tape_ver[sys.sel] * 31u + (uint32_t)(tape_head(sys.sel) * DW / 1000 + 7) + sys.rec * 977u)) * 16777619u;
-    if (ui.kind == FOCUS_SLOT && tp[sys.sel].engine[ui.slot] == ME_FOLLOW)
+    if (ui.kind == FOCUS_SLOT && tp[sys.sel].engine[ui.slot] == ME_FOLLOW) {
         for (t = 0; t < NTRK; t++)
             h = (h ^ tape_ver[t]) * 16777619u;
+        h = (h ^ fol_hw) * 16777619u;                   /* (its live history moving) */
+    }
     if (ui.kind == FOCUS_DEV && ui.dev == DEV_GRAIN) {                 /* GRAIN: its cursor, FROZEN, the grains */
         const grain_trk_t *G = &grain[sys.sel];
         const gr_buf_t *B = &gbuf[sys.sel];

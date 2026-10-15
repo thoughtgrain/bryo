@@ -485,6 +485,14 @@ static mod_rt_t mrt[NTRK][NSLOT] __attribute__((section(".lowpool")));
 /* main loop -> ISR: the SEQ slot on screen, 1 + track x NSLOT + slot (0: none). It runs even when it modulates
  * nothing yet, so its white keys can show the step playing while you write its steps (its output goes nowhere) */
 static volatile uint8_t mod_show;
+/* the FOLLOW on screen (2026-10-14, "drum doesn't seem to generate a follow by itself": the page drew a preview over
+ * the source's tape, flat on DRUM, SYNTH or POLY, and the slot ran only with depths): ISR -> screen, the last 120
+ * points of what it hears and what it gives, a point every 16 blocks (1.4 s), 0..255 */
+#define FOL_NH 120u
+static volatile uint8_t fol_hin[FOL_NH], fol_hout[FOL_NH];
+static volatile uint8_t fol_hw;                  /* the next point's place */
+static uint8_t fol_hn;                           /* (ISR: blocks into this point) */
+static int32_t fol_hpk;                          /* (ISR: the loudest of them) */
 
 /* the step slot s of track t is playing (a SEQ: 0..15; -1 none yet, or not a SEQ), for the white keys' lights. The
  * one field the main loop reads of the ISR's state: a 16-bit read, whole on the target */
@@ -871,6 +879,26 @@ static void HOT_CODE mod_tick(uint32_t keys, uint32_t sel, const int32_t *const 
                                                          * only with depths): stepped here, for its keys' lights */
             uint32_t ss = (mod_show - 1u) % NSLOT;
             const mod_list_t *L2 = &mod_l[t][mod_cur[t] & 1u];
+            if (tp[t].engine[ss] == ME_FOLLOW) {        /* the FOLLOW on screen: run here when it has no depths (else
+                                                         * below), and its history kept for the picture */
+                mod_rt_t *m = &mrt[t][ss];
+                const int16_t *v = tp[t].mod[ss];
+                int32_t src = clamp(v[0], 0, 5), j, pk = 0;
+                const int32_t *in = src == 0 ? last[t] : src <= (int32_t)NTRK ? last[src - 1] : 0;
+                if (!(((mod_on >> t) & 1u) && L2->n && ((L2->used >> ss) & 1u)))
+                    mod_follow(m, v, in);
+                for (j = 0; in && j < (int32_t)CTL; j++)
+                    pk = in[j] > pk ? in[j] : -in[j] > pk ? -in[j] : pk;
+                fol_hpk = pk > fol_hpk ? pk : fol_hpk;
+                if (++fol_hn >= 16u) {
+                    uint32_t w = fol_hw % FOL_NH;
+                    fol_hin[w] = (uint8_t)(clamp(fol_hpk, 0, 32767) >> 7);
+                    fol_hout[w] = (uint8_t)(clamp(m->out, 0, 32767) >> 7);
+                    fol_hw = (uint8_t)((w + 1u) % FOL_NH);
+                    fol_hn = 0;
+                    fol_hpk = 0;
+                }
+            }
             if (tp[t].engine[ss] == ME_SEQ && !(((mod_on >> t) & 1u) && L2->n && ((L2->used >> ss) & 1u))) {
                 mod_rt_t *m = &mrt[t][ss];
                 const int16_t *v = tp[t].mod[ss];
