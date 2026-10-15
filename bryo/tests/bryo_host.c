@@ -4293,6 +4293,65 @@ static void test_tape_ptch(void)
           pdesc_at(DEV_P[DEV_SRC], 3) == TK_PTCH);
 }
 
+/* TAPE's FRZE, WOW and FLUT (2026-10-15) */
+static void test_tape_frze(void)
+{
+    enum { NB = 1400 };                                  /* ~1 s */
+    static int32_t o[NB * CTL];
+    char b[220];
+    uint32_t j, lag = 4410u;                             /* (FLEN 100 ms at SPD 100: 2,205 tape samples, 4,410 out) */
+    int32_t f0, in = 1, lo = 1 << 30, hi = 0, prev;
+    double d = 0, e = 0, d0 = 0;
+    power_on();
+    for (j = 1; j < NTRK; j++)
+        track[j].mute = 1;
+    sys.playing = 1;
+    render(200, 0);
+    render(NB, o);                                       /* not frozen: the beat, a lag of 100 ms isn't a repeat */
+    for (j = NB * CTL / 2; j + lag < NB * CTL; j++)
+        d0 += fabs((double)o[j + lag] - o[j]);
+    tp[0].dev[DEV_SRC][TK_FRZE] = 1;
+    tp[0].dev[DEV_SRC][TK_FLEN] = 100;
+    render(8, 0);
+    f0 = tape_rt[0].fpos;
+    render(NB, o);
+    for (j = NB * CTL / 2; j + lag < NB * CTL; j++) {
+        d += fabs((double)o[j + lag] - o[j]);
+        e += fabs((double)o[j]);
+    }
+    in = tape_rt[0].pos >> 12 >= f0 && tape_rt[0].pos >> 12 <= f0 + 2205 && tape_rt[0].fpos == f0;
+    snprintf(b, sizeof b, "FRZE ON, FLEN 100: the head held in 100 ms from where it was (%d), the sound repeating every 100 "
+             "ms (off by %.0f %% of it; not frozen %.0f %%)", f0, 100 * d / (e + 1), 100 * d0 / (e + 1));
+    check(b, f0 >= 0 && in && d < e / 10 && d0 > e / 2);
+    tp[0].dev[DEV_SRC][TK_WOW] = 40;                     /* (the page as it'd be: a little wow on it) */
+    focus_dev(DEV_SRC, 3);
+    ui.msg_t = 0;
+    shot("BRYO", "tape_frze");
+    tp[0].dev[DEV_SRC][TK_WOW] = 0;
+    tp[0].dev[DEV_SRC][TK_FRZE] = 0;
+    render(4, 0);
+    check("..FRZE OFF: the loop again from there", tape_rt[0].fpos == -1 && tape_rt[0].running);
+    tp[0].dev[DEV_SRC][TK_WOW] = 100;                    /* WOW 100, FLUT 100: the head's step a block wavers */
+    tp[0].dev[DEV_SRC][TK_FLUT] = 100;
+    prev = tape_rt[0].pos;
+    for (j = 0; j < 8000u; j++) {                        /* (~6 s: the drift's whole cycle) */
+        int32_t dd;
+        render(1, 0);
+        dd = tape_rt[0].pos - prev;
+        prev = tape_rt[0].pos;
+        if (dd > 0 && dd < 2 * 2048 * CTL) {             /* (past the seam: skipped) */
+            lo = dd < lo ? dd : lo;
+            hi = dd > hi ? dd : hi;
+        }
+    }
+    snprintf(b, sizeof b, "WOW and FLUT 100: the speed wavers %.1f %% to +%.1f %% (1.8 to 3.2 %% either way)",
+             100.0 * (lo - 2048 * CTL) / (2048 * CTL), 100.0 * (hi - 2048 * CTL) / (2048 * CTL));
+    check(b, lo < 2048 * CTL * 982 / 1000 && lo > 2048 * CTL * 968 / 1000 && hi > 2048 * CTL * 1018 / 1000 &&
+             hi < 2048 * CTL * 1032 / 1000 && !strcmp(DEV_P[DEV_SRC][TK_WOW].label, "WOW") &&
+             pdesc_at(DEV_P[DEV_SRC], 12u) == TK_FRZE && pdesc_at(DEV_P[DEV_SRC], 19u) == TK_LVL);
+    sys.playing = 0;
+}
+
 /* POLY's LOOP (2026-10-13): a held note loops LSTR..END */
 static void test_poly_loop(void)
 {
@@ -7790,10 +7849,11 @@ static void test_mod(void)
     }
     power_on();
     press(B_HOME);
-    press(B_HOME);                                       /* TAPE page 4, HOME's third (the source shows from power-on;
+    press(B_HOME);
+    press(B_HOME);                                       /* TAPE page 5, HOME's fourth (the source shows from power-on;
                                                           * page 2, the envelope, is ENV's) */
     turn(3, -2);
-    check("TAPE page 4 (HOME's last), KNOB 4: LVL", ui.page == 3u && tp[0].dev[DEV_SRC][TK_LVL] == -2);
+    check("TAPE page 5 (HOME's last), KNOB 4: LVL", ui.page == 4u && tp[0].dev[DEV_SRC][TK_LVL] == -2);
     press(B_FX);                                         /* COLOR page 1 */
     turn(2, 1);
     turn(3, 30);
@@ -9223,22 +9283,22 @@ static void test_page_keys(void)
 {
     uint32_t k, dim_ok = 1, lit_ok = 1, dark_ok = 1;
     power_on();
-    hold(B_HOME);                                        /* TAPE, page 1: HOME's three pages (its envelope ENV's) */
+    hold(B_HOME);                                        /* TAPE, page 1: HOME's four pages (its envelope ENV's) */
     ui_leds();
     for (k = 0; k < 27u; k++) {
         uint32_t w = KEY_WHITE[k];
         led_on(fm1_led_dim, 14u + k);
-        if (w != KEY_NONE && w < 3u)
+        if (w != KEY_NONE && w < 4u)
             dim_ok &= led_lit;
         else
             dark_ok &= !led_lit;
         led_on(fm1_led, 14u + k);
-        if (w != KEY_NONE && w < 3u)
+        if (w != KEY_NONE && w < 4u)
             lit_ok &= led_lit == (w == 0u);
         else
             dark_ok &= !led_lit;
     }
-    check("HOME held on TAPE: white keys 1-3 glow (HOME's three pages), key 1 lit (the one shown), every other key dark",
+    check("HOME held on TAPE: white keys 1-4 glow (HOME's four pages), key 1 lit (the one shown), every other key dark",
           dim_ok && lit_ok && dark_ok && !sys.keys_live);
     key_edge(note_of_white(2));
     let_go(B_HOME);
@@ -9246,7 +9306,7 @@ static void test_page_keys(void)
     hold(B_HOME);
     key_edge(note_of_white(6));
     let_go(B_HOME);
-    check("..+ key 7 (past its three): says so, the page stays", ui.page == 3u && !strcmp(ui.msg, "NO PAGE THERE"));
+    check("..+ key 7 (past its four): says so, the page stays", ui.page == 3u && !strcmp(ui.msg, "NO PAGE THERE"));
     tp[0].src = SRC_SYNTH;
     hold(B_ENV);
     key_edge(note_of_white(1));
@@ -11034,6 +11094,7 @@ int main(int argc, char **argv)
     test_poly_loop();
     test_synth_more();
     test_self_res();
+    test_tape_frze();
     test_follow_live();
     test_drum_len1();
     test_follow_auto();

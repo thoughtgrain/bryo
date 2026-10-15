@@ -83,7 +83,7 @@ Every pad opens a page, and **pressing the same pad again goes to its next page*
 
 | Pad | Pages, in order |
 | --- | --- |
-| HOME | the source's pages (TAPE has 3; SYNTH 4; POLY 4; DRUM 3) |
+| HOME | the source's pages (TAPE has 4; SYNTH 4; POLY 4; DRUM 3) |
 | EDIT | GRAIN 1-6, then RIPPLE 1-5 (RESO and 12-BAND: 1-6) |
 | FX | COLOR 1-3, then CHRONOS 1-4 |
 | ENV | the source's shaping pages: SYNTH's and POLY's AMP and FILTER, TAPE's slice envelope, DRUM's KIT and KIT 2 |
@@ -253,9 +253,22 @@ Press **ENV**: **ATK DEC SUS REL**, an envelope for the slices you play from the
 
 <img src="img/tape_env.png" width="240" alt="ENV on TAPE: the slice envelope">
 
+### 2.4c Freeze it, warble it: TAPE's tools
+
+Press **HOME** to the third page: **FRZE FLEN WOW FLUT**.
+
+- **FRZE ON** holds the moment: the head keeps looping the **FLEN** milliseconds it was in when you turned it on
+  (10 ms to 1 s), framed in orange on the picture, until you turn it off and the loop plays on from there. A short
+  FLEN is a buzz or a stutter, a long one a phrase on repeat. The white keys slice the frozen bit, so you can play
+  it; put an LFO (square) on FRZE for a stutter that comes and goes.
+- **WOW** is a slow, wandering waver of the tape's speed (and pitch), up to about a quarter tone at 100: a worn
+  cassette. **FLUT** is a quick one, a flutter. Together they make an old machine's warble.
+
+<img src="img/tape_frze.png" width="240" alt="TAPE's tools: FRZE FLEN WOW FLUT, the frozen window in orange">
+
 ### 2.5 Play a different reel
 
-1. Press **HOME** until the dots show the last page (the third).
+1. Press **HOME** until the dots show the last page (the fourth).
 2. Turn **KNOB 1 (REEL)**: BEAT, BELL, DRON, FOLD, then any reels you've added. **TAPE** means the track's own tape
    (what you record onto it).
 3. **KNOB 2 (ROTA)** rotates the loop against the beat: turn it while it plays and the loop shifts round by that

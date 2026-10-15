@@ -49,7 +49,7 @@
 
 /* the knobs (param.c DEV_P[DEV_SRC]) */
 enum { TK_STRT, TK_LEN, TK_SPD, TK_DUB, TK_FADE, TK_REV, TK_HALF, TK_GAIN, TK_REEL, TK_ROTA, TK_LVL, TK_SYNC, TK_ATK,
-       TK_DEC, TK_SUS, TK_REL, TK_PTCH };
+       TK_DEC, TK_SUS, TK_REL, TK_PTCH, TK_FRZE, TK_FLEN, TK_WOW, TK_FLUT };
 /* PTCH (2026-10-13): the speed in semitones on top of SPD, 2^(s/12) Q16 for s -24..24 (so a tape plays in tune with
  * the keys: SPD's percent never landed on a note) */
 static const int32_t TAPE_SEMI_Q16[49] = {16384, 17358, 18390, 19484, 20643, 21870, 23170, 24548, 26008, 27554, 29193, 30929, 32768, 34716, 36781, 38968, 41285, 43740, 46341, 49097, 52016, 55109, 58386, 61858, 65536, 69433, 73562, 77936, 82570, 87480, 92682, 98193, 104032, 110218, 116772, 123715, 131072, 138866, 147123, 155872, 165140, 174960, 185364, 196386, 208064, 220436, 233544, 247431, 262144};
@@ -130,6 +130,8 @@ typedef struct {                     /* ISR only */
     int32_t rec_left;                /* .. output samples it has left */
     uint8_t rec_full;                /* .. it ran its bars on a blank tape (the main loop sets SYNC to them) */
     uint16_t soff;                   /* SYNC: where a slice key moved the loop against the beat (Q16 of the loop) */
+    int32_t fpos;                    /* FRZE: where the held window starts (a tape sample), -1: not frozen */
+    uint32_t wph, fph, dph;          /* WOW and FLUT: the wow's, the flutter's and the drift's phases */
 } tape_rt_t;
 enum { TB_IDLE, TB_WAIT, TB_REC, TB_DONE };   /* not armed for bars; armed, waiting for a downbeat; recording; done
                                                * (the main loop lets REC go: tape_poll) */
@@ -635,6 +637,19 @@ static void HOT_CODE tape_block(uint32_t t, uint32_t keys, const int32_t *rec_in
     } else {
         wlen = (int32_t)v.len;
         tape_window(t, v.len ? v.len : TAPE_LEN, &ls, &ll);
+        if (TPD(t, DEV_SRC)[TK_FRZE] && v.len && rt->running) {   /* FRZE: the window FLEN long the head is in,
+                                                         * from the block it went on (behind the head, backwards);
+                                                         * the seam and the slices work inside it as in the loop */
+            int32_t fl = clamp(TPD(t, DEV_SRC)[TK_FLEN], 10, 1000) * (TAPE_SR / 50) / 20;
+            fl = fl > ll ? ll : fl;
+            if (rt->fpos < 0)
+                rt->fpos = inc < 0 ? (rt->pos >> 12) - fl : rt->pos >> 12;
+            rt->fpos = clamp(rt->fpos, ls, ls + ll - fl);
+            ls = rt->fpos;
+            ll = fl;
+        } else {
+            rt->fpos = -1;
+        }
         int32_t hp = rt->pos >> 12, tol = ll >> 4;      /* (a head just short of the window's start, as STRT moves
                                                          * past it, plays on into it: no jump; backwards, past its
                                                          * end the same) */
@@ -691,7 +706,8 @@ static void HOT_CODE tape_block(uint32_t t, uint32_t keys, const int32_t *rec_in
             }
             break;
         }
-    if (tape_sync_bars(t) && !grow && !rec && v.len) {   /* SYNC: the loop lasts its bars at the tempo. The speed
+    if (tape_sync_bars(t) && !grow && !rec && v.len && rt->fpos < 0) {   /* SYNC (not while frozen: let go, it
+                                                         * finds the beat again): the loop lasts its bars at the tempo. The speed
                                                          * for that, and a soft lock to the beat: the error to where
                                                          * the beat says the head is pulls the speed by at most 1/64
                                                          * (a quarter tone), so it never jumps; a large one (a new
@@ -714,6 +730,17 @@ static void HOT_CODE tape_block(uint32_t t, uint32_t keys, const int32_t *rec_in
                 inc += clamp(d * 2, -(s >> 6), s >> 6);   /* (the error over ~2,000 samples) */
             }
         }
+    }
+    if (TPD(t, DEV_SRC)[TK_WOW] || TPD(t, DEV_SRC)[TK_FLUT]) {   /* WOW and FLUT: the speed wavers, a block at a
+                                                         * time. WOW 100: a 0.7 Hz wow to +-1.6 % (28 cents) and a
+                                                         * 0.27 Hz drift under it to +-0.8 %, so it wanders; FLUT 100: a
+                                                         * 6.3 Hz flutter to +-0.6 % (10 cents). Q16 of the speed */
+        int32_t w = clamp(TPD(t, DEV_SRC)[TK_WOW], 0, 100), f = clamp(TPD(t, DEV_SRC)[TK_FLUT], 0, 100), m;
+        rt->wph += 68174u * n;
+        rt->dph += 26295u * n;
+        rt->fph += 613567u * n;
+        m = (sine_i(rt->wph) * (w * 1049 / 100) + sine_i(rt->dph) * (w * 524 / 100) + sine_i(rt->fph) * (f * 393 / 100)) >> 15;
+        inc += (inc * m) >> 16;
     }
     if (grow) {                                        /* (a growing tape: as it is) */
         rt->est = TE_IDLE;
@@ -813,6 +840,7 @@ static void tape_init(void)
     tape_bounced = 0;
     for (t = 0; t < NTRK; t++) {
         tape_rt[t].wlast = -1;
+        tape_rt[t].fpos = -1;
         tape_rt[t].stop_left = 0;
         tape_rt[t].est = TE_IDLE;
         tape_rt[t].env = 32767;
@@ -1089,6 +1117,19 @@ static int32_t tape_head(uint32_t t)
     if (!tape_rt[t].running || !v.len)
         return -1;
     return clamp((tape_rt[t].pos >> 12) * 1000 / (int32_t)v.len, 0, 1000);
+}
+
+/* FRZE's held window on track t, 0..1000 of what it plays (0: not frozen) */
+static int tape_frozen(uint32_t t, int32_t *a, int32_t *b)
+{
+    tape_view_t v;
+    int32_t fp = tape_rt[t].fpos, fl = clamp(TPD(t, DEV_SRC)[TK_FLEN], 10, 1000) * (TAPE_SR / 50) / 20;
+    tape_view(t, &v);
+    if (fp < 0 || !v.len || !tape_rt[t].running)
+        return 0;
+    *a = clamp(fp * 1000 / (int32_t)v.len, 0, 1000);
+    *b = clamp((fp + fl) * 1000 / (int32_t)v.len, *a, 1000);
+    return 1;
 }
 
 /* the length of what track t plays, in ms (0: nothing) */

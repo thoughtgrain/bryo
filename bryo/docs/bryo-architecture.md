@@ -852,6 +852,17 @@ holds it with a soft knee on the band integrator's state (linear to 8,000, a qua
 compares a sample over tsvf_mode, only when RES is up. RIPPLE's filter in front, the drums' and the mixer's are as
 they were.
 
+### TAPE's FRZE, WOW and FLUT (2026-10-15)
+
+"Tape is missing a freeze function ... some sort of tape warble parameters would be nice." Four new stored knobs on
+TAPE (17-20), their own HOME page before REEL's. **FRZE** narrows the loop window (`tape_block`, right after
+`tape_window`) to FLEN ms from where the head was the block it went on (`fpos`; behind the head when it runs
+backwards), so everything that works in a window works there: the seam's crossfade, the slices, ROTA. SYNC lets go
+while frozen (its lock would drag the head out) and finds the beat again after. It's a modulation target, so a
+square LFO on it stutters. **WOW** and **FLUT** waver the head's step once a block: wow 0.7 Hz to +-1.6 % with a
+0.27 Hz drift to +-0.8 % under it (CHRONOS AGE's recipe), flutter 6.3 Hz to +-0.6 %; measured +-3 % at both 100.
+The picture frames the held window in orange (`tape_frozen`).
+
 ## POLY, as built (2026-10-07)
 
 POLY is the third source engine: a sound played across the keys, up to four notes at once.

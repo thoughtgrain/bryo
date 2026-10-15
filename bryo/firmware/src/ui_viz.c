@@ -215,6 +215,18 @@ static void viz_tape(const int16_t *v, uint32_t f)
             px_line(px, top + 1, px, bot - 1, px_live, 2);
         }
     }
+    {   /* FRZE: the window it holds, framed in orange over the sound, and said */
+        int32_t fa, fb;
+        if (tape_frozen(sys.sel, &fa, &fb)) {
+            int32_t xa = r0 + fa * rw / 1000, xb = r0 + fb * rw / 1000;
+            xb = xb < xa + 2 ? xa + 2 : xb;
+            px_line(xa, top - 1, xb, top - 1, px_live, 2);
+            px_line(xa, bot + 3, xb, bot + 3, px_live, 2);
+            px_line(xa, top - 1, xa, bot + 3, px_live, 1);
+            px_line(xb, top - 1, xb, bot + 3, px_live, 1);
+            px_tag(76, 0, PXF_3, "FRZ", px_live, px_bg);
+        }
+    }
     px_text(1, 0, PXF_3, tape_name(sys.sel), px_ink);                /* what it plays */
     if ((sys.rec >> sys.sel) & 1u)
         px_tag(105, 0, PXF_3, "REC", px_rec, px_bg);   /* (recording: red, as the header's bar) */
