@@ -474,7 +474,14 @@ static int32_t reso_parts(const int16_t *v, int32_t sc)
 }
 static int32_t reso_amp(const int16_t *v, int32_t k)
 {
-    return 1000 - k * (100 - v[2]) * (v[RP_MODE] == RM_BANK ? 3 : 9);
+    int32_t a = 1000 - k * (100 - v[2]) * (v[RP_MODE] == RM_BANK ? 3 : 9);
+    if (v[RP_MODE] >= RM_RESO && v[RP_WDTH] < 100 && a > 0) {   /* (the spotlight, as reso.c weighs the bands) */
+        int32_t nb = v[RP_MODE] == RM_BANK ? (int32_t)RS_NB : (int32_t)RS_N, pos = k * 1000 / (nb - 1);
+        int32_t d = pos - clamp(v[RP_FOCS], 0, 100) * 10, w = 40 + clamp(v[RP_WDTH], 0, 100) * 10;
+        d = d < 0 ? -d : d;
+        a = d >= w ? 0 : a * (w - d) / w;
+    }
+    return a;
 }
 /* COMB's teeth: a comb rings its pitch's odd harmonics (1 3 5 7 9, 1/16 semitones over it), each fainter */
 static const int16_t RV_ODD16[5] = {0, 304, 446, 539, 608};
@@ -491,7 +498,7 @@ static int32_t reso_at(const int16_t *v, int32_t x)
     for (k = 0; k < kn; k++) {
         int32_t amp0 = reso_amp(v, k);
         if (amp0 <= 0)
-            break;
+            continue;                                   /* (a band out of the spotlight: the next may be in it) */
         for (j = 0; j < nj; j++) {
             int32_t d = n16 - (v[0] * 16 + rs_part16(sc, (uint32_t)k) + RV_ODD16[j]), amp = amp0 / (1 + 2 * j), pk;
             if (d < -width16 * 6 || d > width16 * 6)

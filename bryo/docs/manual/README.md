@@ -83,7 +83,7 @@ Every pad opens a page, and **pressing the same pad again goes to its next page*
 | Pad | Pages, in order |
 | --- | --- |
 | HOME | the source's pages (TAPE has 4; SYNTH 5; POLY 4; DRUM 4) |
-| EDIT | GRAIN 1-6, then RIPPLE 1-4 |
+| EDIT | GRAIN 1-6, then RIPPLE 1-5 (RESO and 12-BAND: 1-6) |
 | FX | COLOR 1-3, then CHRONOS 1-4 |
 | ENV | the source's envelope: SYNTH's AMP, POLY's ENV, TAPE's slice envelope (each the second page), DRUM's KIT |
 | LFO, SEQ | a modulator's pages (LFO: M1, M2 or M3; SEQ: M4) |
@@ -873,44 +873,45 @@ forms. Each track has its own.
 
 1. Press **EDIT seven times** for **RIPPLE**.
 2. Turn **KNOB 4 (WET)** up (KNOB 3 is ROUT, see 6.8).
-3. **PTCH** sets the root note, and **DEC** how long it rings.
+3. Page 1 is what rings and its mix: **DEC** how long it rings (FDBK on COMB, RING on RESO and 12-BAND), **TONE**
+   how bright (TILT on RESO and 12-BAND, which takes the upper bands down), then **ROUT** and **WET**.
 4. **Hold EDIT and turn SELECT** to choose RIPPLE's form. Its name is in the header, and each form has its own
-   picture and labels:
+   picture, labels and pages:
    - **RIPPLE**: four strings, a Karplus-Strong loop each.
    - **COMB**: the same lines at half length, fed back inverted. Only the odd harmonics ring, giving a hollow,
      clarinet-like body at the same pitch.
-   - **RESO**: four resonators, a resonant band on each of the chord's first four notes, as a filter rings. DEC
-     becomes **RING**, how sharp the bands are, and TONE becomes **TILT**, which takes the upper bands down.
+   - **RESO**: four resonators, a resonant band on each of the chord's first four notes, as a filter rings.
    - **12-BAND**: twelve of those bands over the chord's notes, climbing through the octaves: a filter bank that
      sorts whatever comes in into the chord. The picture is a meter for each band.
 
-   All four forms ring the track's own sound. Switching clears what was ringing; the knobs stay as they are.
-5. **RIPPLE 2** is the form's own character, so it changes with the form:
-   - **RIPPLE** (strings): **SCAL TONE SPRD RIPL**. **COMB**: **TONE SPRD SCAL RIPL**. **RESO** and **12-BAND**:
-     **SCAL SPRD TILT EVEN**.
-   - **SCAL**: the chord the strings (or bands) make. **HARM** is the root's harmonics; then **MAJ**, **MIN**,
-     **PEN**, **SUS2**, **SUS4**, **DOM7**, **MAJ7**, **MIN7** (the sevenths leave out the octave, because the
-     seventh's rub is the point), **DIM**, **AUG**, **5TH** (a power chord) and **OCT** (one note in four octaves).
-     The ring over the knob lights the notes.
-   - **TONE** (TILT on the resonators): how bright it rings.
+   All four forms ring the track's own sound, and each comes out at about the level of what goes in, so turning WET
+   up is a real change: a drum loop through 12-BAND is sorted into the chord's notes, through COMB it turns hollow
+   and pitched. Switching clears what was ringing; the knobs stay as they are.
+5. **RIPPLE 2** shapes the form you're on, so it changes with the form:
+   - **RIPPLE** (strings): **SPRD RIPL DRV PICK**.
+   - **COMB**: **POL SPRD RIPL DRV**. **POL** is the feedback's polarity: **ODD** (inverted: the odd harmonics, hollow,
+     at the root) or **ALL** (as is: every harmonic, an octave up, brighter and more metallic).
+   - **RESO** and **12-BAND**: **FOCS WDTH SPRD EVEN**. FOCS and WDTH are a spotlight on the bands: **WDTH** at 100
+     lets every band ring; turn it down and only the bands near **FOCS** (left: the lowest, right: the highest) ring,
+     the rest fade out. Narrow it all the way and sweep FOCS (or put an LFO on it) for a band that walks up and down
+     the chord. **EVEN**: the odd partials against the even ones (left: the 1st, 3rd, 5th alone, a hollow set; right:
+     the 2nd, 4th, 6th, an octave up and emptier in the middle).
    - **SPRD**: on the strings and combs a detune across them, from the lowest a little flat to the highest a little
      sharp (half a semitone across at 100: a chorus, and with RIPL a slow shimmer); on RESO and 12-BAND it stretches
      or squeezes the spacing of the partials instead, up to 40 % either way, out of tune with itself like a bell or a
      drum skin.
-   - **EVEN** (RESO and 12-BAND): the odd partials against the even ones (left: the 1st, 3rd, 5th alone, a hollow
-     set; right: the 2nd, 4th, 6th, an octave up and emptier in the middle).
    - **RIPL**: the pitches drift slowly, each a quarter turn behind the one below, so the drift runs across them
-     like a ripple on water. It reaches up to half a semitone either way at 100 and gets faster as it rises (on RESO
-     and 12-BAND it's on page 5).
-
-   On **COMB**, page 1's DEC is called **FDBK**: how long the combs feed back, from a short metallic ring to a
-   singing drone. Every form comes out at about the level of what goes in, so turning WET up is a real change: a
-   drum loop through 12-BAND is sorted into the chord's notes, through COMB it turns hollow and pitched.
-6. **RIPPLE 3** is a filter in front (**CUT**, **RES**, **TYPE**): what of the track reaches it, and **DRV**: a
-   saturation in the loop, the way a Polivoks filter overdrives its own feedback. A loud ring rounds off and gains
-   odd harmonics, warm and gritty; as it dies away it rings clean again. On the resonators it drives what reaches
-   the bands. It starts at 25.
-7. **RIPPLE 4** is what the keys do:
+     like a ripple on water. It reaches up to half a semitone either way at 100 and gets faster as it rises.
+   - **DRV**: a saturation in the loop, the way a Polivoks filter overdrives its own feedback. A loud ring rounds off
+     and gains odd harmonics, warm and gritty; as it dies away it rings clean again. On the resonators it drives what
+     reaches the bands (there it's on page 3). It starts at 25.
+   - **PICK**: how hard a pluck strikes. Turn it left for a soft mallet (dark and round), right for a pick (bright
+     and snappy).
+6. **RIPPLE 3** is the pitch: **PTCH** the root, **SCAL** the chord the strings (or bands) make, then **KEYS** and
+   **PLVL** (on RESO and 12-BAND: DRV and RIPL; their KEYS and PLVL are on page 5).
+   - **SCAL**: **HARM** is the root's harmonics; then **MAJ**, **MIN**, **PEN**, **SUS2**, **SUS4**, **DOM7**, **MAJ7**,
+     **MIN7** (the sevenths leave out the octave, because the seventh's rub is the point), **DIM**, **AUG**, **5TH** (a
+     power chord) and **OCT** (one note in four octaves). The ring over the knob lights the notes.
    - **KEYS**: **PLCK** or **TUNE**.
      - **PLCK**: a white key on RIPPLE's page sets the root and plucks it. On a TAPE or DRUM track it plays without
        a slice or a drum, as a sound of its own. A RIPL ARP step plucks too.
@@ -919,19 +920,19 @@ forms. Each track has its own.
 
      On SYNTH and POLY the keys play the source either way, and RIPPLE follows its notes.
    - **PLVL**: how loud a pluck is (the keys' and RIPL ARP's), so it sits against the track's own sound.
-   - **PICK**: how hard a pluck strikes. Turn it left for a soft mallet (dark and round), right for a pick (bright
-     and snappy).
-   - **STRM**: strum. The strings sound one after another, lowest first, this many milliseconds apart (0: all at
-     once). A new pluck cuts a strum that hasn't finished.
+7. **RIPPLE 4** is a filter in front (**CUT**, **RES**, **TYPE**): what of the track reaches it. Its KNOB 4 is
+   **STRM** on the strings (strum: the strings sound one after another, lowest first, this many milliseconds apart;
+   a new pluck cuts a strum that hasn't finished), **PICK** on COMB, **MODE** on RESO and 12-BAND.
 8. **RIPPLE 5**: **MODE**, the form as a knob (the same as EDIT held + SELECT), and **VARY**: each pluck comes out a
-   little different, in level and brightness (on RESO and 12-BAND, **RIPL** sits here too).
+   little different, in level and brightness. On COMB, STRM is here too. RESO and 12-BAND have a page 5 of the keys
+   (**KEYS PLVL PICK STRM**) and a page 6 with VARY.
 9. To play a pattern on it, use **RIPL ARP**, the ARP pad's third page ([5.8](#58-arp-the-arpeggiator)).
 
 The picture shows it: while a string rings, the curve waves round its node in orange, as high as the string is
 loud and as tight as it is high, and the waves drift along with RIPL. On 12-BAND each band's meter lights orange
 as it rings.
 
-<img src="img/resonator_wet.png" width="240" alt="RIPPLE ringing"> <img src="img/ripple2.png" width="240" alt="RIPPLE 2: SCAL TONE DRV RIPL"> <img src="img/resonator2.png" width="240" alt="RIPPLE 3: CUT RES TYPE">
+<img src="img/resonator_wet.png" width="240" alt="RIPPLE ringing"> <img src="img/ripple2.png" width="240" alt="RIPPLE 2: SPRD RIPL DRV PICK"> <img src="img/resonator2.png" width="240" alt="RIPPLE 4: CUT RES TYPE">
 
 <img src="img/ripple_comb.png" width="240" alt="COMB: the odd harmonics' teeth"> <img src="img/ripple_bank.png" width="240" alt="12-BAND: a meter a band">
 

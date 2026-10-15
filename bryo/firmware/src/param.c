@@ -105,7 +105,7 @@ static const char *const N_TSYNC[6] = {"OFF", "1BR", "2BR", "4BR", "8BR", "16BR"
 
 /* RIPPLE's knobs, the same stored places in every form (MODE, the form: reso.c RM_*), the labels the form's (dec:
  * DEC's, tone: TONE's; the resonators call DEC their RING and TONE their TILT) */
-#define RS_DESC(dec, tone, k22) {                                                                                \
+#define RS_DESC(dec, tone, k22, k23, k24, k25) {                                                                                \
         {"PTCH", 33, 81, 45, F_NOTE}, {dec, 0, 100, 60, F_PCT},                                                    \
         {tone, 0, 100, 45, F_PCT}, {"WET", 0, 100, 0, F_PCT},   /* (TONE 60 until 2026-10-13: too bright) */      \
         /* 2: a filter before the strings (cutoff, resonance, its TYPE: low-, band- or high-pass, as POLY's), and the  \
@@ -129,8 +129,18 @@ static const char *const N_TSYNC[6] = {"OFF", "1BR", "2BR", "4BR", "8BR", "16BR"
         /* 20 (2026-10-14, page 5 with MODE and VARY): PLVL, a pluck's level (the keys', the arpeggio's); SPRD, the  \
          * strings detuned across (cents, a chorus) or the bands' spacing stretched; k22, EVEN on the resonators   \
          * (the odd partials against the even: - the 1st 3rd 5th alone, + the 2nd 4th 6th) */                     \
-        {"PLVL", 0, 100, 100, F_PCT}, {"SPRD", -100, 100, 0, F_BIPCT}, k22, {""}}
+        {"PLVL", 0, 100, 100, F_PCT}, {"SPRD", -100, 100, 0, F_BIPCT}, k22,                                       \
+        /* 23 (2026-10-15): k23, COMB's POL; k24 k25, the resonators' FOCS and WDTH */                              \
+        k23, k24, k25}
 #define RS_EVEN {"EVEN", -100, 100, 0, F_BIPCT}
+/* COMB's POL: ODD, the feedback inverted (the odd harmonics, hollow: the comb as it was); ALL, not (every harmonic,
+ * the half line an octave up: metallic) */
+static const char *const N_POL[2] = {"ODD", "ALL"};
+#define RS_POL {"POL", 0, 1, 0, F_ENUM, N_POL, 1}
+/* the resonators' spotlight: FOCS, where across the bands (0 the lowest, 100 the highest); WDTH, how many sound (100:
+ * all of them, as before; narrower, the bands near FOCS alone) */
+#define RS_FOCS {"FOCS", 0, 100, 50, F_PCT}
+#define RS_WDTH {"WDTH", 0, 100, 100, F_PCT}
 
 /* (each table in the order its knobs are stored; the "1:", "2:" notes are those blocks of four. Where a page shows
  * them otherwise, PLAYOUT below says so) */
@@ -188,7 +198,9 @@ static const pdesc_t DEV_P[NDEV][NPK] = {
         {"GRNS", 0, GR_GRNS_MAX, 0, F_ENUM, N_GRNS, 1},
         /* SYNC: RATE in the tempo's divisions (1 bar .. 1/64), the grains on that grid, PATN shaping it (grain.c) */
         {"SYNC", 0, 1, 0, F_ENUM, N_OFFON, 1}},
-    RS_DESC("DEC", "TONE", {""}),   /* RIPPLE (the S-4's RING): its first form's table; the others below (RS_FORM_P) */
+    RS_DESC("DEC", "TONE", RS_EVEN, RS_POL, RS_FOCS, RS_WDTH),   /* RIPPLE (the S-4's RING): the storage, every form's
+                                                    * knobs (the projects, modulation and scenes read it); each form's
+                                                    * pages its own table (RS_STR_P, RS_FORM_P) */
     {   /* COLOR (the S-4's DEFORM) */
         {"DRV", 0, 100, 0, F_PCT}, {"CRSH", 0, 100, 0, F_PCT},
         {"NOIS", 0, 100, 0, F_PCT}, {"TILT", -100, 100, 0, F_BIPCT},
@@ -222,8 +234,10 @@ static const pdesc_t DEV_P[NDEV][NPK] = {
         {"TYPE", 0, 3, 0, F_ENUM, N_RTYPE, 1}, {"MOD", 0, 100, 0, F_PCT, 0, 1}},
 };
 /* RIPPLE's other forms (reso.c RM_COMB on): the same knobs, each form's labels, its own pages (PLAYOUT) */
-static const pdesc_t RS_FORM_P[3][NPK] = {RS_DESC("FDBK", "TONE", {""}), RS_DESC("RING", "TILT", RS_EVEN),
-                                          RS_DESC("RING", "TILT", RS_EVEN)};
+static const pdesc_t RS_STR_P[NPK] = RS_DESC("DEC", "TONE", {""}, {""}, {""}, {""});   /* the strings' pages */
+static const pdesc_t RS_FORM_P[3][NPK] = {RS_DESC("FDBK", "TONE", {""}, RS_POL, {""}, {""}),
+                                          RS_DESC("RING", "TILT", RS_EVEN, {""}, RS_FOCS, RS_WDTH),
+                                          RS_DESC("RING", "TILT", RS_EVEN, {""}, RS_FOCS, RS_WDTH)};
 
 /* The source engines: what starts a track's chain (docs/bryo-architecture.md, "Source engines"). TAPE's knobs are
  * DEV_P[DEV_SRC]; each other source has its own table, and each track keeps every source's values, so switching
@@ -616,16 +630,20 @@ static const playout_t PLAYOUT[] = {
  * arpeggio's 12-15 past the pages: the ARP pad's) */
     /* (2026-10-15, "the other parameters should be shaping the active filter": page 2 each form's own character,
      * then the filter in front with DRV, the keys, the form itself. Stored 12-15, RIPL ARP, past the pages) */
-    {DEV_P[DEV_RESO], 5, {0, 1, 8, 3, 7, 2, 21, 18, 4, 5, 6, 17, 19, 20, 9, 10, 16, 11, 22, 23, 12, 13, 14, 15}},
-                                                    /* RIPPLE: PTCH DEC ROUT WET, SCAL TONE SPRD RIPL, CUT RES TYPE
-                                                     * DRV, KEYS PLVL PICK STRM, MODE VARY */
-    {RS_FORM_P[0], 5, {0, 1, 8, 3, 2, 21, 7, 18, 4, 5, 6, 17, 19, 20, 9, 10, 16, 11, 22, 23, 12, 13, 14, 15}},
-                                                    /* COMB: PTCH FDBK ROUT WET, TONE SPRD SCAL RIPL, .. */
-    {RS_FORM_P[1], 5, {0, 1, 8, 3, 7, 21, 2, 22, 4, 5, 6, 17, 19, 20, 9, 10, 16, 18, 11, 23, 12, 13, 14, 15}},
-                                                    /* RESO: PTCH RING ROUT WET, SCAL SPRD TILT EVEN, .., MODE RIPL
-                                                     * VARY */
-    {RS_FORM_P[2], 5, {0, 1, 8, 3, 7, 21, 2, 22, 4, 5, 6, 17, 19, 20, 9, 10, 16, 18, 11, 23, 12, 13, 14, 15}},
-                                                    /* 12-BAND: the same */
+    /* (2026-10-15, "I don't know if pitch makes sense on the first page ... page 2 even more controls to modify the
+     * specific filter type": page 1 the form's ring and brightness with ROUT WET, page 2 more of the form's own, the
+     * pitch and chord on page 3, then the filter in front, the keys, the form. 12-15, RIPL ARP, past the pages) */
+    {RS_STR_P, 5, {1, 2, 8, 3, 21, 18, 17, 9, 0, 7, 19, 20, 4, 5, 6, 10, 16, 11, 22, 23, 12, 13, 14, 15}},
+                                                    /* RIPPLE: DEC TONE ROUT WET, SPRD RIPL DRV PICK, PTCH SCAL KEYS PLVL,
+                                                     * CUT RES TYPE STRM, MODE VARY */
+    {RS_FORM_P[0], 5, {1, 2, 8, 3, 23, 21, 18, 17, 0, 7, 19, 20, 4, 5, 6, 9, 16, 10, 11, 22, 12, 13, 14, 15}},
+                                                    /* COMB: FDBK TONE ROUT WET, POL SPRD RIPL DRV, PTCH SCAL KEYS PLVL,
+                                                     * CUT RES TYPE PICK, MODE STRM VARY */
+    {RS_FORM_P[1], 6, {1, 2, 8, 3, 24, 25, 21, 22, 0, 7, 17, 18, 4, 5, 6, 16, 19, 20, 9, 10, 11, 23, 26, 27, 12, 13,
+                       14, 15}},                    /* RESO: RING TILT ROUT WET, FOCS WDTH SPRD EVEN, PTCH SCAL DRV RIPL,
+                                                     * CUT RES TYPE MODE, KEYS PLVL PICK STRM, VARY */
+    {RS_FORM_P[2], 6, {1, 2, 8, 3, 24, 25, 21, 22, 0, 7, 17, 18, 4, 5, 6, 16, 19, 20, 9, 10, 11, 23, 26, 27, 12, 13,
+                       14, 15}},                    /* 12-BAND: the same */
     {DEV_P[DEV_COLOR], 3, {0, 1, 9, 7, 2, 3, 4, 5, 6, 10, 11, 8}},              /* COLOR: DRV CRSH ROUT WET, NOIS TILT
                                                                                  * NDEC NTON, CMOD . . LVL */
     {DEV_P[DEV_SPACE], 5, {0, 1, 4, 5, 2, 3, 8, 11, 6, 7, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19}},   /* CHRONOS:
@@ -757,7 +775,7 @@ static const pdesc_t *dev_p(uint32_t t, uint32_t d)
         return SYN_CL_P;                                 /* (the classic waves' pages: SYN_P is the storage) */
     if (d == DEV_RESO) {                                 /* (RIPPLE: its form's) */
         uint32_t m = (uint32_t)clamp(tp[t].dev[DEV_RESO][16], 0, 3);
-        return m ? RS_FORM_P[m - 1u] : DEV_P[DEV_RESO];
+        return m ? RS_FORM_P[m - 1u] : RS_STR_P;
     }
     if (d != DEV_SRC || tp[t].src == SRC_TAPE)
         return DEV_P[d];

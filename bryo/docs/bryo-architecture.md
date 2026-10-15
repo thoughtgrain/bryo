@@ -802,13 +802,25 @@ COMB lost level as FDBK rose (-4 dB at 40, -12.5 at 100: its input share shrinks
 up by the inverse of that share, a block's multiply. Now: COMB -4 to -0.5 dB, RESO -4 to -8.5, 12-BAND -3 to -7; the
 colour (the mean departure of the output's spectrum from the input's, 48 bands) 5-8 dB, from 3.6-5.
 
-The pages, each form its own (PLAYOUT): page 1 PTCH, DEC (COMB's label FDBK, the resonators' RING), ROUT, WET; page
+The pages, each form its own (PLAYOUT; replaced the same day, below): page 1 PTCH, DEC (COMB's label FDBK, the resonators' RING), ROUT, WET; page
 2 the form's character: strings SCAL TONE SPRD RIPL, COMB TONE SPRD SCAL RIPL, RESO and 12-BAND SCAL SPRD TILT EVEN;
 page 3 CUT RES TYPE DRV; page 4 KEYS PLVL PICK STRM; page 5 MODE VARY (the resonators RIPL there too).
 
 The factory scene rebalanced after it (AMBIENT's T3 RESO and GLITCH's T3 12-BAND had come up 10 and 8 dB); a test
 of DRV on the strings had heard the louder bank's ring left in the chain from the test before it, and now lets it
 die away first.
+
+The same day, a second pass ("pitch doesn't make sense on the first page; move it after page 2, and page 2 more
+controls for the specific filter type"). Three new stored knobs, so every form has four of its own: **POL** (COMB:
+ODD, the feedback inverted as before, or ALL, as is: every harmonic, an octave up), **FOCS** and **WDTH** (RESO and
+12-BAND: a spotlight on the bands, a triangle over their position 0..1000 centred on FOCS x 10, half-width 40 + WDTH
+x 10, multiplying TONE's tilt; WDTH 100 reaches 1040 from either end, so it's off, and costs nothing: the branch is
+skipped). The storage table `DEV_P[DEV_RESO]` is now the union of the forms' knobs (EVEN had been on the resonators'
+display tables only, so it wasn't saved, modulated or in scenes); the strings show `RS_STR_P`, the others
+`RS_FORM_P`, each with the labels it uses. Pages: 1 DEC TONE ROUT WET (what rings and its mix); 2 the form's own
+(strings SPRD RIPL DRV PICK, COMB POL SPRD RIPL DRV, the resonators FOCS WDTH SPRD EVEN); 3 PTCH SCAL and the keys
+(KEYS PLVL; the resonators DRV RIPL); 4 CUT RES TYPE and one more; 5 MODE VARY and what's left (the resonators: 5
+KEYS PLVL PICK STRM, 6 VARY). The picture follows the spotlight (`reso_amp`): a band out of it has no peak or node.
 
 ## POLY, as built (2026-10-07)
 

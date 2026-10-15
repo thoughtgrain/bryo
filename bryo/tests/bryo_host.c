@@ -491,31 +491,35 @@ static void test_input(void)
     press(B_EDIT);
     check("..again: GRAIN's page 6 (GRNS)", ui.dev == DEV_GRAIN && ui.page == 5u);
     press(B_EDIT);
-    check("..again: RIPPLE, opening with ROUT WET", ui.dev == DEV_RESO && ui.page == 0u &&
-          pdesc_at(DEV_P[DEV_RESO], 2u) == RP_ROUT && pdesc_at(DEV_P[DEV_RESO], 3u) == RP_WET);
+    check("..again: RIPPLE, opening with what rings and its mix (DEC TONE ROUT WET; COMB: FDBK; RESO, 12-BAND: RING TILT)",
+          ui.dev == DEV_RESO && ui.page == 0u && pdesc_at(RS_STR_P, 0u) == RP_DEC && pdesc_at(RS_STR_P, 1u) == RP_TONE &&
+          pdesc_at(RS_STR_P, 2u) == RP_ROUT && pdesc_at(RS_STR_P, 3u) == RP_WET &&
+          !strcmp(RS_FORM_P[0][RP_DEC].label, "FDBK") && !strcmp(RS_FORM_P[1][RP_DEC].label, "RING") &&
+          !strcmp(RS_FORM_P[2][RP_TONE].label, "TILT") && dev_p(0, DEV_RESO) == RS_STR_P);
     press(B_EDIT);
-    check("..again: RIPPLE's page 2, the strings' own (SCAL TONE SPRD RIPL; COMB: TONE SPRD SCAL RIPL; RESO and 12-BAND: "
-          "SCAL SPRD TILT EVEN)", ui.dev == DEV_RESO && ui.page == 1u &&
-          pdesc_at(DEV_P[DEV_RESO], 4u) == RP_SCAL && pdesc_at(DEV_P[DEV_RESO], 5u) == RP_TONE &&
-          pdesc_at(DEV_P[DEV_RESO], 6u) == RP_SPRD && pdesc_at(DEV_P[DEV_RESO], 7u) == RP_RIPL &&
-          pdesc_at(RS_FORM_P[0], 4u) == RP_TONE && pdesc_at(RS_FORM_P[2], 7u) == RP_EVEN &&
-          pdesc_at(RS_FORM_P[2], 5u) == RP_SPRD && !strcmp(RS_FORM_P[0][RP_DEC].label, "FDBK"));
+    check("..again: RIPPLE's page 2, the form's own (SPRD RIPL DRV PICK; COMB: POL SPRD RIPL DRV; RESO and 12-BAND: "
+          "FOCS WDTH SPRD EVEN)", ui.dev == DEV_RESO && ui.page == 1u &&
+          pdesc_at(RS_STR_P, 4u) == RP_SPRD && pdesc_at(RS_STR_P, 5u) == RP_RIPL &&
+          pdesc_at(RS_STR_P, 6u) == RP_DRV && pdesc_at(RS_STR_P, 7u) == RP_PICK &&
+          pdesc_at(RS_FORM_P[0], 4u) == RP_POL && pdesc_at(RS_FORM_P[1], 4u) == RP_FOCS &&
+          pdesc_at(RS_FORM_P[2], 5u) == RP_WDTH && pdesc_at(RS_FORM_P[2], 7u) == RP_EVEN);
     press(B_EDIT);
-    check("..again: RIPPLE's page 3, the filter in front (CUT RES TYPE) and DRV", ui.dev == DEV_RESO && ui.page == 2u &&
-          pdesc_at(DEV_P[DEV_RESO], 8u) == RP_CUT && pdesc_at(DEV_P[DEV_RESO], 11u) == RP_DRV &&
-          pdesc_pages(DEV_P[DEV_RESO]) == 5u);
+    check("..again: RIPPLE's page 3, the pitch (PTCH SCAL; the strings: KEYS PLVL)", ui.dev == DEV_RESO && ui.page == 2u &&
+          pdesc_at(RS_STR_P, 8u) == RP_PTCH && pdesc_at(RS_STR_P, 9u) == RP_SCAL && pdesc_at(RS_STR_P, 10u) == RP_KEYS &&
+          pdesc_at(RS_FORM_P[2], 8u) == RP_PTCH && pdesc_pages(RS_STR_P) == 5u && pdesc_pages(RS_FORM_P[0]) == 5u &&
+          pdesc_pages(RS_FORM_P[1]) == 6u && pdesc_pages(RS_FORM_P[2]) == 6u);
     press(B_EDIT);
-    check("..again: RIPPLE's page 4, the keys (KEYS PLVL PICK STRM)",
-          ui.dev == DEV_RESO && ui.page == 3u && pdesc_at(DEV_P[DEV_RESO], 12u) == RP_KEYS &&
-          pdesc_at(DEV_P[DEV_RESO], 13u) == RP_PLVL && pdesc_at(DEV_P[DEV_RESO], 15u) == RP_STRM &&
-          !strcmp(DEV_P[DEV_RESO][RP_KEYS].label, "KEYS") && DEV_P[DEV_RESO][RP_MODE].max == 3);
+    check("..again: RIPPLE's page 4, the filter in front (CUT RES TYPE)",
+          ui.dev == DEV_RESO && ui.page == 3u && pdesc_at(RS_STR_P, 12u) == RP_CUT && pdesc_at(RS_STR_P, 14u) == RP_SLOP &&
+          pdesc_at(RS_STR_P, 15u) == RP_STRM && !strcmp(RS_STR_P[RP_KEYS].label, "KEYS") && DEV_P[DEV_RESO][RP_MODE].max == 3);
     press(B_EDIT);
-    check("..again: RIPPLE's page 5 (MODE, its form, as a knob too; EVEN on the resonators' tables only; VARY)",
-          ui.dev == DEV_RESO && ui.page == 4u && pdesc_at(DEV_P[DEV_RESO], 16u) == RP_MODE &&
-          pdesc_at(DEV_P[DEV_RESO], 18u) == RP_EVEN && pdesc_empty(&DEV_P[DEV_RESO][RP_EVEN]) &&
-          pdesc_empty(&RS_FORM_P[0][RP_EVEN]) && !strcmp(RS_FORM_P[1][RP_EVEN].label, "EVEN") &&
-          !strcmp(RS_FORM_P[2][RP_EVEN].label, "EVEN") && pdesc_at(DEV_P[DEV_RESO], 17u) == RP_VARY &&
-          !strcmp(DEV_P[DEV_RESO][RP_PLVL].label, "PLVL") && DEV_P[DEV_RESO][RP_PLVL].def == 100);
+    check("..again: RIPPLE's page 5 (MODE, its form, as a knob too; VARY); the form's own knobs stored on every track "
+          "(EVEN POL FOCS WDTH: saved, modulated, in scenes)",
+          ui.dev == DEV_RESO && ui.page == 4u && pdesc_at(RS_STR_P, 16u) == RP_MODE && pdesc_at(RS_STR_P, 17u) == RP_VARY &&
+          pdesc_empty(&RS_STR_P[RP_EVEN]) && pdesc_empty(&RS_FORM_P[0][RP_EVEN]) && pdesc_empty(&RS_FORM_P[1][RP_POL]) &&
+          !strcmp(DEV_P[DEV_RESO][RP_EVEN].label, "EVEN") && !strcmp(DEV_P[DEV_RESO][RP_POL].label, "POL") &&
+          !strcmp(DEV_P[DEV_RESO][RP_FOCS].label, "FOCS") && DEV_P[DEV_RESO][RP_WDTH].def == 100 &&
+          !strcmp(RS_STR_P[RP_PLVL].label, "PLVL") && RS_STR_P[RP_PLVL].def == 100);
     press(B_EDIT);
     check("..again: back to GRAIN, page 1", ui.dev == DEV_GRAIN && ui.page == 0u);
     press(B_FX);
@@ -945,15 +949,15 @@ static void screens_in(const char *pal)
     turn(3, 80);                                         /* WET 80 (KNOB 3-4: ROUT WET, its mix) */
     tp[0].dev[DEV_RESO][RP_TONE] = 90;                   /* TONE 90 (page 2): the upper partials kept */
     shot(pal, "resonator_wet");
-    press(B_EDIT);                                       /* RIPPLE 2, the strings' own: the major chord, SPRD 35, RIPL
-                                                          * 40 (DRV 60, page 3) */
-    turn(0, 1);
-    turn(2, 35);
-    turn(3, 40);
-    tp[0].dev[DEV_RESO][RP_DRV] = 60;
+    press(B_EDIT);                                       /* RIPPLE 2, the strings' own: SPRD 35, RIPL 40, DRV 60 (the
+                                                          * major chord, page 3) */
+    turn(0, 35);
+    turn(1, 40);
+    turn(2, 35);                                         /* (DRV 25 -> 60) */
+    tp[0].dev[DEV_RESO][RP_SCAL] = 1;
     render(2, 0);
     shot(pal, "ripple2");
-    check("RIPPLE 2 shot: SCAL MAJ, SPRD 35, RIPL 40", tp[0].dev[DEV_RESO][RP_SCAL] == 1 && tp[0].dev[DEV_RESO][RP_SPRD] == 35 &&
+    check("RIPPLE 2 shot: SPRD 35, RIPL 40, DRV 60 (SCAL MAJ)", tp[0].dev[DEV_RESO][RP_SCAL] == 1 && tp[0].dev[DEV_RESO][RP_SPRD] == 35 &&
           tp[0].dev[DEV_RESO][RP_DRV] == 60 && tp[0].dev[DEV_RESO][RP_RIPL] == 40 && ui.page == 1u);
     fm1_in.notes = note_bit_of_white(7);                 /* a key on the RIPPLE page: the root to G3, plucked */
     render(2, 0);
@@ -972,7 +976,7 @@ static void screens_in(const char *pal)
             render(200, 0);
             shot(pal, SHOT[m]);
             ok &= tp[0].dev[DEV_RESO][RP_MODE] == (int16_t)m && ui.dev == DEV_RESO && ui.page == 1u &&
-                  !strcmp(dev_name(0, DEV_RESO), RS_FORM_NAME[m]) && pdesc_pages(dev_p(0, DEV_RESO)) == 5u;
+                  !strcmp(dev_name(0, DEV_RESO), RS_FORM_NAME[m]) && pdesc_pages(dev_p(0, DEV_RESO)) == (m >= RM_RESO ? 6u : 5u);
         }
         ok &= !strcmp(dev_p(0, DEV_RESO)[RP_TONE].label, "TILT") && !strcmp(dev_p(0, DEV_RESO)[RP_DEC].label, "RING");
         hold(B_EDIT);
@@ -984,7 +988,8 @@ static void screens_in(const char *pal)
               "left alone)", ok && tp[0].dev[DEV_RESO][RP_MODE] == 0 && ui.page == 1u && ui.dev == DEV_RESO &&
               !strcmp(dev_name(0, DEV_RESO), "RIPPLE") && sys.bpm == 120);
     }
-    press(B_EDIT);                                       /* RIPPLE 3, the filter in front: CUT down, RES 60, BP */
+    press(B_EDIT);
+    press(B_EDIT);                                       /* RIPPLE 4, the filter in front: CUT down, RES 60, BP */
     turn(0, -40);
     turn(1, 60);
     turn(2, 1);
@@ -4725,8 +4730,45 @@ static void test_ripple_forms(void)
     for (k = 0, i = 0; k < RS_NB; k++)
         i += reso[0].lvl[k] > 0;
     check("..OCT over A3: six bands to A8, none past C9 (half rate's ceiling)", i == 6u);
-    p[RP_MODE] = RM_STRG;
     p[RP_SCAL] = 0;
+    {   /* 2026-10-15: the forms' own knobs, page 2. RESO, 12-BAND: FOCS WDTH, a spotlight on the bands */
+        uint32_t lit = 0, wide = 0;
+        p[RP_FOCS] = 0;
+        p[RP_WDTH] = 0;                                  /* the narrowest, on the lowest band */
+        RF_RUN(0u, 1, s);
+        for (k = 0; k < RS_NB; k++)
+            lit |= (reso[0].lvl[k] > 0) << k;
+        p[RP_FOCS] = 50;
+        p[RP_WDTH] = 30;                                 /* the middle bands */
+        RF_RUN(0u, 1, s);
+        for (k = 0; k < RS_NB; k++)
+            wide |= (reso[0].lvl[k] > 0) << k;
+        snprintf(b, sizeof b, "12-BAND FOCS 0 WDTH 0: the lowest band alone (bands %03x); FOCS 50 WDTH 30: the middle "
+                 "(bands %03x)", lit, wide);
+        check(b, lit == 1u && (wide & 1u) == 0u && (wide & 0x800u) == 0u && (wide & 0x060u) == 0x060u);
+        p[RP_WDTH] = 100;
+    }
+    {   /* COMB POL: ODD (inverted, its odd harmonics) or ALL (fed back as is: an octave up, every harmonic) */
+        double o1, o2, a1, a2;
+        p[RP_MODE] = RM_COMB;
+        p[RP_KEYS] = RK_PLCK;
+        p[RP_DEC] = 70;
+        p[RP_POL] = 0;
+        RF_RUN(0u, 0, s);
+        RF_RUN(1u << 9, 0, s);
+        o1 = goertzel(s, 20 * CTL, NB * CTL, 220);
+        o2 = goertzel(s, 20 * CTL, NB * CTL, 440);
+        p[RP_POL] = 1;
+        RF_RUN(0u, 0, s);
+        RF_RUN(1u << 9, 0, s);
+        a1 = goertzel(s, 20 * CTL, NB * CTL, 220);
+        a2 = goertzel(s, 20 * CTL, NB * CTL, 440);
+        snprintf(b, sizeof b, "COMB POL ODD rings A3 (A4/A3 %.3f); POL ALL an octave up (A4/A3 %.1f)", o2 / (o1 + 1),
+                 a2 / (a1 + 1));
+        check(b, o1 > 10 * o2 && a2 > 10 * a1);
+        p[RP_POL] = 0;
+    }
+    p[RP_MODE] = RM_STRG;
 #undef RF_RUN
 }
 
@@ -7671,7 +7713,7 @@ static void test_mod(void)
             {POL_P, 0, "LVL"},
             {DRM_P, 0, "LVL"},
             {DEV_P[DEV_COLOR], 0, "LVL", 0, "ROUT", "WET"}, {DEV_P[DEV_GRAIN], 0, 0, 0, "ROUT", "WET"},
-            {DEV_P[DEV_RESO], 0, 0, 0xF000u, "ROUT", "WET"},   /* (12-15: RIPL ARP, the ARP pad's page 3; 16, the
+            {RS_STR_P, 0, 0, 0xF000u, "ROUT", "WET"},   /* (12-15: RIPL ARP, the ARP pad's page 3; 16, the
                                                                  * form: EDIT held + SELECT, and page 5 since
                                                                  * 2026-10-14) */
             {RS_FORM_P[0], 0, 0, 0xF000u, "ROUT", "WET"}, {RS_FORM_P[1], 0, 0, 0xF000u, "ROUT", "WET"},

@@ -1050,7 +1050,8 @@ static const uint8_t DEV_PK[NDEV][NPK] = {
      PK_ROUTE, PK_ATTACK, PK_STEPAT, PK_VAR,         /*            ROUT PICK STRM VARY */
      PK_TOGGLE, PK_DIR, PK_VOICES, PK_CLOCK,         /*            its arpeggio: MODE ORDR RNGE RATE */
      PK_RMODE, PK_DRIVE, PK_RIPPLE, PK_TOGGLE,       /*            MODE DRV RIPL KEYS */
-     PK_FADER, PK_BOWTIE, PK_PAN},                   /*            PLVL SPRD EVEN */
+     PK_FADER, PK_BOWTIE, PK_PAN, PK_TOGGLE,         /*            PLVL SPRD EVEN POL */
+     PK_START, PK_WINDOW},                           /*            FOCS WDTH */
     {PK_DRIVE, PK_STAIRS, PK_NOISE, PK_TONE,         /* COLOR: DRV CRSH NOIS TILT */
      PK_DECAY, PK_TONE, PK_CMOD, PK_MIX,             /*        NDEC NTON CMOD WET */
      PK_FADER, PK_ROUTE, PK_NONE, PK_NONE},          /*        LVL ROUT */

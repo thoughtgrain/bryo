@@ -26,7 +26,8 @@
 #define RS_BANK_TOP (120 * 16)       /* BANK: no band above C9 (8.4 kHz) */
 #define RS_LEN (sizeof(mem_chunk_t) / 2u)   /* a string's delay line: a chunk as samples (1,056) */
 enum { RP_PTCH, RP_DEC, RP_TONE, RP_WET, RP_CUT, RP_RES, RP_SLOP, RP_SCAL, RP_ROUT, RP_PICK, RP_STRM, RP_VARY,
-       RP_AMODE, RP_AORD, RP_ARNG, RP_ARAT, RP_MODE, RP_DRV, RP_RIPL, RP_KEYS, RP_PLVL, RP_SPRD, RP_EVEN };
+       RP_AMODE, RP_AORD, RP_ARNG, RP_ARAT, RP_MODE, RP_DRV, RP_RIPL, RP_KEYS, RP_PLVL, RP_SPRD, RP_EVEN, RP_POL,
+       RP_FOCS, RP_WDTH };
                                                     /* (12-15: its arpeggio; 16: its form, EDIT held + SELECT) */
 /* the form, MODE (2026-10-13: picked as a source is, EDIT held + SELECT on RIPPLE's pages, each with its own pages
  * and picture): STRG the strings; COMB, combs (half the line, fed back inverted: the odd harmonics only, hollow);
@@ -450,6 +451,13 @@ static void HOT_CODE reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t key
             int32_t n16 = root16 + part + ((part * sprd) >> 8);   /* (SPRD: the spacing stretched, up to -40 % or +40 %
                                                                    * from the root: an inharmonic set) */
             int32_t tilt = 1000 - (int32_t)k * tstep;
+            if (p[RP_WDTH] < 100) {                      /* FOCS, WDTH: the spotlight, a band's share by its place
+                                                         * across them against FOCS, falling off over WDTH */
+                int32_t pos = nstr > 1u ? (int32_t)k * 1000 / (int32_t)(nstr - 1u) : 500;
+                int32_t d = pos - clamp(p[RP_FOCS], 0, 100) * 10, w = 40 + clamp(p[RP_WDTH], 0, 100) * 10;
+                d = d < 0 ? -d : d;
+                tilt = d >= w ? 0 : tilt * (w - d) / w;
+            }
             uint32_t inc, burst = R->burst[k];
             int32_t th, th2, eps, eq, sh = 14, s1 = R->bs1[k], s2 = R->bs2[k], by = R->by[k], last = 0, gain, blv;
             int32_t *acc = k & 1u ? acc_o : acc_e;
@@ -529,7 +537,8 @@ static void HOT_CODE reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t key
         uint32_t rd = w >= di ? w - di : w + RS_LEN - di, d0 = R->dq[k] ? R->dq[k] : dq8;
         int32_t dd = (int32_t)dq8 - (int32_t)d0;
         g3 = (g3 * 10923) >> 15;                        /* (over 3: the cubic's) */
-        if (comb) {
+        if (comb && !p[RP_POL]) {                       /* (POL ODD: inverted, the odd harmonics; ALL: not, every
+                                                         * harmonic of the half line, an octave up) */
             g = -g;
             g3 = -g3;
         }
