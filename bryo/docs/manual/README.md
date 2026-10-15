@@ -136,15 +136,20 @@ bright. Let go without pressing a key and the pad turns its page as usual.
 1. Press **PLAY**.
 2. The ■ in the header turns into ▶, and the play head moves along the tape.
 
-**You'll hear:** the factory scene, four tracks that keep changing by themselves:
-- **Track 1:** a drum machine that varies its pattern as it goes.
-- **Track 2:** FM bells (**BELL**) played by the arpeggiator: a chord at random over two octaves, the chord moving
-  every bar (Am7, Dm7, Em7).
-- **Track 3:** a warm drone (**DRON**) ringing strings that walk from note to note, with a shimmer of grains.
-- **Track 4:** wavefolded plucks (**FOLD**) arpeggiated up and down in swung sixteenths, following track 2's chords,
-  into an echo.
+**You'll hear:** the factory scene. It's one groove in A minor with three **scenes** of it, and it starts on the
+first, **AMBIENT**:
+- **Track 1:** a four-on-the-floor drum bar, silent here (its level is down in this scene).
+- **Track 2:** a choir: **VOX**, each note of its arpeggio a minor-seventh chord with a slow attack, so the notes smear
+  into a pad that moves with the chords (Am, Dm, Em).
+- **Track 3:** a drone (**DRON**) through a wash of grains and four resonators walking from note to note.
+- **Track 4:** bells (**BELL**) arpeggiated up and down, ringing into the large room.
 
-It's all in A minor; the modulators and the two arpeggiators do the changing.
+**Then morph it.** Tap **GLO**, tap **EDIT** for **SCENES**, and turn **KNOB 2** to morph into **TECHNO**: the drums
+come up and everything else ducks on the kick (each track has a FOLLOW of track 1 on its level), track 2 becomes a saw
+bass, track 3 a high-passed pump, track 4 short stabs. **KNOB 3** morphs on into **GLITCH**: crushed drums stuttering
+through grains, track 2 a resonant phase-distortion saw, track 3 stuttering through the 12-band bank, track 4 picking
+its bell or a drum loop at random for every note. Tap white keys 1-3 to jump between them instead. Scene 4 is free for
+your own ([3.9](#39-scenes-four-sounds-to-jump-or-morph-between)).
 
 > If you've saved a project, it comes back at power-on instead. To hear the factory scene again, see
 > [9.4](#94-back-to-the-factory-scene).
@@ -1121,7 +1126,8 @@ The scene Bryo starts with is always there, even after you've saved over it:
 
 <img src="img/projects_factory.png" width="240" alt="FACTORY in the project view">
 
-One more step past FACTORY is **T, TEST**: the factory scene with T1's drums through GRAIN as well. It's for
+One more step past FACTORY is **T, TEST**: the factory scene set to **GLITCH**, where every stage of the chain is
+at work. It's for
 comparing one firmware with the next: load it, press **PLAY**, give it a few seconds, and read the CPU and SETUP's
 load lines. It plays the same every time, so the numbers compare.
 

@@ -80,6 +80,9 @@ static uint32_t scn_kind(uint32_t g)
                 v = 0;
             if (i >= MOD_TSRC + SRC_DRUM * NPK && i < MOD_TSRC + (SRC_DRUM + 1u) * NPK && d && d->nomod)
                 v = 0;
+            if (i == MOD_TSRC + SRC_SYNTH * NPK + SY_WAVE && v)
+                v = 2;                                  /* (SYNTH's WAVE a choice here: VOX to SAW isn't through FM
+                                                         * and PD, 2026-10-14) */
             scn_kinds[i] = v;
         }
         ready = 1;

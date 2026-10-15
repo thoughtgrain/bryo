@@ -164,6 +164,8 @@ static void power_on(void)
     memset(pj_sum, 0, sizeof pj_sum);                    /* (the projects' RAM side: as at boot, before pj_boot) */
     memset(tpr_sum, 0, sizeof tpr_sum);                  /* (the track presets' list, and the snapshot) */
     memset(&trk_undo, 0, sizeof trk_undo);
+    scn_clear();                                         /* (the scenes: none, as before pj_boot; scn_clear's
+                                                          * version bump aside, nothing of a test before stays) */
     pj_cur = 0;
     pj_seq = 0;
     pj_hash_at = 0;
@@ -3518,6 +3520,7 @@ static void test_sleep(void)
     power_on();
     pj_wipe();
     pj_boot();
+    track[0].level = 100;                                /* (the factory's AMBIENT has T1 at 0: heard here) */
     sys.playing = 1;
     render_poll(1378 * 3);
     pos_awake = tape_rt[2].pos;
@@ -3527,6 +3530,7 @@ static void test_sleep(void)
     power_on();
     pj_wipe();
     pj_boot();
+    track[0].level = 100;                                /* (the factory's AMBIENT has T1 at 0: heard here) */
     sys.playing = 1;
     track[0].mute = track[2].mute = track[3].mute = 1;
     render_poll(1378 * 3);
@@ -8790,9 +8794,9 @@ static void test_projects(void)
     pj_boot();
     for (same = 1, s = 0; s < PJ_N; s++)
         same &= !pj_sum[s].used;
-    check("projects: none saved yet: every slot empty, the factory scene (T1 DRUM, depths on every track), P1 the "
-          "current one", same && pj_cur == 0 && tp[0].src == SRC_DRUM && mod_count(0) == 2u && mod_count(1) == 2u &&
-          mod_count(2) == 2u && mod_count(3) == 3u && !pj_changed());
+    check("projects: none saved yet: every slot empty, the factory scene (T1 DRUM, the others ducking to it), P1 the "
+          "current one", same && pj_cur == 0 && tp[0].src == SRC_DRUM && mod_count(0) == 0u && mod_count(1) == 3u &&
+          mod_count(2) == 3u && mod_count(3) == 3u && !pj_changed());
     param_defaults();                                    /* (the scene below on the plain defaults) */
     for (k = 0; k < NTRK; k++) {
         mdl[k].n = 0;
@@ -8817,7 +8821,8 @@ static void test_projects(void)
     memcpy(wmst, mst, sizeof mst);
     pj_current(1, &h);
     snprintf(m, sizeof m, "saved into P2: %u bytes packed (%u unpacked, a sector holds %u)", h.len, h.raw, PJ_PAYLOAD_MAX);
-    check(m, rc == 0 && pj_cur == 1 && !pj_changed() && pj_sum[1].used && h.len < h.raw && h.len < 2500u);
+    check(m, rc == 0 && pj_cur == 1 && !pj_changed() && pj_sum[1].used && h.len < h.raw && h.len < 3300u);   /* (the
+                                                          * factory's three scenes in it: 2,689) */
     power_on();                                          /* a power cycle */
     check("..power-on alone: the defaults (nothing loaded yet)", tp[1].src == SRC_TAPE && sys.bpm != 97);
     pj_boot();
@@ -10550,52 +10555,88 @@ static uint32_t distinct_add(int32_t *seen, uint32_t n, int32_t v)
 
 static void test_factory_scene(void)
 {
-    int32_t seed[64], an2[64], an4[64], tu[64], rp[64], pk = 0;
-    uint32_t nseed = 0, n2 = 0, n4 = 0, ntu = 0, nrp = 0, b, i, inkey = 1, steps2 = 0, was2 = 0;
-    char m[200];
+    int32_t an2[64], tu[64], rp[64], pk = 0, base3, min3 = 1 << 20, base3t, pk1 = 0;
+    uint32_t n2 = 0, ntu = 0, nrp = 0, b, i, inkey = 1, steps2 = 0, was2 = 0;
+    char m[220];
     power_on();
     pj_wipe();
     pj_boot();
-    check("nothing saved: the factory scene (T1 DRUM on FUNK, T2 POLY on BELL and T4 on FOLD, both arpeggiated, T3 "
-          "TAPE on DRON), nothing changed yet",
-          tp[0].src == SRC_DRUM && tp[0].drm[DM_PATN] == 2 && tp[1].src == SRC_POLY && tp[1].pol[PL_REEL] == 2 &&
-          tp[3].src == SRC_POLY && tp[3].pol[PL_REEL] == 4 && tp[2].src == SRC_TAPE && tp[2].dev[DEV_SRC][TK_REEL] == 3 &&
-          tp[1].arp[AR_MODE] == ARM_LTCH && tp[3].arp[AR_MODE] == ARM_LTCH && !pj_changed() && pj_cur == 0u);
+    check("nothing saved: the factory scene: T1 DRUM (one bar), T2 SYNTH (VOX), T3 TAPE on DRON, T4 POLY on BELL (TWIN's "
+          "B on BEAT), two arpeggiated; scenes 1-3 AMBIENT TECHNO GLITCH, 4 empty, AMBIENT playing (T1 silent)",
+          tp[0].src == SRC_DRUM && tp[0].drm[DM_LEN] == 1 && tp[1].src == SRC_SYNTH && tp[1].syn[SY_WAVE] == SY_VOX &&
+          tp[2].src == SRC_TAPE && tp[2].dev[DEV_SRC][TK_REEL] == 3 && tp[3].src == SRC_POLY && tp[3].pol[PL_REEL] == 2 &&
+          tp[3].pol[PL_RLB] == 1 && tp[1].arp[AR_MODE] == ARM_LTCH && tp[3].arp[AR_MODE] == ARM_LTCH && scn[0].used &&
+          scn[1].used && scn[2].used && !scn[3].used && scn_cur == 1u && track[0].level == 0u && !pj_changed() &&
+          pj_cur == 0u);
     render(200, 0);
     check("..stopped: the arpeggiators hold their notes and wait for PLAY", arp_rt[1].n == 4u && arp_rt[3].n == 5u &&
           !arp_rt[1].on && !arp_rt[3].on && arp_rt[1].waiting);
     sys.playing = 1;
-    for (b = 0; b < 2756u * 8u; b++) {                   /* eight bars at 120 */
+    for (b = 0; b < 2666u * 8u; b++) {                   /* eight bars at 124 */
         chain_block(out, CTL);
         for (i = 0; i < 2u * CTL; i++)
             pk = out[i] > pk ? out[i] : -out[i] > pk ? -out[i] : pk;
-        if (arp_rt[1].on && !was2) {                     /* each of T2's notes as it sounds: in A minor? */
-            int32_t tr = TPD(1, MA_POL)[PL_TUNE], pc = ((int32_t)arp_rt[1].cur + tr) % 12;   /* (TUNE: the chords) */
+        if (arp_rt[1].on && !was2) {                     /* each of T2's roots as it sounds: in A minor? */
+            int32_t tr = TPD(1, MA_SYN)[SY_TUNE], pc = (((int32_t)arp_rt[1].cur + tr) % 12 + 12) % 12;
             inkey &= pc == 9 || pc == 11 || pc == 0 || pc == 2 || pc == 4 || pc == 5 || pc == 7;
             n2 = distinct_add(an2, n2, (int32_t)arp_rt[1].cur + tr);
             steps2++;
         }
         was2 = arp_rt[1].on;
         if (b % 64u == 0u) {
-            nseed = distinct_add(seed, nseed, TPD(0, MA_DRM)[DM_SEED]);
-            ntu = distinct_add(tu, ntu, TPD(1, MA_POL)[PL_TUNE]);
+            ntu = distinct_add(tu, ntu, TPD(1, MA_SYN)[SY_TUNE]);
             nrp = distinct_add(rp, nrp, TPD(2, DEV_RESO)[RP_PTCH]);
-            n4 = distinct_add(an4, n4, (int32_t)arp_rt[3].cur + TPD(3, MA_POL)[PL_TUNE]);
         }
     }
-    snprintf(m, sizeof m, "..eight bars: the drums' SEED takes %u versions, T2's arpeggio %u steps over %u notes and %u "
-             "chords, T3's strings %u roots, T4's arpeggio %u notes; peak %d", nseed, steps2, n2, ntu, nrp, n4, pk);
-    check(m, nseed >= 3u && steps2 >= 60u && n2 >= 8u && ntu == 3u && nrp >= 4u && n4 >= 6u && pk < 32767);
-    check("..every note T2's arpeggio plays is in A minor (Am7 Dm7 Em7)", inkey);
+    snprintf(m, sizeof m, "..AMBIENT, eight bars: T2's arpeggio %u steps over %u notes and %u chords, T3's strings %u "
+             "roots; peak %d", steps2, n2, ntu, nrp, pk);
+    check(m, steps2 >= 100u && n2 >= 8u && ntu == 3u && nrp >= 4u && pk < 32767 && peak_of(track_rt[0].last, CTL) == 0);
+    check("..every root T2's arpeggio plays is in A minor (Am Dm Em)", inkey);
+    base3 = tp[2].dev[DEV_SRC][TK_LVL];
+    for (b = 0; b < 1378u; b++) {                        /* (T1 silent: T3's level as it is) */
+        chain_block(out, CTL);
+        min3 = TPD(2, DEV_SRC)[TK_LVL] < min3 ? TPD(2, DEV_SRC)[TK_LVL] : min3;
+    }
+    check("..AMBIENT: nothing ducks (T1 silent: T3's level stays put)", min3 == base3);
+    scn_recall(1);                                       /* TECHNO */
+    for (b = 0; b < 2000u; b++) {
+        if (!(b & 15u)) {
+            fm1_ms += 12;
+            scn_poll();
+        }
+        chain_block(out, CTL);
+    }
+    base3t = tp[2].dev[DEV_SRC][TK_LVL];
+    for (min3 = 1 << 20, b = 0; b < 2666u; b++) {
+        chain_block(out, CTL);
+        min3 = TPD(2, DEV_SRC)[TK_LVL] < min3 ? TPD(2, DEV_SRC)[TK_LVL] : min3;
+        pk1 = peak_of(track_rt[0].last, CTL) > pk1 ? peak_of(track_rt[0].last, CTL) : pk1;
+    }
+    snprintf(m, sizeof m, "..TECHNO: T1's kick heard, T2 a saw bass, and T3 ducking on the kick (its level down to %d dB "
+             "from %d)", min3, base3t);
+    check(m, scn_cur == 2u && tp[1].syn[SY_WAVE] == 3 && track[0].level >= 100u && pk1 > 2000 &&
+          min3 <= base3t - 10);
+    scn_recall(2);                                       /* GLITCH */
+    for (b = 0; b < 600u; b++) {
+        if (!(b & 15u)) {
+            fm1_ms += 12;
+            scn_poll();
+        }
+        chain_block(out, CTL);
+    }
+    check("..GLITCH: T2 PD, T4's TWIN at random, T1 through grains and crushed",
+          scn_cur == 3u && tp[1].syn[SY_WAVE] == SY_PD && tp[3].pol[PL_TWIN] == TW_RND && tp[0].dev[DEV_GRAIN][GP_WET] == 45 &&
+          tp[0].dev[DEV_COLOR][CP_CRSH] == 45);
     sys.playing = 0;
     render(4, 0);
     check("..STOP: the arpeggios stop, their notes kept", !arp_rt[1].on && !arp_rt[3].on && arp_rt[1].n == 4u);
-    check("a project saved with the scene keeps the arpeggiators' notes", pj_save(1) == 0);
+    check("a project saved with the scene keeps the arpeggiators' notes and the scenes", pj_save(1) == 0 && scn_lost == 0u);
     power_on();
     pj_boot();
     render(2, 0);
-    check("..loaded: T2 holds Am7 again, T4 the pentatonic, waiting for PLAY", arp_rt[1].n == 4u && arp_rt[1].note[0] == 57u &&
-          arp_rt[1].note[3] == 67u && arp_rt[3].n == 5u && arp_rt[1].waiting && pj_cur == 1u);
+    check("..loaded: T2 holds Am7 again, T4 the pentatonic, waiting for PLAY; the three scenes back",
+          arp_rt[1].n == 4u && arp_rt[1].note[0] == 45u && arp_rt[1].note[3] == 55u && arp_rt[3].n == 5u &&
+          arp_rt[1].waiting && pj_cur == 1u && scn[0].used && scn[1].used && scn[2].used && !scn[3].used);
     pj_wipe();
     power_on();
     pj_boot();
@@ -10633,8 +10674,8 @@ static void test_factory_scene(void)
     ui.msg_t = 0;                                        /* (the picture, not FACTORY's message) */
     shot("BRYO", "projects_test");
     press(B_OCTUP);
-    check("..OCT+: the TEST scene loaded (FACTORY's music, T1's drums through GRAIN)",
-          tp[0].src == SRC_DRUM && tp[0].dev[DEV_GRAIN][GP_WET] == 30 && tp[2].dev[DEV_RESO][RP_WET] > 0 &&
+    check("..OCT+: the TEST scene loaded (FACTORY at GLITCH: T1's drums through GRAIN, T3's 12-band)",
+          tp[0].src == SRC_DRUM && tp[0].dev[DEV_GRAIN][GP_WET] == 45 && tp[2].dev[DEV_RESO][RP_WET] > 0 && scn_cur == 3u &&
           pj_cur == PJ_TEST && !strcmp(ui.msg, "TEST SCENE LOADED"));
     tap(B_SAVE);
     check("..SAVE on TEST: it says to save into a slot", !strcmp(ui.msg, "TEST: SAVE INTO P1..P6") && pj_cur == PJ_TEST);

@@ -760,6 +760,24 @@ what it gives). On a source that isn't TAPE the page draws that history live ("L
 Tested (`test_follow_live`): a DRUM track, a FOLLOW with no depths, its page up: it follows (to 15,194) and the
 history moves.
 
+### The factory scene's three scenes (2026-10-14)
+
+"Update the factory defaults to better use all of the features; have scenes morph from one style to another, make
+sure follow ducks; ambient to techno to glitch." `tpfactory.c`: a base (what the scenes don't hold: the sources and
+reels, T2's and T4's latched arpeggios, M4's chord steps, T1's one-bar beat written in `tps_beat`, and M1 on T2 T3 T4
+a FOLLOW of T1 with a depth below 0 on the source's level), then three scenes each built by `tps_sound` from every
+track's defaults plus its list (`TPS_AMB`, `TPS_TEC`, `TPS_GLI`), levels and rooms, stored with `scn_store`; AMBIENT
+is stored last so it's what plays. T1's level is 0 in AMBIENT, so nothing ducks there (FOLLOW hears silence). SYNTH's
+WAVE became a choice for scenes (`scn_kind`), so VOX to SAW switches at the midpoint rather than passing FM and PD.
+TEST is the factory scene at GLITCH (`tpf_test`, the heaviest by stages at work).
+
+Measured on the host (instructions retired a sample, Apple's counters: valgrind won't run under the emulation here):
+AMBIENT 2,255, TECHNO 1,857, GLITCH 2,123, against the old factory scene's 2,140 and the old TEST's 2,267 (65-70 % on
+the FM-1). AMBIENT was 2,845 at first; it lost T4's grains and echo, T2's echo, room A (everything in room B), sparser
+grains on T3, and its strings became RESO (STRG 229, RESO 157; the 12-band bank costs more, 325). Levels (RMS,
+dBFS): the drums -14/-15 where heard, the other tracks -19 to -22, each scene -18 to -21 overall (the old scene's
+were -13 and -22 to -24, -18).
+
 ## POLY, as built (2026-10-07)
 
 POLY is the third source engine: a sound played across the keys, up to four notes at once.

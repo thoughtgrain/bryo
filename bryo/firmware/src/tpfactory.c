@@ -195,102 +195,209 @@ static int tpf_load(uint32_t f, uint32_t t)
     return 0;
 }
 
-/* The scene Bryo starts with when nothing's saved, and what FACTORY loads in the project view (project.c pj_factory):
- * four tracks that keep changing by themselves, the modulators and two arpeggiators doing the work. Everything is in
- * A minor with the reels (tools/gen_reels.py), and every pitch a modulator moves lands on a semitone (a SEQ's steps
- * on a pitch do, mod.c) or on a scale (GRAIN's PRND, held to SCAL).
- *   T1 DRUM   FUNK, VARY and FILL up, EVOL moving to a new version every two times round; M3, the random LFO, picks
- *             SEED's versions every two bars, M4's steps retune the kit
- *   T2 POLY   BELL, struck by its arpeggiator: Am7 latched, at random over two octaves, eighths; M4 moves the
- *             chord a bar at a time, Am7 Dm7 Em7 Am7 (TUNE +0 +5 +7 +0); M3 drifts the filter; a few grains, an echo
- *   T3 TAPE   DRON through strings M4 walks from A (A C D E G, a bar a step) and a shimmer of grains, each pitched
- *             at random within A minor (PRND 12, SCAL MIN); room B, the large one
- *   T4 POLY   FOLD, plucked by its arpeggiator: A minor pentatonic up and down, swung sixteenths, moving with T2's
- *             chords (its M4 the same steps); M3 drifts the filter; a delay whose feedback M1 breathes over four bars
- * The arpeggiators' notes wait for PLAY (arp.c). M4 is the SEQ (slot 2), M3 the random LFO (slot 3), M1 the LFO
- * (slot 0); depths are % of a knob's range: a pitch knob of 48 semitones at 25 % reaches an octave, and a step's
- * value v lands v x 12 / 100 semitones up (0 3 5 7 10 12 are 0 26 43 59 84 100). */
+/* The scene Bryo starts with when nothing's saved, and what FACTORY loads in the project view (project.c pj_factory),
+ * 2026-10-14: one groove in A minor and three scenes of it, AMBIENT, TECHNO and GLITCH (scene 4 left empty for you),
+ * so morphing on the mixer's SCENES page takes it from one style to the next. What the scenes share (they don't hold
+ * it, scene.c): the notes and rhythms (the arpeggiators' latched notes, M4's chord steps, T1's pattern), the reels,
+ * and the modulation: M1 on T2 T3 T4 is a FOLLOW of T1 with a depth below 0 on the source's level, so they duck on
+ * T1's kick wherever it's heard (silent in AMBIENT: nothing ducks there). What each scene sets, every track's sound
+ * from its defaults:
+ *   T1 DRUM   a 4/4 kick, claps, open hats on the off-beats, closed sixteenths (one bar). AMBIENT: level 0; TECHNO:
+ *             tight and driven; GLITCH: varied, filled, crushed, stuttered by grains, a sixteenth echo
+ *   T2 SYNTH  its arpeggiator, Am7 up in sixteenths, the chord a bar at a time (M4: Am Am Dm Em). AMBIENT: VOX, each
+ *             note a MIN7 chord with a slow attack, so the steps smear into a choir; TECHNO: a saw bass an octave down
+ *             with a sub, its filter snapping; GLITCH: PD's resonant saw, crushed, into a sixteenth echo
+ *   T3 TAPE   DRON. AMBIENT: a grain wash with strings, the large room; TECHNO: high-passed, pumping under the kick;
+ *             GLITCH: stuttering grains through the 12-band bank
+ *   T4 POLY   BELL, its arpeggiator A minor pentatonic up and down, swung. AMBIENT: long bells into a dotted echo;
+ *             TECHNO: short stabs; GLITCH: TWIN RND, each note BELL or BEAT at random, chopped
+ * The arpeggiators' notes wait for PLAY (arp.c). M4 is the SEQ (slot 2), M3 the random LFO (slot 3), M1 the FOLLOW
+ * (slot 0) */
 #define TPS_BELL_NOTE 57             /* BELL's first strike (tools/gen_reels.py): POLY's ROOT for it */
-#define TPS_FOLD_NOTE 45             /* FOLD's first pluck */
-static const tpf_set_t TPS_T1_S[] = {
-    {MA_DRM, DM_SEED, 5}, {MA_DRM, DM_VARY, 70}, {MA_DRM, DM_FILL, 50}, {MA_DRM, DM_EVOL, 2}, {MA_DRM, DM_LVL, 2},
-    {DEV_SPACE, SP_VERB, 15},
-    {TPF_S(3), 0, 32}, {TPF_S(3), 6, 40},              /* M3: RND, two bars a step, drifting */
-    {TPF_S(2), 0, 8}, {TPF_S(2), 1, 1}};               /* M4: 8 steps, half a bar each */
-static const tpf_dep_t TPS_T1_D[] = {{3, MA_DRM, DM_SEED, 45}, {2, MA_DRM, DM_TUNE, 20}};
-static const tpf_set_t TPS_T2_S[] = {
-    {MA_POL, PL_ROOT, TPS_BELL_NOTE}, {MA_POL, PL_ATK, 0}, {MA_POL, PL_DEC, 76}, {MA_POL, PL_SUS, 20},
-    {MA_POL, PL_REL, 70}, {MA_POL, PL_CUT, 110}, {MA_POL, PL_RES, 10}, {MA_POL, PL_ENV, 20},
-    {DEV_GRAIN, GP_WET, 30}, {DEV_GRAIN, GP_SIZE, 200}, {DEV_GRAIN, GP_RATE, 35}, {DEV_GRAIN, GP_SPRY, 40},
-    {DEV_GRAIN, GP_SPRD, 70}, {DEV_SPACE, SP_DLY, 25}, {DEV_SPACE, SP_TIME, 370}, {DEV_SPACE, SP_FDBK, 35},
-    {DEV_SPACE, SP_VERB, 25},
-    {TPF_S(2), 0, 4}, {TPF_S(2), 1, 0},                 /* M4: 4 steps, a bar each: the chords */
-    {TPF_S(3), 0, 32}};                                /* M3: two bars a step */
-static const tpf_dep_t TPS_T2_D[] = {{2, MA_POL, PL_TUNE, 25}, {3, MA_POL, PL_CUT, 20}};
-static const tpf_set_t TPS_T3_S[] = {
-    {DEV_RESO, RP_WET, 45}, {DEV_RESO, RP_PTCH, 45}, {DEV_RESO, RP_DEC, 85}, {DEV_RESO, RP_TONE, 65},
-    {DEV_GRAIN, GP_WET, 40}, {DEV_GRAIN, GP_SIZE, 280}, {DEV_GRAIN, GP_RATE, 22}, {DEV_GRAIN, GP_SCAL, 3},
-    {DEV_GRAIN, GP_PRND, 12}, {DEV_GRAIN, GP_REV, 40}, {DEV_GRAIN, GP_SPRY, 60}, {DEV_GRAIN, GP_SPRD, 80},
-    {DEV_SPACE, SP_VERB, 45}, {DEV_SPACE, SP_ROOM, 1},
-    {TPF_S(2), 0, 8}, {TPF_S(2), 1, 0},                 /* M4: 8 steps, a bar each */
-    {TPF_S(3), 0, 32}};
-static const tpf_dep_t TPS_T3_D[] = {{2, DEV_RESO, RP_PTCH, 25}, {3, DEV_GRAIN, GP_SIZE, 20}};
-static const tpf_set_t TPS_T4_S[] = {
-    {MA_POL, PL_ROOT, TPS_FOLD_NOTE}, {MA_POL, PL_ATK, 0}, {MA_POL, PL_DEC, 60}, {MA_POL, PL_SUS, 0},
-    {MA_POL, PL_REL, 50}, {MA_POL, PL_CUT, 100}, {MA_POL, PL_RES, 20}, {MA_POL, PL_ENV, 30},
-    {DEV_SPACE, SP_DLY, 30}, {DEV_SPACE, SP_TIME, 250}, {DEV_SPACE, SP_FDBK, 45}, {DEV_SPACE, SP_TONE, -20},
-    {TPF_S(2), 0, 4}, {TPF_S(2), 1, 0},                 /* M4: T2's chords */
-    {TPF_S(3), 0, 48},                                 /* M3: a bar a step */
-    {TPF_S(0), 0, 16}, {TPF_S(0), 1, 1}};              /* M1: four bars, a triangle */
-static const tpf_dep_t TPS_T4_D[] = {{2, MA_POL, PL_TUNE, 25}, {3, MA_POL, PL_CUT, 20}, {0, DEV_SPACE, SP_FDBK, 20}};
+#define TPS_FOL {ME_FOLLOW, ME_ADSR, ME_SEQ, ME_WAVE}
+#define TPS_DUCK {TPF_S(0), 0, 1}, {TPF_S(0), 2, 1}, {TPF_S(0), 3, 12}   /* M1: FOLLOW T1, a quick rise, a fall back
+                                                                          * before the next kick */
+/* the base: the slots, the depths, what plays */
+static const tpf_set_t TPS_T1_S[] = {{TPF_S(3), 0, 32}};
+static const tpf_set_t TPS_T2_S[] = {TPS_DUCK, {TPF_S(2), 0, 4}, {TPF_S(2), 1, 0}, {TPF_S(3), 0, 32}};
+static const tpf_dep_t TPS_T2_D[] = {{0, MA_SYN, SY_LVL, -30}, {2, MA_SYN, SY_TUNE, 25}, {3, MA_SYN, SY_CUT, 10}};
+static const tpf_set_t TPS_T3_S[] = {TPS_DUCK, {TPF_S(2), 0, 8}, {TPF_S(2), 1, 0}, {TPF_S(3), 0, 32}};
+static const tpf_dep_t TPS_T3_D[] = {{0, DEV_SRC, TK_LVL, -40}, {2, DEV_RESO, RP_PTCH, 25}, {3, DEV_GRAIN, GP_SIZE, 15}};
+static const tpf_set_t TPS_T4_S[] = {TPS_DUCK, {MA_POL, PL_ROOT, TPS_BELL_NOTE}, {MA_POL, PL_RLB, 1},
+                                     {TPF_S(2), 0, 4}, {TPF_S(2), 1, 0}, {TPF_S(3), 0, 48}};
+static const tpf_dep_t TPS_T4_D[] = {{0, MA_POL, PL_LVL, -25}, {2, MA_POL, PL_TUNE, 25}, {3, MA_POL, PL_CUT, 15}};
 static const tpf_t TPS[NTRK] = {
-    {"T1", SRC_DRUM, TPF_ENG_DEF, TPF_ARR(TPS_T1_S), TPF_ARR(TPS_T1_D)},
-    {"T2", SRC_POLY, TPF_ENG_DEF, TPF_ARR(TPS_T2_S), TPF_ARR(TPS_T2_D)},
-    {"T3", SRC_TAPE, TPF_ENG_DEF, TPF_ARR(TPS_T3_S), TPF_ARR(TPS_T3_D)},
-    {"T4", SRC_POLY, TPF_ENG_DEF, TPF_ARR(TPS_T4_S), TPF_ARR(TPS_T4_D)},
+    {"T1", SRC_DRUM, TPF_ENG_DEF, TPF_ARR(TPS_T1_S), 0, 0},
+    {"T2", SRC_SYNTH, TPS_FOL, TPF_ARR(TPS_T2_S), TPF_ARR(TPS_T2_D)},
+    {"T3", SRC_TAPE, TPS_FOL, TPF_ARR(TPS_T3_S), TPF_ARR(TPS_T3_D)},
+    {"T4", SRC_POLY, TPS_FOL, TPF_ARR(TPS_T4_S), TPF_ARR(TPS_T4_D)},
 };
 /* M4's steps on each track */
 static const int8_t TPS_STEPS[NTRK][16] = {
-    {0, 59, 26, 84, 0, 43, 100, 26},                                         /* T1: the kit's tuning, 8 steps */
-    {0, 43, 59, 0},                                                          /* T2: Am7 Dm7 Em7 Am7, a bar each */
-    {0, 26, 43, 59, 84, 59, 43, 26},                                         /* T3: A C D E G E D C, a bar each */
-    {0, 43, 59, 0}};                                                         /* T4: with T2 */
-/* the arpeggiators: MODE ORDR RNGE RATE GATE SWNG (MODE OFF: none), and the notes they hold */
-static const int8_t TPS_ARP[NTRK][6] = {
-    {ARM_OFF}, {ARM_LTCH, ARO_RND, 2, 1, 70, 0}, {ARM_OFF}, {ARM_LTCH, ARO_UPDN, 1, 3, 40, 20}};
-static const uint8_t TPS_ARPN[NTRK][5] = {{0}, {57, 60, 64, 67}, {0}, {45, 48, 50, 52, 55}};   /* Am7; A minor pent. */
+    {0},
+    {0, 0, 43, 59},                                                          /* T2: Am Am Dm Em, a bar each */
+    {0, 26, 43, 59, 84, 59, 43, 26},                                         /* T3: the strings' walk, A C D E G E D C */
+    {0, 0, 43, 59}};                                                         /* T4: with T2 */
+/* the arpeggiators: MODE ORDR RNGE RATE GATE SWNG GRND (MODE OFF: none), and the notes they hold */
+static const int8_t TPS_ARP[NTRK][7] = {
+    {ARM_OFF}, {ARM_LTCH, ARO_UP, 1, 3, 45, 0, 30}, {ARM_OFF}, {ARM_LTCH, ARO_UPDN, 1, 3, 40, 20, 20}};
+static const uint8_t TPS_ARPN[NTRK][5] = {{0}, {45, 48, 52, 55}, {0}, {57, 60, 62, 64, 67}};   /* Am7 low; A pent. */
 static const uint8_t TPS_ARPC[NTRK] = {0, 4, 0, 5};
 
-/* main loop: TEST (the project view, past FACTORY), after the scene: the same music with T1's drums through GRAIN
- * too (the drums-and-grains case), to read the load on (SETUP's lines) and compare one build with the next. Every
- * stage is at work in it (the scene has GRAIN, RIPPLE and SPACE; COLOR runs on every track). Kept near the
- * overload line, not over it: past it the shedding takes grains and strings and the reading is of that. (The first
- * TEST added COLOR and an echo on T1 and RIPPLE on T4: 1.3 x FACTORY on the host, over 100 % on the FM-1) */
+/* a scene's knobs: track, array, knob, value (the arrays as tpf_set_t's, TPF_S slots aside) */
+typedef struct {
+    uint8_t t, a, k;
+    int16_t v;
+} tps_k_t;
+#define TPS_NSC 3u
+static const tps_k_t TPS_AMB[] = {
+    {1, MA_SYN, SY_WAVE, SY_VOX}, {1, MA_SYN, SY_DTUN, 80}, {1, MA_SYN, SY_MIX, 45}, {1, MA_SYN, SY_IENV, 30},
+    {1, MA_SYN, SY_NOIS, 20}, {1, MA_SYN, SY_ATK, 95}, {1, MA_SYN, SY_DEC, 100}, {1, MA_SYN, SY_SUS, 85},
+    {1, MA_SYN, SY_REL, 110}, {1, MA_SYN, SY_CUT, 100}, {1, MA_SYN, SY_RES, 10}, {1, MA_SYN, SY_ENV, 0},
+    {1, MA_SYN, SY_CHRD, 7}, {1, MA_SYN, SY_TUNE, 12}, {1, MA_SYN, SY_LVL, 4},
+    {1, DEV_SPACE, SP_VERB, 60}, {1, DEV_SPACE, SP_ROOM, 1},   /* (everything in room B: room A rests) */
+    {2, DEV_GRAIN, GP_WET, 60}, {2, DEV_GRAIN, GP_SIZE, 200}, {2, DEV_GRAIN, GP_RATE, 12}, {2, DEV_GRAIN, GP_SPRY, 70},
+    {2, DEV_GRAIN, GP_SPRD, 80}, {2, DEV_GRAIN, GP_SCAL, 3}, {2, DEV_GRAIN, GP_PRND, 12}, {2, DEV_GRAIN, GP_REV, 40},
+    {2, DEV_RESO, RP_WET, 45}, {2, DEV_RESO, RP_PTCH, 45}, {2, DEV_RESO, RP_DEC, 90}, {2, DEV_RESO, RP_TONE, 55},
+    {2, DEV_RESO, RP_SCAL, 2}, {2, DEV_RESO, RP_MODE, RM_RESO}, {2, DEV_SPACE, SP_VERB, 70}, {2, DEV_SPACE, SP_ROOM, 1},
+    {3, MA_POL, PL_ATK, 5}, {3, MA_POL, PL_DEC, 100}, {3, MA_POL, PL_SUS, 30},
+    {3, MA_POL, PL_CUT, 90}, {3, MA_POL, PL_ENV, 15},
+    {3, MA_POL, PL_REL, 120}, {3, DEV_SPACE, SP_VERB, 60}, {3, DEV_SPACE, SP_ROOM, 1}};   /* (no echo: the room) */
+static const tps_k_t TPS_TEC[] = {
+    {0, MA_DRM, DM_DECY, -30}, {0, MA_DRM, DM_TONE, 20}, {0, MA_DRM, DM_DRV, 10}, {0, MA_DRM, DM_ACNT, 70},
+    {0, MA_DRM, DM_TRAN, 40}, {0, MA_DRM, DM_LVL, -3}, {0, MA_CH, CH_LOW, 3}, {0, DEV_SPACE, SP_VERB, 10},
+    {1, MA_SYN, SY_WAVE, 3}, {1, MA_SYN, SY_INTV, -12}, {1, MA_SYN, SY_DTUN, 6}, {1, MA_SYN, SY_MIX, 40},
+    {1, MA_SYN, SY_CUT, 45}, {1, MA_SYN, SY_RES, 50}, {1, MA_SYN, SY_ENV, 60}, {1, MA_SYN, SY_KTRK, 40},
+    {1, MA_SYN, SY_ATK, 0}, {1, MA_SYN, SY_DEC, 55}, {1, MA_SYN, SY_SUS, 20}, {1, MA_SYN, SY_REL, 25},
+    {1, MA_SYN, SY_DRV, 35}, {1, MA_SYN, SY_TUNE, -12}, {1, MA_SYN, SY_LVL, 6},
+    {2, MA_CH, CH_FILT, 25}, {2, DEV_SRC, TK_LVL, 6}, {2, DEV_GRAIN, GP_WET, 25}, {2, DEV_GRAIN, GP_SIZE, 120}, {2, DEV_GRAIN, GP_RATE, 60},
+    {2, DEV_RESO, RP_WET, 25}, {2, DEV_RESO, RP_MODE, RM_COMB}, {2, DEV_RESO, RP_DEC, 50},
+    {2, DEV_SPACE, SP_VERB, 35}, {2, DEV_SPACE, SP_DLY, 25}, {2, DEV_SPACE, SP_SYNC, 1}, {2, DEV_SPACE, SP_TIME, 191},
+    {3, MA_POL, PL_ATK, 0}, {3, MA_POL, PL_DEC, 70}, {3, MA_POL, PL_SUS, 10}, {3, MA_POL, PL_REL, 30},
+    {3, MA_POL, PL_CUT, 85}, {3, MA_POL, PL_RES, 35}, {3, MA_POL, PL_ENV, 45}, {3, MA_POL, PL_LVL, 4},
+    {3, DEV_SPACE, SP_DLY, 35}, {3, DEV_SPACE, SP_SYNC, 1}, {3, DEV_SPACE, SP_TIME, 251}, {3, DEV_SPACE, SP_FDBK, 40},
+    {3, DEV_SPACE, SP_VERB, 15}};
+static const tps_k_t TPS_GLI[] = {
+    {0, MA_DRM, DM_SEED, 9}, {0, MA_DRM, DM_VARY, 85}, {0, MA_DRM, DM_FILL, 70}, {0, MA_DRM, DM_EVOL, 1},
+    {0, MA_DRM, DM_DECY, -50}, {0, MA_DRM, DM_TONE, 40}, {0, MA_DRM, DM_TRAN, 60}, {0, MA_DRM, DM_LVL, -8},
+    {0, DEV_COLOR, CP_CRSH, 45}, {0, DEV_COLOR, CP_CMOD, CMOD_RATE}, {0, DEV_COLOR, CP_DRIV, 30},
+    {0, DEV_GRAIN, GP_WET, 45}, {0, DEV_GRAIN, GP_SIZE, 30}, {0, DEV_GRAIN, GP_RATE, 85}, {0, DEV_GRAIN, GP_PATN, 3},
+    {0, DEV_GRAIN, GP_REV, 30}, {0, DEV_GRAIN, GP_SYNC, 1},
+    {0, DEV_SPACE, SP_DLY, 30}, {0, DEV_SPACE, SP_SYNC, 1}, {0, DEV_SPACE, SP_TIME, 101}, {0, DEV_SPACE, SP_FDBK, 55},
+    {1, MA_SYN, SY_WAVE, SY_PD}, {1, MA_SYN, SY_DTUN, 70}, {1, MA_SYN, SY_MIX, 30}, {1, MA_SYN, SY_IENV, 70},
+    {1, MA_SYN, SY_ATK, 0}, {1, MA_SYN, SY_DEC, 35}, {1, MA_SYN, SY_SUS, 10}, {1, MA_SYN, SY_REL, 20},
+    {1, MA_SYN, SY_CUT, 90}, {1, MA_SYN, SY_RES, 30}, {1, MA_SYN, SY_TUNE, -12}, {1, MA_SYN, SY_DRV, 25},
+    {1, MA_SYN, SY_LVL, 6},
+    {1, DEV_COLOR, CP_CRSH, 30}, {1, DEV_SPACE, SP_DLY, 35}, {1, DEV_SPACE, SP_SYNC, 1}, {1, DEV_SPACE, SP_TIME, 101},
+    {1, DEV_SPACE, SP_FDBK, 50},
+    {2, DEV_GRAIN, GP_WET, 75}, {2, DEV_GRAIN, GP_SIZE, 40}, {2, DEV_GRAIN, GP_RATE, 90}, {2, DEV_GRAIN, GP_PATN, 3},
+    {2, DEV_GRAIN, GP_REV, 50}, {2, DEV_GRAIN, GP_SPRY, 90}, {2, DEV_GRAIN, GP_SCAL, 3}, {2, DEV_GRAIN, GP_PRND, 12},
+    {2, DEV_RESO, RP_WET, 40}, {2, DEV_RESO, RP_MODE, RM_BANK}, {2, DEV_RESO, RP_RIPL, 60}, {2, DEV_RESO, RP_DEC, 60},
+    {2, DEV_COLOR, CP_CRSH, 25}, {2, MA_CH, CH_FILT, 20}, {2, DEV_SRC, TK_LVL, 6},
+    {3, MA_POL, PL_TWIN, TW_RND}, {3, MA_POL, PL_BLND, 50}, {3, MA_POL, PL_ATK, 0}, {3, MA_POL, PL_DEC, 40},
+    {3, MA_POL, PL_SUS, 0}, {3, MA_POL, PL_REL, 20}, {3, MA_POL, PL_CUT, 110}, {3, MA_POL, PL_LVL, 4},
+    {3, DEV_COLOR, CP_CRSH, 40}, {3, DEV_COLOR, CP_CMOD, CMOD_BOTH},
+    {3, DEV_SPACE, SP_DLY, 30}, {3, DEV_SPACE, SP_SYNC, 1}, {3, DEV_SPACE, SP_TIME, 101}, {3, DEV_SPACE, SP_FDBK, 30}};
+static const struct {
+    const tps_k_t *k;
+    uint8_t n;
+    uint8_t lvl[NTRK];
+    int8_t room[NROOM][4];           /* each room's SIZE DEC TYPE MOD */
+} TPS_SC[TPS_NSC] = {
+    {TPS_AMB, (uint8_t)(sizeof TPS_AMB / sizeof TPS_AMB[0]), {0, 102, 108, 88}, {{50, 40, 0, 0}, {90, 80, 2, 50}}},
+    {TPS_TEC, (uint8_t)(sizeof TPS_TEC / sizeof TPS_TEC[0]), {100, 106, 100, 102}, {{35, 30, 1, 0}, {60, 45, 0, 0}}},
+    {TPS_GLI, (uint8_t)(sizeof TPS_GLI / sizeof TPS_GLI[0]), {100, 116, 114, 118}, {{25, 20, 1, 0}, {50, 40, 3, 70}}}};
+
+/* main loop: scene n's sound into the tracks: every track's devices, channel and source knobs from their defaults
+ * (what plays aside: the reels, POLY's ROOT and RLB, DRUM's pattern knobs), then the scene's list, the levels, the
+ * rooms */
+static void tps_sound(uint32_t n)
+{
+    uint32_t t, d, k, i;
+    for (t = 0; t < NTRK; t++) {
+        track_params_t *P = &tp[t];
+        for (d = 1; d < NDEV; d++)
+            for (k = 0; k < NPK; k++)
+                P->dev[d][k] = pdesc_empty(&DEV_P[d][k]) || (d == DEV_SPACE && SP_RMK[k]) ? 0 : DEV_P[d][k].def;
+        for (k = 0; k < NCH; k++)
+            P->ch[k] = CH_P[k].def;
+        for (k = 0; k < NPK; k++) {
+            if (P->src == SRC_SYNTH)
+                P->syn[k] = pdesc_empty(&SYN_P[k]) ? 0 : SYN_P[k].def;
+            else if (P->src == SRC_POLY && k != PL_REEL && k != PL_ROOT && k != PL_RLB)
+                P->pol[k] = pdesc_empty(&POL_P[k]) ? 0 : POL_P[k].def;
+            else if (P->src == SRC_DRUM && k != DM_PATN && k != DM_LEN && k != DM_INST && k != DM_BAR && k != DM_MODE)
+                P->drm[k] = pdesc_empty(&DRM_P[k]) ? 0 : DRM_P[k].def;
+            else if (P->src == SRC_TAPE && k != TK_REEL)
+                P->dev[DEV_SRC][k] = pdesc_empty(&DEV_P[DEV_SRC][k]) ? 0 : DEV_P[DEV_SRC][k].def;
+        }
+        track[t].level = TPS_SC[n].lvl[t];
+    }
+    for (i = 0; i < TPS_SC[n].n; i++) {
+        const tps_k_t *e = &TPS_SC[n].k[i];
+        const pdesc_t *ds = 0;
+        int16_t *v = tpf_arr(e->t, e->a, &ds);
+        if (v && ds && e->k < NPK && !pdesc_empty(&ds[e->k]))
+            v[e->k] = (int16_t)clamp(e->v, ds[e->k].min, ds[e->k].max);
+    }
+    for (i = 0; i < NROOM; i++) {
+        rmp[i][RM_SIZE] = TPS_SC[n].room[i][0];
+        rmp[i][RM_DEC] = TPS_SC[n].room[i][1];
+        rmp[i][RM_TYPE] = TPS_SC[n].room[i][2];
+        rmp[i][RM_MOD] = TPS_SC[n].room[i][3];
+        rmp[i][RM_QUAL] = RQ_LO;                         /* (the rooms at half the work: the scenes' load) */
+    }
+}
+
+/* T1's bar: a 4/4 kick (accented), claps on two and four, open hats on the off-beats, closed sixteenths between */
+static void tps_beat(uint32_t t)
+{
+    uint32_t b, s;
+    for (b = 0; b < DRM_NBAR; b++) {
+        tp[t].dacc[b] = 0;
+        for (s = 0; s < 16u; s++)
+            tp[t].dpat[b][s] = 0;
+    }
+    for (s = 0; s < 16u; s++) {
+        uint16_t w = 0;
+        if (!(s & 3u))
+            w |= 1u << DI_BD;
+        if (s == 4u || s == 12u)
+            w |= 1u << DI_CP;
+        if ((s & 3u) == 2u)
+            w |= 1u << DI_OH;
+        else if (s & 1u)
+            w |= 1u << DI_HH;
+        tp[t].dpat[0][s] = w;
+    }
+    tp[t].dacc[0] = 0x1111u;
+    tp[t].drm[DM_LEN] = 1;
+}
+
+/* main loop: TEST (the project view, past FACTORY), after the scene: GLITCH, the scene with every stage of the chain
+ * at work (grains on two tracks, the 12-band bank, three echoes, COLOR's crush), to read the load on (SETUP's lines)
+ * and compare one build with the next */
 static void tpf_test(void);
 
-/* main loop: the scene into the four tracks (on the defaults: param_defaults first) */
+/* main loop: the scene into the four tracks (on the defaults: param_defaults first): the base, then the three
+ * scenes stored, then AMBIENT, scene 1, as it plays */
 static void tpf_scene(void)
 {
-    uint32_t t, k;
+    uint32_t t, k, n;
     keyp[KY_KEY] = 9;                                    /* A MIN: the scene's key (the default too, but the scene */
     keyp[KY_SCAL] = 2;                                   /* .. says so itself), so a key played over it fits */
-    rmp[0][RM_SIZE] = 45;                                /* the rooms: A a small one (T1's kit, T2's bells), B a */
-    rmp[1][RM_SIZE] = 80;                                /* .. large, long one (T3's strings); both QUAL LO, half */
-    rmp[1][RM_DEC] = 65;                                 /* .. the work (the scene at ~75 % on the FM-1, not ~78) */
-    rmp[0][RM_QUAL] = RQ_LO;
-    rmp[1][RM_QUAL] = RQ_LO;
+    sys.bpm = 124;
     for (t = 0; t < NTRK; t++) {
-        int16_t reel = tp[t].dev[DEV_SRC][TK_REEL], preel = tp[t].pol[PL_REEL];
+        int16_t reel = tp[t].dev[DEV_SRC][TK_REEL];
         tpf_apply(t, &TPS[t]);
-        if (TPS[t].src == SRC_DRUM) {                    /* T1's rhythm: FUNK, its length and swing */
-            drm_load(t, 2);
-            tp[t].drm[DM_PATN] = 2;
-        }
-        tp[t].dev[DEV_SRC][TK_REEL] = reel;              /* (each track its reel, as at power-on: POLY's too) */
-        tp[t].pol[PL_REEL] = preel;
+        tp[t].dev[DEV_SRC][TK_REEL] = reel;              /* (T3 its reel, DRON, as at power-on) */
+        if (t == 3u)
+            tp[t].pol[PL_REEL] = 2;                      /* (T4 POLY on BELL; its TWIN's B, BEAT) */
+        if (TPS[t].src == SRC_DRUM)
+            tps_beat(t);
         for (k = 0; k < 16u; k++)
             tp[t].steps[SLOT_SEQ][k] = TPS_STEPS[t][k];
-        for (k = 0; k < 6u; k++)                         /* the arpeggiator, and its notes (waiting for PLAY) */
+        for (k = 0; k < 7u; k++)                         /* the arpeggiator, and its notes (waiting for PLAY) */
             tp[t].arp[k] = TPS_ARP[t][0] == ARM_OFF ? ARP_P[k].def : TPS_ARP[t][k];
         if (TPS_ARPC[t])
             arp_seed(t, TPS_ARPN[t], TPS_ARPC[t]);
@@ -298,9 +405,15 @@ static void tpf_scene(void)
             arp_clear(t);
         mod_rebuild(t);
     }
+    for (n = TPS_NSC; n-- > 0u;) {                      /* (GLITCH, TECHNO, AMBIENT: the last one stored plays) */
+        tps_sound(n);
+        scn_store(n);
+    }
 }
 
 static void tpf_test(void)
 {
-    tp[0].dev[DEV_GRAIN][GP_WET] = 30;
+    scn_take(&scn_from);                                 /* GLITCH at once (no glide) */
+    scn_mix(&scn_from, &scn[2], SCN_FULL);
+    scn_cur = 3;
 }
