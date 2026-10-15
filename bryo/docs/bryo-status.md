@@ -252,6 +252,11 @@ number.
   four), split by what each track's settings ask for when it runs short; what's left over is everyone's (since
   2026-10-11: a track alone has all 40, not just what RATE and SIZE ask). GRAIN 6's GRNS can hold a number for a
   track instead (1-40, taken from the AUTO tracks first, kept whatever the others do).
+- **2026-10-15: the arpeggiator fades, lets a note go, and shows itself on the keys.** FADE (ARP page 2, KNOB 4):
+  let every key go and the notes keep stepping while their level falls to nothing over FADE (KEY and LTCH then
+  forget them, ADD keeps its pile quiet until a key); 0 is the old on-or-off. A note playing on without its key
+  leaves when its key is pressed again. With the arpeggiator on, the keys of its notes are lit and the one sounding
+  goes dark for its step. The source's path is untouched at FADE 0 (every fingerprint held).
 - **2026-10-15: AMBIENT swells.** The factory's first scene is now what the word means: slow attacks, the longest
   releases and tails, nothing percussive. T2's VOX holds (SUS 100) and fades over ten seconds, T3's grains are
   350 ms and its resonators ring out, T4's bells are bowed (ATK 64, SUS 100, REL 127, the filter opening with the

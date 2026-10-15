@@ -94,7 +94,7 @@ static const char *const N_ROUT[2] = {"INS", "SEND"};
 #define P_TRAN {"TRAN", 0, 100, 0, F_PCT}
 #define P_ROUT {"ROUT", 0, 1, 0, F_ENUM, N_ROUT, 1}
 /* the arpeggiator's knobs and names (ARP_P below; RIPPLE's own arpeggio uses them too) */
-enum { AR_MODE, AR_ORDR, AR_RNGE, AR_RATE, AR_GATE, AR_SWNG, AR_GRND, NARP = 8 };   /* (GRND 2026-10-13: each
+enum { AR_MODE, AR_ORDR, AR_RNGE, AR_RATE, AR_GATE, AR_SWNG, AR_GRND, AR_FADE, NARP = 8 };   /* (GRND 2026-10-13: each
                                                                                        * step's gate, at random) */
 enum { ARM_OFF, ARM_KEY, ARM_LTCH, ARM_ADD };
 enum { ARO_UP, ARO_DOWN, ARO_UPDN, ARO_RND, ARO_PLAY };   /* (PK_DIR's order, then PLAY) */
@@ -510,11 +510,15 @@ static const uint8_t SP_RMK[NPK] = {0, 0, 0, RM_SIZE + 1, 0, 0, 0, 0, RM_DEC + 1
  * (a new chord, pressed after letting go, replaces it); ADD, every key pressed joins the notes for good (an endless
  * pattern you pile up; POLY held on the ARP page clears it). ORDR: UP, DOWN, UPDN (up and back, the ends once), RND,
  * PLAY (the order pressed). RNGE spreads them over 1-3 octaves. RATE a step (8T, 16T: triplets), GATE how much of
- * it the note sounds, SWNG the off-beats late. Not modulation targets (choices the ISR acts on per step). */
+ * it the note sounds, SWNG the off-beats late. FADE: let every key go and the notes go on for FADE, fading out (any
+ * key brings them back); at 0 KEY stops at once and LTCH and ADD hold for good. Not modulation targets (choices the
+ * ISR acts on per step). */
 static const pdesc_t ARP_P[NPK] = {   /* (NPK long: pdesc_pages looks past the last page) */
     {"MODE", 0, 3, ARM_OFF, F_ENUM, N_ARM, 1}, {"ORDR", 0, 4, ARO_UP, F_ENUM, N_ARO, 1}, {"RNGE", 1, 3, 1, F_NUM, 0, 1},
     {"RATE", 0, 5, 3, F_ENUM, N_ARATE, 1},
-    {"GATE", 10, 100, 50, F_PCT, 0, 1}, {"SWNG", 0, 100, 0, F_PCT, 0, 1}, {"GRND", 0, 100, 0, F_PCT, 0, 1}, {""},
+    {"GATE", 10, 100, 50, F_PCT, 0, 1}, {"SWNG", 0, 100, 0, F_PCT, 0, 1}, {"GRND", 0, 100, 0, F_PCT, 0, 1},
+    {"FADE", 0, 127, 0, F_TIME, 0, 1},   /* (2026-10-15: the notes go on this long after the keys are let go, fading;
+                                          * 0: KEY stops at once, LTCH and ADD hold) */
     /* page 3, RIPL ARP: RIPPLE's own arpeggio (stored in RIPPLE's knobs, 12-15, not in tp.arp: ui.c's
      * ui_page points there). The same knobs as page 1, the same ranges as RIPPLE's descriptors */
     {"MODE", 0, 3, ARM_OFF, F_ENUM, N_ARM, 1}, {"ORDR", 0, 4, ARO_UP, F_ENUM, N_ARO, 1}, {"RNGE", 1, 3, 1, F_NUM, 0, 1},

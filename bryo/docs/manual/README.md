@@ -699,9 +699,25 @@ The knobs:
 | **GATE** (page 2) | how much of each step the note sounds: short and plucky, or long |
 | **SWNG** (page 2) | pushes every other step late |
 | **GRND** (page 2) | each step's note length at random, up to GRND points either side of GATE, so the pattern breathes |
+| **FADE** (page 2) | let every key go and the notes go on for this long, fading out (SYNTH, POLY). At 0, KEY stops the moment you let go and LTCH and ADD hold for good |
 
 **To build an endless pattern:** set MODE to **ADD**, then press keys one at a time. Each one joins the pattern and
 stays. **Hold black key POLY** (on the ARP page) to clear it and start again.
+
+**To take a note out:** press its key again. Any note that plays on without its key (a latched chord, an ADD pile,
+a fading chord) leaves when you press it; the rest keep going. In LTCH a key that isn't in the chord still starts a
+new one, in ADD it joins.
+
+**To let an arpeggio die away instead of stopping:** turn **FADE** (page 2) up. Let go of every key and the notes
+keep stepping while their level falls to nothing over FADE. At the end KEY and LTCH forget the notes; ADD keeps its
+pile, quiet, and any key brings it back at full. Any key during the fade brings the level back too. On TAPE and DRUM
+tracks the steps can't fade under the reel or the pattern, so there FADE is how long the slices or drums keep stepping
+after you let go.
+
+<img src="img/arp_fade.png" width="240" alt="ARP page 2: GATE SWNG GRND FADE, FADE at 331 ms">
+
+**The keys show the pattern:** while the arpeggiator is on, the key of each note it holds is lit, and the one sounding
+goes dark for its step, so you can see the pattern walk and find the key to take a note out.
 
 <img src="img/arp_add.png" width="240" alt="ARP in ADD mode, four notes piled up"> <img src="img/arp_drum.png" width="240" alt="ARP on a DRUM track: three drums, up and down">
 

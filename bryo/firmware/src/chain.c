@@ -33,6 +33,7 @@ typedef struct {                     /* ISR only */
 
 static track_rt_t track_rt[NTRK];
 static uint32_t chain_shed_count;
+static int32_t arp_fd0[NTRK];        /* each track's arpeggio fade (arp_rt.fd) as of last block: the ramp's start */
 
 static void chain_init(void)
 {
@@ -226,6 +227,13 @@ static void HOT_CODE chain_block(int32_t *out, uint32_t n)
         src_sleep = (uint8_t)sleep;
         chain_source(t, k, (sys.rec >> t) & 1u ? rin[t] : 0, s, n);
         src_sleep = 0;
+        if ((tp[t].src == SRC_SYNTH || tp[t].src == SRC_POLY) && (arp_rt[t].fd || arp_fd0[t])) {
+            int32_t l1 = arp_level(t), l0 = 32767 - (arp_fd0[t] >> 8);   /* the arpeggio fading (arp.c FADE): its
+                                                                        * notes' level, ramped from last block's */
+            for (i = 0; i < n; i++)
+                s[i] = (s[i] * (l0 + (((l1 - l0) * (int32_t)i) >> CTL_LOG2))) >> 15;
+        }
+        arp_fd0[t] = arp_rt[t].fd;
         ld_mark(LD_SRC);
         if (sleep) {
             grain_sleep(t, (int)zero, n);

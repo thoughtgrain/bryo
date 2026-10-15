@@ -10205,6 +10205,170 @@ static uint32_t arp_steps(uint32_t t, uint32_t blocks, uint8_t *seq, uint32_t ma
 }
 
 /* the ARP pad's arpeggio on TAPE (its slices) and DRUM (its drums), and RIPPLE's own (its page 3) */
+/* the arpeggiator's FADE, a note's key taking it out, and the keys' LEDs (2026-10-15) */
+static uint32_t key_of_white(uint32_t w)
+{
+    uint32_t n;
+    for (n = 0; n < 27u; n++)
+        if (KEY_WHITE[n] == w)
+            return n;
+    return 27u;
+}
+static void test_arp_fade(void)
+{
+    static int32_t buf[400 * CTL];
+    uint8_t seq[32];
+    uint32_t n, i, c3 = note_bit_of_white(0), e3 = note_bit_of_white(4), g3 = note_bit_of_white(7), d3 = note_bit_of_white(2);
+    int gaps;
+    int32_t pk_full, pk_late, lv;
+    int16_t *vp;
+    char m[200];
+    power_on();
+    tp[0].src = SRC_SYNTH;
+    sys.bpm = 120;
+    focus_dev(DEV_SRC, 0);
+    press(B_ARP);
+    press(B_ARP);
+    check("ARP's page 2: GATE SWNG GRND FADE (KNOB 4)", ui.kind == FOCUS_ARP && ui.page == 1u &&
+          !strcmp(ui_page(3, &vp)->label, "FADE") && tp[0].arp[AR_FADE] == 0);
+    tp[0].arp[AR_MODE] = ARM_KEY;
+    tp[0].arp[AR_RATE] = 5;                              /* 1/32: 43 blocks a step at 120 */
+    tp[0].arp[AR_FADE] = 80;                             /* about 0.3 s: 425 blocks */
+    shot("BRYO", "arp_fade");
+    fm1_in.notes = c3 | e3;
+    render(60, buf);
+    pk_full = peak_of(buf, 60 * CTL);
+    fm1_in.notes = 0;
+    render(1, 0);
+    check("KEY with FADE: every key let go, the chord stays and fades", arp_rt[0].n == 2u && arp_rt[0].fading &&
+          arp_rt[0].latched && arp_level(0) < 32767);
+    n = arp_steps(0, 200, seq, 32, &gaps);
+    lv = arp_level(0);
+    render(100, buf);
+    pk_late = peak_of(buf, 100 * CTL);
+    snprintf(m, sizeof m, "..it keeps stepping while it fades (%u steps in 200 blocks), the level %d of 32767 at 200 "
+             "blocks, the synth quieter (peak %d, then %d)", n, lv, pk_full, pk_late);
+    check(m, n >= 3u && lv > 8000 && lv < 24000 && pk_late < pk_full * 3 / 4 && pk_late > 0);
+    render(200, 0);
+    check("..at the end of FADE the notes are forgotten, the arpeggio silent", arp_rt[0].n == 0u && !arp_rt[0].on &&
+          !arp_rt[0].fading && arp_level(0) == 0);
+    fm1_in.notes = g3;
+    render(2, 0);
+    check("..a key: a new chord at full level", arp_rt[0].n == 1u && arp_rt[0].note[0] == 55u && arp_level(0) == 32767 &&
+          !arp_rt[0].fading);
+    fm1_in.notes = 0;
+    render(100, 0);
+    check("..let go again: fading", arp_rt[0].fading && arp_rt[0].n == 1u);
+    fm1_in.notes = g3;
+    render(2, 0);
+    check("..its own key while it fades: the level back, the note leaves (nothing left), the key adds it fresh",
+          arp_level(0) == 32767 && !arp_rt[0].fading);
+    fm1_in.notes = 0;
+    render(2, 0);
+    tp[0].arp[AR_MODE] = ARM_LTCH;
+    render(1, 0);
+    fm1_in.notes = c3 | e3 | g3;
+    render(4, 0);
+    fm1_in.notes = 0;
+    render(100, 0);
+    check("LTCH with FADE: the chord let go fades", arp_rt[0].n == 3u && arp_rt[0].fading && arp_rt[0].latched);
+    fm1_in.notes = e3;
+    render(2, 0);
+    fm1_in.notes = 0;
+    render(2, 0);
+    check("..E3's key pressed again: E3 leaves, C3 G3 go on, the level back to full then fading again",
+          arp_rt[0].n == 2u && arp_rt[0].note[0] == 48u && arp_rt[0].note[1] == 55u && arp_rt[0].latched);
+    tp[0].arp[AR_FADE] = 0;
+    fm1_in.notes = g3;
+    render(2, 0);
+    fm1_in.notes = 0;
+    render(2, 0);
+    check("..FADE 0, LTCH: a note's key still takes it out (C3 alone), the chord held for good",
+          arp_rt[0].n == 1u && arp_rt[0].note[0] == 48u && !arp_rt[0].fading && arp_level(0) == 32767);
+    fm1_in.notes = d3;
+    render(2, 0);
+    fm1_in.notes = 0;
+    render(2, 0);
+    check("..a key that isn't in the chord: a new chord (D3)", arp_rt[0].n == 1u && arp_rt[0].note[0] == 50u);
+    tp[0].arp[AR_MODE] = ARM_ADD;
+    render(1, 0);
+    fm1_in.notes = c3;
+    render(2, 0);
+    fm1_in.notes = 0;
+    render(2, 0);
+    check("ADD: a new key joins (D3 C3)", arp_rt[0].n == 2u);
+    fm1_in.notes = d3;
+    render(2, 0);
+    fm1_in.notes = 0;
+    render(2, 0);
+    check("..a key of the pile: that note leaves (C3)", arp_rt[0].n == 1u && arp_rt[0].note[0] == 48u);
+    tp[0].arp[AR_FADE] = 60;                             /* about 80 ms */
+    fm1_in.notes = e3;
+    render(2, 0);
+    fm1_in.notes = 0;
+    render(300, 0);
+    check("..ADD with FADE, let go: the pile fades, then waits, kept (C3 E3)", arp_rt[0].n == 2u && arp_rt[0].faded &&
+          !arp_rt[0].on && arp_level(0) == 0);
+    fm1_in.notes = g3;
+    render(2, 0);
+    check("..a key: the pile back at full, the note joined (C3 E3 G3)", arp_rt[0].n == 3u && !arp_rt[0].faded &&
+          arp_level(0) == 32767 && arp_rt[0].on);
+    fm1_in.notes = 0;
+    render(2, 0);
+    /* the LEDs: the notes held lit, the one sounding dark for its step */
+    tp[0].arp[AR_FADE] = 0;
+    tp[0].arp[AR_MODE] = ARM_OFF;                        /* (the pile forgotten) */
+    render(2, 0);
+    tp[0].arp[AR_MODE] = ARM_LTCH;
+    render(1, 0);
+    fm1_in.notes = c3 | e3;
+    render(2, 0);
+    fm1_in.notes = 0;
+    for (i = 0; i < 400u && !arp_rt[0].on; i++)
+        render(1, 0);
+    ui_leds();
+    {
+        uint32_t cur = arp_rt[0].cur, kc, ke, kg, lit_other, lit_cur;
+        led_on(fm1_led, 14u + key_of_white(0));
+        kc = led_lit;
+        led_on(fm1_led, 14u + key_of_white(4));
+        ke = led_lit;
+        led_on(fm1_led, 14u + key_of_white(7));
+        kg = led_lit;
+        lit_cur = cur == 48u ? kc : ke;
+        lit_other = cur == 48u ? ke : kc;
+        snprintf(m, sizeof m, "LEDs: the latched chord's keys lit (C3 E3), the one sounding (%s) dark for its step, "
+                 "G3 not lit", cur == 48u ? "C3" : "E3");
+        check(m, arp_rt[0].on && lit_other && !lit_cur && !kg);
+    }
+    while (arp_rt[0].on)
+        render(1, 0);
+    ui_leds();
+    led_on(fm1_led, 14u + key_of_white(0));
+    i = led_lit;
+    led_on(fm1_led, 14u + key_of_white(4));
+    check("..between steps both lit", i && led_lit);
+    tp[0].arp[AR_MODE] = ARM_OFF;
+    render(2, 0);
+    ui_leds();
+    led_on(fm1_led, 14u + key_of_white(0));
+    check("..MODE OFF: the keys dark again", !led_lit);
+    /* TAPE, DRUM: FADE holds the steps for its time, then stops them (no fading under the reel or the pattern) */
+    tp[0].src = SRC_DRUM;
+    tp[0].arp[AR_MODE] = ARM_KEY;
+    tp[0].arp[AR_FADE] = 60;
+    render(2, 0);
+    fm1_in.notes = c3 | d3;
+    render(4, 0);
+    fm1_in.notes = 0;
+    render(50, 0);
+    check("DRUM, KEY with FADE: the drums let go keep stepping for FADE", arp_rt[0].n == 2u && arp_rt[0].fading);
+    render(300, 0);
+    check("..then stop", arp_rt[0].n == 0u && !arp_rt[0].on);
+    tp[0].arp[AR_MODE] = ARM_OFF;
+    render(2, 0);
+}
+
 static void test_arp_sources(void)
 {
     uint8_t seq[32];
@@ -10795,6 +10959,7 @@ int main(int argc, char **argv)
     test_tpresets();
     test_tpfactory();
     test_arp_keys();
+    test_arp_fade();
     test_arp_sources();
     test_factory_scene();
     test_drum_shed();

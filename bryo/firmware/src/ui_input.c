@@ -107,6 +107,8 @@ static int scn_page(void) { return ui.view == VIEW_MIXER && ui.chan == CHAN_SCEN
 static int pad_down(void);
 static int drm_step_page(void);
 static int seq_page(void);
+/* track t's keys are notes (SYNTH, POLY), not slices or drums */
+static uint32_t key_notes(uint32_t t) { return tp[t].src == SRC_SYNTH || tp[t].src == SRC_POLY; }
 static uint32_t pad_pages(uint32_t b);
 static int pad_shown(uint32_t b, uint32_t i);
 static void ui_leds(void)
@@ -133,6 +135,34 @@ static void ui_leds(void)
         led_put(nl, 14u + k, (!sys.keys_notes || ui.glo_held) &&   /* (KEYS NOTE: GLO held shows the shortcuts) */
                              ((b <= BK_OP4 && track[b].mute) || (b == BK_ZERO && sys.freeze)));   /* (0 lit: latched) */
         led_put(nd, 14u + k, 1);
+    }
+    if (arp_on(sys.sel) && arp_rt[sys.sel].n && ui.view != VIEW_USBREC &&   /* the arpeggiator's notes on their
+                                                                           * keys (held, latched, piled up, fading),
+                                                                           * the one sounding dark for its step, where
+                                                                           * the keys are its (not RIPL ARP's, RIPPLE's
+                                                                           * or GRAIN's page) */
+        !sys.keys_rarp && !(sys.keys_reso && !key_notes(sys.sel)) && !(sys.keys_grain && tp[sys.sel].src == SRC_TAPE)) {
+        const arp_rt_t *r = &arp_rt[sys.sel];
+        uint32_t notes = key_notes(sys.sel), base = notes ? 12u * ((uint32_t)track[sys.sel].octave + 1u) : 0u, i;
+        if (notes && sys.keys_notes)
+            base += 5u;                                  /* (KEYS NOTE: the 27 keys from the F) */
+        for (i = 0; i < r->n; i++) {
+            uint32_t note = r->note[i], d = note - base, id = 27u;
+            if (note < base)
+                continue;
+            if (notes && sys.keys_notes) {
+                id = d;
+            } else {
+                for (k = 0; k < 27u && id == 27u; k++)
+                    if (KEY_WHITE[k] == d)
+                        id = k;
+            }
+            if (id >= 27u)
+                continue;
+            led_put(nl, 14u + id, 1);
+            if (r->on && r->cur >= note && (r->cur - note) % 12u == 0u)
+                led_clear(nl, 14u + id);
+        }
     }
     if ((drm_step_page() && sys.drum_mode == DMODE_HITS) || seq_page()) {   /* (GLO held: the mixer, not these) */
         /* the white keys as steps, where they set steps: DRUM's STEP page (HITS, ACC) lights the bar's steps that are

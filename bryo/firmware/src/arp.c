@@ -14,6 +14,13 @@
  *         after that starts a new one
  *   ADD   every key pressed joins for good (past ARP_MAXN, the oldest leaves): pile up an endless pattern. POLY held
  *         on the ARP page clears it (ui_input.c), and so does MODE turned to OFF
+ * A note that plays on without its key (latched, piled up, fading) leaves when its key is pressed again (2026-10-15:
+ * "being able to remove keys from arps"); in LTCH a key that isn't in the chord still starts a new one, in ADD it
+ * joins. FADE (2026-10-15, "arps could fade out instead of just on or off"): let every key go and the notes go on
+ * for FADE, their level falling to silence (arp_level: chain.c scales a SYNTH or POLY source by it; TAPE's slices
+ * and DRUM's drums can't fade under the reel or the pattern, so there the steps just stop at the end of FADE). At the
+ * end KEY and LTCH forget the notes, ADD keeps its pile quiet until a key; any key brings the level straight back.
+ * At FADE 0, KEY stops the moment the keys are let go and LTCH and ADD hold, as before.
  * RNGE spreads them over 1 to 3 octaves (the notes, then the notes an octave up, ...), ORDR walks that UP, DOWN,
  * UPDN (up and back down, the top and bottom once), PLAY (the order pressed, then again an octave up) or RND.
  *
@@ -27,6 +34,7 @@
  * are only a frame's drawing). */
 
 #define ARP_MAXN 32u                 /* the notes it holds */
+#define ARP_FD_FULL 8388607          /* a fade all the way down (Q23) */
 
 typedef struct {
     uint8_t note[ARP_MAXN];          /* the notes held, absolute (0..127), in the order they came */
@@ -39,7 +47,11 @@ typedef struct {
     uint8_t mode;                    /* MODE as of last block */
     uint8_t waiting;                 /* notes held with no key down, waiting for PLAY (or a key) */
     uint8_t playing;                 /* the transport as of last block */
+    uint8_t fading;                  /* every key let go with FADE on: the notes go on, their level falling */
+    uint8_t faded;                   /* ADD: the fade ended, the pile kept, quiet until a key */
     uint32_t held;                   /* the keys held last block */
+    int32_t fd, fstep;               /* how far the fade has gone, Q23 (0: full level, ARP_FD_FULL: silent), and a
+                                      * block's step of it */
     int32_t phase, len, gate;        /* samples into this step, its length, how long its note sounds */
     uint32_t pos;                    /* steps played since the notes started */
     uint32_t rng;                    /* RND's generator */
@@ -100,6 +112,31 @@ static void arp_remove(arp_rt_t *r, uint32_t note)
             r->note[j++] = r->note[i];
     r->n = (uint8_t)j;
 }
+
+static int arp_has(const arp_rt_t *r, uint32_t note)
+{
+    uint32_t i;
+    for (i = 0; i < r->n; i++)
+        if (r->note[i] == note)
+            return 1;
+    return 0;
+}
+
+/* the level track t's arpeggiated notes play at, Q15 (32767 but for a fade in progress, or ended: chain.c) */
+static int32_t HOT_CODE arp_level(uint32_t t) { return 32767 - (arp_rt[t].fd >> 8); }
+
+/* the keys let go with FADE: the fade starts (its step a block, from the time; one divide, at the let-go) */
+static void HOT_CODE arp_fade_start(arp_rt_t *r, int32_t fade)
+{
+    int32_t samples = (int32_t)TIME_MS_X10[fade & 127] * 441 / 100;
+    r->fading = 1;
+    r->fd = 0;
+    r->fstep = (ARP_FD_FULL / (samples > 0 ? samples : 1)) * (int32_t)CTL;
+    if (r->fstep > ARP_FD_FULL)
+        r->fstep = ARP_FD_FULL;
+}
+
+static void arp_fade_reset(arp_rt_t *r) { r->fading = r->faded = 0; r->fd = 0; }
 
 /* a step's length at the tempo, in samples: RATE's division of a beat (1/4 = a beat), SWNG's long or short half */
 static int32_t HOT_CODE arp_len(const int16_t *a, uint32_t step)
@@ -162,10 +199,16 @@ static uint32_t HOT_CODE arp_run(arp_rt_t *r, const int16_t *a, int on, uint32_t
                         uint32_t *nbase, uint32_t salt)
 {
     uint32_t mode = (uint32_t)clamp(a[AR_MODE], 0, 3), press = keys & ~r->held, k;
+    int32_t fade = clamp(a[AR_FADE], 0, 127);
     if (!r->rng)
         r->rng = 0x9E3779B9u ^ (salt * 0x85EBCA6Bu);
-    if (mode != r->mode && (mode == ARM_OFF || r->mode == ARM_OFF || mode == ARM_KEY))
-        r->n = 0;                                        /* (turned on, off, or back to KEY: from the keys as they are) */
+    if (mode != r->mode) {
+        if (mode == ARM_OFF || r->mode == ARM_OFF || mode == ARM_KEY)
+            r->n = 0;                                    /* (turned on, off, or back to KEY: from the keys as they
+                                                          * are) */
+        arp_fade_reset(r);
+        r->latched = 0;
+    }
     r->mode = (uint8_t)mode;
     if (sys.playing != r->playing) {                     /* PLAY: notes held without keys start over; STOP: they wait */
         r->playing = sys.playing;
@@ -177,6 +220,7 @@ static uint32_t HOT_CODE arp_run(arp_rt_t *r, const int16_t *a, int on, uint32_t
         r->held = keys;
         r->base_in = (uint8_t)base;
         r->pos = 0;
+        arp_fade_reset(r);
         if (r->on) {
             r->on = 0;
             r->gap = 1;
@@ -190,27 +234,62 @@ static uint32_t HOT_CODE arp_run(arp_rt_t *r, const int16_t *a, int on, uint32_t
     }
     if (mode == ARM_KEY && base != r->base_in) {         /* (the octave moved under held keys: the notes as they are) */
         r->n = 0;
+        r->latched = 0;
+        arp_fade_reset(r);
         press = keys;
     }
-    if (mode == ARM_LTCH && press && r->latched) {       /* a new chord after letting go */
-        r->n = 0;
-        r->latched = 0;
+    if (press && (mode == ARM_ADD || r->latched)) {      /* a key while the notes play on without keys (latched, piled
+                                                          * up, fading): one of theirs leaves; a new one in ADD joins,
+                                                          * in KEY and LTCH starts a new chord */
+        uint32_t fresh = 0;
+        for (k = 0; k < NKEYBIT; k++)
+            if ((press >> k) & 1u && base + k <= 127u && !arp_has(r, base + k))
+                fresh = 1;
+        if (fresh && mode != ARM_ADD) {
+            r->n = 0;
+            r->latched = 0;
+        } else {
+            for (k = 0; k < NKEYBIT; k++)
+                if ((press >> k) & 1u && base + k <= 127u && arp_has(r, base + k)) {
+                    arp_remove(r, base + k);
+                    press &= ~(1u << k);
+                }
+        }
     }
-    if (mode == ARM_KEY)                                 /* KEY: the keys let go leave */
+    if (!keys && r->held && fade && r->n && !r->fading)   /* every key let go with FADE: the notes go on, fading; KEY
+                                                          * and LTCH hold them meanwhile as a latched chord */
+        arp_fade_start(r, fade);
+    if (mode == ARM_KEY && !r->fading)                   /* KEY: the keys let go leave */
         for (k = 0; k < NKEYBIT; k++)
             if (((r->held & ~keys) >> k) & 1u)
                 arp_remove(r, base + k);
     for (k = 0; k < NKEYBIT; k++)                        /* the keys pressed join, lowest first */
         if ((press >> k) & 1u && base + k <= 127u)
             arp_add(r, base + k);
-    if (mode == ARM_LTCH && !keys && r->held)
+    if ((mode == ARM_LTCH || r->fading) && !keys && r->held)
         r->latched = 1;
-    if (press)                                           /* (a key: the notes play now, transport or not) */
+    if (keys & ~r->held) {                               /* (a key: the notes play now, transport or not, at full) */
         r->waiting = 0;
+        arp_fade_reset(r);
+    }
     r->held = keys;
     r->base_in = (uint8_t)base;
-    if (!r->n || (r->waiting && !keys)) {             /* nothing to play (or waiting for PLAY): quiet, and the next
-                                                         * note starts at once */
+    if (r->fading) {                                     /* the fade runs on, keys or not (a key reset it above) */
+        r->fd += (r->fstep * (int32_t)n) >> CTL_LOG2;
+        if (r->fd >= ARP_FD_FULL) {                      /* silent: KEY and LTCH forget the notes, ADD keeps its pile
+                                                          * quiet until a key */
+            r->fd = ARP_FD_FULL;
+            r->fading = 0;
+            if (mode == ARM_ADD) {
+                r->faded = 1;
+            } else {
+                r->n = 0;
+                r->latched = 0;
+            }
+        }
+    }
+    if (!r->n || (r->waiting && !keys) || r->faded) {    /* nothing to play (or waiting for PLAY, or faded out):
+                                                          * quiet, and the next note starts at once */
         r->on = 0;
         r->pos = 0;
         r->phase = r->len = 0;

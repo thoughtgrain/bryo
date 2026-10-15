@@ -3030,6 +3030,39 @@ LFO; depths follow the LFO pad's pick; SETUP 4X moves a 0-100 value 4 a detent a
 a fast turn and stays fine on a slow one; a project keeps the arpeggiator. The screens: ARP, ARP in ADD, SETUP, a
 new blank project.
 
+### ARP's FADE, a note's key taking it out, the keys lit (2026-10-15)
+
+"Would be nice if arps could fade out instead of just on or off. And being able to remove keys from arps. Light up
+keys pressed when in arp." Three things, all in `arp.c` and the key LEDs:
+
+- **FADE** (`AR_FADE`, the page's spare slot 7, a time 0..127 on `TIME_MS_X10`, default 0; no project format
+  change, the slot was stored as 0). Let every key go with FADE above 0 and `arp_fade_start` begins a fade: a Q23
+  level (`fd`, 0 full, `ARP_FD_FULL` silent) that `arp_run` steps a block (`fstep`, one divide at the let-go, never
+  per sample) while the notes go on stepping as a latched chord (KEY and LTCH set `latched`, so the keys let go
+  don't leave). At the bottom KEY and LTCH forget the notes; ADD keeps its pile and marks it `faded`, quiet (the mask
+  is 0) until a key. Any key pressed resets the level (`arp_fade_reset`) and clears `faded`. `arp_level(t)` is the
+  Q15 level and chain.c scales a SYNTH or POLY source's block by it, ramped from last block's (`arp_fd0`), only
+  while `fd` or its previous value is non-zero: with FADE at 0 the path is untouched (every fingerprint held). The
+  level stays at the bottom after the fade so the source's release tail dies with it, until a key or a MODE change.
+  TAPE's slices and DRUM's drums can't be faded under the reel or the pattern, so on those FADE is a timed latch:
+  the steps go on for FADE, then stop. RIPL ARP's `ra[]` has FADE 0 (unchanged).
+- **A note's key takes it out.** When the notes play on without keys (ADD always; KEY and LTCH while `latched`,
+  which a fade sets too), a press of a key whose note is held removes it (`arp_has`, `arp_remove`) and the rest
+  keep going. In ADD every press toggles. In KEY and LTCH a press with any fresh note starts a new chord as before;
+  a press of only held notes removes them (the latch stays, so the next fresh key starts over). The press resets
+  the fade level too ("any key brings it back").
+- **The keys lit** (`ui_leds`): with the focused track's arpeggiator on and holding notes, the key of each note is
+  lit (`KEY_WHITE` from the note less the octave's base; KEYS NOTE: the 27 keys from the F; TAPE and DRUM: the
+  slice or drum as the white key), and the one sounding goes dark for its step (the STEP page's playhead idiom,
+  with `cur` matched an octave apart for RNGE). Not where the keys are something else's (RIPL ARP's page, RIPPLE's
+  on a TAPE or DRUM track, GRAIN's on TAPE, USB record), and the later layers (STEP, SEQ, a pad held, GLO, SCENES)
+  override it as they do the rest.
+
+Tests (`test_arp_fade`): the page, KEY's fade (the chord kept, stepping, the synth's peak falling, silent and
+forgotten at the end, a key back at full), LTCH's removal with and without FADE, a fresh key's new chord, ADD's
+toggle and faded pile, the LEDs (chord lit, the sounding note dark, between steps both lit, OFF dark), DRUM's timed
+latch. One new golden (`arp_fade`, the manual's picture of page 2).
+
 ## USB record mode (2026-10-08)
 
 Recording from the computer is a mode of its own, not a source a track plays through: you go in, record, put the

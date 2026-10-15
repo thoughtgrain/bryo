@@ -1127,8 +1127,8 @@ static const uint8_t *dev_pk(uint32_t t, uint32_t d)
 }
 static const uint8_t CH_PK[NCH] = {PK_SHELF_LO, PK_SHELF_HI, PK_FILTER, PK_PAN};
 static const uint8_t MS_PK[NMS] = {PK_KNOB, PK_ATTACK, PK_RELEASE, PK_MIX};   /* the master compressor */
-static const uint8_t ARP_PK[NARP] = {   /* the arpeggiator: MODE ORDR RNGE RATE, GATE SWNG */
-    PK_TOGGLE, PK_DIR, PK_VOICES, PK_CLOCK, PK_GATE, PK_SWING, PK_VAR, PK_NONE};   /* (GRND: PK_VAR) */
+static const uint8_t ARP_PK[NARP] = {   /* the arpeggiator: MODE ORDR RNGE RATE, GATE SWNG GRND FADE */
+    PK_TOGGLE, PK_DIR, PK_VOICES, PK_CLOCK, PK_GATE, PK_SWING, PK_VAR, PK_RELEASE};   /* (GRND: PK_VAR) */
 static const uint8_t KY_PK[4] = {PK_KEYS, PK_SCALE, PK_NONE, PK_NONE};   /* KEY: KEY SCAL */
 static const uint8_t SET_PK[NSET] = {PK_TOGGLE, PK_KNOB, PK_CLOCK, PK_STEPS};   /* SETUP: KEYS KNOB HOLD LEDS */
 static const uint8_t ME_PK[NME][NPK] = {   /* (in stored order: param.c's PLAYOUT places them on the pages) */
