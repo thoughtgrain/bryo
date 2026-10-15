@@ -321,7 +321,8 @@ static void HOT_CODE reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t key
     uint32_t k, i, press = keys & ~R->keys, nstr = R->nch < reso_cap ? R->nch : reso_cap, t60 = rs_t60(p[RP_DEC]);
     int32_t mode = rs_mode(R), drv = clamp(p[RP_DRV], 0, 100), ripl = clamp(p[RP_RIPL], 0, 100), ig = 16384;
     int32_t comb = mode == RM_COMB, gq = 256 + ((drv * 1311) >> 8);   /* (DRV's gain, 1 + DRV / 50: to 3 x) */
-    int tune = p[RP_KEYS] == RK_TUNE;                   /* (KEYS TUNE: a key or a step retunes, never plucks) */
+    int tune = p[RP_KEYS] == RK_TUNE;
+    int32_t inq = 16384;                                /* (the input's share this block: COMB makes it up after) */                   /* (KEYS TUNE: a key or a step retunes, never plucks) */
     if (mode == RM_BANK)
         nstr *= 3u;                                     /* (BANK: its bands, three a string's chunk) */
     if (drv)
@@ -380,6 +381,7 @@ static void HOT_CODE reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t key
          * not without bound (the loop clamps besides); applied as the input is read, not in a pass of its own */
         int32_t in = mode >= RM_RESO ? 16384              /* (the resonators scale their own input by their loss) */
                    : clamp((32768 - rs_gain(rs_period_q8(root16) >> 8, t60)) * 16, 4096, 16384);
+        inq = in;
         int32_t ic1 = R->ic1, ic2 = R->ic2, any = 0;    /* (the filter's state in locals across the block) */
         if (filt) {
             for (i = 0; i < n; i++)
@@ -493,7 +495,10 @@ static void HOT_CODE reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t key
                 s1 += (x * sq) >> 8;
                 s1 -= ((s1 >> 10) * dq) >> 9;
                 s1 = s1 > (1 << 26) ? 1 << 26 : s1 < -(1 << 26) ? -(1 << 26) : s1;
-                last = ((s2 >> 8) * gain) >> 15;
+                last = ((s2 >> 12) * gain) >> 7;       /* (x 16, +24 dB: a band's a sliver of a broad sound, so drums
+                                                         * through the bank came out ~28 dB under themselves, 2026-10-15:
+                                                         * "filter band doesn't do much"; now about their own level, a
+                                                         * held tone louder, the mix's soft knee its limit) */
                 acc[i] += last;
             }
             R->bs1[k] = s1;
@@ -605,6 +610,15 @@ static void HOT_CODE reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t key
             uint32_t a = (uint32_t)(lp < 0 ? -lp : lp), l0 = R->lvl[k];
             l0 -= (l0 + 7u) >> 3;                   /* (to 0: l0 >> 3 alone stalled under 8) */
             R->lvl[k] = (uint16_t)(a > l0 ? (a > 65535u ? 65535u : a) : l0);
+        }
+    }
+    if (comb && nstr) {                                  /* COMB: its output made up for the input's share (the
+                                                          * longer FDBK, the less went in: it came out 4 dB under at
+                                                          * 40, 12.5 under at 100, quieter the more it rang) */
+        int32_t mk = (int32_t)(268435456u / (uint32_t)inq);   /* (Q14: 1 .. 4) */
+        for (i = 0; i < n; i++) {
+            acc_e[i] = (acc_e[i] * mk) >> 14;
+            acc_o[i] = (acc_o[i] * mk) >> 14;
         }
     }
     }

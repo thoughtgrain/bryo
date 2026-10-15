@@ -308,9 +308,9 @@ static const struct {
     uint8_t lvl[NTRK];
     int8_t room[NROOM][4];           /* each room's SIZE DEC TYPE MOD */
 } TPS_SC[TPS_NSC] = {
-    {TPS_AMB, (uint8_t)(sizeof TPS_AMB / sizeof TPS_AMB[0]), {0, 102, 108, 88}, {{50, 40, 0, 0}, {90, 80, 2, 50}}},
+    {TPS_AMB, (uint8_t)(sizeof TPS_AMB / sizeof TPS_AMB[0]), {0, 92, 88, 88}, {{50, 40, 0, 0}, {90, 80, 2, 50}}},
     {TPS_TEC, (uint8_t)(sizeof TPS_TEC / sizeof TPS_TEC[0]), {100, 106, 100, 102}, {{35, 30, 1, 0}, {60, 45, 0, 0}}},
-    {TPS_GLI, (uint8_t)(sizeof TPS_GLI / sizeof TPS_GLI[0]), {100, 116, 114, 118}, {{25, 20, 1, 0}, {50, 40, 3, 70}}}};
+    {TPS_GLI, (uint8_t)(sizeof TPS_GLI / sizeof TPS_GLI[0]), {100, 116, 98, 118}, {{25, 20, 1, 0}, {50, 40, 3, 70}}}};
 
 /* main loop: scene n's sound into the tracks: every track's devices, channel and source knobs from their defaults
  * (what plays aside: the reels, POLY's ROOT and RLB, DRUM's pattern knobs), then the scene's list, the levels, the

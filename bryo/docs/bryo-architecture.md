@@ -790,6 +790,26 @@ grains on T3, and its strings became RESO (STRG 229, RESO 157; the 12-band bank 
 dBFS): the drums -14/-15 where heard, the other tracks -19 to -22, each scene -18 to -21 overall (the old scene's
 were -13 and -22 to -24, -18).
 
+### RIPPLE's forms heard, and their own knobs up front (2026-10-15)
+
+"The filters just don't do much, comb and filter band in particular; their specific parameters farther up in the
+pages; WET and ROUT on the first page, the other parameters shaping the active filter." Measured with noise bursts
+(drum-like) at WET 100: RESO and 12-BAND came out 28-33 dB under what went in. A band is a sliver of a broad sound,
+and the rebuild of 2026-10-14 (loss-scaled input) had made the level independent of the ring but not of that. Their
+output is now x 16 (+24 dB: `last = ((s2 >> 12) * gain) >> 7`, its products under 2^31), about their input's level
+on drums; a tone at a band's pitch is held by the wet mix's soft knee (24,000 + 16,383, the strings' bound already).
+COMB lost level as FDBK rose (-4 dB at 40, -12.5 at 100: its input share shrinks with the ring); its output is made
+up by the inverse of that share, a block's multiply. Now: COMB -4 to -0.5 dB, RESO -4 to -8.5, 12-BAND -3 to -7; the
+colour (the mean departure of the output's spectrum from the input's, 48 bands) 5-8 dB, from 3.6-5.
+
+The pages, each form its own (PLAYOUT): page 1 PTCH, DEC (COMB's label FDBK, the resonators' RING), ROUT, WET; page
+2 the form's character: strings SCAL TONE SPRD RIPL, COMB TONE SPRD SCAL RIPL, RESO and 12-BAND SCAL SPRD TILT EVEN;
+page 3 CUT RES TYPE DRV; page 4 KEYS PLVL PICK STRM; page 5 MODE VARY (the resonators RIPL there too).
+
+The factory scene rebalanced after it (AMBIENT's T3 RESO and GLITCH's T3 12-BAND had come up 10 and 8 dB); a test
+of DRV on the strings had heard the louder bank's ring left in the chain from the test before it, and now lets it
+die away first.
+
 ## POLY, as built (2026-10-07)
 
 POLY is the third source engine: a sound played across the keys, up to four notes at once.

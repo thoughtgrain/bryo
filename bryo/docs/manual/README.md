@@ -885,21 +885,31 @@ forms. Each track has its own.
      sorts whatever comes in into the chord. The picture is a meter for each band.
 
    All four forms ring the track's own sound. Switching clears what was ringing; the knobs stay as they are.
-5. **RIPPLE 2** is what rings:
+5. **RIPPLE 2** is the form's own character, so it changes with the form:
+   - **RIPPLE** (strings): **SCAL TONE SPRD RIPL**. **COMB**: **TONE SPRD SCAL RIPL**. **RESO** and **12-BAND**:
+     **SCAL SPRD TILT EVEN**.
    - **SCAL**: the chord the strings (or bands) make. **HARM** is the root's harmonics; then **MAJ**, **MIN**,
      **PEN**, **SUS2**, **SUS4**, **DOM7**, **MAJ7**, **MIN7** (the sevenths leave out the octave, because the
      seventh's rub is the point), **DIM**, **AUG**, **5TH** (a power chord) and **OCT** (one note in four octaves).
      The ring over the knob lights the notes.
    - **TONE** (TILT on the resonators): how bright it rings.
-   - **DRV**: a saturation in the loop, the way a Polivoks filter overdrives its own feedback. A loud ring rounds
-     off and gains odd harmonics, warm and gritty. As it dies away it rings clean again, so DRV changes the attack
-     more than the tail. On the resonators it drives what reaches the bands. It starts at 25.
+   - **SPRD**: on the strings and combs a detune across them, from the lowest a little flat to the highest a little
+     sharp (half a semitone across at 100: a chorus, and with RIPL a slow shimmer); on RESO and 12-BAND it stretches
+     or squeezes the spacing of the partials instead, up to 40 % either way, out of tune with itself like a bell or a
+     drum skin.
+   - **EVEN** (RESO and 12-BAND): the odd partials against the even ones (left: the 1st, 3rd, 5th alone, a hollow
+     set; right: the 2nd, 4th, 6th, an octave up and emptier in the middle).
    - **RIPL**: the pitches drift slowly, each a quarter turn behind the one below, so the drift runs across them
-     like a ripple on water. It reaches up to half a semitone either way at 100 and gets faster as it rises.
-6. **RIPPLE 3** is a filter in front (**CUT**, **RES**, **TYPE**): what of the track reaches it, and **SPRD**: on
-   the strings and combs a detune across them, from the lowest a little flat to the highest a little sharp (half a
-   semitone across at 100: a chorus, and with RIPL a slow shimmer); on RESO and 12-BAND it stretches or squeezes the
-   spacing of the partials instead, up to 40 % either way, out of tune with itself like a bell or a drum skin.
+     like a ripple on water. It reaches up to half a semitone either way at 100 and gets faster as it rises (on RESO
+     and 12-BAND it's on page 5).
+
+   On **COMB**, page 1's DEC is called **FDBK**: how long the combs feed back, from a short metallic ring to a
+   singing drone. Every form comes out at about the level of what goes in, so turning WET up is a real change: a
+   drum loop through 12-BAND is sorted into the chord's notes, through COMB it turns hollow and pitched.
+6. **RIPPLE 3** is a filter in front (**CUT**, **RES**, **TYPE**): what of the track reaches it, and **DRV**: a
+   saturation in the loop, the way a Polivoks filter overdrives its own feedback. A loud ring rounds off and gains
+   odd harmonics, warm and gritty; as it dies away it rings clean again. On the resonators it drives what reaches
+   the bands. It starts at 25.
 7. **RIPPLE 4** is what the keys do:
    - **KEYS**: **PLCK** or **TUNE**.
      - **PLCK**: a white key on RIPPLE's page sets the root and plucks it. On a TAPE or DRUM track it plays without
@@ -913,10 +923,8 @@ forms. Each track has its own.
      and snappy).
    - **STRM**: strum. The strings sound one after another, lowest first, this many milliseconds apart (0: all at
      once). A new pluck cuts a strum that hasn't finished.
-8. **RIPPLE 5**: **MODE**, the form as a knob (the same as EDIT held + SELECT); on RESO and 12-BAND **EVEN**, the
-   odd partials against the even ones (left: the 1st, 3rd, 5th alone, a hollow set; right: the 2nd, 4th, 6th, an
-   octave up and emptier in the middle); and **VARY**: each pluck comes out a little different, in level and
-   brightness.
+8. **RIPPLE 5**: **MODE**, the form as a knob (the same as EDIT held + SELECT), and **VARY**: each pluck comes out a
+   little different, in level and brightness (on RESO and 12-BAND, **RIPL** sits here too).
 9. To play a pattern on it, use **RIPL ARP**, the ARP pad's third page ([5.8](#58-arp-the-arpeggiator)).
 
 The picture shows it: while a string rings, the curve waves round its node in orange, as high as the string is

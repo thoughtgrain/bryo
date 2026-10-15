@@ -222,7 +222,7 @@ static const pdesc_t DEV_P[NDEV][NPK] = {
         {"TYPE", 0, 3, 0, F_ENUM, N_RTYPE, 1}, {"MOD", 0, 100, 0, F_PCT, 0, 1}},
 };
 /* RIPPLE's other forms (reso.c RM_COMB on): the same knobs, each form's labels, its own pages (PLAYOUT) */
-static const pdesc_t RS_FORM_P[3][NPK] = {RS_DESC("DEC", "TONE", {""}), RS_DESC("RING", "TILT", RS_EVEN),
+static const pdesc_t RS_FORM_P[3][NPK] = {RS_DESC("FDBK", "TONE", {""}), RS_DESC("RING", "TILT", RS_EVEN),
                                           RS_DESC("RING", "TILT", RS_EVEN)};
 
 /* The source engines: what starts a track's chain (docs/bryo-architecture.md, "Source engines"). TAPE's knobs are
@@ -614,11 +614,18 @@ static const playout_t PLAYOUT[] = {
      * pad's page 3; 16, MODE: the form, EDIT held + SELECT; past the pages here */
 /* RIPPLE: PTCH DEC ROUT WET; SCAL TONE DRV RIPL; CUT RES TYPE SPRD; KEYS PLVL PICK STRM; MODE EVEN VARY . (the
  * arpeggio's 12-15 past the pages: the ARP pad's) */
-#define RS_AT {0, 1, 8, 3, 7, 2, 17, 18, 4, 5, 6, 21, 19, 20, 9, 10, 16, 22, 11, 23, 12, 13, 14, 15}
-    {DEV_P[DEV_RESO], 5, RS_AT},
-    {RS_FORM_P[0], 5, RS_AT},
-    {RS_FORM_P[1], 5, RS_AT},
-    {RS_FORM_P[2], 5, RS_AT},
+    /* (2026-10-15, "the other parameters should be shaping the active filter": page 2 each form's own character,
+     * then the filter in front with DRV, the keys, the form itself. Stored 12-15, RIPL ARP, past the pages) */
+    {DEV_P[DEV_RESO], 5, {0, 1, 8, 3, 7, 2, 21, 18, 4, 5, 6, 17, 19, 20, 9, 10, 16, 11, 22, 23, 12, 13, 14, 15}},
+                                                    /* RIPPLE: PTCH DEC ROUT WET, SCAL TONE SPRD RIPL, CUT RES TYPE
+                                                     * DRV, KEYS PLVL PICK STRM, MODE VARY */
+    {RS_FORM_P[0], 5, {0, 1, 8, 3, 2, 21, 7, 18, 4, 5, 6, 17, 19, 20, 9, 10, 16, 11, 22, 23, 12, 13, 14, 15}},
+                                                    /* COMB: PTCH FDBK ROUT WET, TONE SPRD SCAL RIPL, .. */
+    {RS_FORM_P[1], 5, {0, 1, 8, 3, 7, 21, 2, 22, 4, 5, 6, 17, 19, 20, 9, 10, 16, 18, 11, 23, 12, 13, 14, 15}},
+                                                    /* RESO: PTCH RING ROUT WET, SCAL SPRD TILT EVEN, .., MODE RIPL
+                                                     * VARY */
+    {RS_FORM_P[2], 5, {0, 1, 8, 3, 7, 21, 2, 22, 4, 5, 6, 17, 19, 20, 9, 10, 16, 18, 11, 23, 12, 13, 14, 15}},
+                                                    /* 12-BAND: the same */
     {DEV_P[DEV_COLOR], 3, {0, 1, 9, 7, 2, 3, 4, 5, 6, 10, 11, 8}},              /* COLOR: DRV CRSH ROUT WET, NOIS TILT
                                                                                  * NDEC NTON, CMOD . . LVL */
     {DEV_P[DEV_SPACE], 5, {0, 1, 4, 5, 2, 3, 8, 11, 6, 7, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19}},   /* CHRONOS:

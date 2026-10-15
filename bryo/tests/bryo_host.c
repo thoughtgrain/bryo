@@ -494,12 +494,15 @@ static void test_input(void)
     check("..again: RIPPLE, opening with ROUT WET", ui.dev == DEV_RESO && ui.page == 0u &&
           pdesc_at(DEV_P[DEV_RESO], 2u) == RP_ROUT && pdesc_at(DEV_P[DEV_RESO], 3u) == RP_WET);
     press(B_EDIT);
-    check("..again: RIPPLE's page 2, what rings (SCAL TONE DRV RIPL)", ui.dev == DEV_RESO && ui.page == 1u &&
+    check("..again: RIPPLE's page 2, the strings' own (SCAL TONE SPRD RIPL; COMB: TONE SPRD SCAL RIPL; RESO and 12-BAND: "
+          "SCAL SPRD TILT EVEN)", ui.dev == DEV_RESO && ui.page == 1u &&
           pdesc_at(DEV_P[DEV_RESO], 4u) == RP_SCAL && pdesc_at(DEV_P[DEV_RESO], 5u) == RP_TONE &&
-          pdesc_at(DEV_P[DEV_RESO], 6u) == RP_DRV && pdesc_at(DEV_P[DEV_RESO], 7u) == RP_RIPL);
+          pdesc_at(DEV_P[DEV_RESO], 6u) == RP_SPRD && pdesc_at(DEV_P[DEV_RESO], 7u) == RP_RIPL &&
+          pdesc_at(RS_FORM_P[0], 4u) == RP_TONE && pdesc_at(RS_FORM_P[2], 7u) == RP_EVEN &&
+          pdesc_at(RS_FORM_P[2], 5u) == RP_SPRD && !strcmp(RS_FORM_P[0][RP_DEC].label, "FDBK"));
     press(B_EDIT);
-    check("..again: RIPPLE's page 3, the filter in front (CUT RES TYPE) and SPRD", ui.dev == DEV_RESO && ui.page == 2u &&
-          pdesc_at(DEV_P[DEV_RESO], 8u) == RP_CUT && pdesc_at(DEV_P[DEV_RESO], 11u) == RP_SPRD &&
+    check("..again: RIPPLE's page 3, the filter in front (CUT RES TYPE) and DRV", ui.dev == DEV_RESO && ui.page == 2u &&
+          pdesc_at(DEV_P[DEV_RESO], 8u) == RP_CUT && pdesc_at(DEV_P[DEV_RESO], 11u) == RP_DRV &&
           pdesc_pages(DEV_P[DEV_RESO]) == 5u);
     press(B_EDIT);
     check("..again: RIPPLE's page 4, the keys (KEYS PLVL PICK STRM)",
@@ -509,9 +512,9 @@ static void test_input(void)
     press(B_EDIT);
     check("..again: RIPPLE's page 5 (MODE, its form, as a knob too; EVEN on the resonators' tables only; VARY)",
           ui.dev == DEV_RESO && ui.page == 4u && pdesc_at(DEV_P[DEV_RESO], 16u) == RP_MODE &&
-          pdesc_at(DEV_P[DEV_RESO], 17u) == RP_EVEN && pdesc_empty(&DEV_P[DEV_RESO][RP_EVEN]) &&
+          pdesc_at(DEV_P[DEV_RESO], 18u) == RP_EVEN && pdesc_empty(&DEV_P[DEV_RESO][RP_EVEN]) &&
           pdesc_empty(&RS_FORM_P[0][RP_EVEN]) && !strcmp(RS_FORM_P[1][RP_EVEN].label, "EVEN") &&
-          !strcmp(RS_FORM_P[2][RP_EVEN].label, "EVEN") && pdesc_at(DEV_P[DEV_RESO], 18u) == RP_VARY &&
+          !strcmp(RS_FORM_P[2][RP_EVEN].label, "EVEN") && pdesc_at(DEV_P[DEV_RESO], 17u) == RP_VARY &&
           !strcmp(DEV_P[DEV_RESO][RP_PLVL].label, "PLVL") && DEV_P[DEV_RESO][RP_PLVL].def == 100);
     press(B_EDIT);
     check("..again: back to GRAIN, page 1", ui.dev == DEV_GRAIN && ui.page == 0u);
@@ -942,13 +945,15 @@ static void screens_in(const char *pal)
     turn(3, 80);                                         /* WET 80 (KNOB 3-4: ROUT WET, its mix) */
     tp[0].dev[DEV_RESO][RP_TONE] = 90;                   /* TONE 90 (page 2): the upper partials kept */
     shot(pal, "resonator_wet");
-    press(B_EDIT);                                       /* RIPPLE 2, what rings: the major chord, DRV 60, RIPL 40 */
+    press(B_EDIT);                                       /* RIPPLE 2, the strings' own: the major chord, SPRD 35, RIPL
+                                                          * 40 (DRV 60, page 3) */
     turn(0, 1);
-    turn(2, 35);                                         /* (from DRV's default, 25) */
+    turn(2, 35);
     turn(3, 40);
+    tp[0].dev[DEV_RESO][RP_DRV] = 60;
     render(2, 0);
     shot(pal, "ripple2");
-    check("RIPPLE 2 shot: SCAL MAJ, DRV 60, RIPL 40", tp[0].dev[DEV_RESO][RP_SCAL] == 1 &&
+    check("RIPPLE 2 shot: SCAL MAJ, SPRD 35, RIPL 40", tp[0].dev[DEV_RESO][RP_SCAL] == 1 && tp[0].dev[DEV_RESO][RP_SPRD] == 35 &&
           tp[0].dev[DEV_RESO][RP_DRV] == 60 && tp[0].dev[DEV_RESO][RP_RIPL] == 40 && ui.page == 1u);
     fm1_in.notes = note_bit_of_white(7);                 /* a key on the RIPPLE page: the root to G3, plucked */
     render(2, 0);
@@ -4701,9 +4706,13 @@ static void test_ripple_forms(void)
         in = sqrt(goertzel(s, 300 * CTL, NB * CTL, 220)) / 4000.0;   /* (over the tone's own amplitude, 8000 / 2) */
         lo = goertzel(s, 300 * CTL, NB * CTL, 220 + 1378.125);
         hi = goertzel(s, 300 * CTL, NB * CTL, 1378.125);
-        snprintf(b, sizeof b, "..a 220 Hz tone held through it at DEC 60: %.1f x its level (2 to 10), under full scale, "
-                 "nothing at the block rate (%.0f dB down)", in, 10 * log10((lo + hi + 1) / (at * at + 1)));
-        check(b, in > 2 && in < 10 && peak_of(s, NB * CTL) < 32000 && (lo + hi) < at * at / 1000);
+        snprintf(b, sizeof b, "..a 220 Hz tone held through it at DEC 60: %.1f x its level (2 to 10), peak %d, "
+                 "nothing at the block rate (%.0f dB down)", in, (int)peak_of(s, NB * CTL),
+                 10 * log10((lo + hi + 1) / (at * at + 1)));
+        check(b, in > 2 && in < 10 && peak_of(s, NB * CTL) <= 24000 + 16383 && (lo + hi) < at * at / 1000);   /* (2026-10-15:
+                                                          * the bands' +24 dB make-up: a tone at a band's pitch held by
+                                                          * the mix's soft knee, its bound 24,000 + 16,383 as the strings'
+                                                          * always was) */
     }
     reso_cap = 2u;                                       /* shed to two chunks: six bands */
     RF_RUN(0u, 1, s);
@@ -4868,6 +4877,7 @@ static void test_reso(void)
                   abs(rs_shape(-100, gq, ig) + rs_shape(100, gq, ig)) <= 2);
         }
         p[RP_DRV] = 100;
+        render(NB * 4, 0);                               /* (the bank's ring before gone from the whole chain) */
         RS_PLUCK(s);
         pk1 = peak_of(s, NB * CTL);
         early = buf_rms(s, (NB - 300) * CTL, (NB - 200) * CTL);
