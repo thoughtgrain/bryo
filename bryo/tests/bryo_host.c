@@ -818,6 +818,20 @@ static void screens_in(const char *pal)
     turn(0, -20);
     turn(1, 50);
     shot(pal, "synth_filter");
+    press(B_ENV);                                        /* ENV 2: a slower attack, SUS2 20 */
+    turn(0, 40);
+    turn(2, -40);
+    shot(pal, "synth_env2");
+    press(B_ENV);                                        /* ETYP LOOP, DEST DRV, ENV +60 */
+    turn(0, 2);
+    turn(2, 1);
+    turn(3, 15);
+    shot(pal, "synth_shape");
+    tp[0].syn[SY_ETYP] = 0;                              /* (as the screens after had them) */
+    tp[0].syn[SY_EDST] = 0;
+    tp[0].syn[SY_ENV] = SYN_P[SY_ENV].def;
+    tp[0].syn[SY_ATK2] = SYN_P[SY_ATK2].def;
+    tp[0].syn[SY_SUS2] = SYN_P[SY_SUS2].def;
     focus_dev(DEV_SRC, 3);                               /* VOICE: GLID, DRV, TUNE */
     turn(1, 70);
     turn(2, 60);
@@ -1691,7 +1705,7 @@ static void test_synth(void)
     let_go(B_HOME);
     p = tp[0].syn;
     check("HOME held + SELECT: track 1's source is SYNTH, its pages and name follow", tp[0].src == SRC_SYNTH &&
-          !strcmp(dev_name(0, DEV_SRC), "SYNTH") && pdesc_pages(dev_p(0, DEV_SRC)) == 6u && ui.page == 0 &&
+          !strcmp(dev_name(0, DEV_SRC), "SYNTH") && pdesc_pages(dev_p(0, DEV_SRC)) == 8u && ui.page == 0 &&
           dev_v(0, DEV_SRC) == p && !strcmp(dev_p(0, DEV_SRC)[0].label, "WAVE"));
     {
         int32_t pk = 0;
@@ -1947,8 +1961,8 @@ static void test_poly(void)
     ui_input();
     let_go(B_HOME);
     p = tp[0].pol;
-    check("HOME held + SELECT: POLY, six pages (SAMPLE LOOP ENV FILTER TWIN LEVEL), its own knobs", tp[0].src == SRC_POLY &&
-          !strcmp(dev_name(0, DEV_SRC), "POLY") && pdesc_pages(dev_p(0, DEV_SRC)) == 6u && dev_v(0, DEV_SRC) == p &&
+    check("HOME held + SELECT: POLY, eight pages (SAMPLE LOOP ENV FILTER TWIN ENV2 SHAPE LEVEL), its own knobs",
+          tp[0].src == SRC_POLY && !strcmp(dev_name(0, DEV_SRC), "POLY") && pdesc_pages(dev_p(0, DEV_SRC)) == 8u && dev_v(0, DEV_SRC) == p &&
           p[PL_REEL] == 1);
     {
         int32_t q = 0;
@@ -2757,7 +2771,7 @@ static void test_zoom(void)
     tp[0].pol[PL_ROOT] = 48;                               /* (white key 1: the sound's pitch) */
     focus_dev(DEV_SRC, 0);
     check("POLY's first page: REEL STRT END TUNE", !strcmp(POL_P[pdesc_at(POL_P, 2u)].label, "END") &&
-          !strcmp(POL_P[pdesc_at(POL_P, 3u)].label, "TUNE") && !strcmp(POL_P[pdesc_at(POL_P, 20u)].label, "VOIC") &&
+          !strcmp(POL_P[pdesc_at(POL_P, 3u)].label, "TUNE") && !strcmp(POL_P[pdesc_at(POL_P, 28u)].label, "VOIC") &&
           !strcmp(POL_P[pdesc_at(POL_P, 16u)].label, "TWIN") && !strcmp(POL_P[pdesc_at(POL_P, 4u)].label, "LOOP"));
     fm1_in.notes = note_bit_of_white(0);
     render(1, 0);
@@ -3677,7 +3691,7 @@ static void test_tran(void)
           !strcmp(SYN_WT_P[SY_TRAN].label, "TRAN") && !strcmp(POL_P[PL_TRAN].label, "TRAN") &&
           !strcmp(DRM_P[DM_TRAN].label, "TRAN") && !SYN_P[SY_TRAN].def && !POL_P[PL_TRAN].def && !DRM_P[DM_TRAN].def &&
           pdesc_at(DRM_P, 15u) == DM_LVL && pdesc_at(DRM_P, 16u) == DM_TRAN && pdesc_at(POL_P, 7u) == PL_TRAN &&
-          pdesc_at(SYN_CL_P, 21u) == SY_TRAN && pdesc_at(SYN_FM_P, 19u) == SY_TRAN);
+          pdesc_at(SYN_CL_P, 29u) == SY_TRAN && pdesc_at(SYN_FM_P, 18u) == SY_TRAN);
     power_on();
 }
 
@@ -3744,6 +3758,8 @@ static void test_fm(void)
     p[SY_IENV] = 100;
     p[SY_SUS] = 0;
     p[SY_DEC] = 70;
+    p[SY_SUS2] = 0;                                      /* (the wave's envelope depth rides ENV 2, 2026-10-15) */
+    p[SY_DEC2] = 70;
     fm1_in.notes = 0;
     render(NB, 0);
     fm1_in.notes = note_bit_of_white(9);
@@ -3832,6 +3848,8 @@ static void test_pd(void)
     p[SY_IENV] = 100;
     p[SY_SUS] = 0;
     p[SY_DEC] = 70;
+    p[SY_SUS2] = 0;                                      /* (the wave's envelope depth rides ENV 2, 2026-10-15) */
+    p[SY_DEC2] = 70;
     fm1_in.notes = 0;
     render(NB, 0);
     fm1_in.notes = note_bit_of_white(9);
@@ -4042,6 +4060,8 @@ static void test_wt(void)
     p[SY_IENV] = 100;
     p[SY_SUS] = 0;
     p[SY_DEC] = 70;
+    p[SY_SUS2] = 0;                                      /* (the wave's envelope depth rides ENV 2, 2026-10-15) */
+    p[SY_DEC2] = 70;
     fm1_in.notes = 0;
     render(NB, 0);
     fm1_in.notes = note_bit_of_white(9);
@@ -4120,7 +4140,7 @@ static void test_twin(void)
     p[PL_SUS] = 100;
     focus_dev(DEV_SRC, 4);
     check("POLY page 5 is TWIN RLB TUNB BLND (OFF to start; LVL still the last page's KNOB 4)",
-          pdesc_at(POL_P, 16) == PL_TWIN && pdesc_at(POL_P, 19) == PL_BLND && pdesc_at(POL_P, 23) == PL_LVL &&
+          pdesc_at(POL_P, 16) == PL_TWIN && pdesc_at(POL_P, 19) == PL_BLND && pdesc_at(POL_P, 31) == PL_LVL &&
           p[PL_TWIN] == TW_OFF);
     ea = tw_render(a, NB, note_bit_of_white(9));
     tw_render(m, 20, 0);
@@ -4405,7 +4425,7 @@ static void test_poly_loop(void)
         ui.msg_t = 0;
         shot("BRYO", "poly_loop");
         check("..POLY page 2 is LOOP LSTR LXF; ENV on POLY opens page 3", pdesc_at(POL_P, 4) == PL_LOOP &&
-              pdesc_at(POL_P, 6) == PL_LXF && pdesc_env(POL_P) == 0x0Cu);
+              pdesc_at(POL_P, 6) == PL_LXF && pdesc_env(POL_P) == 0x6Cu);
     }
     for (j = 1; j < NTRK; j++)
         track[j].mute = 0;
@@ -4436,6 +4456,110 @@ static void test_self_res(void)
              pk[0][0], pk[1][0], pk[2][0]);
     check(b, pk[0][1] > 9000 && pk[1][1] > 9000 && pk[2][1] > 6000 && pk[0][1] < 24000 && pk[1][1] < 24000 &&
              pk[2][1] < 24000 && pk[0][0] < 200 && pk[1][0] < 200 && pk[2][0] < 200 && k80 == 8192 - 101 * 7600 / 127);
+}
+
+/* the envelopes (2026-10-15): ETYP AD and LOOP, ENV 2 and DEST (CUT DRV PTCH), SUB; POLY's ENV 2 */
+static void test_envs(void)
+{
+    enum { NB = 400 };
+    static int32_t o[NB * CTL];
+    int16_t *p;
+    char b[220];
+    uint32_t j, loops = 0, st = 0;
+    double r0, r1, h1, h3, e1, e3, pa, pb, hs, hf;
+    power_on();
+    for (j = 1; j < NTRK; j++)
+        track[j].mute = 1;
+    tp[0].src = SRC_SYNTH;
+    p = tp[0].syn;
+    p[SY_WAVE] = 0;                                      /* SIN, the filter open, ENV 0 */
+    p[SY_MIX] = 0;
+    p[SY_CUT] = 127;
+    p[SY_ENV] = 0;
+    p[SY_SUS] = 80;
+    p[SY_DEC] = 60;
+    p[SY_ETYP] = ET_AD;                                  /* AD: held, it dies away all the same */
+    fm1_in.notes = note_bit_of_white(9);
+    render(NB, o);
+    r0 = buf_rms(o, 10 * CTL, 40 * CTL);
+    render(NB, o);
+    r1 = buf_rms(o, (NB - 40) * CTL, NB * CTL);
+    snprintf(b, sizeof b, "ETYP AD: a held key dies away (%.0f at the strike, %.0f after 0.6 s), the voice done", r0, r1);
+    check(b, r0 > 1000 && r1 < r0 / 100 && !syn[0].v[0].stage);
+    fm1_in.notes = 0;
+    render(40, 0);
+    p[SY_ETYP] = ET_LOOP;                                /* LOOP: attack and decay round again while held */
+    p[SY_ATK] = 30;
+    p[SY_DEC] = 40;
+    fm1_in.notes = note_bit_of_white(9);
+    for (j = 0; j < 2000u; j++) {
+        render(1, 0);
+        loops += st == 2u && syn[0].v[0].stage == 1u;
+        st = syn[0].v[0].stage;
+    }
+    snprintf(b, sizeof b, "ETYP LOOP: held 1.5 s, the envelope came round %u times", loops);
+    check(b, loops >= 2u);
+    fm1_in.notes = 0;
+    render(200, 0);
+    p[SY_ETYP] = ET_ADSR;
+    p[SY_ATK] = 0;
+    p[SY_SUS] = 100;
+    p[SY_ATK2] = 0;                                      /* ENV 2: a quick strike, SUS2 0; DEST DRV, ENV 100 */
+    p[SY_DEC2] = 50;
+    p[SY_SUS2] = 0;
+    p[SY_EDST] = 1;
+    p[SY_ENV] = 100;
+    fm1_in.notes = note_bit_of_white(9);
+    render(NB, o);
+    h1 = sqrt(goertzel(o, 2 * CTL, 30 * CTL, 220.0));
+    h3 = sqrt(goertzel(o, 2 * CTL, 30 * CTL, 660.0));
+    e1 = sqrt(goertzel(o, (NB - 60) * CTL, NB * CTL, 220.0));
+    e3 = sqrt(goertzel(o, (NB - 60) * CTL, NB * CTL, 660.0));
+    snprintf(b, sizeof b, "DEST DRV, ENV 100: the strike driven (3rd over 1st %.3f), clean as ENV 2 falls (%.4f)", h3 / h1,
+             e3 / (e1 + 1));
+    check(b, h3 / h1 > 0.05 && e3 / (e1 + 1) < h3 / h1 / 5);
+    fm1_in.notes = 0;
+    render(200, 0);
+    p[SY_EDST] = 2;                                      /* DEST PTCH, ENV +50: 12 semitones at the strike, down to A3 */
+    p[SY_ENV] = 50;
+    p[SY_DEC2] = 70;
+    fm1_in.notes = note_bit_of_white(9);
+    render(NB, o);
+    pa = buf_pitch(o, 2 * CTL, 14 * CTL, 100, 1000);
+    pb = buf_pitch(o, (NB - 100) * CTL, NB * CTL, 100, 1000);
+    snprintf(b, sizeof b, "DEST PTCH, ENV +50: the strike an octave up (%.0f Hz), then A3 (%.1f Hz)", pa, pb);
+    check(b, pa > 380 && fabs(pb - 220) < 3);
+    fm1_in.notes = 0;
+    render(200, 0);
+    p[SY_EDST] = 0;
+    p[SY_ENV] = 0;
+    p[SY_WAVE] = 3;                                      /* SAW, SUB 100: a square an octave under */
+    p[SY_SUB] = 100;
+    fm1_in.notes = note_bit_of_white(9);
+    render(NB, o);
+    hs = sqrt(goertzel(o, 100 * CTL, NB * CTL, 110.0));
+    hf = sqrt(goertzel(o, 100 * CTL, NB * CTL, 220.0));
+    snprintf(b, sizeof b, "SUB 100: A2 under the saw's A3 (%.0f against %.0f); the classic waves' only", hs, hf);
+    check(b, hs > hf / 3 && !strcmp(SYN_CL_P[SY_SUB].label, "SUB") && pdesc_empty(&SYN_FM_P[SY_SUB]));
+    fm1_in.notes = 0;
+    render(200, 0);
+    {   /* POLY: ENV 2 its own, the amp's untouched */
+        int16_t *q;
+        tp[0].src = SRC_POLY;
+        q = tp[0].pol;
+        q[PL_ATK2] = 100;
+        fm1_in.notes = note_bit_of_white(9);
+        render(40, 0);
+        snprintf(b, sizeof b, "POLY ENV 2: a slow ATK2 (%d of 2^24 after 30 ms) while the amp is up (%d)",
+                 (int)pol[0].v[0].e2, (int)pol[0].v[0].env);
+        check(b, pol[0].v[0].env > 1 << 23 && pol[0].v[0].e2 < 1 << 22 && pol[0].v[0].st2 == 1u);
+        fm1_in.notes = 0;
+        render(100, 0);
+    }
+    check("..the pages: SYNTH ENV's AMP FILTER ENV 2 and ETYP-DEST, HOME's OSC VOICE MORE LEVEL; POLY's ENV the same four",
+          pdesc_env(SYN_CL_P) == 0x66u && pdesc_at(SYN_CL_P, 20u) == SY_ATK2 && pdesc_at(SYN_CL_P, 24u) == SY_ETYP &&
+          pdesc_at(SYN_CL_P, 26u) == SY_EDST && pdesc_at(SYN_CL_P, 27u) == SY_ENV && pdesc_at(SYN_CL_P, 18u) == SY_SUB &&
+          pdesc_env(POL_P) == 0x6Cu && pdesc_at(POL_P, 20u) == PL_ATK2 && pdesc_at(POL_P, 27u) == PL_ENV);
 }
 
 /* SYNTH's INTV, PW and TYPE (2026-10-13) */
@@ -4481,9 +4605,9 @@ static void test_synth_more(void)
     p[SY_FTYP] = 2;
     render(NB, o);
     hp1 = sqrt(goertzel(o, 100 * CTL, NB * CTL, 220.0));
-    snprintf(b, sizeof b, "..TYPE HP: the fundamental under the cutoff falls away (%.0f, LP %.0f); the page CUT RES ENV TYPE",
+    snprintf(b, sizeof b, "..TYPE HP: the fundamental under the cutoff falls away (%.0f, LP %.0f); the page CUT RES TYPE KTRK",
              hp1, lp1);
-    check(b, hp1 < lp1 / 4 && pdesc_at(SYN_CL_P, 11) == SY_FTYP && pdesc_at(SYN_CL_P, 1) == SY_INTV &&
+    check(b, hp1 < lp1 / 4 && pdesc_at(SYN_CL_P, 10) == SY_FTYP && pdesc_at(SYN_CL_P, 1) == SY_INTV &&
           pdesc_at(SYN_CL_P, 16) == SY_PW);
     p[SY_FTYP] = 0;
     fm1_in.notes = 0;
@@ -8821,11 +8945,11 @@ static void test_key_tuning(void)
     tap(B_GLO);
     tp[0].src = SRC_POLY;
     tp[0].pol[PL_ROOT] = 48;
-    focus_dev(DEV_SRC, 5);                               /* POLY 6: VOIC ROOT FINE LVL */
+    focus_dev(DEV_SRC, 7);                               /* POLY 8: VOIC ROOT FINE LVL */
     turn(1, 9);
     turn(2, 12);
     ui.msg_t = 0;
-    snprintf(m, sizeof m, "POLY's page 6: KNOB 2 turns ROOT (C3 -> %d), KNOB 3 FINE (0 -> %d ct)", tp[0].pol[PL_ROOT],
+    snprintf(m, sizeof m, "POLY's page 8: KNOB 2 turns ROOT (C3 -> %d), KNOB 3 FINE (0 -> %d ct)", tp[0].pol[PL_ROOT],
              tp[0].pol[PL_FINE]);
     check(m, tp[0].pol[PL_ROOT] == 57 && tp[0].pol[PL_FINE] > 0);
     shot("BRYO", "poly_tuning");
@@ -11095,6 +11219,7 @@ int main(int argc, char **argv)
     test_synth_more();
     test_self_res();
     test_tape_frze();
+    test_envs();
     test_follow_live();
     test_drum_len1();
     test_follow_auto();

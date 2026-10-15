@@ -962,10 +962,33 @@ static void viz_adsr(const int16_t *v, uint32_t f)
             if (lx[k] > DX1 - 10 - (3 - k) * 22)
                 lx[k] = DX1 - 10 - (3 - k) * 22;
         for (k = 0; k < 4; k++)
-            vz_label(lx[k], L[k], f == (uint32_t)k || f == (uint32_t)CRV[k]);
+            vz_label(lx[k], L[k], f == (uint32_t)k || (CRV[k] != 0xFF && f == (uint32_t)CRV[k]));   /* (SUS has no
+                                                                       * curve: no knob turned isn't it) */
     }
     if (f >= 4u && f < NPK)
         vz_ktag(118, DY0 - 1, &ME_P[ME_ADSR][f], v[f]);
+}
+
+/* SYNTH's and POLY's envelopes (2026-10-15): an ADSR from its four knobs at e (ATK DEC SUS REL), drawn as the ADSR
+ * modulator's with ETYP's shape (LOOP: attack and decay coming round; AD: no sustain), scaled by dep (ENV's depth:
+ * below 0, hung from the top) and named by where it goes (dest, or 0); fi: the stage turned (0..3, else 0xFF) */
+static void vz_env(const int16_t *e, int32_t ety, int32_t dep, const char *dest, uint32_t fi)
+{
+    int16_t a[NPK] = {0};
+    a[0] = e[0];
+    a[1] = e[1];
+    a[2] = ety == ET_AD ? 0 : e[2];
+    a[3] = e[3];
+    a[9] = ety == ET_LOOP;
+    a[10] = (int16_t)dep;
+    a[11] = dep < 0 ? 100 : 0;
+    viz_adsr(a, fi);
+    if (dest) {
+        char b[12];
+        str_cpy(b, "ENV 2>", sizeof b);
+        str_cpy(b + 6, dest, 5);
+        px_text(DX0, DY0 - 1, PXF_3, b, px_ink);
+    }
 }
 
 /* ------------------------------------------------------------- SYNTH --- */
@@ -1069,7 +1092,8 @@ static void viz_synth(const int16_t *v, uint32_t f)
      * envelope, 3 the voices and tuning, 4 the drive's curve or the level. Page 5, the extras: the oscillator's
      * picture (PW, NOIS, FDBK, BRTH), the filter's (KTRK) or the drive's (DRV); page 6 the level */
     uint32_t bp = ui.page == 0u ? 0u : ui.page == 1u ? 2u : ui.page == 2u ? 1u : ui.page == 3u ? 3u
-                : ui.page == 4u ? (f == SY_DRV ? 4u : f == SY_KTRK ? 1u : 0u) : 4u;
+                : ui.page == 4u ? (f == SY_DRV ? 4u : 0u) : ui.page == 5u ? 5u : ui.page == 6u ? 6u : 4u;
+                                                    /* (2026-10-15: 5 ENV 2, 6 the envelopes' type and ENV 2's way) */
     int32_t x, k;
     if (v[SY_WAVE] == SY_WT && bp == 0u) {             /* WT: the table's eight frames stacked back to front (each a
                                                          * step up and right), the one POS is nearest in ink, the
@@ -1219,17 +1243,17 @@ static void viz_synth(const int16_t *v, uint32_t f)
             pv[1] = v[SY_RES];
             pv[2] = v[SY_ENV];
             pv[3] = v[SY_FTYP];
-            vz_filter(v[SY_CUT], v[SY_RES], clamp(v[SY_FTYP], 0, 2), v[SY_ENV], v[SY_KTRK],
+            vz_filter(v[SY_CUT], v[SY_RES], clamp(v[SY_FTYP], 0, 2), v[SY_EDST] ? 0 : v[SY_ENV], v[SY_KTRK],
                       f == SY_CUT ? 0u : f == SY_RES ? 1u : f == SY_ENV ? 2u : f == SY_FTYP ? 3u : 0xFFu, pg, pv, 2u);
         }
-    } else if (bp == 2u) {
-        int16_t a[NPK] = {0};
-        a[0] = v[SY_ATK];
-        a[1] = v[SY_DEC];
-        a[2] = v[SY_SUS];
-        a[3] = v[SY_REL];
-        a[10] = 100;                                  /* (AMT 100, OFS 0: the envelope as it is) */
-        viz_adsr(a, f >= SY_ATK && f <= SY_REL ? f - SY_ATK : 0xFFu);
+    } else if (bp == 2u) {                            /* AMP: as it is (AMT 100), ETYP's shape */
+        vz_env(v + SY_ATK, v[SY_ETYP], 100, 0, f >= SY_ATK && f <= SY_REL ? f - SY_ATK : 0xFFu);
+    } else if (bp == 5u) {                            /* ENV 2 */
+        vz_env(v + SY_ATK2, v[SY_ETYP], 100, 0, f >= SY_ATK2 && f <= SY_REL2 ? f - SY_ATK2 : 0xFFu);
+    } else if (bp == 6u) {                            /* ENV 2 by ENV's depth, where DEST takes it */
+        vz_env(v + SY_ATK2, v[SY_ETYP], v[SY_ENV], N_EDST[clamp(v[SY_EDST], 0, 2)], 0xFFu);
+        if (f < NPK && !pdesc_empty(&dev_p(sys.sel, DEV_SRC)[f]))
+            vz_ktag(118, DY0 - 1, &dev_p(sys.sel, DEV_SRC)[f], v[f]);
     } else if (bp >= 4u && f == SY_DRV) {             /* DRV: the transfer curve, the plot's height */
         int32_t g = 1000 + v[SY_DRV] * 20, py = 0, w = 40, x0 = 40;
         px_line(x0, DY0, x0 + w, DY1, px_dim, 2);       /* (straight through: no drive) */
@@ -1284,9 +1308,10 @@ static void viz_synth(const int16_t *v, uint32_t f)
  * FILTER: the response, its TYPE, dotted where ENV takes it */
 static void viz_poly(const int16_t *v, uint32_t f)
 {
-    uint32_t bp = ui.page == 5u ? 3u : ui.page == 4u ? 4u : ui.page == 1u ? 5u : pdesc_at(POL_P, 4u * ui.page) / 4u;
-                                                    /* the stored block the page shows (2, LOOP: 5; 5, TWIN: 4; 6, VOIC
-                                                     * ROOT FINE LVL: 3) */
+    uint32_t bp = ui.page == 7u ? 3u : ui.page == 4u ? 4u : ui.page == 1u ? 5u : ui.page == 5u ? 6u : ui.page == 6u ? 7u
+                : pdesc_at(POL_P, 4u * ui.page) / 4u;
+                                                    /* the stored block the page shows (2, LOOP: 5; 5, TWIN: 4; 6, ENV 2:
+                                                     * 6; 7, ETYP . . ENV: 7; 8, VOIC ROOT FINE LVL: 3) */
     static const char NOTE[12][3] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
     int32_t x, k;
     if (bp == 0u && ui.zoom && (f == PL_STRT || f == PL_END)) {   /* HOME held + STRT or END: the zoom on that edge */
@@ -1340,13 +1365,13 @@ static void viz_poly(const int16_t *v, uint32_t f)
         if (f == 2u)
             vz_ktag(78, DLBL - 1, &POL_P[PL_TUNE], v[PL_TUNE]);
     } else if (bp == 1u) {
-        int16_t a[NPK] = {0};
-        a[0] = v[PL_ATK];
-        a[1] = v[PL_DEC];
-        a[2] = v[PL_SUS];
-        a[3] = v[PL_REL];
-        a[10] = 100;
-        viz_adsr(a, f >= 4u && f < 8u ? f - 4u : 0xFFu);
+        vz_env(v + PL_ATK, v[PL_ETYP], 100, 0, f >= PL_ATK && f <= PL_REL ? f - PL_ATK : 0xFFu);
+    } else if (bp == 6u) {                            /* ENV 2, the filter's */
+        vz_env(v + PL_ATK2, v[PL_ETYP], 100, 0, f >= PL_ATK2 && f <= PL_REL2 ? f - PL_ATK2 : 0xFFu);
+    } else if (bp == 7u) {                            /* ENV 2 by ENV's depth, on the cutoff */
+        vz_env(v + PL_ATK2, v[PL_ETYP], v[PL_ENV], "CUT", 0xFFu);
+        if (f == PL_ENV || f == PL_ETYP)
+            vz_ktag(118, DY0 - 1, &POL_P[f], v[f]);
     } else if (bp == 5u) {                            /* LOOP: the sound, STRT and the loop LSTR..END marked, arrows
                                                          * at its ends the way it runs (FWD: back to LSTR; PING: both
                                                          * ways), the seam's fade as a slope */

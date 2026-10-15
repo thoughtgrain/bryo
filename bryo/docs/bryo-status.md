@@ -26,6 +26,8 @@ The rest of the hardware checkpoint (`docs/hardware-checkpoint.md`) is under way
 | Bounce (2026-10-15) | REC held + PLAY: the track's own sound, the set bars, to its tape, then the track on TAPE |
 | GRAIN's BODY (2026-10-14) | TRI and SIN are a partial a grain, under its window at its note, not one gliding wave |
 | TRAN (2026-10-14) | a 3 ms click at every note or hit on SYNTH, POLY and DRUM (NPK 28: SYNTH's storage was full) |
+| ENV pad (2026-10-15) | the envelopes, filters and kit shape only under ENV; ETYP (ADSR AD LOOP), ENV 2 with DEST (CUT DRV PTCH), SUB (NPK 32) |
+| TAPE tools (2026-10-15) | FRZE (FLEN ms of the loop held), WOW and FLUT; SYNTH and POLY filters self-resonate past RES 93 |
 | RIPPLE page 5 (2026-10-14) | PLVL (a pluck's level), SPRD (detune or spacing), EVEN (odd against even partials), MODE as a knob |
 | RIPPLE's RESO and 12-BAND (2026-10-14) | the bands' input scaled by their loss, every sample: no clamp, no block-rate buzz |
 | DRUM's BD (2026-10-14) | more body, a thump and a click; a restruck voice fades over a block instead of clicking |

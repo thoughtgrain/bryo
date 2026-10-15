@@ -501,21 +501,41 @@ you can switch back and forth.
 Up to three notes at once. **The white keys play notes**, a semitone apart, starting from C; **OCT− / OCT+** move
 them down or up an octave.
 
-Press **HOME** again to go through its four pages, and **ENV** for its two shaping pages:
+Press **HOME** again to go through its four pages, and **ENV** for its four shaping pages:
 
 | Pad, page | Knobs |
 | --- | --- |
 | HOME 1, the oscillators | **WAVE** (SIN TRI SQR SAW PLS, and FM, PD, VOX and WT: below), **INTV** (the second oscillator's interval in semitones: +7 a fifth, +12 an octave, −12 a sub), **DTUN** (its detune in cents, on top), **MIX** of the two |
 | HOME 2, VOICE | **VOIC** (1-3 notes), **GLID** (slides between notes), **TUNE** (semitones), **FINE** (cents) |
-| HOME 3, MORE | **PW** (the pulse's width on SQR and PLS: modulate it for PWM), **NOIS**, **KTRK** (the cutoff follows the note), **DRV** (drive) |
+| HOME 3, MORE | **PW** (the pulse's width on SQR and PLS: modulate it for PWM), **NOIS**, **SUB** (a square an octave under the first oscillator, on SIN TRI SQR SAW PLS), **DRV** (drive) |
 | HOME 4, LEVEL | **CHRD** (a key plays a chord: below), **TRAN** (a click at every note's start: below), **LVL** |
 | ENV 1, AMP | **ATK DEC SUS REL**: how a note starts, falls, holds and fades |
-| ENV 2, FILTER | **CUT** (cutoff), **RES** (resonance), **ENV** (how much the envelope opens it), **TYPE** (LP, BP, HP) |
+| ENV 2, FILTER | **CUT** (cutoff), **RES** (resonance), **TYPE** (LP, BP, HP), **KTRK** (the cutoff follows the note) |
+| ENV 3, ENV 2 | **ATK2 DEC2 SUS2 REL2**: a second envelope, for the filter (or the drive, or the pitch) |
+| ENV 4, SHAPE | **ETYP** (the envelopes' type: below), the wave's own envelope depth on FM, PD, VOX and WT, **DEST** (where ENV 2 goes), **ENV** (how far, either way) |
 
 <img src="img/synth.png" width="240" alt="SYNTH: WAVE DTUN MIX NOIS"> <img src="img/synth_filter.png" width="240" alt="SYNTH's FILTER">
+<img src="img/synth_env2.png" width="240" alt="SYNTH's ENV 2"> <img src="img/synth_shape.png" width="240" alt="SYNTH's SHAPE page: ETYP LOOP, ENV 2 to the drive">
 <img src="img/synth_tuning.png" width="240" alt="SYNTH's VOICE page: TUNE and FINE over a cents meter">
 
 **Try:** play a note, then press **ENV** twice and turn **CUT** on the FILTER page while it sounds.
+
+**The envelopes.** The AMP envelope sets the level; **ENV 2** is a second envelope that **ENV** sends to one place,
+chosen by **DEST**:
+
+- **CUT**: the filter opens (or, with ENV below 0, closes) as ENV 2 rises. Give it its own short decay for a pluck
+  over a sustained note.
+- **DRV**: a distortion envelope: the drive comes up with ENV 2, so a note can bite at the strike and turn clean as it
+  holds (or, with a slow ATK2, grow gritty).
+- **PTCH**: the pitch, up to two octaves either way at ENV ±100: a zap, a kick, a sweep into the note.
+
+The FM, PD, VOX and WT waves' own envelope depth (IENV, AENV, VENV, PENV) rides ENV 2 too. **ETYP** sets both
+envelopes' type:
+
+- **ADSR**: as always.
+- **AD**: a strike that dies away whatever the key does: pianos, plucks, percussion.
+- **LOOP**: while you hold the key, the envelope goes round, attack and decay again and again: a pulsing, a slow swell
+  and fall, or (short times) a buzzing tremolo. Let go and it releases.
 
 **RES** past about 93 makes the filter **self-resonate**: it rings on its own at the cutoff, a pure tone that sings
 over the note and follows CUT (and the envelope, and an LFO on CUT). Turn MIX and NOIS down and play it as a sine
@@ -608,8 +628,9 @@ POLY plays a reel (or the track's own tape) at the pitch of each key, up to four
 
 <img src="img/poly.png" width="240" alt="POLY: REEL STRT END TUNE"> <img src="img/poly_zoom.png" width="240" alt="HOME held + STRT: zoomed in on where notes start">
 
-Its other HOME pages: **LOOP** (below), **TWIN** (below), **LEVEL** (VOIC ROOT FINE LVL). Its envelope (ATK DEC SUS
-REL) and **FILTER** (CUT RES TYPE ENV) are under **ENV**.
+Its other HOME pages: **LOOP** (below), **TWIN** (below), **LEVEL** (VOIC ROOT FINE LVL). Under **ENV**: its envelope
+(ATK DEC SUS REL), **FILTER** (CUT RES TYPE), **ENV 2** (the filter's own envelope, ATK2 DEC2 SUS2 REL2) and
+**ETYP** and **ENV** (the envelopes' type, as SYNTH's, and how far ENV 2 moves the cutoff).
 
 **LOOP: hold a note as long as you like** (page 2). Without it, a note plays from STRT to END and stops. With
 **LOOP** on, a held note loops from **LSTR** (the loop's start) to **END**, and keeps looping through its release:

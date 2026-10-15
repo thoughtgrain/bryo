@@ -19,7 +19,7 @@ SHOTS = [
     "drum_vary", "grain", "grain2", "grain4", "grain_body", "grain6", "grain_busy", "space_live", "reso_live", "grain_frozen", "grain_playing", "mixer", "mixer_channel",
     "mixer_held", "mixer_master", "mixer_key", "poly_tuning", "synth_tuning", "reels", "rec_bars", "tape_zoom", "poly_zoom", "mixer_tracks3", "mod1", "mod1_p4", "mod2", "mod3_steps", "mod4_follow",
     "mod_depth", "mod_marks", "poly", "presets", "presets_factory", "projects", "resonator2", "resonator_wet", "ripple2", "ripple_comb", "ripple_bank", "mixer_scenes", "mixer_morph", "projects_scenes", "synth_fm", "synth_pd", "synth_vox", "synth_wt", "poly_twin", "poly_loop", "follow_live",
-    "project_new", "projects_factory", "route", "route_chain", "scl_held", "setup", "space", "space2", "space3", "space4", "space5", "space_long", "synth", "synth_filter", "tape", "tape2", "tape3", "tape_env", "tape_frze",
+    "project_new", "projects_factory", "route", "route_chain", "scl_held", "setup", "space", "space2", "space3", "space4", "space5", "space_long", "synth", "synth_filter", "synth_env2", "synth_shape", "tape", "tape2", "tape3", "tape_env", "tape_frze",
     "tape_loop", "tape_playing", "tape_rec", "tape_speed", "uboot", "usbrec", "usbrec_rec", "usbrec_trim",
 ]
 SCALE = 2

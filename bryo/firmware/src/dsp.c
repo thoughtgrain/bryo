@@ -151,6 +151,47 @@ static inline __attribute__((always_inline)) int32_t tsvf_sat(const tsvf_t *c, i
     return mode == 1u ? v1 : mode == 2u ? in - ((c->k * v1) >> 12) - v2 : v2;
 }
 
+/* SYNTH's and POLY's envelopes, a step a block (as Felucca's): e Q24, st 0 silent, 1 attack, 2 decay (and sustain),
+ * 3 release. ty, ETYP (2026-10-15): ET_ADSR, as it always was, bit for bit; ET_AD, the decay to silence whatever the
+ * key (a release decays at DEC too), then done; ET_LOOP, while held, decay to 1/64 and attack again */
+enum { ET_ADSR, ET_AD, ET_LOOP };
+static inline __attribute__((always_inline)) void env_step(int32_t *e, uint8_t *st, int32_t atk, int32_t dec, int32_t sus,
+                                                           int32_t rel, uint32_t ty)
+{
+    switch (*st) {
+    case 1:
+        *e += (int32_t)ENV_LIN[atk & 127];
+        if (*e >= 1 << 24) {
+            *e = 1 << 24;
+            *st = 2;
+        }
+        break;
+    case 2:
+        if (ty == ET_ADSR) {
+            *e += mulq16(sus * ((1 << 24) / 100) - *e, ENV_EXP[dec & 127]);
+            break;
+        }
+        *e -= mulq16(*e, ENV_EXP[dec & 127]);
+        if (ty == ET_LOOP && *e < 1 << 18) {
+            *st = 1;
+        } else if (*e < 1 << 12) {
+            *e = 0;
+            *st = 0;
+        }
+        break;
+    case 3:
+        *e -= mulq16(*e, ENV_EXP[(ty == ET_AD ? dec : rel) & 127]);
+        if (*e < 1 << 12) {
+            *e = 0;
+            *st = 0;
+        }
+        break;
+    default:
+        *e = 0;
+        break;
+    }
+}
+
 /* TRAN, a transient (SYNTH, POLY, DRUM, 2026-10-14): 3 ms of noise that falls as it goes, through a one-pole low-pass
  * at about 9 kHz (bright, not harsh), at level g (Q15: up to about -4 dBFS at the start, so it can stand out of a
  * sound at its own level). n counts the samples left (CLICK_N at a note's start), rng and lp are its noise and its

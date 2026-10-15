@@ -863,6 +863,29 @@ square LFO on it stutters. **WOW** and **FLUT** waver the head's step once a blo
 0.27 Hz drift to +-0.8 % under it (CHRONOS AGE's recipe), flutter 6.3 Hz to +-0.6 %; measured +-3 % at both 100.
 The picture frames the held window in orange (`tape_frozen`).
 
+### The envelopes: ETYP, ENV 2, DEST, SUB (2026-10-15)
+
+"More depth where we have different env types ... a distortion envelope type would be nice ... more synth parameters."
+NPK went 28 to 32 (eight pages; 32 is the most the pages' 32-bit masks allow): SYNTH's storage 25-31 ETYP, ATK2 DEC2
+SUS2 REL2, DEST, SUB; POLY's 24-28 ETYP and ENV 2. Projects and presets store each array with its count, so nothing
+else in the format moved; the build: RAM .data+.bss 61.3 of 96 KiB, the pool 270.7 of 280 KiB.
+
+`env_step` (dsp.c) is both engines' envelope, a step a block: ADSR bit for bit what it was (the audio fingerprints
+didn't move), AD (decays to nothing whatever the key; a release decays at DEC), LOOP (while held, down to 1/64 and
+attack again). ENV 2 runs beside the amp's in each voice: it starts when the voice's note does (the voice's age
+moved), releases with it, and dies with it. ENV (the depth) takes ENV 2 to DEST: CUT (as ENV took the amp's
+envelope), DRV (the drive a block: a distortion envelope) or PTCH (+-24 semitones at ENV 100); the waves' own depths
+(IENV AENV VENV PENV) ride ENV 2 too, so an FM pluck no longer has to share the amp's decay. ENV 2's defaults are
+AMP's, and the factory's sounds copy their AMP into ENV 2 (`tpf_env2`), so every factory sound plays as it did.
+SUB is a band-limited square (osc_pulse) at half oscillator 1's step, at up to 0.7 of the oscillators, the classic
+waves' only. Measured on the factory's three scenes: +0.5 % at most (2,501 to 2,514 instructions a sample on the
+host's build, AMBIENT).
+
+The pages: SYNTH HOME OSC, VOICE, MORE (PW NOIS SUB DRV), LEVEL; ENV AMP, FILTER (CUT RES TYPE KTRK), ENV 2, SHAPE
+(ETYP, the wave's depth, DEST, ENV). POLY HOME SAMPLE LOOP TWIN LEVEL; ENV AMP, FILTER, ENV 2, ETYP . . ENV. The SHAPE
+page draws ENV 2 scaled by ENV and named by DEST (`vz_env`). Also fixed: an envelope picture lit SUS when no knob was
+turned (its "no curve" index matched "none").
+
 ## POLY, as built (2026-10-07)
 
 POLY is the third source engine: a sound played across the keys, up to four notes at once.

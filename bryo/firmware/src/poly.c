@@ -31,6 +31,9 @@ typedef struct {
     int32_t amp;                 /* the last block's level, Q15 */
     uint32_t age;
     uint8_t key, stage;          /* 0 silent, 1 attack, 2 decay and sustain, 3 release */
+    uint8_t st2;                 /* ENV 2, the filter's (2026-10-15: dsp.c env_step): its stage, */
+    int32_t e2;                  /* .. its level, Q24 */
+    uint32_t age2;               /* .. the note it started on */
     uint8_t note;                /* the key's note at its octave when it went down (TUNE is added as it plays) */
     uint8_t endf;                /* END passed: blocks of its fade left (POL_ENDF..1; 0: not ending) */
     int32_t tn16, fcut;          /* what inc and flt were last worked out from (a divide each, a block, a voice:
@@ -179,31 +182,22 @@ static void HOT_CODE pol_voice(uint32_t t, pol_voice_t *v, tape_rd_t *rd, const 
     const int16_t *p = TPD(t, MA_POL);
     uint32_t i, mode = (uint32_t)clamp(p[PL_TYPE], 0, 2);
     int fs = p[PL_RES] > TSVF_SAT_RES;                  /* (RES high: the filter's soft limit, tsvf_sat) */
+    uint32_t ety = (uint32_t)clamp(p[PL_ETYP], 0, 2);   /* (ETYP: both envelopes') */
     int32_t a0 = v->amp, a1, e15, pos = v->pos, ic1 = v->ic1, ic2 = v->ic2, c8;
     uint32_t tr = v->tr;                                    /* (TRAN's click: into x before the filter) */
     int32_t trng = v->trng, tlp = v->tlp, tg = clamp(p[PL_TRAN], 0, 100) * 327;
-    switch (v->stage) {                                     /* the envelope, a step per block (as SYNTH's) */
-    case 1:
-        v->env += (int32_t)ENV_LIN[p[PL_ATK] & 127];
-        if (v->env >= 1 << 24) {
-            v->env = 1 << 24;
-            v->stage = 2;
-        }
-        break;
-    case 2:
-        v->env += mulq16(p[PL_SUS] * ((1 << 24) / 100) - v->env, ENV_EXP[p[PL_DEC] & 127]);
-        break;
-    case 3:
-        v->env -= mulq16(v->env, ENV_EXP[p[PL_REL] & 127]);
-        if (v->env < 1 << 12) {
-            v->env = 0;
-            v->stage = 0;
-        }
-        break;
-    default:
-        v->env = 0;
-        break;
+    env_step(&v->env, &v->stage, p[PL_ATK], p[PL_DEC], p[PL_SUS], p[PL_REL], ety);   /* the envelope, a step
+                                                                                        * a block (as SYNTH's) */
+    if (!v->stage) {                                        /* ENV 2: with the note; done with the voice */
+        v->st2 = 0;
+        v->e2 = 0;
+    } else if (v->age != v->age2) {
+        v->age2 = v->age;
+        v->st2 = 1;
+    } else if (v->stage == 3u && v->st2 && v->st2 != 3u) {
+        v->st2 = 3;
     }
+    env_step(&v->e2, &v->st2, p[PL_ATK2], p[PL_DEC2], p[PL_SUS2], p[PL_REL2], ety);
     e15 = v->env >> 9;
     a1 = e15;
     pol_tune(t, v);                                         /* (TUNE as it is now) */
@@ -230,7 +224,7 @@ static void HOT_CODE pol_voice(uint32_t t, pol_voice_t *v, tape_rd_t *rd, const 
                 }
             }
             c8 = mod_fine8(t, FN_PCUT, p[PL_CUT]);
-            pol_filter(t, v, c8 + (p[PL_ENV] ? p[PL_ENV] * 96 * (e15 >> 7) / 100 : 0));
+            pol_filter(t, v, c8 + (p[PL_ENV] ? p[PL_ENV] * 96 * (v->e2 >> 16) / 100 : 0));
             filt = mode || c8 < 127 << 8 || p[PL_RES] || p[PL_ENV];
             da = a1 - a0;
             v->endf = 0;
@@ -301,7 +295,7 @@ static void HOT_CODE pol_voice(uint32_t t, pol_voice_t *v, tape_rd_t *rd, const 
         }
     }
     c8 = mod_fine8(t, FN_PCUT, p[PL_CUT]);                  /* (CUT finer than its semitones when modulated: mod.c) */
-    pol_filter(t, v, c8 + (p[PL_ENV] ? p[PL_ENV] * 96 * (e15 >> 7) / 100 : 0));   /* (ENV 0: no divide) */
+    pol_filter(t, v, c8 + (p[PL_ENV] ? p[PL_ENV] * 96 * (v->e2 >> 16) / 100 : 0));   /* (ENV 0: no divide) */
     if (tw == TW_MIX || tw == TW_XFD) {                     /* TWIN, both reels: B at its own head, the balance */
         int32_t bl = tw == TW_MIX ? p[PL_BLND] : clamp(((int32_t)v->note - 60) * 4 + p[PL_BLND], 0, 100);
         int32_t gb = bl * 32767 / 100, ga = 32767 - gb, pos2 = v->pos2, y;

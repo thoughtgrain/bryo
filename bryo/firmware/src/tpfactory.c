@@ -116,6 +116,17 @@ static int16_t *tpf_arr(uint32_t t, uint32_t a, const pdesc_t **d)
     return mod_base(t, a);
 }
 
+/* ENV 2 as the amp's envelope (2026-10-15: the factory's sounds were made when ENV and IENV rode the amp's), on
+ * SYNTH's and POLY's knobs, whichever plays */
+static void tpf_env2(track_params_t *P)
+{
+    uint32_t k;
+    for (k = 0; k < 4u; k++) {
+        P->syn[SY_ATK2 + k] = P->syn[SY_ATK + k];
+        P->pol[PL_ATK2 + k] = P->pol[PL_ATK + k];
+    }
+}
+
 /* main loop: the sound of F into track t: its devices, channel strip, source knobs and slots from their defaults,
  * then F's knobs and depths (what the track keeps across a preset, the caller puts back) */
 static void tpf_apply(uint32_t t, const tpf_t *F)
@@ -160,6 +171,7 @@ static void tpf_apply(uint32_t t, const tpf_t *F)
         if (v && ds && kk < NPK && !pdesc_empty(&ds[kk]))
             v[kk] = (int16_t)clamp(F->set[i].v, ds[kk].min, ds[kk].max);
     }
+    tpf_env2(P);
     for (i = 0; i < F->ndep; i++) {                      /* its depths */
         uint32_t g = pj_target(F->dep[i].a, F->dep[i].k);
         if (F->dep[i].s < NSLOT && g < MOD_NTGT && mod_tdesc(g))
@@ -344,6 +356,8 @@ static void tps_sound(uint32_t n)
         if (v && ds && e->k < NPK && !pdesc_empty(&ds[e->k]))
             v[e->k] = (int16_t)clamp(e->v, ds[e->k].min, ds[e->k].max);
     }
+    for (t = 0; t < NTRK; t++)
+        tpf_env2(&tp[t]);
     for (i = 0; i < NROOM; i++) {
         rmp[i][RM_SIZE] = TPS_SC[n].room[i][0];
         rmp[i][RM_DEC] = TPS_SC[n].room[i][1];

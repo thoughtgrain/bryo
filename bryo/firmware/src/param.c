@@ -43,9 +43,10 @@ static char uslot_name[USLOT_N][6];  /* their names (reel.c uslot_names) */
 static const char *const N_REEL[1u + NREEL + USLOT_N] = {"TAPE", REEL_NAMES_INIT, uslot_name[0], uslot_name[1],
                                                          uslot_name[2], uslot_name[3], uslot_name[4], uslot_name[5]};
 
-#define NPK 28u                  /* knobs a device or engine can have: up to seven pages of four (20 until GRAIN's
-                                  * GRNS, 24 until SYNTH's TRAN, 2026-10-14: projects and presets store each array
-                                  * with its count, depths by array and knob, so older ones read as they are) */
+#define NPK 32u                  /* knobs a device or engine can have: up to eight pages of four (20 until GRAIN's
+                                  * GRNS, 24 until SYNTH's TRAN, 2026-10-14, 28 until the second envelope, 2026-10-15:
+                                  * projects and presets store each array with its count, depths by array and knob,
+                                  * so older ones read as they are). 32 at most: the pages' masks are 32 bits */
 
 static const char *const DEV_NAME[NDEV] = {"TAPE", "GRAIN", "RIPPLE", "COLOR", "CHRONOS"};   /* (SPACE until
                                                                                                   * 2026-10-13: space.c, DEV_SPACE) */
@@ -92,6 +93,19 @@ static const char *const N_ROUT[2] = {"INS", "SEND"};
 /* TRAN (SYNTH, POLY, DRUM; 2026-10-14): a transient at every note or hit, a 3 ms click of noise at this level
  * (dsp.c click_step), in front of the source's filter where it has one */
 #define P_TRAN {"TRAN", 0, 100, 0, F_PCT}
+/* the envelopes (SYNTH, POLY, 2026-10-15): ETYP, both envelopes' type (dsp.c env_step): ADSR; AD, a strike that dies
+ * away whatever the key; LOOP, attack and decay round again while the key is held. ENV 2, its own ADSR; DEST, where
+ * ENV (its depth) takes it: the cutoff, the drive (a distortion envelope) or the pitch (+-24 semitones) */
+static const char *const N_ETYP[3] = {"ADSR", "AD", "LOOP"};
+static const char *const N_EDST[3] = {"CUT", "DRV", "PTCH"};
+#define P_ETYP {"ETYP", 0, 2, 0, F_ENUM, N_ETYP}
+#define P_ENV2(a, d, s, r) {"ATK2", 0, 127, a, F_TIME}, {"DEC2", 0, 127, d, F_TIME}, {"SUS2", 0, 100, s, F_PCT}, \
+                           {"REL2", 0, 127, r, F_TIME}
+#define P_EDST {"DEST", 0, 2, 0, F_ENUM, N_EDST}
+/* SYNTH's from 25: ETYP, ENV 2 (as AMP's defaults, so ENV moves the cutoff as it did), DEST; SUB, a square an octave
+ * under oscillator 1 (the classic waves'), or none */
+#define SYN_TAIL(sub) P_ETYP, P_ENV2(0, 60, 60, 45), P_EDST, sub
+#define P_SUB {"SUB", 0, 100, 0, F_PCT}
 #define P_ROUT {"ROUT", 0, 1, 0, F_ENUM, N_ROUT, 1}
 /* the arpeggiator's knobs and names (ARP_P below; RIPPLE's own arpeggio uses them too) */
 enum { AR_MODE, AR_ORDR, AR_RNGE, AR_RATE, AR_GATE, AR_SWNG, AR_GRND, AR_FADE, NARP = 8 };   /* (GRND 2026-10-13: each
@@ -253,7 +267,8 @@ static const char *const SRC_NAME[NSRC] = {"TAPE", "SYNTH", "POLY", "DRUM"};
  * the oscillators, the filter, the envelope (one ADSR for the level and, by ENV, the cutoff), how the keys play it
  * and the level; the pages show them in POLY's order (OSC, AMP, FILTER, VOICE, LEVEL: PLAYOUT below). */
 enum { SY_WAVE, SY_DTUN, SY_MIX, SY_NOIS, SY_CUT, SY_RES, SY_ENV, SY_KTRK, SY_ATK, SY_DEC, SY_SUS, SY_REL, SY_VOIC,
-       SY_GLID, SY_DRV, SY_TUNE, SY_LVL, SY_FINE, SY_IENV, SY_CHRD, SY_TABL, SY_INTV, SY_PW, SY_FTYP, SY_TRAN };
+       SY_GLID, SY_DRV, SY_TUNE, SY_LVL, SY_FINE, SY_IENV, SY_CHRD, SY_TABL, SY_INTV, SY_PW, SY_FTYP, SY_TRAN,
+       SY_ETYP, SY_ATK2, SY_DEC2, SY_SUS2, SY_REL2, SY_EDST, SY_SUB };
 /* CHRD (2026-10-13): a key plays a chord, SYNTH's three voices on its tones (any wave): semitones over the key. The
  * sevenths leave out the fifth (root, third, seventh: three voices, the shell a pianist plays) */
 static const char *const N_CHRD[12] = {"OFF", "MAJ", "MIN", "SUS2", "SUS4", "DOM7", "MAJ7", "MIN7", "DIM", "AUG",
@@ -308,7 +323,7 @@ static const pdesc_t SYN_P[NPK] = {
      * the pulse's width (SQR at PW, PLS at half of it: 50 the square and the 25 % pulse as they were), TYPE, the
      * filter's (LP BP HP, every wave) (2026-10-13) */
     {"TABL", 0, WT_NBUILT + NREEL + USLOT_N, 0, F_ENUM, N_WTAB, 1}, {"INTV", -24, 24, 0, F_ST}, {"PW", 5, 95, 50, F_PCT},
-    {"TYPE", 0, 2, 0, F_ENUM, N_SLOP}, P_TRAN};
+    {"TYPE", 0, 2, 0, F_ENUM, N_SLOP}, P_TRAN, SYN_TAIL(P_SUB)};
 /* SYN_P is SYNTH's storage (every knob any wave has: the projects, the modulation and the scenes read it); what the
  * pages show is a wave's own table: the classic waves' (SIN TRI SQR SAW PLS) this one, FM's, PD's, VOX's, WT's */
 static const pdesc_t SYN_CL_P[NPK] = {
@@ -318,7 +333,7 @@ static const pdesc_t SYN_CL_P[NPK] = {
     {"VOIC", 1, SYN_NV, SYN_NV, F_NUM}, {"GLID", 0, 127, 0, F_TIME}, {"DRV", 0, 100, 0, F_PCT},
     {"TUNE", -24, 24, 0, F_ST},
     {"LVL", -24, 6, 0, F_DB}, {"FINE", -50, 50, 0, F_CT}, {""}, {"CHRD", 0, 11, 0, F_ENUM, N_CHRD, 1}, {""},
-    {"INTV", -24, 24, 0, F_ST}, {"PW", 5, 95, 50, F_PCT}, {"TYPE", 0, 2, 0, F_ENUM, N_SLOP}, P_TRAN};
+    {"INTV", -24, 24, 0, F_ST}, {"PW", 5, 95, 50, F_PCT}, {"TYPE", 0, 2, 0, F_ENUM, N_SLOP}, P_TRAN, SYN_TAIL(P_SUB)};
 /* SYNTH with WAVE FM: the same knobs, FM's labels (a modulator sine bending a carrier's phase): RATI, the modulator's
  * pitch over the carrier's (DTUN's place); INDX, how hard it bends it (MIX's); FDBK, the modulator into itself (NOIS's,
  * sine to saw-ish to noise); IENV. Its own pages (PLAYOUT): WAVE RATI INDX IENV first, FDBK beside DRV */
@@ -331,7 +346,7 @@ static const pdesc_t SYN_FM_P[NPK] = {
     {"TUNE", -24, 24, 0, F_ST},
     {"LVL", -24, 6, 0, F_DB}, {"FINE", -50, 50, 0, F_CT}, {"IENV", -100, 100, 40, F_BIPCT},
     {"CHRD", 0, 11, 0, F_ENUM, N_CHRD, 1}, {""}, {""}, {""},
-    {"TYPE", 0, 2, 0, F_ENUM, N_SLOP}, P_TRAN};
+    {"TYPE", 0, 2, 0, F_ENUM, N_SLOP}, P_TRAN, SYN_TAIL({""})};
 /* SYNTH with WAVE PD (2026-10-13): the CZ's phase distortion. SHAP (DTUN's place) the shape; AMT (MIX's) how far the
  * phase bends, a sine at 0 to the whole shape (the CZ's DCW; on the resonant shapes the resonance's sweep); AENV
  * (IENV's) the envelope's push on AMT, the CZ's sweep; NOIS as it is. Its own pages: WAVE SHAP AMT AENV first */
@@ -344,7 +359,7 @@ static const pdesc_t SYN_PD_P[NPK] = {
     {"TUNE", -24, 24, 0, F_ST},
     {"LVL", -24, 6, 0, F_DB}, {"FINE", -50, 50, 0, F_CT}, {"AENV", -100, 100, 40, F_BIPCT},
     {"CHRD", 0, 11, 0, F_ENUM, N_CHRD, 1}, {""}, {""}, {""},
-    {"TYPE", 0, 2, 0, F_ENUM, N_SLOP}, P_TRAN};
+    {"TYPE", 0, 2, 0, F_ENUM, N_SLOP}, P_TRAN, SYN_TAIL({""})};
 /* SYNTH with WAVE WT (2026-10-13): a wavetable, eight single cycles in a row. TABL the table (BASC sine to pulse,
  * HARM a harmonic swept up, FORM a resonance swept up, or a reel cut into eight frames); POS (DTUN's place) where in
  * it, a morph between frames; PENV (IENV's) the envelope's push on POS; NOIS as it is */
@@ -356,7 +371,7 @@ static const pdesc_t SYN_WT_P[NPK] = {
     {"TUNE", -24, 24, 0, F_ST},
     {"LVL", -24, 6, 0, F_DB}, {"FINE", -50, 50, 0, F_CT}, {"PENV", -100, 100, 40, F_BIPCT},
     {"CHRD", 0, 11, 0, F_ENUM, N_CHRD, 1}, {"TABL", 0, WT_NBUILT + NREEL + USLOT_N, 0, F_ENUM, N_WTAB, 1}, {""}, {""},
-    {"TYPE", 0, 2, 0, F_ENUM, N_SLOP}, P_TRAN};
+    {"TYPE", 0, 2, 0, F_ENUM, N_SLOP}, P_TRAN, SYN_TAIL({""})};
 /* SYNTH with WAVE VOX (2026-10-13): a saw through three formant bands, a vowel. VOWL (DTUN's place) A E I O U, a
  * morph between; SHFT (MIX's) the formants down or up, a big voice to a small one (0 at 50: a man's); VENV (IENV's)
  * the envelope's push on VOWL ("wah", "ow"); BRTH (NOIS's) breath into the formants. Its own pages, as FM's */
@@ -369,14 +384,15 @@ static const pdesc_t SYN_VX_P[NPK] = {
     {"TUNE", -24, 24, 0, F_ST},
     {"LVL", -24, 6, 0, F_DB}, {"FINE", -50, 50, 0, F_CT}, {"VENV", -100, 100, 40, F_BIPCT},
     {"CHRD", 0, 11, 0, F_ENUM, N_CHRD, 1}, {""}, {""}, {""},
-    {"TYPE", 0, 2, 0, F_ENUM, N_SLOP}, P_TRAN};
+    {"TYPE", 0, 2, 0, F_ENUM, N_SLOP}, P_TRAN, SYN_TAIL({""})};
 
 /* POLY (poly.c): a sound played at the keys' pitches, up to four at once, each through its own envelope and filter.
  * The sound is any reel choice: a factory reel, one of yours, or this track's own tape (record into it, then play it
  * across the keys). The key ROOT names (A3 at first: BELL's note, the first reel POLY plays) plays it as it was
  * recorded, FINE cents off. */
 enum { PL_REEL, PL_STRT, PL_TUNE, PL_VOIC, PL_ATK, PL_DEC, PL_SUS, PL_REL, PL_CUT, PL_RES, PL_TYPE, PL_ENV, PL_LVL,
-       PL_END, PL_ROOT, PL_FINE, PL_TWIN, PL_RLB, PL_TUNB, PL_BLND, PL_LOOP, PL_LSTR, PL_LXF, PL_TRAN };
+       PL_END, PL_ROOT, PL_FINE, PL_TWIN, PL_RLB, PL_TUNB, PL_BLND, PL_LOOP, PL_LSTR, PL_LXF, PL_TRAN,
+       PL_ETYP, PL_ATK2, PL_DEC2, PL_SUS2, PL_REL2 };
 /* LOOP (2026-10-13): a note holds by looping LSTR..END (on through its release). FWD jumps back, LXF ms of fade each
  * side of the seam; PING turns round at each end (seamless, nothing to fade) */
 enum { LP_OFF, LP_FWD, LP_PING };
@@ -407,7 +423,9 @@ static const pdesc_t POL_P[NPK] = {
     {"BLND", 0, 100, 50, F_PCT},
     /* LOOP (page 2, 2026-10-13): how a held note loops, where the loop starts (to END), the seam's fade */
     {"LOOP", 0, 2, 0, F_ENUM, N_LOOP, 1}, {"LSTR", 0, 9900, 0, F_PCT100}, {"LXF", 0, 100, 10, F_MS},
-    P_TRAN};
+    P_TRAN,
+    /* ETYP and ENV 2, the filter's own envelope (as AMP's defaults, so ENV moves the cutoff as it did), 2026-10-15 */
+    P_ETYP, P_ENV2(0, 60, 100, 40)};
 
 /* DRUM (drum.c): a drum machine. Sixteen synthesized instruments on the white keys, played from a pattern of 2..4
  * bars of sixteenths. Four pages: the PATTERN (a written rhythm to start from, its length, swing, how hard an
@@ -658,25 +676,28 @@ static const playout_t PLAYOUT[] = {
                                                                                  * ROOM TYPE SIZE DEC, PRE RTON MOD
                                                                                  * QUAL (2-3, 8-11 and 16-17: the
                                                                                  * room's, SP_RMK) */
-    /* SYNTH, every wave (2026-10-13): its oscillator page, AMP, FILTER (CUT RES ENV TYPE), VOICE (VOIC GLID TUNE
-     * FINE), the wave's extras with KTRK and DRV, then CHRD . . LVL */
-    {SYN_CL_P, 6, {0, 21, 1, 2, 8, 9, 10, 11, 4, 5, 6, 23, 12, 13, 15, 17, 22, 3, 7, 14, 19, 24, 20, 16}, 0x06},
-                                                    /* SYNTH: WAVE INTV DTUN MIX, .., PW NOIS KTRK DRV */
-    {SYN_FM_P, 6, {0, 1, 2, 18, 8, 9, 10, 11, 4, 5, 6, 23, 12, 13, 15, 17, 3, 7, 14, 24, 19, 20, 22, 16}, 0x06},
-                                                    /* FM: WAVE RATI INDX IENV, .., FDBK KTRK DRV . */
-    {SYN_PD_P, 6, {0, 1, 2, 18, 8, 9, 10, 11, 4, 5, 6, 23, 12, 13, 15, 17, 3, 7, 14, 24, 19, 20, 22, 16}, 0x06},
-                                                    /* PD: WAVE SHAP AMT AENV, .., NOIS KTRK DRV . */
-    {SYN_VX_P, 6, {0, 1, 2, 18, 8, 9, 10, 11, 4, 5, 6, 23, 12, 13, 15, 17, 3, 7, 14, 24, 19, 20, 22, 16}, 0x06},
-                                                    /* VOX: WAVE VOWL SHFT VENV, .., BRTH KTRK DRV . */
-    {SYN_WT_P, 6, {0, 20, 1, 18, 8, 9, 10, 11, 4, 5, 6, 23, 12, 13, 15, 17, 3, 7, 14, 24, 19, 2, 22, 16}, 0x06},
-                                                    /* WT: WAVE TABL POS PENV, .., NOIS KTRK DRV . */
-    {POL_P, 6, {0, 1, 13, 2, 20, 21, 22, 23, 4, 5, 6, 7, 8, 9, 10, 11, 16, 17, 18, 19, 3, 14, 15, 12}, 0x0C},
+    /* SYNTH, every wave (2026-10-15): HOME its oscillator page, VOICE (VOIC GLID TUNE FINE), the wave's extras with
+     * DRV, then CHRD (TRAN) . LVL; ENV (pages 2 3 6 7) AMP, FILTER (CUT RES TYPE KTRK), ENV 2, and ETYP (IENV) DEST
+     * ENV: the envelopes' type, the wave's own envelope depth, where ENV 2 goes and how far */
+    {SYN_CL_P, 8, {0, 21, 1, 2, 8, 9, 10, 11, 4, 5, 23, 7, 12, 13, 15, 17, 22, 3, 31, 14, 26, 27, 28, 29, 25, 18, 30, 6, 19, 24, 20, 16}, 0x66},
+                                                    /* SYNTH: WAVE INTV DTUN MIX, .., PW NOIS SUB DRV, .., CHRD TRAN .
+                                                     * LVL */
+    {SYN_FM_P, 8, {0, 1, 2, 18, 8, 9, 10, 11, 4, 5, 23, 7, 12, 13, 15, 17, 3, 14, 24, 21, 26, 27, 28, 29, 25, 22, 30, 6, 19, 31, 20, 16}, 0x66},
+                                                    /* FM: WAVE RATI INDX IENV, .., FDBK DRV TRAN ., .., CHRD . . LVL */
+    {SYN_PD_P, 8, {0, 1, 2, 18, 8, 9, 10, 11, 4, 5, 23, 7, 12, 13, 15, 17, 3, 14, 24, 21, 26, 27, 28, 29, 25, 22, 30, 6, 19, 31, 20, 16}, 0x66},
+                                                    /* PD: WAVE SHAP AMT AENV, .., NOIS DRV TRAN . */
+    {SYN_VX_P, 8, {0, 1, 2, 18, 8, 9, 10, 11, 4, 5, 23, 7, 12, 13, 15, 17, 3, 14, 24, 21, 26, 27, 28, 29, 25, 22, 30, 6, 19, 31, 20, 16}, 0x66},
+                                                    /* VOX: WAVE VOWL SHFT VENV, .., BRTH DRV TRAN . */
+    {SYN_WT_P, 8, {0, 20, 1, 18, 8, 9, 10, 11, 4, 5, 23, 7, 12, 13, 15, 17, 3, 14, 24, 21, 26, 27, 28, 29, 25, 22, 30, 6, 19, 31, 2, 16}, 0x66},
+                                                    /* WT: WAVE TABL POS PENV, .., NOIS DRV TRAN . */
+    {POL_P, 8, {0, 1, 13, 2, 20, 21, 22, 23, 4, 5, 6, 7, 8, 9, 10, 30, 16, 17, 18, 19, 25, 26, 27, 28, 24, 29, 31, 11, 3, 14, 15, 12}, 0x6C},
     {DRM_P, 5, {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19}, 0x14},   /* DRUM: HOME
                                                                                  * PATTERN, VARY, STEP (INST BAR MODE
                                                                                  * LVL); ENV KIT (TUNE DEC TONE DRV),
                                                                                  * KIT 2 (TRAN: the kit's attack) */
-                                                    /* POLY: REEL STRT END TUNE, LOOP LSTR LXF ., ENV, FILTER, TWIN RLB
-                                                     * TUNB BLND, VOIC ROOT FINE LVL */
+                                                    /* POLY: HOME REEL STRT END TUNE, LOOP LSTR LXF TRAN, TWIN RLB TUNB
+                                                     * BLND, VOIC ROOT FINE LVL; ENV (pages 3 4 6 7) AMP, FILTER (CUT
+                                                     * RES TYPE), ENV 2, ETYP . . ENV */
     {ME_P[ME_WAVE], 4, {0, 1, 2, 3, 4, 5, 6, 7, 12, 13, 14, 15, 10, 11, 8, 9}},  /* LFO: timing, then PHAS SPRD AMT OFS */
     {ME_P[ME_SEQ], 3, {0, 1, 2, 3, 4, 5, 6, 7, 11, 8, 9, 10}},                  /* SEQ: . SPRD AMT OFS */
     {ME_P[ME_FOLLOW], 2, {0, 1, 2, 3, 4, 7, 5, 6}},                             /* FOLLOW: HOLD SPRD AMT OFS */

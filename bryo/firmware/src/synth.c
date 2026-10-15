@@ -53,6 +53,10 @@ typedef struct {
     uint32_t tr;                 /* TRAN: the click's samples left (dsp.c click_step) */
     int32_t trng, tlp;           /* .. its noise and its low-pass */
     uint8_t key, stage;          /* the white key; 0 silent, 1 attack, 2 decay and sustain, 3 release */
+    uint8_t st2;                 /* ENV 2's stage (2026-10-15: dsp.c env_step), */
+    int32_t e2;                  /* .. its level, Q24 */
+    uint32_t age2;               /* .. the note it started on (a new age: a new note, it starts again) */
+    uint32_t phs;                /* SUB's phase */
 } syn_voice_t;
 
 typedef struct {
@@ -331,33 +335,25 @@ static void syn_voice(uint32_t t, syn_voice_t *v, int32_t *out, uint32_t n)
     tsvf_t flt;
     uint32_t wave = (uint32_t)p[SY_WAVE], i, inc1, inc2, ph0 = v->ph[0], ph1 = v->ph[1];
     int32_t e15, a0 = v->amp, a1, cut, m2 = p[SY_MIX] * 327, m1 = 32767 - m2, nz = p[SY_NOIS] * 254;
-    int32_t drv = p[SY_DRV], dg = (100 + 2 * drv) * 4096 / 100, ic1 = v->ic1, ic2 = v->ic2, nst = v->nst, pp;
+    int32_t drv = p[SY_DRV], dg, ic1 = v->ic1, ic2 = v->ic2, nst = v->nst, pp, e2, ed = p[SY_ENV];
+    uint32_t ety = (uint32_t)clamp(p[SY_ETYP], 0, 2), dst = (uint32_t)clamp(p[SY_EDST], 0, 2), phs = v->phs;
+    int32_t sg = clamp(p[SY_SUB], 0, 100) * 229;            /* (SUB: the square at up to 0.7 of the oscillators') */
     uint32_t tr = v->tr;                                    /* (TRAN's click: into s before the filter) */
     int32_t trng = v->trng, tlp = v->tlp, tg = clamp(p[SY_TRAN], 0, 100) * 327;
     uint32_t ft, pw;
     int fs;                                             /* (RES high: the filter's soft limit, tsvf_sat) */
-    switch (v->stage) {                                     /* the envelope: one step per block (as Felucca's) */
-    case 1:
-        v->env += (int32_t)ENV_LIN[p[SY_ATK] & 127];
-        if (v->env >= 1 << 24) {
-            v->env = 1 << 24;
-            v->stage = 2;
-        }
-        break;
-    case 2:
-        v->env += mulq16(p[SY_SUS] * ((1 << 24) / 100) - v->env, ENV_EXP[p[SY_DEC] & 127]);
-        break;
-    case 3:
-        v->env -= mulq16(v->env, ENV_EXP[p[SY_REL] & 127]);
-        if (v->env < 1 << 12) {
-            v->env = 0;
-            v->stage = 0;
-        }
-        break;
-    default:
-        v->env = 0;
-        break;
+    env_step(&v->env, &v->stage, p[SY_ATK], p[SY_DEC], p[SY_SUS], p[SY_REL], ety);   /* the envelope: a step a
+                                                                                        * block (as Felucca's) */
+    if (!v->stage) {                                        /* ENV 2: with the note; done with the voice */
+        v->st2 = 0;
+        v->e2 = 0;
+    } else if (v->age != v->age2) {
+        v->age2 = v->age;
+        v->st2 = 1;
+    } else if (v->stage == 3u && v->st2 && v->st2 != 3u) {
+        v->st2 = 3;
     }
+    env_step(&v->e2, &v->st2, p[SY_ATK2], p[SY_DEC2], p[SY_SUS2], p[SY_REL2], ety);
     if (v->p16 != v->to16) {                                /* the glide: GLID's time for an octave and a half */
         int32_t st = p[SY_GLID] ? (int32_t)(ENV_LIN[p[SY_GLID] & 127] >> 14) : 1 << 16, d = v->to16 - v->p16;
         if (st < 1)
@@ -365,22 +361,27 @@ static void syn_voice(uint32_t t, syn_voice_t *v, int32_t *out, uint32_t n)
         v->p16 += d > st ? st : d < -st ? -st : d;
     }
     e15 = v->env >> 9;
+    e2 = v->e2 >> 9;                                        /* (ENV 2, Q15: IENV's, and ENV's at DEST) */
     a1 = e15;
-    pp = clamp(v->p16 + mod_pitch16(t, FN_SYN, p[SY_TUNE]), 0, 2047);   /* (TUNE as it is now, to 1/16 semitone
+    if (dst == 1u)                                          /* DEST DRV: the drive's envelope */
+        drv = clamp(drv + ed * (e2 >> 7) / 256, 0, 100);
+    dg = (100 + 2 * drv) * 4096 / 100;
+    pp = clamp(v->p16 + mod_pitch16(t, FN_SYN, p[SY_TUNE]) + (dst == 2u ? ed * 384 * (e2 >> 7) / 25600 : 0), 0, 2047);
+                                                            /* (DEST PTCH: ENV 100 at its top, +24 semitones) */   /* (TUNE as it is now, to 1/16 semitone
                                                                            * when it's modulated: mod.c) */
     inc1 = p[SY_FINE] ? cents_inc(pp, p[SY_FINE], 0) : pitch_inc((uint32_t)pp);   /* (FINE: cents, exactly) */
     if (p[SY_INTV] && wave < SY_FM)                     /* INTV: the second oscillator semitones off, DTUN on that */
         inc2 = cents_inc(clamp(pp + p[SY_INTV] * 16, 0, 2047), p[SY_DTUN] + p[SY_FINE], 0);
     else
         inc2 = p[SY_DTUN] ? cents_inc(pp, p[SY_DTUN] + p[SY_FINE], 0) : inc1;
-    cut = mod_fine8(t, FN_SCUT, p[SY_CUT]) + p[SY_ENV] * 96 * (e15 >> 7) / 100 + p[SY_KTRK] * (pp - 60 * 16) * 16 / 100;
+    cut = mod_fine8(t, FN_SCUT, p[SY_CUT]) + (dst ? 0 : ed * 96 * (e2 >> 7) / 100) + p[SY_KTRK] * (pp - 60 * 16) * 16 / 100;
                                                             /* (CUT finer than its semitones when modulated: mod.c) */
     tsvf_coef_k(&flt, cut, tsvf_kres(p[SY_RES]));       /* (RES past 92: it sings on its own, dsp.c) */
     fs = p[SY_RES] > TSVF_SAT_RES;
     ft = (uint32_t)clamp(p[SY_FTYP], 0, 2);             /* (TYPE: the filter's output; LP the loop as it was) */
     pw = p[SY_PW] == 50 ? 0x80000000u : (uint32_t)clamp(p[SY_PW], 5, 95) * 42949673u;   /* (PW: SQR's width) */
     if (wave == SY_WT) {                                /* WT: the two frames POS falls between, this block */
-        int32_t fp = clamp(p[SY_DTUN] + p[SY_IENV] * (e15 >> 7) / 255, 0, 100) * (int32_t)((WT_NF - 1u) * 256u) / 100;
+        int32_t fp = clamp(p[SY_DTUN] + p[SY_IENV] * (e2 >> 7) / 255, 0, 100) * (int32_t)((WT_NF - 1u) * 256u) / 100;
         uint32_t fi = (uint32_t)fp >> 8, ff = (uint32_t)fp & 255u;
         const int16_t *fa, *fb;
         if (!wt[t].ready || wt[t].nch < 2u) {           /* (no table: silence, the envelope still runs) */
@@ -414,7 +415,7 @@ static void syn_voice(uint32_t t, syn_voice_t *v, int32_t *out, uint32_t n)
         tsvf_t fb[3];
         static const int16_t QK[3] = {820, 512, 410};   /* (damping Q12: Q 5, 8, 10) */
         static const int16_t GW[3] = {32767, 22938, 13107};   /* (1, 0.7, 0.4) */
-        int32_t vw = clamp(p[SY_DTUN] + p[SY_IENV] * (e15 >> 7) / 255, 0, 100) * 1024 / 100, vi = vw >> 8, vf = vw & 255;
+        int32_t vw = clamp(p[SY_DTUN] + p[SY_IENV] * (e2 >> 7) / 255, 0, 100) * 1024 / 100, vi = vw >> 8, vf = vw & 255;
         int32_t sh = (p[SY_MIX] - 50) * 40, f, s1[3], s2[3];   /* (SHFT: +-2,000 of the scale, a ratio 0.7..1.5) */
         for (f = 0; f < 3; f++) {
             int32_t c = VOX_F8[vi > 4 ? 4 : vi][f];
@@ -451,7 +452,7 @@ static void syn_voice(uint32_t t, syn_voice_t *v, int32_t *out, uint32_t n)
         n = 0;
     }
     if (wave == SY_PD) {                                /* PD: the bend ramped from last block's, the shape */
-        int32_t d1 = clamp(p[SY_MIX] + p[SY_IENV] * (e15 >> 7) / 255, 0, 100) * 16384 / 100, d0 = v->gi;
+        int32_t d1 = clamp(p[SY_MIX] + p[SY_IENV] * (e2 >> 7) / 255, 0, 100) * 16384 / 100, d0 = v->gi;
         int32_t dd = (d1 - d0) >> CTL_LOG2;
         uint32_t sh = syn_pdsh(p[SY_DTUN]);
         v->gi = d1;
@@ -478,7 +479,7 @@ static void syn_voice(uint32_t t, syn_voice_t *v, int32_t *out, uint32_t n)
     if (wave == SY_FM) {                                /* FM: the modulator's increment, the index ramped from last
                                                          * block's, the feedback's gain */
         uint32_t r8 = SYN_RATIO8[syn_ratio(p[SY_DTUN])], ib = inc1 >> 8;
-        int32_t g1 = clamp(p[SY_MIX] + p[SY_IENV] * (e15 >> 7) / 255, 0, 100) * 1024 / 100, g0 = v->gi;
+        int32_t g1 = clamp(p[SY_MIX] + p[SY_IENV] * (e2 >> 7) / 255, 0, 100) * 1024 / 100, g0 = v->gi;
         int32_t fb8 = p[SY_NOIS] * 256 / 100, m1 = v->fm1, mm2 = v->fm2, dgi = ((g1 - g0) * 2) >> CTL_LOG2;
         uint32_t incm = ib > 0x7FFFFFFFu / r8 ? 0x7FFFFFFFu : ib * r8;   /* (past half the rate: held there) */
         g0 <<= 1;                                       /* (Q1: the ramp's step keeps its half) */
@@ -536,6 +537,10 @@ static void syn_voice(uint32_t t, syn_voice_t *v, int32_t *out, uint32_t n)
         ph0 += inc1;
         ph1 += inc2;
         s = mulq15(a, m1) + mulq15(b, m2);
+        if (sg) {                                           /* SUB: a square an octave under oscillator 1 */
+            s += mulq15(osc_pulse(phs, inc1 >> 1, 0x80000000u), sg);
+            phs += inc1 >> 1;
+        }
         if (nz)
             s += mulq15((int32_t)(noise32(&nst) >> 17) - 16384, nz);
         if (drv)                                            /* drive: up to 3x into the soft clip */
@@ -552,6 +557,7 @@ static void syn_voice(uint32_t t, syn_voice_t *v, int32_t *out, uint32_t n)
     }
     v->ph[0] = ph0;
     v->ph[1] = ph1;
+    v->phs = phs;
     v->ic1 = ic1;
     v->tr = tr;
     v->trng = trng;
