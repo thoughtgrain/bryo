@@ -42,7 +42,8 @@ should hear. Do them in order the first time; after that, jump to what you need.
 - **The pads**, two rows:
   - **Blue: the pages.** HOME (the track's source), EDIT (GRAIN, RIPPLE), FX (COLOR, CHRONOS), GLO (the mixer).
   - **Purple: the modulators and the envelope.** LFO holds three you can swap around (M1, M2, M3), SEQ is M4, the
-    step sequencer. **ENV** is the track's own envelope: SYNTH's and POLY's, TAPE's slices', DRUM's KIT.
+    step sequencer. **ENV** shapes the track's sound: SYNTH's and POLY's envelope and filter, TAPE's slices',
+    DRUM's KIT. Those pages live only there; HOME has the rest of the source.
   - **ARP** is the arpeggiator.
   - **Green: the transport.** PLAY and REC.
   - **SAVE** saves (held: undo). **SCL** held resets things.
@@ -82,10 +83,10 @@ Every pad opens a page, and **pressing the same pad again goes to its next page*
 
 | Pad | Pages, in order |
 | --- | --- |
-| HOME | the source's pages (TAPE has 4; SYNTH 5; POLY 4; DRUM 4) |
+| HOME | the source's pages (TAPE has 3; SYNTH 4; POLY 4; DRUM 3) |
 | EDIT | GRAIN 1-6, then RIPPLE 1-5 (RESO and 12-BAND: 1-6) |
 | FX | COLOR 1-3, then CHRONOS 1-4 |
-| ENV | the source's envelope: SYNTH's AMP, POLY's ENV, TAPE's slice envelope (each the second page), DRUM's KIT |
+| ENV | the source's shaping pages: SYNTH's and POLY's AMP and FILTER, TAPE's slice envelope, DRUM's KIT and KIT 2 |
 | LFO, SEQ | a modulator's pages (LFO: M1, M2 or M3; SEQ: M4) |
 | ARP | the arpeggiator: 2 pages, then RIPL ARP (RIPPLE's own arpeggio) |
 | GLO | the mixer (EDIT then steps CHANNEL, MASTER, KEY, SETUP) |
@@ -244,17 +245,17 @@ REV is also on TAPE's page 3. Half speed is the same as PTCH −12, so it lives 
 
 ### 2.4b Shape the slices: TAPE's envelope
 
-Press **ENV** (or HOME to the second page): **ATK DEC SUS REL**, an envelope for the slices you play from the keys.
+Press **ENV**: **ATK DEC SUS REL**, an envelope for the slices you play from the keys.
 
 - **Stopped**, a key's slice rises over ATK, falls over DEC to SUS while you hold the key, and fades over REL when you
   let go. Out of the box it changes nothing: a tapped slice plays to its end, as before.
 - **Playing**, the loop keeps going as it is; a key's jump fades in over ATK (a long ATK makes the jumps swell in).
 
-<img src="img/tape_env.png" width="240" alt="TAPE 2: the slice envelope">
+<img src="img/tape_env.png" width="240" alt="ENV on TAPE: the slice envelope">
 
 ### 2.5 Play a different reel
 
-1. Press **HOME** until the dots show the last page, **TAPE 4**.
+1. Press **HOME** until the dots show the last page (the third).
 2. Turn **KNOB 1 (REEL)**: BEAT, BELL, DRON, FOLD, then any reels you've added. **TAPE** means the track's own tape
    (what you record onto it).
 3. **KNOB 2 (ROTA)** rotates the loop against the beat: turn it while it plays and the loop shifts round by that
@@ -487,24 +488,24 @@ you can switch back and forth.
 Up to three notes at once. **The white keys play notes**, a semitone apart, starting from C; **OCT− / OCT+** move
 them down or up an octave.
 
-Press **HOME** again to go through its six pages:
+Press **HOME** again to go through its four pages, and **ENV** for its two shaping pages:
 
-| Page | Knobs |
+| Pad, page | Knobs |
 | --- | --- |
-| 1, the oscillators | **WAVE** (SIN TRI SQR SAW PLS, and FM, PD, VOX and WT: below), **INTV** (the second oscillator's interval in semitones: +7 a fifth, +12 an octave, −12 a sub), **DTUN** (its detune in cents, on top), **MIX** of the two |
-| 2, AMP | **ATK DEC SUS REL**: how a note starts, falls, holds and fades |
-| 3, FILTER | **CUT** (cutoff), **RES** (resonance), **ENV** (how much the envelope opens it), **TYPE** (LP, BP, HP) |
-| 4, VOICE | **VOIC** (1-3 notes), **GLID** (slides between notes), **TUNE** (semitones), **FINE** (cents) |
-| 5, MORE | **PW** (the pulse's width on SQR and PLS: modulate it for PWM), **NOIS**, **KTRK** (the cutoff follows the note), **DRV** (drive) |
-| 6, LEVEL | **CHRD** (a key plays a chord: below), **TRAN** (a click at every note's start: below), **LVL** |
+| HOME 1, the oscillators | **WAVE** (SIN TRI SQR SAW PLS, and FM, PD, VOX and WT: below), **INTV** (the second oscillator's interval in semitones: +7 a fifth, +12 an octave, −12 a sub), **DTUN** (its detune in cents, on top), **MIX** of the two |
+| HOME 2, VOICE | **VOIC** (1-3 notes), **GLID** (slides between notes), **TUNE** (semitones), **FINE** (cents) |
+| HOME 3, MORE | **PW** (the pulse's width on SQR and PLS: modulate it for PWM), **NOIS**, **KTRK** (the cutoff follows the note), **DRV** (drive) |
+| HOME 4, LEVEL | **CHRD** (a key plays a chord: below), **TRAN** (a click at every note's start: below), **LVL** |
+| ENV 1, AMP | **ATK DEC SUS REL**: how a note starts, falls, holds and fades |
+| ENV 2, FILTER | **CUT** (cutoff), **RES** (resonance), **ENV** (how much the envelope opens it), **TYPE** (LP, BP, HP) |
 
 <img src="img/synth.png" width="240" alt="SYNTH: WAVE DTUN MIX NOIS"> <img src="img/synth_filter.png" width="240" alt="SYNTH's FILTER">
 <img src="img/synth_tuning.png" width="240" alt="SYNTH's VOICE page: TUNE and FINE over a cents meter">
 
-**Try:** play a note, then turn **CUT** on the FILTER page while it sounds.
+**Try:** play a note, then press **ENV** twice and turn **CUT** on the FILTER page while it sounds.
 
-**TRAN** (page 6 on the classic waves, page 5 on FM, PD, VOX and WT; POLY's LOOP page and DRUM's fifth page have it
-too): a transient, 3 ms of bright noise at the start of every note or hit, as loud as the knob says. It goes in
+**TRAN** (HOME's last page on the classic waves, its third on FM, PD, VOX and WT; POLY's LOOP page and DRUM's KIT 2,
+under ENV, have it too): a transient, 3 ms of bright noise at the start of every note or hit, as loud as the knob says. It goes in
 front of the source's filter, so CUT shapes it: open, a click; low, a thump. It gives a soft sound an edge, a pad a
 pick, a kit more attack through the small speaker. 0 is the sound as it was.
 
@@ -589,8 +590,8 @@ POLY plays a reel (or the track's own tape) at the pitch of each key, up to four
 
 <img src="img/poly.png" width="240" alt="POLY: REEL STRT END TUNE"> <img src="img/poly_zoom.png" width="240" alt="HOME held + STRT: zoomed in on where notes start">
 
-Its other pages: **LOOP** (below), **ENV** (ATK DEC SUS REL), **FILTER** (CUT RES TYPE ENV), **TWIN** (below),
-**LEVEL** (VOIC ROOT FINE LVL).
+Its other HOME pages: **LOOP** (below), **TWIN** (below), **LEVEL** (VOIC ROOT FINE LVL). Its envelope (ATK DEC SUS
+REL) and **FILTER** (CUT RES TYPE ENV) are under **ENV**.
 
 **LOOP: hold a note as long as you like** (page 2). Without it, a note plays from STRT to END and stops. With
 **LOOP** on, a held note loops from **LSTR** (the loop's start) to **END**, and keeps looping through its release:
@@ -627,8 +628,9 @@ play together:
 **The white keys play the kit**, left to right: bass drum, snare, clap, rim shot, low conga, low bongo, high bongo,
 claves, cowbell, maracas, tambourine, guiro, hi-hat, open hat, metal beat, cymbal.
 
-DRUM's fifth page (HOME again past STEP) holds **TRAN**, a click on top of every hit
-([5.2](#52-synth-a-small-synth)), and **LVL**, the track's level of the kit.
+**HOME** has three pages: PATTERN, VARY and STEP (with **LVL**, the track's level of the kit, on KNOB 4). The kit's
+sound is under **ENV**: **KIT** ([5.7](#57-drum-shape-one-instrument)) and **KIT 2**, which holds **TRAN**, a click on
+top of every hit ([5.2](#52-synth-a-small-synth)).
 
 ### 5.5 DRUM: let it play like a drummer
 
@@ -641,7 +643,7 @@ DRUM's fifth page (HOME again past STEP) holds **TRAN**, a click on top of every
 
 ### 5.6 DRUM: write your own steps
 
-1. Press **HOME** until the **STEP** page (the fourth).
+1. Press **HOME** until the **STEP** page (the third).
 2. Turn **KNOB 1 (INST)** to choose the instrument.
 3. Make sure **MODE** (KNOB 3) says **HITS**.
 4. Now **white key n switches step n** of the bar on or off. **OCT− / OCT+** pick the bar, and the page stays on
@@ -669,7 +671,7 @@ To clear the whole pattern: **hold black key POLY** half a second. **Hold SAVE**
 
 <img src="img/drum_inst.png" width="240" alt="One instrument's own knobs">
 
-The **KIT** page (the third) does the same for the whole kit at once: TUNE, DEC, TONE, DRV.
+The **KIT** page (press **ENV**) does the same for the whole kit at once: TUNE, DEC, TONE, DRV.
 
 <img src="img/drum_kit.png" width="240" alt="DRUM: KIT">
 
@@ -997,7 +999,7 @@ Each track has **four modulators**. A modulator makes knobs move by themselves.
 - **M1, M2, M3** live on the **LFO** pad (hold LFO and tap OP1, OP2 or OP3 to choose). Each can be an **LFO** (a
   wave), an **ADSR** (an envelope), a **SEQ** (steps) or a **FOLLOW** (follows how loud a track is). Out of the box:
   M1 is a slow LFO, M2 an envelope, M3 a random LFO.
-- (**ENV** isn't a modulator: it opens the track's own envelope page.)
+- (**ENV** isn't a modulator: it opens the track's own envelope and filter pages.)
 - **M4** is the step sequencer, on the **SEQ** pad.
 
 ### 7.1 Make a knob move
@@ -1271,7 +1273,7 @@ M-VAVE's updater puts the stock firmware back. Bryo's projects and tapes can't b
 | **EDIT** held + SELECT | RIPPLE's form (RIPPLE, COMB, RESO, 12-BAND) |
 | **EDIT** | GRAIN, then RIPPLE |
 | **FX** | COLOR, then CHRONOS |
-| **ENV** | the source's envelope page |
+| **ENV** | the source's shaping pages (envelope, filter, kit) |
 | **LFO SEQ** tapped | that modulator's pages (LFO: M1-M3, SEQ: M4) |
 | **LFO SEQ** held + a knob | how much that modulator moves the knob |
 | **LFO** held + OP1 / OP2 / OP3 | which modulator LFO is: M1, M2, M3 |

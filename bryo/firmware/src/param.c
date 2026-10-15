@@ -612,9 +612,10 @@ typedef struct {
     const pdesc_t *p;
     uint8_t pages;
     uint8_t at[NPK];
+    uint8_t env;                 /* a source's pages the ENV pad shows (bit n: page n; 2026-10-15), HOME the rest */
 } playout_t;
 static const playout_t PLAYOUT[] = {
-    {DEV_P[DEV_SRC], 4, {0, 1, 2, 16, 12, 13, 14, 15, 3, 7, 4, 5, 8, 9, 11, 10, 6, 17, 18, 19, 20, 21, 22, 23}},
+    {DEV_P[DEV_SRC], 4, {0, 1, 2, 16, 12, 13, 14, 15, 3, 7, 4, 5, 8, 9, 11, 10, 6, 17, 18, 19, 20, 21, 22, 23}, 0x02},
                                                     /* TAPE: STRT LEN SPD PTCH, the envelope, DUB GAIN XFAD REV, REEL
                                                      * ROTA SYNC LVL (HALF, past the pages: OP6 flips it, and PTCH -12
                                                      * is the same) */
@@ -655,21 +656,21 @@ static const playout_t PLAYOUT[] = {
                                                                                  * room's, SP_RMK) */
     /* SYNTH, every wave (2026-10-13): its oscillator page, AMP, FILTER (CUT RES ENV TYPE), VOICE (VOIC GLID TUNE
      * FINE), the wave's extras with KTRK and DRV, then CHRD . . LVL */
-    {SYN_CL_P, 6, {0, 21, 1, 2, 8, 9, 10, 11, 4, 5, 6, 23, 12, 13, 15, 17, 22, 3, 7, 14, 19, 24, 20, 16}},
+    {SYN_CL_P, 6, {0, 21, 1, 2, 8, 9, 10, 11, 4, 5, 6, 23, 12, 13, 15, 17, 22, 3, 7, 14, 19, 24, 20, 16}, 0x06},
                                                     /* SYNTH: WAVE INTV DTUN MIX, .., PW NOIS KTRK DRV */
-    {SYN_FM_P, 6, {0, 1, 2, 18, 8, 9, 10, 11, 4, 5, 6, 23, 12, 13, 15, 17, 3, 7, 14, 24, 19, 20, 22, 16}},
+    {SYN_FM_P, 6, {0, 1, 2, 18, 8, 9, 10, 11, 4, 5, 6, 23, 12, 13, 15, 17, 3, 7, 14, 24, 19, 20, 22, 16}, 0x06},
                                                     /* FM: WAVE RATI INDX IENV, .., FDBK KTRK DRV . */
-    {SYN_PD_P, 6, {0, 1, 2, 18, 8, 9, 10, 11, 4, 5, 6, 23, 12, 13, 15, 17, 3, 7, 14, 24, 19, 20, 22, 16}},
+    {SYN_PD_P, 6, {0, 1, 2, 18, 8, 9, 10, 11, 4, 5, 6, 23, 12, 13, 15, 17, 3, 7, 14, 24, 19, 20, 22, 16}, 0x06},
                                                     /* PD: WAVE SHAP AMT AENV, .., NOIS KTRK DRV . */
-    {SYN_VX_P, 6, {0, 1, 2, 18, 8, 9, 10, 11, 4, 5, 6, 23, 12, 13, 15, 17, 3, 7, 14, 24, 19, 20, 22, 16}},
+    {SYN_VX_P, 6, {0, 1, 2, 18, 8, 9, 10, 11, 4, 5, 6, 23, 12, 13, 15, 17, 3, 7, 14, 24, 19, 20, 22, 16}, 0x06},
                                                     /* VOX: WAVE VOWL SHFT VENV, .., BRTH KTRK DRV . */
-    {SYN_WT_P, 6, {0, 20, 1, 18, 8, 9, 10, 11, 4, 5, 6, 23, 12, 13, 15, 17, 3, 7, 14, 24, 19, 2, 22, 16}},
+    {SYN_WT_P, 6, {0, 20, 1, 18, 8, 9, 10, 11, 4, 5, 6, 23, 12, 13, 15, 17, 3, 7, 14, 24, 19, 2, 22, 16}, 0x06},
                                                     /* WT: WAVE TABL POS PENV, .., NOIS KTRK DRV . */
-    {POL_P, 6, {0, 1, 13, 2, 20, 21, 22, 23, 4, 5, 6, 7, 8, 9, 10, 11, 16, 17, 18, 19, 3, 14, 15, 12}},
-    {DRM_P, 5, {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 17, 16, 18, 19, 15}},   /* DRUM: PATTERN, VARY, KIT,
-                                                                                         * STEP (INST BAR MODE .),
-                                                                                         * then TRAN . . LVL (LVL
-                                                                                         * last; STEP stays key 4) */
+    {POL_P, 6, {0, 1, 13, 2, 20, 21, 22, 23, 4, 5, 6, 7, 8, 9, 10, 11, 16, 17, 18, 19, 3, 14, 15, 12}, 0x0C},
+    {DRM_P, 5, {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19}, 0x14},   /* DRUM: HOME
+                                                                                 * PATTERN, VARY, STEP (INST BAR MODE
+                                                                                 * LVL); ENV KIT (TUNE DEC TONE DRV),
+                                                                                 * KIT 2 (TRAN: the kit's attack) */
                                                     /* POLY: REEL STRT END TUNE, LOOP LSTR LXF ., ENV, FILTER, TWIN RLB
                                                      * TUNB BLND, VOIC ROOT FINE LVL */
     {ME_P[ME_WAVE], 4, {0, 1, 2, 3, 4, 5, 6, 7, 12, 13, 14, 15, 10, 11, 8, 9}},  /* LFO: timing, then PHAS SPRD AMT OFS */
@@ -705,6 +706,34 @@ static uint32_t pdesc_len(const pdesc_t *p)
 }
 
 /* a device's or an engine's pages: its layout's, else up to the first page whose first knob has no label */
+static uint32_t pdesc_pages(const pdesc_t *p);
+/* a source table's pages the ENV pad shows (bit n: page n); HOME shows the others */
+static uint32_t pdesc_env(const pdesc_t *p)
+{
+    const playout_t *l = pdesc_layout(p);
+    return l ? l->env : 0u;
+}
+
+/* the pages of table p in pad order: ENV's (env 1) or the others (0); their count, and where page pg sits among
+ * them (*at: its index, or the count when it isn't one of them) */
+static uint32_t pdesc_set(const pdesc_t *p, uint32_t env, uint32_t pg, uint32_t *at, uint8_t *list)
+{
+    uint32_t m = pdesc_env(p), n = 0, k, np = pdesc_pages(p);
+    if (at)
+        *at = np;
+    for (k = 0; k < np; k++)
+        if (((m >> k) & 1u) == env) {
+            if (at && k == pg)
+                *at = n;
+            if (list)
+                list[n] = (uint8_t)k;
+            n++;
+        }
+    if (at && *at == np)
+        *at = n;
+    return n;
+}
+
 static uint32_t pdesc_pages(const pdesc_t *p)
 {
     const playout_t *l = pdesc_layout(p);

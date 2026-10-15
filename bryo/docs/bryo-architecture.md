@@ -830,6 +830,17 @@ PLAYOUT moved; the stored order, projects and modulation numbering are as they w
 SPRD DUCK (how the echoes sit); AGE DIFF . . (what the repeats become: room for more there); ROOM TYPE SIZE DEC; PRE
 RTON MOD QUAL.
 
+### ENV's pages only ENV's (2026-10-15)
+
+"The env page also seems an outlier: it's the engine's envelope, but you get to it from HOME as well ... fewer
+pages under that view, and the env and filter for POLY and SYNTH live under ENV." A source's PLAYOUT row now has
+`env`, a mask of its pages that are ENV's: TAPE its slice envelope (page 2), SYNTH AMP and FILTER (2-3), POLY ENV and
+FILTER (3-4), DRUM KIT and a new KIT 2 (3 and 5, TRAN moved there: the kit's attack belongs with the kit; STEP takes
+LVL on its empty KNOB 4). HOME steps through the rest, ENV through its own, each round (`src_next`), and held + a
+white key picks by the pad's own order (`pdesc_set`). The page numbers themselves didn't change, so the pictures,
+the DRUM keys' page logic and the projects are as they were; the header's dots count the pad's set. The rule that a
+source's LVL is KNOB 4 of its last page is now "of its last HOME page". DRUM's layout is now its stored order.
+
 ## POLY, as built (2026-10-07)
 
 POLY is the third source engine: a sound played across the keys, up to four notes at once.

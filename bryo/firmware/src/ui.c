@@ -236,6 +236,10 @@ static void draw_head(void)
     uint32_t pages = ui.view == VIEW_PROJECT ? 3u : ui.view != VIEW_PAGE ? 1u
                    : pdesc_pages(slot ? ME_P[tp[sys.sel].engine[ui.slot]] : arp ? ARP_P : dev_p(sys.sel, ui.dev));
     uint32_t page = ui.view == VIEW_PROJECT ? ui.pj_page : ui.page;
+    if (ui.view == VIEW_PAGE && ui.kind == FOCUS_DEV && ui.dev == DEV_SRC) {   /* (a source: HOME's pages or ENV's) */
+        const pdesc_t *sp = dev_p(sys.sel, DEV_SRC);
+        pages = pdesc_set(sp, (pdesc_env(sp) >> ui.page) & 1u, ui.page, &page, 0);
+    }
     if (ui.view == VIEW_USBREC) {
         str_cpy(ti, "USB RECORD", sizeof ti);
         str_cpy(box, "IN", sizeof box);

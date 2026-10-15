@@ -79,7 +79,17 @@ static void led_clear(uint8_t *nl, uint32_t id)
 
 /* the page of the focused track's source that ENV opens: SYNTH's AMP, POLY's ENV, TAPE's envelope (each the second
  * page), DRUM's KIT (every instrument's decay, with TUNE TONE DRV) */
-static uint32_t env_page(void) { return tp[sys.sel].src == SRC_DRUM || tp[sys.sel].src == SRC_POLY ? 2u : 1u; }   /* (POLY: after LOOP) */
+/* the source's pages, HOME's (env 0) or ENV's (1, 2026-10-15: the envelopes, filters, a kit's shape: only there),
+ * each in its own order: the next one from what's up (the first when it's not one of them) */
+static uint32_t src_next(uint32_t env)
+{
+    uint8_t list[NPK / 4u];
+    uint32_t at, n = pdesc_set(dev_p(sys.sel, DEV_SRC), env, ui.page, &at, list);
+    int on = ui.view == VIEW_PAGE && ui.kind == FOCUS_DEV && ui.dev == DEV_SRC && at < n;
+    return n ? list[on ? (at + 1u) % n : 0u] : 0u;
+}
+/* the page up is one of ENV's */
+static int env_shown(void) { return (pdesc_env(dev_p(sys.sel, DEV_SRC)) >> ui.page) & 1u; }
 
 /* the pad that focuses what the screen shows */
 static uint32_t focus_btn(void)
@@ -94,7 +104,7 @@ static uint32_t focus_btn(void)
     if (ui.kind == FOCUS_SLOT)
         return SLOT_BTN[ui.slot % NSLOT];
     if (ui.dev == DEV_SRC)
-        return ui.page == env_page() ? B_ENV : B_HOME;   /* (the envelope's page: ENV is its pad) */
+        return env_shown() ? B_ENV : B_HOME;      /* (an envelope's page: ENV is its pad) */
     return ui.dev <= DEV_RESO ? B_EDIT : B_FX;
 }
 
@@ -319,8 +329,8 @@ static int pad_down(void) { return ui.pg_pad < NB && ((fm1_in.buttons >> panel.b
 static uint32_t pad_pages(uint32_t b)
 {
     switch (b) {
-    case B_HOME: return pdesc_pages(dev_p(sys.sel, DEV_SRC));
-    case B_ENV: return 1u;
+    case B_HOME: return pdesc_set(dev_p(sys.sel, DEV_SRC), 0u, 0u, 0, 0);
+    case B_ENV: return pdesc_set(dev_p(sys.sel, DEV_SRC), 1u, 0u, 0, 0);
     case B_EDIT: return pdesc_pages(DEV_P[DEV_GRAIN]) + pdesc_pages(dev_p(sys.sel, DEV_RESO));
     case B_FX: return pdesc_pages(DEV_P[DEV_COLOR]) + pdesc_pages(DEV_P[DEV_SPACE]);
     case B_LFO: return pdesc_pages(ME_P[tp[sys.sel].engine[ui.lfo_slot % NSLOT] % NME]);
@@ -337,7 +347,13 @@ static void pad_where(uint32_t b, uint32_t i, uint32_t *kind, uint32_t *what, ui
     *what = DEV_SRC;
     *page = i;
     switch (b) {
-    case B_ENV: *page = env_page(); break;
+    case B_HOME:
+    case B_ENV: {
+        uint8_t list[NPK / 4u];
+        uint32_t n = pdesc_set(dev_p(sys.sel, DEV_SRC), b == B_ENV, 0u, 0, list);
+        *page = i < n ? list[i] : 0u;
+        break;
+    }
     case B_EDIT:
         g = pdesc_pages(DEV_P[DEV_GRAIN]);
         *what = i < g ? DEV_GRAIN : DEV_RESO;
@@ -834,7 +850,7 @@ static void on_button(uint32_t b)
     case B_LFO: slot_down(ui.lfo_slot, B_LFO); ui.pg_pad = B_LFO; ui.pg_used = 0; break;   /* (M1 M2 M3: the one
                                                                                           * it shows) */
     case B_ENV:                                         /* the source's envelope (M2 is on the LFO pad: OP2) */
-        focus_dev(DEV_SRC, env_page());
+        focus_dev(DEV_SRC, src_next(1u));
         ui.pg_pad = B_ENV;
         ui.pg_used = 0;
         break;
@@ -1430,7 +1446,7 @@ static void ui_input(void)
         ui.home_held = 0;
         ui.zoom = 0;
         if (!ui.home_used)
-            pad_devices(DEV_SRC, DEV_SRC);
+            focus_dev(DEV_SRC, src_next(0u));
     }
     ui.steps_held = (uint16_t)(seq_page() ? white_keys(fm1_in.notes) : 0u);
     {                                                   /* DRUM: STEP's mode; an instrument held on the other pages */

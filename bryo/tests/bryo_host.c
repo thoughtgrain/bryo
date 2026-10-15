@@ -470,7 +470,8 @@ static void test_input(void)
     check("..and a new page starts without one", ui.last == 0xFFu);
     press(B_HOME);
     press(B_HOME);
-    check("HOME again: TAPE's page 2", ui.kind == FOCUS_DEV && ui.dev == DEV_SRC && ui.page == 1u);
+    check("HOME again: TAPE's page 3 (HOME's second: its page 2 is ENV's)", ui.kind == FOCUS_DEV && ui.dev == DEV_SRC &&
+          ui.page == 2u);
     press(B_EDIT);
     check("EDIT from elsewhere: GRAIN, page 1", ui.dev == DEV_GRAIN && ui.page == 0u);
     press(B_EDIT);
@@ -778,9 +779,9 @@ static void screens_in(const char *pal)
     turn(1, -40);
     turn(3, 30);
     shot(pal, "tape_loop");
-    press(B_HOME);                                       /* TAPE 2: the slice envelope (as it is) */
+    press(B_ENV);                                        /* TAPE 2, ENV's: the slice envelope (as it is) */
     shot(pal, "tape_env");
-    press(B_HOME);                                       /* TAPE 3: FADE 60 ms, REV on, GAIN +6 dB */
+    focus_dev(DEV_SRC, 2);                               /* TAPE 3: FADE 60 ms, REV on, GAIN +6 dB */
     turn(0, 50);
     turn(1, 1);
     turn(3, 6);
@@ -810,14 +811,14 @@ static void screens_in(const char *pal)
     turn(2, 20);
     turn(3, 20);
     shot(pal, "synth_osc");
-    press(B_HOME);                                       /* AMP (POLY's order: the envelope, then the filter) */
+    press(B_ENV);                                        /* AMP, ENV's (POLY's order: the envelope, then the filter) */
     turn(0, 30);
     shot(pal, "synth_amp");
-    press(B_HOME);                                       /* FILTER: CUT down, RES up */
+    press(B_ENV);                                        /* FILTER: CUT down, RES up */
     turn(0, -20);
     turn(1, 50);
     shot(pal, "synth_filter");
-    press(B_HOME);                                       /* VOICE: GLID, DRV, TUNE */
+    focus_dev(DEV_SRC, 3);                               /* VOICE: GLID, DRV, TUNE */
     turn(1, 70);
     turn(2, 60);
     turn(3, -5);
@@ -834,17 +835,17 @@ static void screens_in(const char *pal)
     turn(2, -5);
     turn(3, -1);
     shot(pal, "poly_start");
-    press(B_HOME);                                       /* ENV: a slower attack, SUS 70 */
+    press(B_ENV);                                        /* ENV: a slower attack, SUS 70 */
     turn(0, 40);
     turn(2, -30);
     shot(pal, "poly_env");
-    press(B_HOME);                                       /* FILTER: HP, CUT 60, RES 50, ENV +40 */
+    press(B_ENV);                                        /* FILTER: HP, CUT 60, RES 50, ENV +40 */
     turn(0, -67);
     turn(1, 50);
     turn(2, 2);
     turn(3, 40);
     shot(pal, "poly_filter");
-    press(B_HOME);                                       /* LEVEL: +4 dB */
+    focus_dev(DEV_SRC, 4);                               /* LEVEL: +4 dB */
     turn(3, 4);
     shot(pal, "poly_level");
     hold(B_HOME);                                        /* DRUM: its four pages */
@@ -861,7 +862,7 @@ static void screens_in(const char *pal)
     turn(0, 7);
     turn(1, 40);
     shot(pal, "drum_vary");
-    press(B_HOME);                                       /* KIT: the instrument STEP picks (BD), DEC +30 */
+    press(B_ENV);                                        /* KIT, ENV's: the instrument STEP picks (BD), DEC +30 */
     turn(1, 30);
     shot(pal, "drum_kit");
     fm1_in.notes = note_bit_of_white(4);                 /* the low conga held: its own knobs, TUNE -3 */
@@ -869,7 +870,7 @@ static void screens_in(const char *pal)
     shot(pal, "drum_inst");
     fm1_in.notes = 0;
     ui_input();
-    press(B_HOME);                                       /* STEP: the snare's row of bar 1 (INST, KNOB 1) */
+    focus_dev(DEV_SRC, 3);                               /* STEP: the snare's row of bar 1 (INST, KNOB 1) */
     turn(0, 1);
     shot(pal, "drum_step");
     turn(2, 2);                                          /* MODE LIVE: the grid, named */
@@ -3671,11 +3672,11 @@ static void test_tran(void)
                  NM[i], on, off);
         check(b, on > 3 * off + 100);
     }
-    check("..TRAN's knob: SYNTH's every wave table, POLY, DRUM (page 5 with LVL last); 0 by default",
+    check("..TRAN's knob: SYNTH's every wave table, POLY, DRUM (ENV's KIT 2, page 5); 0 by default",
           !strcmp(SYN_P[SY_TRAN].label, "TRAN") && !strcmp(SYN_FM_P[SY_TRAN].label, "TRAN") &&
           !strcmp(SYN_WT_P[SY_TRAN].label, "TRAN") && !strcmp(POL_P[PL_TRAN].label, "TRAN") &&
           !strcmp(DRM_P[DM_TRAN].label, "TRAN") && !SYN_P[SY_TRAN].def && !POL_P[PL_TRAN].def && !DRM_P[DM_TRAN].def &&
-          pdesc_at(DRM_P, 19u) == DM_LVL && pdesc_at(DRM_P, 16u) == DM_TRAN && pdesc_at(POL_P, 7u) == PL_TRAN &&
+          pdesc_at(DRM_P, 15u) == DM_LVL && pdesc_at(DRM_P, 16u) == DM_TRAN && pdesc_at(POL_P, 7u) == PL_TRAN &&
           pdesc_at(SYN_CL_P, 21u) == SY_TRAN && pdesc_at(SYN_FM_P, 19u) == SY_TRAN);
     power_on();
 }
@@ -4345,7 +4346,7 @@ static void test_poly_loop(void)
         ui.msg_t = 0;
         shot("BRYO", "poly_loop");
         check("..POLY page 2 is LOOP LSTR LXF; ENV on POLY opens page 3", pdesc_at(POL_P, 4) == PL_LOOP &&
-              pdesc_at(POL_P, 6) == PL_LXF && env_page() == 2u);
+              pdesc_at(POL_P, 6) == PL_LXF && pdesc_env(POL_P) == 0x0Cu);
     }
     for (j = 1; j < NTRK; j++)
         track[j].mute = 0;
@@ -7733,7 +7734,10 @@ static void test_mod(void)
             {ME_P[ME_FOLLOW], "AMT", "OFS"}, {DEV_P[DEV_SPACE], 0, 0, 0, "DLY", "VERB"}};
         uint32_t i, k, ok = 1, rule = 1;
         for (i = 0; i < sizeof R / sizeof R[0]; i++) {
-            uint32_t n = 4u * pdesc_pages(R[i].p), seen = 0, labelled = 0;
+            uint32_t n = 4u * pdesc_pages(R[i].p), seen = 0, labelled = 0, lp = n / 4u - 1u, nl;
+            while (lp && ((pdesc_env(R[i].p) >> lp) & 1u))   /* (a source's last: HOME's, ENV's pages past it) */
+                lp--;
+            nl = 4u * (lp + 1u);
             for (k = 0; k < n; k++) {
                 uint32_t at = pdesc_at(R[i].p, k);
                 if (at >= NPK || ((seen >> at) & 1u))
@@ -7746,23 +7750,23 @@ static void test_mod(void)
             ok &= (labelled & ~seen & ~R[i].away) == 0u;   /* (every knob that has a label is on a page) */
             ok &= (seen & R[i].away) == 0u;              /* (..and only on one) */
             if (R[i].b)
-                rule &= !strcmp(R[i].p[pdesc_at(R[i].p, n - 1u)].label, R[i].b);
+                rule &= !strcmp(R[i].p[pdesc_at(R[i].p, nl - 1u)].label, R[i].b);
             if (R[i].a)
-                rule &= !strcmp(R[i].p[pdesc_at(R[i].p, n - 2u)].label, R[i].a);
+                rule &= !strcmp(R[i].p[pdesc_at(R[i].p, nl - 2u)].label, R[i].a);
             if (R[i].f3)
                 rule &= !strcmp(R[i].p[pdesc_at(R[i].p, 2u)].label, R[i].f3) &&
                         !strcmp(R[i].p[pdesc_at(R[i].p, 3u)].label, R[i].f4);
         }
         check("layout: every page position is one stored knob, every knob is on a page", ok);
-        check("..LVL is KNOB 4 of a source's (and COLOR's) last page; an effect opens with ROUT WET at KNOB 3-4 (SPACE: its "
+        check("..LVL is KNOB 4 of a source's last HOME page (and COLOR's last); an effect opens with ROUT WET at KNOB 3-4 (SPACE: its "
               "sends, DLY VERB); AMT OFS are KNOB 3-4 of a modulator's last", rule);
     }
     power_on();
     press(B_HOME);
-    press(B_HOME);
-    press(B_HOME);                                       /* TAPE page 4 (the source shows from power-on) */
+    press(B_HOME);                                       /* TAPE page 4, HOME's third (the source shows from power-on;
+                                                          * page 2, the envelope, is ENV's) */
     turn(3, -2);
-    check("TAPE page 4 (its last), KNOB 4: LVL", ui.page == 3u && tp[0].dev[DEV_SRC][TK_LVL] == -2);
+    check("TAPE page 4 (HOME's last), KNOB 4: LVL", ui.page == 3u && tp[0].dev[DEV_SRC][TK_LVL] == -2);
     press(B_FX);                                         /* COLOR page 1 */
     turn(2, 1);
     turn(3, 30);
@@ -7773,13 +7777,18 @@ static void test_mod(void)
     turn(3, -3);
     check("COLOR page 3: KNOB 4 LVL", tp[0].dev[DEV_COLOR][CP_LVL] == -3);
     tp[0].src = SRC_SYNTH;
-    press(B_HOME);
-    press(B_HOME);                                       /* SYNTH page 2: the envelope (POLY's order) */
+    press(B_ENV);                                        /* SYNTH page 2: the envelope (POLY's order), ENV's first */
     turn(0, 3);
-    check("SYNTH page 2: the envelope (ATK first), as POLY's", tp[0].syn[SY_ATK] == SYN_P[SY_ATK].def + 3);
-    press(B_HOME);
+    check("SYNTH: ENV, the envelope (ATK first), as POLY's", tp[0].syn[SY_ATK] == SYN_P[SY_ATK].def + 3 &&
+          ui.page == 1u && focus_btn() == B_ENV);
+    press(B_ENV);
     turn(0, -2);
-    check("..page 3: the filter (CUT)", tp[0].syn[SY_CUT] == SYN_P[SY_CUT].def - 2);
+    check("..ENV again: the filter (CUT), ENV still its pad", tp[0].syn[SY_CUT] == SYN_P[SY_CUT].def - 2 &&
+          ui.page == 2u && focus_btn() == B_ENV);
+    press(B_HOME);
+    press(B_HOME);
+    check("..HOME: past them (OSC, then VOICE: the envelope and filter only ENV's)", ui.page == 3u &&
+          focus_btn() == B_HOME);
 
     /* HOME turns the page as it's let go, from any page; held + SELECT picks the source and shows it */
     power_on();
@@ -7790,7 +7799,7 @@ static void test_mod(void)
     check("..let go: the source", ui.dev == DEV_SRC && ui.page == 0u);
     hold(B_HOME);
     let_go(B_HOME);
-    check("..again: its next page", ui.dev == DEV_SRC && ui.page == 1u);
+    check("..again: its next page (TAPE's 3: its 2, the envelope, is ENV's)", ui.dev == DEV_SRC && ui.page == 2u);
     press(B_FX);
     hold(B_HOME);
     host_enc[panel.enc[EN_SELECT]] = 1;
@@ -8260,8 +8269,7 @@ static void test_drum(void)
           tp[0].dpat[0][2] & (1u << DI_OH) && !strcmp(ui.msg, "DISC WRITTEN"));
     press(B_HOME);
     press(B_HOME);
-    press(B_HOME);
-    check("HOME tapped: VARY, KIT, STEP (the page turns as HOME is let go)", ui.page == 3u);
+    check("HOME tapped: VARY, STEP (the page turns as HOME is let go; KIT is ENV's)", ui.page == 3u);
     key_edge(note_of_white(1));
     check("STEP (HITS): white key 2 toggles step 2 of bar 1 for INST (BD)", tp[0].dpat[0][1] == (1u << DI_BD));
     hold(B_HOME);
@@ -8270,10 +8278,10 @@ static void test_drum(void)
     check("HOME held + white key 2: page 2 (VARY), the page keys' way; the let-go doesn't turn it",
           ui.page == 1u && p[DM_INST] == DI_BD);
     hold(B_HOME);
-    key_edge(note_of_white(3));
+    key_edge(note_of_white(2));
     let_go(B_HOME);
     turn(0, 1);
-    check("..HOME held + key 4: STEP; KNOB 1 (INST) to SD", ui.page == 3u && p[DM_INST] == DI_SD);
+    check("..HOME held + key 3: STEP; KNOB 1 (INST) to SD", ui.page == 3u && p[DM_INST] == DI_SD);
     press(B_OCTUP);
     key_edge(note_of_white(2));
     check("OCT+: bar 2; key 3 writes the snare there; OCT+ again stays at LEN", p[DM_BAR] == 2 &&
@@ -8293,11 +8301,13 @@ static void test_drum(void)
     ui_input();
     let_go(B_SAVE);
     check("SAVE held: it comes back, edits and all", tp[0].dpat[0][1] == (1u << DI_BD) && (tp[0].dpat[1][2] & (1u << DI_SD)));
-    press(B_HOME);                                       /* TRAN (page 5, 2026-10-14), then PATTERN: PATN over the
-                                                          * edited pattern, SAVE undoes it */
-    check("HOME again past STEP: TRAN (TRAN . . LVL), DRUM's fifth page", ui.page == 4u &&
-          ui_page(0, (int16_t **)&p) == &DRM_P[DM_TRAN] && ui_page(3, (int16_t **)&p) == &DRM_P[DM_LVL]);
-    press(B_HOME);
+    check("..STEP's KNOB 4: LVL (HOME's last page)", ui_page(3, (int16_t **)&p) == &DRM_P[DM_LVL]);
+    press(B_ENV);
+    check("ENV on DRUM: KIT (TUNE DEC TONE DRV)", ui.page == 2u && ui_page(0, (int16_t **)&p) == &DRM_P[DM_TUNE]);
+    press(B_ENV);
+    check("..ENV again: KIT 2, TRAN (the kit's attack)", ui.page == 4u && ui_page(0, (int16_t **)&p) == &DRM_P[DM_TRAN]);
+    press(B_HOME);                                       /* PATTERN: PATN over the edited pattern, SAVE undoes it */
+    check("HOME from ENV's pages: PATTERN, HOME's first", ui.page == 0u);
     turn(0, 1);
     check("PATN over an edited pattern: FUNK, and the edit kept for SAVE", tp[0].drm[DM_PATN] == 2 &&
           drm_undo_buf.valid && !strcmp(ui.msg, "FUNK WRITTEN. HOLD SAVE: UNDO"));
@@ -8336,8 +8346,7 @@ static void test_drum(void)
     track[1].mute = track[2].mute = track[3].mute = 1;
     p = tp[0].drm;
     press(B_HOME);
-    press(B_HOME);
-    press(B_HOME);
+    press(B_HOME);                                       /* (STEP: HOME's third) */
     turn(2, 2);
     sys.bpm = 120;
     sys.playing = 1;
@@ -9187,30 +9196,38 @@ static void test_page_keys(void)
 {
     uint32_t k, dim_ok = 1, lit_ok = 1, dark_ok = 1;
     power_on();
-    hold(B_HOME);                                        /* TAPE, page 1: four pages */
+    hold(B_HOME);                                        /* TAPE, page 1: HOME's three pages (its envelope ENV's) */
     ui_leds();
     for (k = 0; k < 27u; k++) {
         uint32_t w = KEY_WHITE[k];
         led_on(fm1_led_dim, 14u + k);
-        if (w != KEY_NONE && w < 4u)
+        if (w != KEY_NONE && w < 3u)
             dim_ok &= led_lit;
         else
             dark_ok &= !led_lit;
         led_on(fm1_led, 14u + k);
-        if (w != KEY_NONE && w < 4u)
+        if (w != KEY_NONE && w < 3u)
             lit_ok &= led_lit == (w == 0u);
         else
             dark_ok &= !led_lit;
     }
-    check("HOME held on TAPE: white keys 1-4 glow (its four pages), key 1 lit (the one shown), every other key dark",
+    check("HOME held on TAPE: white keys 1-3 glow (HOME's three pages), key 1 lit (the one shown), every other key dark",
           dim_ok && lit_ok && dark_ok && !sys.keys_live);
     key_edge(note_of_white(2));
     let_go(B_HOME);
-    check("..+ key 3: TAPE page 3, and the let-go doesn't turn it on", ui.dev == DEV_SRC && ui.page == 2u);
+    check("..+ key 3: TAPE page 4 (HOME's third), and the let-go doesn't turn it on", ui.dev == DEV_SRC && ui.page == 3u);
     hold(B_HOME);
     key_edge(note_of_white(6));
     let_go(B_HOME);
-    check("..+ key 7 (past its four): says so, the page stays", ui.page == 2u && !strcmp(ui.msg, "NO PAGE THERE"));
+    check("..+ key 7 (past its three): says so, the page stays", ui.page == 3u && !strcmp(ui.msg, "NO PAGE THERE"));
+    tp[0].src = SRC_SYNTH;
+    hold(B_ENV);
+    key_edge(note_of_white(1));
+    let_go(B_ENV);
+    check("ENV held + key 2 on SYNTH: its second envelope page (the filter)", ui.dev == DEV_SRC && ui.page == 2u &&
+          focus_btn() == B_ENV);
+    tp[0].src = SRC_TAPE;
+    focus_dev(DEV_SRC, 0);
     hold(B_EDIT);
     key_edge(note_of_white(7));
     let_go(B_EDIT);
