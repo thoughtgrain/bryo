@@ -2608,6 +2608,57 @@ static void test_bar_record(void)
     sys.playing = 0;
     render(20, 0);
 
+    power_on();                                          /* a bounce (2026-10-15): REC held + PLAY on a SYNTH track,
+                                                          * stopped, bars FREE: 2 bars of its own playing, then TAPE */
+    pj_wipe();
+    sys.sel = 1;
+    tp[1].src = SRC_SYNTH;
+    tp[1].dev[DEV_SRC][TK_REEL] = 0;
+    sys.rec_bars = 0;
+    hold(B_REC);
+    press(B_PLAY);
+    let_go(B_REC);
+    check("REC held + PLAY on a stopped SYNTH track: a bounce, 2 bars from the downbeat, the transport started, REC "
+          "armed, no USB record mode", ((sys.bounce >> 1) & 1u) && ((sys.rec >> 1) & 1u) && sys.playing &&
+          sys.rec_bars == 2u && ui.view != VIEW_USBREC && !strncmp(ui.msg, "BOUNCE: 2 BARS TO TAPE", 22) &&
+          tp[1].src == SRC_SYNTH);
+    fm1_in.notes = note_bit_of_white(9);                 /* A3 held through the take */
+    play_polled(1378u * 2u);
+    check("..2 s in: recording its own note", tape_rt[1].rbar == TB_REC && tp[1].src == SRC_SYNTH);
+    play_polled(1378u * 2u + 100u);
+    fm1_in.notes = 0;
+    ui_input();
+    tape_view(1, &v);
+    snprintf(b, sizeof b, "..the take in (%u samples, 88,200): the track is on TAPE, its own tape, SYNC 2 bars, REC let go, "
+             "and it says so", v.len);
+    check(b, v.len == 88200u && tp[1].src == SRC_TAPE && tp[1].dev[DEV_SRC][TK_REEL] == 0 && !((sys.rec >> 1) & 1u) &&
+          !((sys.bounce >> 1) & 1u) && tp[1].dev[DEV_SRC][TK_SYNC] == 2 && !strncmp(ui.msg, "T2: BOUNCED, ", 13) &&
+          tape_peak_at(1, 500) > 0);
+    {
+        int32_t p0, k;
+        uint32_t wraps = 0;
+        int32_t last = tape_rt[1].pos >> 12;
+        for (k = 0; k < 1378 * 4; k++) {
+            render(1, 0);
+            p0 = tape_rt[1].pos >> 12;
+            wraps += p0 < last;
+            last = p0;
+        }
+        check("..and the tape loops it (once in 4 s)", wraps == 1u);
+    }
+    hold(B_REC);                                         /* bounced again: the old take cleared first, undoable */
+    press(B_PLAY);
+    let_go(B_REC);
+    check("..REC held + PLAY again on the tape: it bounces its own tape through its effects (REC IN SELF for the take), "
+          "the old take cleared", ((sys.bounce >> 1) & 1u) && tp[1].recin == RIN_T1 + 1u && tape_ctl[1].rec_ok);
+    tap(B_REC);                                          /* disarmed by hand: the bounce is forgotten, REC IN back */
+    check("..REC tapped before the take: no bounce, REC IN as it was", !((sys.bounce >> 1) & 1u) && tp[1].recin == RIN_AUTO &&
+          !((sys.rec >> 1) & 1u));
+    sys.playing = 0;
+    render(20, 0);
+    sys.rec_bars = 0;
+    pj_wipe();
+
     power_on();                                          /* 130 BPM, 1 bar, armed while playing: the next downbeat */
     pj_wipe();
     sys.sel = 2;

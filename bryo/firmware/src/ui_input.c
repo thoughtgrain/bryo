@@ -651,6 +651,44 @@ static void rec_arm(void)
     }
 }
 
+/* REC held + PLAY (2026-10-15): bounce the track. A take of set bars (REC held + SELECT's; 2 when that's FREE) of the
+ * track's own sound onto its tape, from the next downbeat (the transport started if it's stopped), and when the
+ * take is in the track plays its tape instead of its source (tape.c tape_poll): a SYNTH, POLY or DRUM loop, or a
+ * grain cloud, becomes a tape you can slice, and a project saves it as a reel. A TAPE track bounces itself through
+ * its effects (REC IN SELF for the take, then as it was). A take already on the tape is cleared first (SAVE held
+ * undoes that). The REC press this came with does nothing else */
+static void bounce_start(void)
+{
+    uint32_t t = sys.sel;
+    int r;
+    char m[40];
+    if (!ui.rec_turned && sys.playing && ((sys.rec >> t) & 1u))
+        rec_arm();                                      /* (the press's own arm, taken back) */
+    ui.rec_turned = 1;
+    if ((sys.bounce >> t) & 1u)
+        return;
+    if (!sys.rec_bars)
+        sys.rec_bars = 2;
+    if (tape_prepare(t) == 0)                           /* a take there: cleared (SAVE held brings it back) */
+        tape_clear(t);
+    r = tape_prepare(t);
+    if (r <= 0) {
+        ui_message(r < 0 ? "NO MEMORY FREE TO BOUNCE" : "CAN'T BOUNCE: CLEAR THE TAPE (HOLD POLY)");
+        return;
+    }
+    sys.rec |= (uint8_t)(1u << t);
+    sys.bounce |= (uint8_t)(1u << t);
+    sys.bounce_rin[t] = tp[t].recin;
+    if (tp[t].src == SRC_TAPE)
+        tp[t].recin = (uint8_t)(RIN_T1 + t);            /* (itself, through its effects) */
+    sys.playing = 1;
+    str_cpy(m, "BOUNCE: ", sizeof m);
+    fmt_int(m + 8, sys.rec_bars);
+    str_cpy(m + str_len(m), sys.rec_bars == 1u ? " BAR TO TAPE, THEN TAPE" : " BARS TO TAPE, THEN TAPE", 26);
+    ui_message(m);
+    ui.last = 0xFF;
+}
+
 /* the USB record mode opens (REC held a second, stopped) */
 static void usbrec_open(void)
 {
@@ -776,6 +814,10 @@ static void on_button(uint32_t b)
         glo_down();
         break;
     case B_PLAY:
+        if (ui.rec_held && ((fm1_in.buttons >> panel.btn[B_REC]) & 1u)) {   /* REC held + PLAY: bounce */
+            bounce_start();
+            break;
+        }
         sys.playing = (uint8_t)!sys.playing;
         break;
     case B_REC:                                         /* arm: playing, now; stopped, at the let-go (held a second
@@ -1272,9 +1314,19 @@ static void bars_said(void)
             str_cpy(m, "T", sizeof m);
             m[1] = (char)('1' + t);
             m[2] = 0;
-            str_cpy(m + 2, ": THE TAKE IS IN, ", 20);
-            vz_secs(m + str_len(m), tape_ms(t) / 100);
-            str_cpy(m + str_len(m), " SEC", 5);
+            if ((tape_bounced >> t) & 1u) {             /* (a bounce: the track is on TAPE now) */
+                tape_bounced &= (uint8_t)~(1u << t);
+                str_cpy(m + 2, ": BOUNCED, ", 12);
+                vz_secs(m + str_len(m), tape_ms(t) / 100);
+                str_cpy(m + str_len(m), " SEC ON TAPE", 13);
+                if (t == sys.sel && ui.kind == FOCUS_DEV && ui.dev == DEV_SRC)
+                    focus_dev(DEV_SRC, 0);              /* (its page: TAPE's now) */
+                ui.last = 0xFF;
+            } else {
+                str_cpy(m + 2, ": THE TAKE IS IN, ", 20);
+                vz_secs(m + str_len(m), tape_ms(t) / 100);
+                str_cpy(m + str_len(m), " SEC", 5);
+            }
             ui_message(m);
         }
 }

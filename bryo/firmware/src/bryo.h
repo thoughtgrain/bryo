@@ -28,6 +28,9 @@ typedef struct {
     uint16_t bpm;                /* global tempo, 40..240 */
     uint8_t rec_bars;            /* REC held + SELECT: 0 (REC records until it's pressed again), or 1 2 4 8: armed,
                                   * a take starts on the downbeat and is exactly that many bars (tape.c) */
+    uint8_t bounce;              /* tracks bouncing (REC held + PLAY, 2026-10-15): a take of set bars of the track's
+                                  * own sound, and the track on TAPE when it's in (tape.c tape_poll) */
+    uint8_t bounce_rin[NTRK];    /* .. each one's REC IN before (a TAPE track records itself for the take) */
     uint8_t playing;             /* PLAY/STOP */
     uint8_t sel;                 /* the focused track 0..NTRK-1 */
     uint8_t keys_live;           /* 1: the white keys play the focused track (0 while SEL picks a track) */

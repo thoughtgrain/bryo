@@ -2772,6 +2772,23 @@ under A2, at E3 with PTCH +7, folded to D3 at -19, on RIPPLE's root on RES; with
 pentatonic notes sound within the same second; every grain sounding carries a partial; the SRC-to-TRI switch still
 ramps.
 
+### Bounce: REC held + PLAY (2026-10-15)
+
+"Any chance of just automatically converting a 2 bar loop to tape." The parts were there: a take of set bars (REC
+held + SELECT) starts on the downbeat and ends itself, and a track whose source isn't TAPE prints that source onto
+its tape when REC is armed (`chain_source` renders the tape last). What was missing was the gesture and the end:
+you set the bars, armed, played, and then switched the source by hand. `bounce_start` (ui_input.c, on PLAY while
+REC is held) takes back the press's own arm, sets the bars to 2 if they're FREE, clears a take already on the tape
+(the same clear as POLY held, so SAVE held undoes it), prepares and arms, flags the track in `sys.bounce`, and
+starts the transport. A TAPE track gets REC IN SELF for the take (its own output through its effects) with its REC
+IN kept in `sys.bounce_rin` for after. When the take is in, `tape_poll` (main loop) puts the track on TAPE, REEL
+TAPE, before letting REC go; the tape's head is at the take's end, the downbeat, so it loops in time, and SYNC is
+set to the bars as a take of set bars always is. `tape_unprepare` forgets a bounce whose REC was tapped off before
+the downbeat. The screen says "T2: BOUNCED, 4.0 SEC ON TAPE" and, if the source page was up, shows TAPE's. Tested:
+a stopped SYNTH track bounced with A3 held comes back as a 2-bar tape of 88,200 samples on TAPE with sound and SYNC
+2, looping once in 4 s; bounced again it records itself through its effects with the old take cleared; REC tapped
+calls it off and REC IN is as it was.
+
 ### TRAN: a transient on SYNTH, POLY and DRUM (2026-10-14)
 
 "I'd like to be able to add a transient to every engine except for tape." One generator (`dsp.c click_step`): 3 ms

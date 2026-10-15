@@ -422,6 +422,19 @@ usual way (REC again to stop). The take keeps its exact length when a project sa
 
 <img src="img/rec_bars.png" width="240" alt="REC armed for 2 bars: the 2 before the REC dot">
 
+### 4.3.1 Bounce: a loop straight to tape
+
+A SYNTH line, a POLY phrase, a DRUM pattern or a cloud of grains you want to keep as a loop:
+
+1. **Hold REC and press PLAY.** The track records itself for the bars set in 4.3 (two, if that's on FREE) from
+   the next downbeat, and the transport starts if it was stopped. Keep playing through the bars.
+2. When the take is in, **the track switches to TAPE by itself** and loops it, in time, slices and all. The screen
+   says "BOUNCED, 4.0 SEC ON TAPE".
+
+A take already on the tape is cleared first (hold SAVE to get it back). On a TAPE track the bounce records the
+track itself through its effects (GRAIN, RIPPLE, COLOR, CHRONOS), so a tape can be printed with its effects on it.
+Tap REC before the downbeat to call it off.
+
 ### 4.4 Record over a loop (overdub)
 
 **DUB** on the TAPE page (KNOB 4) sets how much of the old recording stays when you record over it: 0 replaces it,

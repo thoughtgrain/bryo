@@ -135,6 +135,7 @@ enum { TB_IDLE, TB_WAIT, TB_REC, TB_DONE };   /* not armed for bars; armed, wait
                                                * (the main loop lets REC go: tape_poll) */
 /* main loop: tracks whose take of set bars just ended (tape_poll; the screen says so) */
 static uint8_t tape_bars_done;
+static uint8_t tape_bounced;         /* main loop: tracks whose bounce just landed on their tape (the screen says so) */
 enum { TE_IDLE, TE_JUMP, TE_ATK, TE_DEC, TE_SUS, TE_REL };
 static tape_rt_t tape_rt[NTRK] __attribute__((section(".lowpool")));   /* (RAMTEXT: app.ld) */
 
@@ -809,6 +810,7 @@ static void tape_init(void)
     uint32_t t;
     mem_init();
     tape_bars_done = 0;
+    tape_bounced = 0;
     for (t = 0; t < NTRK; t++) {
         tape_rt[t].wlast = -1;
         tape_rt[t].stop_left = 0;
@@ -961,7 +963,15 @@ static int tape_prepare(uint32_t t)
     return 1;
 }
 
-static void tape_unprepare(uint32_t t) { tape_ctl[t].rec_ok = 0; }
+static void tape_unprepare(uint32_t t)
+{
+    tape_ctl[t].rec_ok = 0;
+    if ((sys.bounce >> t) & 1u) {                      /* (a bounce let go before its take was in: forgotten) */
+        sys.bounce &= (uint8_t)~(1u << t);
+        tp[t].recin = sys.bounce_rin[t];
+    }
+}
+
 
 /* main loop, every pass: a growing tape keeps a chunk ready ahead of its head; one done growing gives back the chunks
  * past its end */
@@ -972,6 +982,15 @@ static void tape_poll(void)
         tape_ctl_t *c = &tape_ctl[t];
         if (tape_rt[t].rbar == TB_DONE && ((sys.rec >> t) & 1u)) {   /* a take of set bars is in: REC lets go */
             sys.rec &= (uint8_t)~(1u << t);
+            if ((sys.bounce >> t) & 1u) {              /* a bounce: the track plays its tape now (the source fades
+                                                         * over in 2 ms, chain_source; the tape's head is at the
+                                                         * take's end, the downbeat, so it loops in time) */
+                sys.bounce &= (uint8_t)~(1u << t);
+                tp[t].recin = sys.bounce_rin[t];
+                tp[t].src = SRC_TAPE;
+                tp[t].dev[DEV_SRC][TK_REEL] = 0;
+                tape_bounced |= (uint8_t)(1u << t);
+            }
             tape_unprepare(t);
             tape_bars_done |= (uint8_t)(1u << t);
             if (tape_rt[t].rec_full) {                 /* (all its bars, on a blank tape: SYNC to them, so it keeps
