@@ -303,7 +303,7 @@ static uint32_t HOT_CODE drm_version(const int16_t *p, uint32_t pass)
 static void HOT_CODE drm_step(uint32_t t, const int16_t *p, uint32_t v, uint32_t bar, uint32_t s, drm_hits_t *o)
 {
     const track_params_t *P = &tp[t];
-    uint32_t len = (uint32_t)clamp(p[DM_LEN], 2, (int32_t)DRM_NBAR), used = 0, inbar = 0, b, k, i, lv = drm_level(s);
+    uint32_t len = (uint32_t)clamp(p[DM_LEN], 1, (int32_t)DRM_NBAR), used = 0, inbar = 0, b, k, i, lv = drm_level(s);
     uint32_t w = P->dpat[bar][s], pv, fill, fs, last = bar + 1u == len;
     o->hit = (uint16_t)w;
     o->soft = 0;
@@ -315,7 +315,8 @@ static void HOT_CODE drm_step(uint32_t t, const int16_t *p, uint32_t v, uint32_t
             used |= P->dpat[b][k];
     for (k = 0; k < 16u; k++)
         inbar |= P->dpat[bar][k];
-    pv = (uint32_t)clamp(p[DM_VARY], 0, 100) * (6u + 4u * bar / (len - 1u)) / 10u;   /* first bar 60 %, last 100 % */
+    pv = (uint32_t)clamp(p[DM_VARY], 0, 100) * (len > 1u ? 6u + 4u * bar / (len - 1u) : 10u) / 10u;   /* first bar
+                                                                             * 60 %, last 100 % (LEN 1: the bar, 100 %) */
     fill = drm_roll(v, 0, 0, 0, 15) < (uint32_t)clamp(p[DM_FILL], 0, 100);
     fs = fill && drm_roll(v, 0, 0, 1, 15) < (uint32_t)p[DM_FILL] / 3u ? 8u : 12u;   /* (a big fill: two beats) */
     {                                                    /* the fill's instrument: what the pattern can roll on */
@@ -543,7 +544,7 @@ static void HOT_CODE drm_block(uint32_t t, uint32_t keys, const int32_t *rec, in
 {
     drm_rt_t *r = &drm_rt[t];
     const int16_t *p = TPD(t, MA_DRM);
-    uint32_t press = keys & ~r->keys, j, i, len = (uint32_t)clamp(p[DM_LEN], 2, (int32_t)DRM_NBAR), pl = 16u * len;
+    uint32_t press = keys & ~r->keys, j, i, len = (uint32_t)clamp(p[DM_LEN], 1, (int32_t)DRM_NBAR), pl = 16u * len;
     uint32_t mode = sys.drum_mode, a = drm_aud[t];
     (void)rec;
     r->keys = keys;

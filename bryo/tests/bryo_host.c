@@ -4405,6 +4405,28 @@ static void test_follow_live(void)
     sys.playing = 0;
 }
 
+/* DRUM LEN 1 (2026-10-14: "I can't just do one 16 step beat"): a one-bar loop, VARY and FILL on it */
+static void test_drum_len1(void)
+{
+    uint32_t i, maxs = 0, wraps = 0, last = 0;
+    power_on();
+    tp[0].src = SRC_DRUM;
+    tp[0].drm[DM_LEN] = 1;
+    tp[0].drm[DM_SEED] = 7;                              /* (VARY and FILL at work: the bar's divide guarded) */
+    sys.playing = 1;
+    for (i = 0; i < 12000u; i++) {                       /* (8.7 s: four bars and more at 120 BPM) */
+        render(1, 0);
+        if (drm_now[0] != 0xFFu) {
+            maxs = drm_now[0] > maxs ? drm_now[0] : maxs;
+            wraps += drm_now[0] < last;
+            last = drm_now[0];
+        }
+    }
+    sys.playing = 0;
+    check("DRUM LEN 1: one 16-step bar, round and round (VARY and FILL on it, no fault)", DRM_P[DM_LEN].min == 1 &&
+          maxs == 15u && wraps >= 2u);
+}
+
 /* scenes (scene.c, 2026-10-13): the mixer's SCENES page (GLO, then EDIT): white keys 1-4 recall (held + SAVE:
  * store), KNOB 1-4 morph. A track whose source differs fades out, switches, fades in; choices switch at the
  * midpoint; the playing isn't theirs; saved in the project as their differences */
@@ -10669,6 +10691,7 @@ int main(int argc, char **argv)
     test_poly_loop();
     test_synth_more();
     test_follow_live();
+    test_drum_len1();
     test_sleep();
     test_color();
     test_space();

@@ -609,7 +609,7 @@ play together:
 
 1. Switch the track to **DRUM** (hold HOME, turn SELECT), and press **PLAY**.
 2. The **PATTERN** page: **PATN** picks one of ten rhythms (ROCK, DISC, FUNK, SHFL, BOSA, RMBA, CHA, BGIN, TNGO,
-   MRCH). **LEN** is 2 to 4 bars, **SWNG** the swing, **ACNT** how strong the accents are.
+   MRCH). **LEN** is 1 to 4 bars (1: a single 16-step bar), **SWNG** the swing, **ACNT** how strong the accents are.
 3. The dots below show the pattern, a row per instrument.
 
 <img src="img/drum.png" width="240" alt="DRUM: PATTERN">

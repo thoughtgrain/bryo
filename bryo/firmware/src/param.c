@@ -411,7 +411,7 @@ static const char *const N_EVOL[5] = {"OFF", "1", "2", "4", "8"};
 static const pdesc_t DRM_P[NPK] = {
     /* PATTERN: a written rhythm (turned: it replaces the pattern; SAVE held undoes), the bars it loops, swing on
      * the off-sixteenths, an accented step's extra punch */
-    {"PATN", 0, DRM_NPRESET - 1, 0, F_ENUM, N_DPATN, 1}, {"LEN", 2, DRM_NBAR, 2, F_NUM, 0, 1},
+    {"PATN", 0, DRM_NPRESET - 1, 0, F_ENUM, N_DPATN, 1}, {"LEN", 1, DRM_NBAR, 2, F_NUM, 0, 1},
     {"SWNG", 0, 100, 0, F_PCT}, {"ACNT", 0, 100, 60, F_PCT},
     /* VARY: the version (0: as written), how far it strays, the chance of a fill in the last bar, a new version
      * every EVOL loops */

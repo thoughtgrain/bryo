@@ -1424,7 +1424,7 @@ static const char *const DRM_LONG[DRM_NINST] = {"BASS DRUM", "SNARE", "CLAP", "R
  * shows only while it's in that bar); the other pages the one playing, else that one */
 static uint32_t vz_drm_bar(const int16_t *v)
 {
-    uint32_t len = (uint32_t)clamp(v[DM_LEN], 2, (int32_t)DRM_NBAR), now = drm_now[sys.sel];
+    uint32_t len = (uint32_t)clamp(v[DM_LEN], 1, (int32_t)DRM_NBAR), now = drm_now[sys.sel];
     return sys.playing && now != 0xFFu && ui.page != 3u ? (now >> 4) % len
                                                         : (uint32_t)clamp(v[DM_BAR] - 1, 0, (int32_t)len - 1);
 }
@@ -1435,7 +1435,7 @@ static uint32_t vz_drm_bar(const int16_t *v)
  * the grid, the playhead under it, the bars at the right (the shown one filled). */
 static uint32_t vz_drm_grid(const int16_t *v, uint32_t bar)
 {
-    uint32_t len = (uint32_t)clamp(v[DM_LEN], 2, (int32_t)DRM_NBAR), used = 0, now = drm_now[sys.sel], b, s, i, row = 0;
+    uint32_t len = (uint32_t)clamp(v[DM_LEN], 1, (int32_t)DRM_NBAR), used = 0, now = drm_now[sys.sel], b, s, i, row = 0;
     uint32_t ver = drm_version(v, sys.playing ? drm_pass[sys.sel] : 0u), more = 0, nrow = 0;
     int32_t pitch;
     drm_hits_t h[16];
