@@ -3169,13 +3169,16 @@ block (a round trip of 20 s at 1, doubling every 20 points by a 20-entry 2^(f/20
 and returns a triangle 0..1000, up the spectrum for half the cycle and back down for the rest, or -1 when FLOW is 0 or
 the form is the strings (the knob is empty there and ignored). The resonators use it as the spotlight's place in
 place of FOCS, through the same window (`w = 40 + WDTH * 10`), and the window applies whenever FLOW is on, even at
-WDTH 100 (a gentle lean: narrow WDTH to hear a band walking). COMB hasn't bands, so there FLOW sweeps the filter in
-front across its whole range in place of CUT (`c8 = pos * 8323 >> 8`: 0 to 127 semitones): BP with RES up picks one
-region of the comb's harmonics at a time, LP goes dark to bright. The phase is the track's (`reso_t.fph`), reset
-when FLOW is 0. At FLOW 0 nothing changes: every fingerprint held. Tests: 12-BAND at FLOW 100 WDTH 0 lights every band
-in turn over 900 blocks with at most three at once, the low bands early and the high ones at the half; COMB at FLOW
-100 is three times brighter near the walk's top than at its start. Goldens: 12-BAND's page 2 and COMB's page 5, and
-the manual's new picture (`ripple_flow`).
+WDTH 100 (a gentle lean: narrow WDTH to hear a band walking). COMB hasn't bands, so there FLOW moves the comb itself
+("I just wanted it to bounce through the comb filter. I think it being tuned to a chord and keys should be optional"):
+the root is the walk's, E1 to E7 (`29 * 16 + (pos * 1163 >> 10)`, 72 semitones), set straight (no glide: the delay
+already moves sample by sample), and PTCH, a key's root and the retune are left out while it flows; SCAL still
+spreads the four lines from there. A first version swept the filter in front instead; that wasn't the ask. The phase
+is the track's (`reso_t.fph`), reset when FLOW is 0. At FLOW 0 nothing changes: every fingerprint held. Tests: 12-BAND
+at FLOW 100 WDTH 0 lights every band in turn over 900 blocks with at most three at once, the low bands early and the
+high ones at the half; COMB at FLOW 100 has its root under E2 early and over F#6 at the half, a key pressed meanwhile
+ignored, and is brighter up there. Goldens: 12-BAND's page 2 and COMB's page 5, and the manual's new picture
+(`ripple_flow`).
 
 ## USB record mode (2026-10-08)
 

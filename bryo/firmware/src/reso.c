@@ -392,7 +392,12 @@ static void HOT_CODE reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t key
         return;
     }
     root16 = reso_root16(t);
-    if (!R->rs16 || R->root16 > 0)                      /* a key's root lands at once (a pluck is a new note); */
+    if (fpos >= 0 && mode == RM_COMB) {                 /* FLOW on COMB: the comb itself bounces through the spectrum,
+                                                         * E1 to E7 and back, free of PTCH, the keys and their chord
+                                                         * (SCAL still spreads the four lines from where it is) */
+        root16 = 29 * 16 + ((fpos * 1163) >> 10);       /* (1000 -> 72 semitones) */
+        R->rs16 = root16;
+    } else if (!R->rs16 || R->root16 > 0)               /* a key's root lands at once (a pluck is a new note); */
         R->rs16 = root16;                               /* PTCH, turned or modulated, glides: half the way a block */
     else
         R->rs16 += sdiv2(root16 - R->rs16, 1);
@@ -401,10 +406,7 @@ static void HOT_CODE reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t key
         int32_t slope = clamp(p[RP_SLOP], 0, 2);
         tsvf_t flt = {0};                                 /* (set when filt; zero keeps the compiler's warning off) */
         int32_t c8 = mod_fine8(t, FN_RCUT, p[RP_CUT]);   /* (CUT finer than its semitones when modulated: mod.c) */
-        int filt;
-        if (fpos >= 0 && mode == RM_COMB)                /* FLOW on COMB: the filter sweeps the whole range by itself */
-            c8 = (fpos * 8323) >> 8;                     /* (1000 -> 127 << 8, less one) */
-        filt = c8 < 127 << 8 || p[RP_RES] || slope;
+        int filt = c8 < 127 << 8 || p[RP_RES] || slope;
         /* the input's share, by the root string's ring: less as the ring gets longer, so a long DEC rings louder but
          * not without bound (the loop clamps besides); applied as the input is read, not in a pass of its own */
         int32_t in = mode >= RM_RESO ? 16384              /* (the resonators scale their own input by their loss) */

@@ -145,8 +145,8 @@ static const char *const N_TSYNC[6] = {"OFF", "1BR", "2BR", "4BR", "8BR", "16BR"
          * (the odd partials against the even: - the 1st 3rd 5th alone, + the 2nd 4th 6th) */                     \
         {"PLVL", 0, 100, 100, F_PCT}, {"SPRD", -100, 100, 0, F_BIPCT}, k22,                                       \
         /* 23 (2026-10-15): k23, COMB's POL; k24 k25, the resonators' FOCS and WDTH; k26 (2026-10-16), FLOW: the  \
-         * sound moving through the spectrum by itself (the spotlight walking the bands; COMB's filter in front     \
-         * sweeping) */                                                                                             \
+         * sound moving through the spectrum by itself (the spotlight walking the bands; the comb itself bouncing)  \
+         */                                                                                                         \
         k23, k24, k25, k26}
 #define RS_EVEN {"EVEN", -100, 100, 0, F_BIPCT}
 /* COMB's POL: ODD, the feedback inverted (the odd harmonics, hollow: the comb as it was); ALL, not (every harmonic,
@@ -160,8 +160,8 @@ static const char *const N_POL[2] = {"ODD", "ALL"};
 /* FLOW (2026-10-16, "the comb and 12 band is supposed to flow through each part of the spectrum, instead it seems to
  * just go through the bands all at once"): the sound moves through the spectrum by itself, up and back down, FLOW
  * how fast (a round trip of 20 s at 1, 0.6 s at 100; 0: still). RESO and 12-BAND: the spotlight walks the bands
- * (WDTH its width; FOCS places it when FLOW is 0). COMB: the filter in front sweeps the whole range (CUT when FLOW
- * is 0; TYPE BP with RES up: one region of the comb at a time) */
+ * (WDTH its width; FOCS places it when FLOW is 0). COMB: the comb itself bounces through the spectrum, E1 to E7 and
+ * back, free of PTCH, the keys and their chord while it flows */
 #define RS_FLOW {"FLOW", 0, 100, 0, F_PCT}
 
 /* (each table in the order its knobs are stored; the "1:", "2:" notes are those blocks of four. Where a page shows

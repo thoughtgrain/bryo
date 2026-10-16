@@ -256,7 +256,7 @@ number.
   track instead (1-40, taken from the AUTO tracks first, kept whatever the others do).
 - **2026-10-16: RIPPLE's FLOW.** The sound moves through the spectrum by itself: on RESO and 12-BAND the spotlight
   (FOCS WDTH) walks up the bands and back down at FLOW's rate (20 s a round trip at 1, 0.6 s at 100); on COMB the
-  filter in front sweeps its whole range the same way. One knob where an LFO on FOCS was needed before; at 0, as it
+  comb itself bounces E1 to E7 and back the same way, free of PTCH, the keys and the chord while it flows. One knob where an LFO on FOCS was needed before; at 0, as it
   was (every fingerprint held).
 - **2026-10-15: the arpeggiator fades, lets a note go, and shows itself on the keys.** FADE (ARP page 2, KNOB 4):
   let every key go and the notes keep stepping while their level falls to nothing over FADE (KEY and LTCH then

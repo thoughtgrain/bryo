@@ -5017,28 +5017,35 @@ static void test_ripple_forms(void)
         p[RP_WDTH] = 100;
         p[RP_FOCS] = 50;
     }
-    {   /* COMB with FLOW: the filter in front sweeps the range by itself (TYPE LP: dark at the bottom, bright at the
-         * top of the walk) */
-        int32_t dark, bright;
+    {   /* COMB with FLOW: the comb itself bounces through the spectrum, E1 to E7 and back, the keys and PTCH left
+         * out while it flows */
+        int32_t lo, hi, keyed, dark, bright;
         p[RP_MODE] = RM_COMB;
         p[RP_KEYS] = RK_TUNE;
         p[RP_WET] = 100;
         p[RP_FLOW] = 100;
-        p[RP_SLOP] = 0;
         reso[0].fph = 0;
         for (j = 0; j < 450u; j++) {
             for (i = 0; i < CTL; i++)
                 l[i] = r[i] = ((int32_t)(noise32(&rng) >> 17) - 16384) / 3;
-            reso_block(0, l, r, 0u, 1, -1, CTL);
-            if (j == 30u)
+            reso_block(0, l, r, j == 200u ? 1u << 9 : 0u, 1, -1, CTL);   /* (a key, A3, at 200: ignored) */
+            if (j == 30u) {
+                lo = reso[0].rs16;
                 dark = hf_of(l, CTL);
-            if (j == 430u)
+            }
+            if (j == 202u)
+                keyed = reso[0].rs16;
+            if (j == 430u) {
+                hi = reso[0].rs16;
                 bright = hf_of(l, CTL);
+            }
         }
-        snprintf(b, sizeof b, "COMB FLOW 100: the filter sweeps (highs at the walk's start %d, near its top %d)", dark,
-                 bright);
-        check(b, bright > dark * 3);
+        snprintf(b, sizeof b, "COMB FLOW 100: the comb's pitch walks (%d/16 st early, %d/16 at the half; a key at 200 "
+                 "ignored: %d/16, not A3); brighter up there (%d, then %d)", lo, keyed, hi, dark, bright);
+        check(b, lo < 40 * 16 && hi > 90 * 16 && keyed > 60 * 16 && keyed != 57 * 16 && bright > dark);
         p[RP_FLOW] = 0;
+        RF_RUN(0u, 0, s);
+        check("..FLOW back to 0: PTCH's root again", reso[0].rs16 == p[RP_PTCH] * 16 || reso[0].root16 > 0);
         p[RP_MODE] = RM_BANK;
     }
     {   /* COMB POL: ODD (inverted, its odd harmonics) or ALL (fed back as is: an octave up, every harmonic) */

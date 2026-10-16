@@ -939,9 +939,10 @@ forms. Each track has its own.
      second at 100). Narrow WDTH to hear it as a band walking the chord; at WDTH 100 it's a gentle lean. FOCS places
      the spotlight when FLOW is 0. **EVEN** (page 6, with VARY): the odd partials against the even ones (left: the
      1st, 3rd, 5th alone, a hollow set; right: the 2nd, 4th, 6th, an octave up and emptier in the middle).
-   - **COMB's FLOW** (page 5, with MODE STRM VARY) sweeps the filter in front of the comb up and down the whole range
-     by itself, at the same rates. With TYPE on BP and RES up it picks out one region of the comb's harmonics at a
-     time, like a wah on the comb; with LP it goes dark to bright and back. CUT places the filter when FLOW is 0.
+   - **COMB's FLOW** (page 5, with MODE STRM VARY) bounces the comb itself through the spectrum: its pitch climbs
+     from E1 to E7 and back down at the same rates, a flanger's sweep with the comb's teeth. While it flows the comb
+     is free of PTCH, the keys and their chord, so you don't have to tune it to anything; SCAL still spreads the
+     four lines from wherever it is (0: the harmonics). At FLOW 0 it's the tuned comb as before.
    - **SPRD**: on the strings and combs a detune across them, from the lowest a little flat to the highest a little
      sharp (half a semitone across at 100: a chorus, and with RIPL a slow shimmer); on RESO and 12-BAND it stretches
      or squeezes the spacing of the partials instead, up to 40 % either way, out of tune with itself like a bell or a
