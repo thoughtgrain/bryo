@@ -932,11 +932,16 @@ forms. Each track has its own.
    - **RIPPLE** (strings): **SPRD RIPL DRV PICK**.
    - **COMB**: **POL SPRD RIPL DRV**. **POL** is the feedback's polarity: **ODD** (inverted: the odd harmonics, hollow,
      at the root) or **ALL** (as is: every harmonic, an octave up, brighter and more metallic).
-   - **RESO** and **12-BAND**: **FOCS WDTH SPRD EVEN**. FOCS and WDTH are a spotlight on the bands: **WDTH** at 100
+   - **RESO** and **12-BAND**: **FOCS WDTH FLOW SPRD**. FOCS and WDTH are a spotlight on the bands: **WDTH** at 100
      lets every band ring; turn it down and only the bands near **FOCS** (left: the lowest, right: the highest) ring,
-     the rest fade out. Narrow it all the way and sweep FOCS (or put an LFO on it) for a band that walks up and down
-     the chord. **EVEN**: the odd partials against the even ones (left: the 1st, 3rd, 5th alone, a hollow set; right:
-     the 2nd, 4th, 6th, an octave up and emptier in the middle).
+     the rest fade out. **FLOW** moves the spotlight by itself: turn it up and the sound walks up through the bands
+     and back down, one part of the spectrum at a time, FLOW how fast (a round trip of 20 seconds at 1, under a
+     second at 100). Narrow WDTH to hear it as a band walking the chord; at WDTH 100 it's a gentle lean. FOCS places
+     the spotlight when FLOW is 0. **EVEN** (page 6, with VARY): the odd partials against the even ones (left: the
+     1st, 3rd, 5th alone, a hollow set; right: the 2nd, 4th, 6th, an octave up and emptier in the middle).
+   - **COMB's FLOW** (page 5, with MODE STRM VARY) sweeps the filter in front of the comb up and down the whole range
+     by itself, at the same rates. With TYPE on BP and RES up it picks out one region of the comb's harmonics at a
+     time, like a wah on the comb; with LP it goes dark to bright and back. CUT places the filter when FLOW is 0.
    - **SPRD**: on the strings and combs a detune across them, from the lowest a little flat to the highest a little
      sharp (half a semitone across at 100: a chorus, and with RIPL a slow shimmer); on RESO and 12-BAND it stretches
      or squeezes the spacing of the partials instead, up to 40 % either way, out of tune with itself like a bell or a
@@ -975,7 +980,7 @@ as it rings.
 
 <img src="img/resonator_wet.png" width="240" alt="RIPPLE ringing"> <img src="img/ripple2.png" width="240" alt="RIPPLE 2: SPRD RIPL DRV PICK"> <img src="img/resonator2.png" width="240" alt="RIPPLE 4: CUT RES TYPE">
 
-<img src="img/ripple_comb.png" width="240" alt="COMB: the odd harmonics' teeth"> <img src="img/ripple_bank.png" width="240" alt="12-BAND: a meter a band">
+<img src="img/ripple_comb.png" width="240" alt="COMB: the odd harmonics' teeth"> <img src="img/ripple_flow.png" width="240" alt="12-BAND page 2: FOCS WDTH FLOW SPRD, FLOW at 60"> <img src="img/ripple_bank.png" width="240" alt="12-BAND: a meter a band">
 
 ### 6.6 COLOR: dirt and character
 

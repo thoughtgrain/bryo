@@ -499,11 +499,15 @@ static void test_input(void)
           !strcmp(RS_FORM_P[2][RP_TONE].label, "TILT") && dev_p(0, DEV_RESO) == RS_STR_P);
     press(B_EDIT);
     check("..again: RIPPLE's page 2, the form's own (SPRD RIPL DRV PICK; COMB: POL SPRD RIPL DRV; RESO and 12-BAND: "
-          "FOCS WDTH SPRD EVEN)", ui.dev == DEV_RESO && ui.page == 1u &&
+          "FOCS WDTH FLOW SPRD; their page 6 VARY EVEN; COMB's page 5 MODE STRM VARY FLOW)",
+          ui.dev == DEV_RESO && ui.page == 1u &&
           pdesc_at(RS_STR_P, 4u) == RP_SPRD && pdesc_at(RS_STR_P, 5u) == RP_RIPL &&
           pdesc_at(RS_STR_P, 6u) == RP_DRV && pdesc_at(RS_STR_P, 7u) == RP_PICK &&
           pdesc_at(RS_FORM_P[0], 4u) == RP_POL && pdesc_at(RS_FORM_P[1], 4u) == RP_FOCS &&
-          pdesc_at(RS_FORM_P[2], 5u) == RP_WDTH && pdesc_at(RS_FORM_P[2], 7u) == RP_EVEN);
+          pdesc_at(RS_FORM_P[2], 5u) == RP_WDTH && pdesc_at(RS_FORM_P[2], 6u) == RP_FLOW &&
+          pdesc_at(RS_FORM_P[2], 7u) == RP_SPRD && pdesc_at(RS_FORM_P[2], 21u) == RP_EVEN &&
+          pdesc_at(RS_FORM_P[0], 19u) == RP_FLOW && pdesc_empty(&RS_STR_P[RP_FLOW]) &&
+          !strcmp(DEV_P[DEV_RESO][RP_FLOW].label, "FLOW") && DEV_P[DEV_RESO][RP_FLOW].def == 0);
     press(B_EDIT);
     check("..again: RIPPLE's page 3, the pitch (PTCH SCAL; the strings: KEYS PLVL)", ui.dev == DEV_RESO && ui.page == 2u &&
           pdesc_at(RS_STR_P, 8u) == RP_PTCH && pdesc_at(RS_STR_P, 9u) == RP_SCAL && pdesc_at(RS_STR_P, 10u) == RP_KEYS &&
@@ -4864,13 +4868,22 @@ static void test_scenes(void)
 
 /* RIPPLE's forms and KEYS (2026-10-13): TUNE retunes what the track's sound rings without a pluck; 12-BAND sorts
  * what comes in into its twelve bands; its bands three a string's chunk, shed three at a time */
+/* the highs of a block: the RMS of its first difference (a sweep's brightness, scaled) */
+static int32_t hf_of(const int32_t *x, uint32_t n)
+{
+    double a = 0;
+    uint32_t i;
+    for (i = 1; i < n; i++)
+        a += (double)(x[i] - x[i - 1]) * (double)(x[i] - x[i - 1]);
+    return (int32_t)sqrt(a / (double)(n - 1u));
+}
 static void test_ripple_forms(void)
 {
     enum { NB = 690 };
     static int32_t s[NB * CTL], l[CTL], r[CTL];
     int16_t *p;
     char b[160];
-    uint32_t i, k;
+    uint32_t i, k, j;
     int32_t rng = 77;
     double on, off, pk;
 #define RF_RUN(keys0, in, buf) do {                                                                       \
@@ -4969,6 +4982,64 @@ static void test_ripple_forms(void)
                  "(bands %03x)", lit, wide);
         check(b, lit == 1u && (wide & 1u) == 0u && (wide & 0x800u) == 0u && (wide & 0x060u) == 0x060u);
         p[RP_WDTH] = 100;
+    }
+    {   /* 2026-10-16: FLOW, the spotlight walking the bands by itself, up and back down */
+        uint32_t seen = 0, at_once = 0, lo_first = 0, hi_mid = 0;
+        p[RP_WDTH] = 25;
+        p[RP_FLOW] = 60;
+        focus_dev(DEV_RESO, 1);                          /* (the picture: 12-BAND's page 2 with FLOW on) */
+        ui_input();
+        shot("BRYO", "ripple_flow");
+        p[RP_FOCS] = 0;
+        p[RP_WDTH] = 0;
+        p[RP_FLOW] = 100;                                /* a round trip in about 0.6 s: 861 blocks */
+        reso[0].fph = 0;
+        for (j = 0; j < 900u; j++) {
+            uint32_t lit = 0, c = 0;
+            for (i = 0; i < CTL; i++)
+                l[i] = r[i] = ((int32_t)(noise32(&rng) >> 17) - 16384) / 3;
+            reso_block(0, l, r, 0u, 1, -1, CTL);
+            for (k = 0; k < RS_NB; k++) {
+                lit |= (reso[0].lvl[k] > 0) << k;
+                c += reso[0].lvl[k] > 0;
+            }
+            seen |= lit;
+            at_once = c > at_once ? c : at_once;
+            if (j == 40u)
+                lo_first = lit;
+            if (j == 430u)
+                hi_mid = lit;
+        }
+        snprintf(b, sizeof b, "12-BAND FLOW 100 WDTH 0: the lit band walks (every band lit in turn: %03x; at most %u at "
+                 "once; low early (%03x), high at the half (%03x))", seen, at_once, lo_first, hi_mid);
+        check(b, seen == 0xFFFu && at_once <= 3u && (lo_first & 0x003u) && (hi_mid & 0xC00u));
+        p[RP_FLOW] = 0;
+        p[RP_WDTH] = 100;
+        p[RP_FOCS] = 50;
+    }
+    {   /* COMB with FLOW: the filter in front sweeps the range by itself (TYPE LP: dark at the bottom, bright at the
+         * top of the walk) */
+        int32_t dark, bright;
+        p[RP_MODE] = RM_COMB;
+        p[RP_KEYS] = RK_TUNE;
+        p[RP_WET] = 100;
+        p[RP_FLOW] = 100;
+        p[RP_SLOP] = 0;
+        reso[0].fph = 0;
+        for (j = 0; j < 450u; j++) {
+            for (i = 0; i < CTL; i++)
+                l[i] = r[i] = ((int32_t)(noise32(&rng) >> 17) - 16384) / 3;
+            reso_block(0, l, r, 0u, 1, -1, CTL);
+            if (j == 30u)
+                dark = hf_of(l, CTL);
+            if (j == 430u)
+                bright = hf_of(l, CTL);
+        }
+        snprintf(b, sizeof b, "COMB FLOW 100: the filter sweeps (highs at the walk's start %d, near its top %d)", dark,
+                 bright);
+        check(b, bright > dark * 3);
+        p[RP_FLOW] = 0;
+        p[RP_MODE] = RM_BANK;
     }
     {   /* COMB POL: ODD (inverted, its odd harmonics) or ALL (fed back as is: an octave up, every harmonic) */
         double o1, o2, a1, a2;

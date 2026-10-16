@@ -3159,6 +3159,24 @@ forgotten at the end, a key back at full), LTCH's removal with and without FADE,
 toggle and faded pile, the LEDs (chord lit, the sounding note dark, between steps both lit, OFF dark), DRUM's timed
 latch. One new golden (`arp_fade`, the manual's picture of page 2).
 
+### RIPPLE's FLOW: the sound moving through the spectrum by itself (2026-10-16)
+
+"The comb and 12 band is supposed to flow through each part of the spectrum, instead it seems to just go through the
+bands all at once." FOCS and WDTH could already pin a spotlight on the bands, but moving it took an LFO on FOCS; now
+it moves on its own. FLOW (`RP_FLOW`, stored slot 26, 0..100, default 0) is on page 2 of RESO and 12-BAND (FOCS WDTH
+FLOW SPRD; EVEN moved to page 6 with VARY) and on COMB's page 5 (MODE STRM VARY FLOW). `rs_flow` steps a Q32 phase a
+block (a round trip of 20 s at 1, doubling every 20 points by a 20-entry 2^(f/20) table to 0.6 s at 100: no divides)
+and returns a triangle 0..1000, up the spectrum for half the cycle and back down for the rest, or -1 when FLOW is 0 or
+the form is the strings (the knob is empty there and ignored). The resonators use it as the spotlight's place in
+place of FOCS, through the same window (`w = 40 + WDTH * 10`), and the window applies whenever FLOW is on, even at
+WDTH 100 (a gentle lean: narrow WDTH to hear a band walking). COMB hasn't bands, so there FLOW sweeps the filter in
+front across its whole range in place of CUT (`c8 = pos * 8323 >> 8`: 0 to 127 semitones): BP with RES up picks one
+region of the comb's harmonics at a time, LP goes dark to bright. The phase is the track's (`reso_t.fph`), reset
+when FLOW is 0. At FLOW 0 nothing changes: every fingerprint held. Tests: 12-BAND at FLOW 100 WDTH 0 lights every band
+in turn over 900 blocks with at most three at once, the low bands early and the high ones at the half; COMB at FLOW
+100 is three times brighter near the walk's top than at its start. Goldens: 12-BAND's page 2 and COMB's page 5, and
+the manual's new picture (`ripple_flow`).
+
 ## USB record mode (2026-10-08)
 
 Recording from the computer is a mode of its own, not a source a track plays through: you go in, record, put the

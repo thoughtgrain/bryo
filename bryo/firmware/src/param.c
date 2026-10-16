@@ -119,7 +119,7 @@ static const char *const N_TSYNC[6] = {"OFF", "1BR", "2BR", "4BR", "8BR", "16BR"
 
 /* RIPPLE's knobs, the same stored places in every form (MODE, the form: reso.c RM_*), the labels the form's (dec:
  * DEC's, tone: TONE's; the resonators call DEC their RING and TONE their TILT) */
-#define RS_DESC(dec, tone, k22, k23, k24, k25) {                                                                                \
+#define RS_DESC(dec, tone, k22, k23, k24, k25, k26) {                                                                   \
         {"PTCH", 33, 81, 45, F_NOTE}, {dec, 0, 100, 60, F_PCT},                                                    \
         {tone, 0, 100, 45, F_PCT}, {"WET", 0, 100, 0, F_PCT},   /* (TONE 60 until 2026-10-13: too bright) */      \
         /* 2: a filter before the strings (cutoff, resonance, its TYPE: low-, band- or high-pass, as POLY's), and the  \
@@ -144,8 +144,10 @@ static const char *const N_TSYNC[6] = {"OFF", "1BR", "2BR", "4BR", "8BR", "16BR"
          * strings detuned across (cents, a chorus) or the bands' spacing stretched; k22, EVEN on the resonators   \
          * (the odd partials against the even: - the 1st 3rd 5th alone, + the 2nd 4th 6th) */                     \
         {"PLVL", 0, 100, 100, F_PCT}, {"SPRD", -100, 100, 0, F_BIPCT}, k22,                                       \
-        /* 23 (2026-10-15): k23, COMB's POL; k24 k25, the resonators' FOCS and WDTH */                              \
-        k23, k24, k25}
+        /* 23 (2026-10-15): k23, COMB's POL; k24 k25, the resonators' FOCS and WDTH; k26 (2026-10-16), FLOW: the  \
+         * sound moving through the spectrum by itself (the spotlight walking the bands; COMB's filter in front     \
+         * sweeping) */                                                                                             \
+        k23, k24, k25, k26}
 #define RS_EVEN {"EVEN", -100, 100, 0, F_BIPCT}
 /* COMB's POL: ODD, the feedback inverted (the odd harmonics, hollow: the comb as it was); ALL, not (every harmonic,
  * the half line an octave up: metallic) */
@@ -155,6 +157,12 @@ static const char *const N_POL[2] = {"ODD", "ALL"};
  * all of them, as before; narrower, the bands near FOCS alone) */
 #define RS_FOCS {"FOCS", 0, 100, 50, F_PCT}
 #define RS_WDTH {"WDTH", 0, 100, 100, F_PCT}
+/* FLOW (2026-10-16, "the comb and 12 band is supposed to flow through each part of the spectrum, instead it seems to
+ * just go through the bands all at once"): the sound moves through the spectrum by itself, up and back down, FLOW
+ * how fast (a round trip of 20 s at 1, 0.6 s at 100; 0: still). RESO and 12-BAND: the spotlight walks the bands
+ * (WDTH its width; FOCS places it when FLOW is 0). COMB: the filter in front sweeps the whole range (CUT when FLOW
+ * is 0; TYPE BP with RES up: one region of the comb at a time) */
+#define RS_FLOW {"FLOW", 0, 100, 0, F_PCT}
 
 /* (each table in the order its knobs are stored; the "1:", "2:" notes are those blocks of four. Where a page shows
  * them otherwise, PLAYOUT below says so) */
@@ -216,9 +224,9 @@ static const pdesc_t DEV_P[NDEV][NPK] = {
         {"GRNS", 0, GR_GRNS_MAX, 0, F_ENUM, N_GRNS, 1},
         /* SYNC: RATE in the tempo's divisions (1 bar .. 1/64), the grains on that grid, PATN shaping it (grain.c) */
         {"SYNC", 0, 1, 0, F_ENUM, N_OFFON, 1}},
-    RS_DESC("DEC", "TONE", RS_EVEN, RS_POL, RS_FOCS, RS_WDTH),   /* RIPPLE (the S-4's RING): the storage, every form's
-                                                    * knobs (the projects, modulation and scenes read it); each form's
-                                                    * pages its own table (RS_STR_P, RS_FORM_P) */
+    RS_DESC("DEC", "TONE", RS_EVEN, RS_POL, RS_FOCS, RS_WDTH, RS_FLOW),   /* RIPPLE (the S-4's RING): the storage,
+                                                    * every form's knobs (the projects, modulation and scenes read
+                                                    * it); each form's pages its own table (RS_STR_P, RS_FORM_P) */
     {   /* COLOR (the S-4's DEFORM) */
         {"DRV", 0, 100, 0, F_PCT}, {"CRSH", 0, 100, 0, F_PCT},
         {"NOIS", 0, 100, 0, F_PCT}, {"TILT", -100, 100, 0, F_BIPCT},
@@ -252,10 +260,10 @@ static const pdesc_t DEV_P[NDEV][NPK] = {
         {"TYPE", 0, 3, 0, F_ENUM, N_RTYPE, 1}, {"MOD", 0, 100, 0, F_PCT, 0, 1}},
 };
 /* RIPPLE's other forms (reso.c RM_COMB on): the same knobs, each form's labels, its own pages (PLAYOUT) */
-static const pdesc_t RS_STR_P[NPK] = RS_DESC("DEC", "TONE", {""}, {""}, {""}, {""});   /* the strings' pages */
-static const pdesc_t RS_FORM_P[3][NPK] = {RS_DESC("FDBK", "TONE", {""}, RS_POL, {""}, {""}),
-                                          RS_DESC("RING", "TILT", RS_EVEN, {""}, RS_FOCS, RS_WDTH),
-                                          RS_DESC("RING", "TILT", RS_EVEN, {""}, RS_FOCS, RS_WDTH)};
+static const pdesc_t RS_STR_P[NPK] = RS_DESC("DEC", "TONE", {""}, {""}, {""}, {""}, {""});   /* the strings' pages */
+static const pdesc_t RS_FORM_P[3][NPK] = {RS_DESC("FDBK", "TONE", {""}, RS_POL, {""}, {""}, RS_FLOW),
+                                          RS_DESC("RING", "TILT", RS_EVEN, {""}, RS_FOCS, RS_WDTH, RS_FLOW),
+                                          RS_DESC("RING", "TILT", RS_EVEN, {""}, RS_FOCS, RS_WDTH, RS_FLOW)};
 
 /* The source engines: what starts a track's chain (docs/bryo-architecture.md, "Source engines"). TAPE's knobs are
  * DEV_P[DEV_SRC]; each other source has its own table, and each track keeps every source's values, so switching
@@ -659,13 +667,13 @@ static const playout_t PLAYOUT[] = {
     {RS_STR_P, 5, {1, 2, 8, 3, 21, 18, 17, 9, 0, 7, 19, 20, 4, 5, 6, 10, 16, 11, 22, 23, 12, 13, 14, 15}},
                                                     /* RIPPLE: DEC TONE ROUT WET, SPRD RIPL DRV PICK, PTCH SCAL KEYS PLVL,
                                                      * CUT RES TYPE STRM, MODE VARY */
-    {RS_FORM_P[0], 5, {1, 2, 8, 3, 23, 21, 18, 17, 0, 7, 19, 20, 4, 5, 6, 9, 16, 10, 11, 22, 12, 13, 14, 15}},
+    {RS_FORM_P[0], 5, {1, 2, 8, 3, 23, 21, 18, 17, 0, 7, 19, 20, 4, 5, 6, 9, 16, 10, 11, 26, 12, 13, 14, 15}},
                                                     /* COMB: FDBK TONE ROUT WET, POL SPRD RIPL DRV, PTCH SCAL KEYS PLVL,
-                                                     * CUT RES TYPE PICK, MODE STRM VARY */
-    {RS_FORM_P[1], 6, {1, 2, 8, 3, 24, 25, 21, 22, 0, 7, 17, 18, 4, 5, 6, 16, 19, 20, 9, 10, 11, 23, 26, 27, 12, 13,
-                       14, 15}},                    /* RESO: RING TILT ROUT WET, FOCS WDTH SPRD EVEN, PTCH SCAL DRV RIPL,
-                                                     * CUT RES TYPE MODE, KEYS PLVL PICK STRM, VARY */
-    {RS_FORM_P[2], 6, {1, 2, 8, 3, 24, 25, 21, 22, 0, 7, 17, 18, 4, 5, 6, 16, 19, 20, 9, 10, 11, 23, 26, 27, 12, 13,
+                                                     * CUT RES TYPE PICK, MODE STRM VARY FLOW */
+    {RS_FORM_P[1], 6, {1, 2, 8, 3, 24, 25, 26, 21, 0, 7, 17, 18, 4, 5, 6, 16, 19, 20, 9, 10, 11, 22, 23, 27, 12, 13,
+                       14, 15}},                    /* RESO: RING TILT ROUT WET, FOCS WDTH FLOW SPRD, PTCH SCAL DRV RIPL,
+                                                     * CUT RES TYPE MODE, KEYS PLVL PICK STRM, VARY EVEN */
+    {RS_FORM_P[2], 6, {1, 2, 8, 3, 24, 25, 26, 21, 0, 7, 17, 18, 4, 5, 6, 16, 19, 20, 9, 10, 11, 22, 23, 27, 12, 13,
                        14, 15}},                    /* 12-BAND: the same */
     {DEV_P[DEV_COLOR], 3, {0, 1, 9, 7, 2, 3, 4, 5, 6, 10, 11, 8}},              /* COLOR: DRV CRSH ROUT WET, NOIS TILT
                                                                                  * NDEC NTON, CMOD . . LVL */

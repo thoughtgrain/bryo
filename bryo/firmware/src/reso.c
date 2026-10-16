@@ -27,7 +27,7 @@
 #define RS_LEN (sizeof(mem_chunk_t) / 2u)   /* a string's delay line: a chunk as samples (1,056) */
 enum { RP_PTCH, RP_DEC, RP_TONE, RP_WET, RP_CUT, RP_RES, RP_SLOP, RP_SCAL, RP_ROUT, RP_PICK, RP_STRM, RP_VARY,
        RP_AMODE, RP_AORD, RP_ARNG, RP_ARAT, RP_MODE, RP_DRV, RP_RIPL, RP_KEYS, RP_PLVL, RP_SPRD, RP_EVEN, RP_POL,
-       RP_FOCS, RP_WDTH };
+       RP_FOCS, RP_WDTH, RP_FLOW };
                                                     /* (12-15: its arpeggio; 16: its form, EDIT held + SELECT) */
 /* the form, MODE (2026-10-13: picked as a source is, EDIT held + SELECT on RIPPLE's pages, each with its own pages
  * and picture): STRG the strings; COMB, combs (half the line, fed back inverted: the odd harmonics only, hollow);
@@ -101,6 +101,7 @@ typedef struct {
     uint32_t burst[RS_NB];           /* .. a pluck's noise still to feed band k, samples (0: none) */
     int32_t by[RS_NB], blv[RS_NB];     /* .. its one-pole (the pluck's brightness) and its level */
     uint32_t rph;                    /* RIPL's phase (string k a quarter turn on from string k - 1) */
+    uint32_t fph;                    /* FLOW's phase (Q32: up the spectrum over the first half, back down the rest) */
     int32_t rc[RS_N];                /* RIPL: each string's pitch offset this block, cents */
     uint8_t mode_seen;               /* MODE last block: a change clears the lines (what rang in the old one would
                                       * be read wrong by the new) */
@@ -137,6 +138,28 @@ static uint32_t rs_period_q8c(int32_t n16, int32_t ct)
 }
 
 /* MODE now (a choice the main loop makes: not modulated) */
+/* FLOW (2026-10-16): where the sound is across the spectrum this block, 0..1000 up and back down (a triangle), the
+ * phase stepped by FLOW's rate: a round trip of 20 s at 1 doubling every 20 points to 0.6 s at 100 (-1: FLOW 0, or
+ * a form without it: the knobs place it). Per block: no divides */
+static int32_t HOT_CODE rs_flow(reso_t *R, int32_t flow, int32_t mode)
+{
+    static const uint8_t FR8[20] = {0, 9, 18, 28, 38, 48, 59, 70, 82, 94, 106, 119, 132, 146, 160, 175, 190, 205,
+                                    222, 239};       /* 256 (2^(f/20) - 1) */
+    uint32_t inc = 155850u, f = (uint32_t)flow, tri;
+    if (flow <= 0 || mode == RM_STRG) {
+        R->fph = 0;
+        return -1;
+    }
+    while (f >= 20u) {                                   /* (the octaves; 2^32 / (20 s of blocks) at 1) */
+        f -= 20u;
+        inc <<= 1;
+    }
+    inc += (inc >> 8) * FR8[f];
+    R->fph += inc;
+    tri = R->fph < 0x80000000u ? R->fph >> 21 : (~R->fph) >> 21;   /* 0..1023 up, then down */
+    return (int32_t)((tri * 1000u) >> 10);
+}
+
 static inline __attribute__((always_inline)) int32_t rs_mode(const reso_t *R)
 {
     return clamp(tp[R - reso].dev[DEV_RESO][RP_MODE], 0, NRMODE - 1);
@@ -321,6 +344,7 @@ static void HOT_CODE reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t key
     int32_t a = RS_TONE_A[clamp(p[RP_TONE], 0, 100)], sc = clamp(p[RP_SCAL], 0, RS_SCALES), root16;
     uint32_t k, i, press = keys & ~R->keys, nstr = R->nch < reso_cap ? R->nch : reso_cap, t60 = rs_t60(p[RP_DEC]);
     int32_t mode = rs_mode(R), drv = clamp(p[RP_DRV], 0, 100), ripl = clamp(p[RP_RIPL], 0, 100), ig = 16384;
+    int32_t fpos = rs_flow(R, clamp(p[RP_FLOW], 0, 100), mode);   /* FLOW: where across the spectrum (-1: still) */
     int32_t comb = mode == RM_COMB, gq = 256 + ((drv * 1311) >> 8);   /* (DRV's gain, 1 + DRV / 50: to 3 x) */
     int tune = p[RP_KEYS] == RK_TUNE;
     int32_t inq = 16384;                                /* (the input's share this block: COMB makes it up after) */                   /* (KEYS TUNE: a key or a step retunes, never plucks) */
@@ -377,7 +401,10 @@ static void HOT_CODE reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t key
         int32_t slope = clamp(p[RP_SLOP], 0, 2);
         tsvf_t flt = {0};                                 /* (set when filt; zero keeps the compiler's warning off) */
         int32_t c8 = mod_fine8(t, FN_RCUT, p[RP_CUT]);   /* (CUT finer than its semitones when modulated: mod.c) */
-        int filt = c8 < 127 << 8 || p[RP_RES] || slope;
+        int filt;
+        if (fpos >= 0 && mode == RM_COMB)                /* FLOW on COMB: the filter sweeps the whole range by itself */
+            c8 = (fpos * 8323) >> 8;                     /* (1000 -> 127 << 8, less one) */
+        filt = c8 < 127 << 8 || p[RP_RES] || slope;
         /* the input's share, by the root string's ring: less as the ring gets longer, so a long DEC rings louder but
          * not without bound (the loop clamps besides); applied as the input is read, not in a pass of its own */
         int32_t in = mode >= RM_RESO ? 16384              /* (the resonators scale their own input by their loss) */
@@ -451,10 +478,12 @@ static void HOT_CODE reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t key
             int32_t n16 = root16 + part + ((part * sprd) >> 8);   /* (SPRD: the spacing stretched, up to -40 % or +40 %
                                                                    * from the root: an inharmonic set) */
             int32_t tilt = 1000 - (int32_t)k * tstep;
-            if (p[RP_WDTH] < 100) {                      /* FOCS, WDTH: the spotlight, a band's share by its place
-                                                         * across them against FOCS, falling off over WDTH */
+            if (p[RP_WDTH] < 100 || fpos >= 0) {         /* FOCS, WDTH: the spotlight, a band's share by its place
+                                                         * across them against FOCS (FLOW: where the walk is now),
+                                                         * falling off over WDTH */
                 int32_t pos = nstr > 1u ? (int32_t)k * 1000 / (int32_t)(nstr - 1u) : 500;
-                int32_t d = pos - clamp(p[RP_FOCS], 0, 100) * 10, w = 40 + clamp(p[RP_WDTH], 0, 100) * 10;
+                int32_t d = pos - (fpos >= 0 ? fpos : clamp(p[RP_FOCS], 0, 100) * 10);
+                int32_t w = 40 + clamp(p[RP_WDTH], 0, 100) * 10;
                 d = d < 0 ? -d : d;
                 tilt = d >= w ? 0 : tilt * (w - d) / w;
             }

@@ -254,6 +254,10 @@ number.
   four), split by what each track's settings ask for when it runs short; what's left over is everyone's (since
   2026-10-11: a track alone has all 40, not just what RATE and SIZE ask). GRAIN 6's GRNS can hold a number for a
   track instead (1-40, taken from the AUTO tracks first, kept whatever the others do).
+- **2026-10-16: RIPPLE's FLOW.** The sound moves through the spectrum by itself: on RESO and 12-BAND the spotlight
+  (FOCS WDTH) walks up the bands and back down at FLOW's rate (20 s a round trip at 1, 0.6 s at 100); on COMB the
+  filter in front sweeps its whole range the same way. One knob where an LFO on FOCS was needed before; at 0, as it
+  was (every fingerprint held).
 - **2026-10-15: the arpeggiator fades, lets a note go, and shows itself on the keys.** FADE (ARP page 2, KNOB 4):
   let every key go and the notes keep stepping while their level falls to nothing over FADE (KEY and LTCH then
   forget them, ADD keeps its pile quiet until a key); 0 is the old on-or-off. A note playing on without its key
