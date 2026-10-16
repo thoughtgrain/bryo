@@ -79,7 +79,7 @@ When the firmware's look changes, regenerate from the repository root:
 ```sh
 python3 site/tools/gen_px_webfont.py     # PX5 changed: fonts, wordmark, favicon
 python3 site/tools/gen_panel.py          # a control's job or a colour changed: the panel
-cp bryo/docs/manual/img/{boot,tape,tape_playing,grain,grain_frozen,space,grain_playing,reso_live,space_live,space_long,mixer,mixer_scenes,mixer_morph,projects_scenes,mod1,synth,synth_fm,synth_pd,synth_vox,synth_wt,poly,poly_twin,drum,arp,arp_add,arp_drum,arp_res,ripple2,ripple_comb,ripple_bank,color,crash}.png site/img/
+cp bryo/docs/manual/img/{arp,arp_add,arp_drum,arp_fade,arp_res,boot,color,crash,drum,follow_live,grain,grain_frozen,grain_playing,mixer,mixer_morph,mixer_scenes,mod1,poly_loop,poly_twin,projects_scenes,reso_live,ripple2,ripple_comb,ripple_flow,space,space2,space4,space_live,space_long,synth_env2,synth_fm,synth_shape,synth_wt,tape,tape_frze,tape_playing}.png site/img/
 ```
 
 Both scripts need fontTools only for the fonts (`pip3 install fonttools`); the panel needs nothing beyond Python.
@@ -96,7 +96,7 @@ turn a knob, no menus) before reading about it, so the panel drawing is the stag
 - `js/main.js` (`initTour`) fetches `img/panel.svg` and puts it inline. `tools/gen_panel.py` gives every control a
   group, `<g id="ctl-NAME">`, with its outline as `rect.hit` and a knob's pointer as `rect.ptr`, so CSS can light
   them. The names are listed at the top of the generator.
-- Each routine (Pages, Grains, Scenes, Arp) is a list of steps in `TOUR`. A step can **press** controls (a short
+- Each routine (Pages, Tape, Grains, Scenes, Arp) is a list of steps in `TOUR`. A step can **press** controls (a short
   orange flash, one after another), **hold** them (lit with a faint fill for the whole step) and **turn** knobs (the
   pointer swings to an angle), then it swaps the screen: the big one beside the panel and the panel's own.
 - Every screen is a real render from the manual, picked so it matches the step. Where no render exists for a moment

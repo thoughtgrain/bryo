@@ -5,7 +5,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Bryo documentation</title>
-  <meta name="description" content="What's new, and how to install, play, arpeggiate, morph scenes, record, save and build Bryo, the four-track sound-sculpting firmware for the M-VAVE FM-1.">
+  <meta name="description" content="What's new, and how to install, play, shape, arpeggiate, morph scenes, record, bounce, save and build Bryo, the four-track sound-sculpting firmware for the M-VAVE FM-1.">
   <meta name="theme-color" content="#121212">
   <link rel="icon" href="img/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -121,30 +121,32 @@
 
         <section id="new" aria-labelledby="h-new">
           <h2 id="h-new"><span class="px">02</span>What's new</h2>
-          <p>Here's what changed in the latest round of work (2026-10-13). If you used Bryo before, start here.</p>
-          <h3>Two effects got new names, and grew</h3>
+          <p>Bryo moves quickly. If you used it before, start here.</p>
+
+          <h3>2026-10-15: shaping, freezing, bouncing</h3>
           <ul>
-            <li><strong>RESONATOR is now RIPPLE.</strong> It has four forms: strings, COMB, four resonant bands and a 12-band filter bank. Hold EDIT and turn SELECT to switch. It also gained a longer list of chords, DRV, RIPL (a slow drift across the pitches), and a fourth page for how the keys play it: PLCK or TUNE, PICK, STRM (strum) and VARY. <a href="#effects">More below.</a></li>
-            <li><strong>SPACE is now CHRONOS.</strong> The echoes can age like tape (AGE), smear into a wash (DIFF) or duck under the track (DUCK). A new fifth page sets each room's TYPE (room, plate, hall or spring) and MOD.</li>
-            <li><strong>RES ARP is now RIPL ARP.</strong> With RIPPLE's KEYS on TUNE, it retunes RIPPLE instead of plucking it.</li>
+            <li><strong>ENV is where a sound gets shaped.</strong> The envelopes, the filter and DRUM's kit moved off HOME and live only under ENV now. HOME keeps the source itself. <a href="#pages">Pages</a></li>
+            <li><strong>SYNTH and POLY have a second envelope.</strong> ENV 2 can open the filter, bite the drive or zap the pitch (SYNTH), and ETYP makes both envelopes ADSR, AD (a strike) or LOOP (a pulse while you hold). SYNTH also has SUB, PW and a second oscillator interval, INTV. <a href="#sources">Sources</a></li>
+            <li><strong>Filters sing.</strong> Past RES 93, SYNTH's and POLY's filters ring on their own at the cutoff.</li>
+            <li><strong>TRAN</strong> adds a 3 ms click to the start of every note or hit, on SYNTH, POLY and DRUM.</li>
+            <li><strong>TAPE's tools:</strong> FRZE loops a sliver of the tape, WOW and FLUT warble its speed, and PTCH transposes it in semitones.</li>
+            <li><strong>POLY's LOOP</strong> holds a note as long as you like, forwards or back and forth.</li>
+            <li><strong>DRUM</strong> patterns can be a single bar now.</li>
+            <li><strong>Bounce:</strong> hold REC and press PLAY, and the track records itself straight to a loop on its tape. <a href="#record">Recording</a></li>
+            <li><strong>RIPPLE</strong> got louder forms, a second page that changes with the form, POL on the comb, FOCS, WDTH and FLOW on the resonators, and a fifth page with the form as a knob. <a href="#effects">Effects</a></li>
+            <li><strong>CHRONOS</strong> is regrouped: the delay's pages first, then the room's.</li>
+            <li><strong>GRAIN's BODY</strong> gives every grain a partial of its own, so a cloud of grains plays a chord.</li>
+            <li><strong>The arpeggiator</strong> can fade out (FADE), vary its note lengths (GRND), lights its notes on the keys, and a lit key takes its note out. <a href="#arps">Arpeggiators</a></li>
+            <li><strong>FOLLOW</strong> levels itself, so a quiet sound moves knobs as far as a loud one, and it shows what it hears live on its page.</li>
+            <li><strong>The factory project</strong> is one groove with three scenes to morph through: AMBIENT, TECHNO and GLITCH. <a href="#first">First sounds</a></li>
           </ul>
-          <h3>New sounds</h3>
+
+          <h3>2026-10-13: new names, new sounds, scenes</h3>
           <ul>
-            <li><strong>SYNTH has four new waves:</strong> FM (a two-operator FM synth), PD (the Casio CZ's phase distortion), VOX (a voice through three formants) and WT (a wavetable, which can be cut from any reel).</li>
-            <li><strong>SYNTH's CHRD</strong> plays a whole chord from one key, on every wave.</li>
-            <li><strong>POLY's TWIN</strong> gives it a second reel, mixed, split across the keys, alternated or picked at random.</li>
-          </ul>
-          <h3>Scenes</h3>
-          <ul>
-            <li>Each project now has <strong>four scenes</strong>. Store a sound, recall it, or morph between scenes with a knob. They live on the mixer's first EDIT page. <a href="#mixer">More below.</a></li>
-          </ul>
-          <h3>Smaller changes</h3>
-          <ul>
-            <li>KEY has <strong>15 scales</strong> now, and GRAIN can follow the project's scale.</li>
-            <li>Each modulator moves up to <strong>twelve knobs</strong>. The screen counts them while you hold its pad.</li>
-            <li>The shared tape memory is <strong>about 20 seconds</strong> (it was 28). In play, 20 seconds turned out to be plenty, and the freed RAM makes room for new features. The whole audio path now runs from fast RAM, too.</li>
-            <li>A muted track sleeps, so it costs nothing while it's quiet.</li>
-            <li>SETUP shows where the CPU goes, stage by stage. Past FACTORY in the projects there's a TEST project for comparing builds.</li>
+            <li>RESONATOR became <strong>RIPPLE</strong>, with four forms, and SPACE became <strong>CHRONOS</strong>. RES ARP became RIPL ARP.</li>
+            <li>SYNTH gained the FM, PD, VOX and WT waves, and CHRD. POLY gained TWIN.</li>
+            <li>Each project gained four <strong>scenes</strong>.</li>
+            <li>KEY has 15 scales, each modulator moves up to twelve knobs, and the shared tape memory is about 20 seconds.</li>
           </ul>
         </section>
 
@@ -187,7 +189,7 @@ cd /tmp/bryo-site &amp;&amp; python3 -m http.server 8000
             <li><strong>Top left:</strong> MASTER (volume), SELECT (tempo), PRESETS (projects and presets), ALGORITHM (what REC records). Under them, OCT&minus; and OCT+.</li>
             <li><strong>Top right:</strong> KNOB 1 to 4. They always change the four values on the screen.</li>
             <li><strong>Blue pads, the pages:</strong> HOME (the track's source), EDIT (GRAIN, RIPPLE), FX (COLOR, CHRONOS), GLO (the mixer and scenes).</li>
-            <li><strong>Purple pads, what moves:</strong> LFO holds modulators M1 to M3, SEQ is M4 (a step sequencer), ENV is the source's own envelope, and ARP is the arpeggiator.</li>
+            <li><strong>Purple pads, what moves:</strong> LFO holds modulators M1 to M3, SEQ is M4 (a step sequencer), ENV shapes the source (its envelopes, filter or kit), and ARP is the arpeggiator.</li>
             <li><strong>Green pads, the transport:</strong> PLAY and REC. SAVE saves, and holding it undoes. Holding SCL resets things.</li>
             <li><strong>Keys:</strong> the 16 white keys play the track. The 11 black keys above them mute tracks, flip the tape, clear things and freeze GRAIN.</li>
           </ul>
@@ -218,7 +220,8 @@ cd /tmp/bryo-site &amp;&amp; python3 -m http.server 8000
           <h2 id="h-first"><span class="px">06</span>First sounds</h2>
           <ol class="steps">
             <li><strong>Turn it on.</strong> BRYO shows for a moment, then you're on track 1's TAPE page. Don't hold OCT&minus; and OCT+ while it starts, or you'll land in calibration.</li>
-            <li><strong>Press PLAY.</strong> You'll hear the factory scene: a drum machine that changes its own pattern, FM bells played by the arpeggiator, a drone ringing through the strings, and plucks bouncing into an echo. It's all in A minor.</li>
+            <li><strong>Press PLAY.</strong> You'll hear the factory project's first scene, <strong>AMBIENT</strong>: a choir of minor-seventh chords, a drone through long grains and resonators, and bells that swell in and fade into a big room. Everything is slow. The drums are there but silent in this scene.</li>
+            <li><strong>Morph it.</strong> Tap GLO, tap EDIT for SCENES, and turn <strong>KNOB 2</strong> toward <strong>TECHNO</strong>: the drums come up and everything ducks on the kick. Turn <strong>KNOB 3</strong> on into <strong>GLITCH</strong>: crushed, stuttering drums and random bells. Tap white keys 1 to 3 to jump between them instead.</li>
             <li><strong>Turn SELECT</strong> for the tempo (40 to 240 BPM) and <strong>MASTER</strong> for the volume. Both work on every page.</li>
             <li><strong>Press the black keys OP1 to OP4</strong> to mute and unmute tracks 1 to 4.</li>
             <li><strong>Hold GLO and press white key 2</strong> to move to track 2. Almost everything you do changes the track you're on.</li>
@@ -233,10 +236,10 @@ cd /tmp/bryo-site &amp;&amp; python3 -m http.server 8000
             <table>
               <thead><tr><th scope="col">Pad</th><th scope="col">Pages, in order</th></tr></thead>
               <tbody>
-                <tr><td>HOME</td><td>The source's pages (TAPE 4, SYNTH 5, POLY 5, DRUM 4). Hold it and turn SELECT to change the source.</td></tr>
-                <tr><td>EDIT</td><td>GRAIN 1 to 6, then RIPPLE 1 to 4. Hold it and turn SELECT to change RIPPLE's form.</td></tr>
-                <tr><td>FX</td><td>COLOR 1 to 3, then CHRONOS 1 to 5</td></tr>
-                <tr><td>ENV</td><td>The source's envelope (on DRUM, its KIT)</td></tr>
+                <tr><td>HOME</td><td>The source itself (TAPE 4 pages, SYNTH 4, POLY 4, DRUM 3). Hold it and turn SELECT to change the source.</td></tr>
+                <tr><td>ENV</td><td>What shapes the source: SYNTH's and POLY's AMP, FILTER, ENV 2 and SHAPE; TAPE's slice envelope; DRUM's KIT and KIT 2</td></tr>
+                <tr><td>EDIT</td><td>GRAIN 1 to 6, then RIPPLE 1 to 5 (1 to 6 on RESO and 12-BAND). Hold it and turn SELECT to change RIPPLE's form.</td></tr>
+                <tr><td>FX</td><td>COLOR 1 to 3, then CHRONOS 1 to 5 (the delay's, then the room's)</td></tr>
                 <tr><td>LFO, SEQ</td><td>A modulator's pages (LFO: M1, M2 or M3; SEQ: M4)</td></tr>
                 <tr><td>ARP</td><td>The arpeggiator's 2 pages, then RIPL ARP</td></tr>
                 <tr><td>GLO</td><td>The mixer. EDIT then steps through SCENES, CHANNEL, MASTER, KEY and SETUP.</td></tr>
@@ -247,56 +250,85 @@ cd /tmp/bryo-site &amp;&amp; python3 -m http.server 8000
           <p>Hold <strong>LFO</strong> or <strong>SEQ</strong> and turn any knob on a source, effect or channel page. How far you turn sets how far that modulator moves the knob, from &minus;100 to 100&nbsp;%. The knob gets a purple mark so you can see it's moving.</p>
           <p>Each modulator can move up to twelve knobs. While you hold its pad, the bottom of the screen counts them (DEPTH 1/12). If you reach twelve, turn one back to 0, or hold the pad and MONO to clear that modulator's knobs on the page.</p>
           <p>The LFO pad holds three modulators. Hold LFO and press OP1, OP2 or OP3 to pick which one it shows. Hold LFO and turn SELECT to change what it is: an LFO, an ADSR envelope or an envelope follower. The knobs it moves stay the same. SEQ is always the step sequencer.</p>
+          <p><strong>FOLLOW levels itself.</strong> It measures each track against that track's own recent peaks, so a quiet pad pushes its knobs as far as a loud drum does. GAIN makes it reach the top sooner or later. On SYNTH, POLY and DRUM its page shows the last second and a half live (LIVE in the corner), even before it moves anything, so you can set RISE, FALL and GAIN by watching it.</p>
           <div class="figure-row">
             <figure class="screen"><img class="pixelated" src="img/mod1.png" width="480" height="480" alt="An LFO modulator page" loading="lazy"><figcaption class="px">LFO / M1</figcaption></figure>
+            <figure class="screen"><img class="pixelated" src="img/follow_live.png" width="480" height="480" alt="FOLLOW live on a DRUM track" loading="lazy"><figcaption class="px">Follow / Live</figcaption></figure>
           </div>
           <a class="more" href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/docs/manual/README.md#7-modulation">Manual 7 &gt;</a>
         </section>
 
         <section id="sources" aria-labelledby="h-sources">
           <h2 id="h-sources"><span class="px">08</span>Sources</h2>
-          <p>Each track starts with one of four sources. Hold <strong>HOME</strong> and turn <strong>SELECT</strong> to switch. Each one keeps its own knobs, so switching back loses nothing.</p>
+          <p>Each track starts with one of four sources. Hold <strong>HOME</strong> and turn <strong>SELECT</strong> to switch. Each one keeps its own knobs, so switching back loses nothing. HOME's pages are the source itself; <strong>ENV</strong>'s pages shape it.</p>
 
           <h3>TAPE</h3>
-          <p>A loop in memory. The white keys play its sixteen slices. You can move where the loop starts and ends, change its speed, play it backwards or at half speed, and with SYNC on TAPE 4, lock it to a number of bars at the tempo.</p>
+          <p>A loop in memory. The white keys play its sixteen slices.</p>
+          <ul>
+            <li><strong>Page 1:</strong> STRT, LEN, SPD and <strong>PTCH</strong>. PTCH moves the speed in semitones (&minus;24 to +24), so with SPD at 100&nbsp;% you can play it like a transpose.</li>
+            <li><strong>Page 2:</strong> DUB, GAIN, XFAD and REV.</li>
+            <li><strong>Page 3, the tools:</strong> <strong>FRZE</strong> on holds the moment: the head keeps looping the <strong>FLEN</strong> milliseconds it was in (10&nbsp;ms to 1&nbsp;s), framed in orange, and the keys slice that sliver. A short FLEN buzzes or stutters; a long one repeats a phrase. <strong>WOW</strong> and <strong>FLUT</strong> waver the speed slowly and quickly, like a worn cassette.</li>
+            <li><strong>Page 4:</strong> REEL, ROTA, SYNC (lock the loop to 1 to 16 bars) and LVL. Half speed is on the black OP6 key.</li>
+            <li><strong>ENV:</strong> an envelope for the slices you play.</li>
+          </ul>
+          <div class="figure-row">
+            <figure class="screen"><img class="pixelated" src="img/tape.png" width="480" height="480" alt="TAPE: STRT LEN SPD PTCH" loading="lazy"><figcaption class="px">Tape</figcaption></figure>
+            <figure class="screen"><img class="pixelated" src="img/tape_frze.png" width="480" height="480" alt="TAPE's tools: FRZE FLEN WOW FLUT, the frozen window in orange" loading="lazy"><figcaption class="px">Tape tools</figcaption></figure>
+          </div>
 
-          <h3>SYNTH, and its new waves</h3>
-          <p>A small synth with up to three voices, an envelope and a filter. Turn <strong>WAVE</strong> past the classic shapes (SIN, TRI, SQR, SAW, PLS) and SYNTH becomes something else. The first page relabels for each one:</p>
+          <h3>SYNTH</h3>
+          <p>Up to three voices, nine waves, two envelopes and a filter.</p>
+          <div class="table-wrap" tabindex="0" role="region" aria-label="SYNTH's pages">
+            <table>
+              <thead><tr><th scope="col">Pad, page</th><th scope="col">Knobs</th></tr></thead>
+              <tbody>
+                <tr><td>HOME 1</td><td>WAVE, INTV (the second oscillator's interval: +7 a fifth, &minus;12 a sub), DTUN, MIX</td></tr>
+                <tr><td>HOME 2, VOICE</td><td>VOIC (1 to 3 notes), GLID, TUNE, FINE</td></tr>
+                <tr><td>HOME 3, MORE</td><td>PW (pulse width, for PWM), NOIS, SUB (a square an octave down), DRV</td></tr>
+                <tr><td>HOME 4, LEVEL</td><td>CHRD, TRAN, LVL</td></tr>
+                <tr><td>ENV 1, AMP</td><td>ATK, DEC, SUS, REL</td></tr>
+                <tr><td>ENV 2, FILTER</td><td>CUT, RES, TYPE (LP, BP, HP), KTRK</td></tr>
+                <tr><td>ENV 3, ENV 2</td><td>A second envelope: ATK2, DEC2, SUS2, REL2</td></tr>
+                <tr><td>ENV 4, SHAPE</td><td>ETYP, the wave's own envelope depth, DEST (where ENV 2 goes), ENV (how far)</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p><strong>Two envelopes.</strong> AMP sets the level. <strong>ENV 2</strong> goes where DEST says: <strong>CUT</strong> opens (or closes) the filter, <strong>DRV</strong> brings the drive up so a note bites at the strike, and <strong>PTCH</strong> bends the pitch up to two octaves for zaps, kicks and sweeps. <strong>ETYP</strong> sets both envelopes to ADSR, <strong>AD</strong> (a strike that dies away whatever the key does) or <strong>LOOP</strong> (round and round while you hold the key: a pulse, a swell, or a buzzing tremolo).</p>
+          <p><strong>A filter that sings.</strong> Past RES 93 the filter rings on its own at the cutoff, a pure tone that follows CUT. Turn MIX and NOIS down and play it as a sine, or sweep CUT for a whistle.</p>
+          <p><strong>TRAN</strong> puts 3&nbsp;ms of bright noise in front of the filter at the start of every note: a click with the filter open, a thump with it low. It gives a soft sound an edge.</p>
+          <p><strong>The waves.</strong> Turn WAVE past the classic shapes (SIN, TRI, SQR, SAW, PLS) and the first page relabels:</p>
           <div class="table-wrap" tabindex="0" role="region" aria-label="SYNTH's waves">
             <table>
               <thead><tr><th scope="col">Wave</th><th scope="col">What it is</th><th scope="col">Knobs</th></tr></thead>
               <tbody>
-                <tr><td>FM</td><td>Two sine waves, one bending the other. From a pure tone to bells, electric pianos and growls.</td><td>RATI, INDX, IENV; FDBK on page 5</td></tr>
-                <tr><td>PD</td><td>Phase distortion, the way Casio's CZ synths worked. Sounds like a filter sweep without a filter.</td><td>SHAP, AMT, AENV</td></tr>
-                <tr><td>VOX</td><td>A buzz through three formants, so it speaks vowels.</td><td>VOWL, SHFT, VENV; BRTH on page 5</td></tr>
-                <tr><td>WT</td><td>A wavetable of eight cycles. POS moves through them. The table can be built in, or cut from any reel, even your own tape.</td><td>TABL, POS, PENV</td></tr>
+                <tr><td>FM</td><td>Two sine waves, one bending the other. From a pure tone to bells, electric pianos and growls.</td><td>RATI, INDX; FDBK on MORE</td></tr>
+                <tr><td>PD</td><td>Phase distortion, the way Casio's CZ synths worked. Sounds like a filter sweep without a filter.</td><td>SHAP, AMT</td></tr>
+                <tr><td>VOX</td><td>A buzz through three formants, so it speaks vowels.</td><td>VOWL, SHFT; BRTH on MORE</td></tr>
+                <tr><td>WT</td><td>A wavetable of eight cycles. POS moves through them. The table can be built in, or cut from any reel, even your own tape.</td><td>TABL, POS</td></tr>
               </tbody>
             </table>
           </div>
-          <p>Some starting points from the manual: for an electric piano, FM with RATI 1, INDX 20, IENV +60 and a short decay. For the classic CZ bass, PD with SAW, AMT 0 and AENV +80. For "ooh-wah", VOX on U with VENV +50.</p>
-          <p><strong>CHRD</strong> (page 5, every wave) plays a chord from one key: MAJ, MIN, SUS2, SUS4, DOM7, MAJ7, MIN7, DIM, AUG, 5TH or OCT. The lowest key you hold is the root. Slide to a lower key while holding and the chord moves there without restriking.</p>
+          <p>Each of these waves has its own envelope depth (IENV, AENV, VENV, PENV) on the SHAPE page, riding ENV 2. <strong>CHRD</strong> plays a chord from one key: MAJ, MIN, SUS2, SUS4, DOM7, MAJ7, MIN7, DIM, AUG, 5TH or OCT. The lowest key you hold is the root.</p>
           <div class="figure-row">
-            <figure class="screen"><img class="pixelated" src="img/synth_fm.png" width="480" height="480" alt="FM SYNTH: WAVE RATI INDX IENV" loading="lazy"><figcaption class="px">FM</figcaption></figure>
-            <figure class="screen"><img class="pixelated" src="img/synth_pd.png" width="480" height="480" alt="PD SYNTH: WAVE SHAP AMT AENV" loading="lazy"><figcaption class="px">PD</figcaption></figure>
-            <figure class="screen"><img class="pixelated" src="img/synth_vox.png" width="480" height="480" alt="VOX SYNTH: WAVE VOWL SHFT VENV" loading="lazy"><figcaption class="px">VOX</figcaption></figure>
-            <figure class="screen"><img class="pixelated" src="img/synth_wt.png" width="480" height="480" alt="WT SYNTH: WAVE TABL POS PENV" loading="lazy"><figcaption class="px">WT</figcaption></figure>
+            <figure class="screen"><img class="pixelated" src="img/synth_fm.png" width="480" height="480" alt="FM SYNTH" loading="lazy"><figcaption class="px">FM</figcaption></figure>
+            <figure class="screen"><img class="pixelated" src="img/synth_wt.png" width="480" height="480" alt="WT SYNTH: WAVE TABL POS" loading="lazy"><figcaption class="px">WT</figcaption></figure>
+            <figure class="screen"><img class="pixelated" src="img/synth_env2.png" width="480" height="480" alt="SYNTH's ENV 2" loading="lazy"><figcaption class="px">ENV 2</figcaption></figure>
+            <figure class="screen"><img class="pixelated" src="img/synth_shape.png" width="480" height="480" alt="SYNTH's SHAPE page: ETYP LOOP, ENV 2 to the drive" loading="lazy"><figcaption class="px">Shape</figcaption></figure>
           </div>
 
-          <h3>POLY, and TWIN</h3>
-          <p>POLY plays a reel, or the track's own tape, across the keys, up to four notes at once. On page 4, <strong>TWIN</strong> adds a second reel (RLB) and decides how the two play together:</p>
+          <h3>POLY</h3>
+          <p>POLY plays a reel, or the track's own tape, across the keys, up to four notes at once. HOME has REEL, STRT, END and TUNE, then LOOP, TWIN and LEVEL. ENV has its envelope, filter (which self-resonates too), ENV 2 for the filter, and ETYP.</p>
           <ul>
-            <li><strong>MIX:</strong> both in every note, with BLND setting the balance. Two notes at a time in this mode.</li>
-            <li><strong>XFD:</strong> low notes play A and high notes play B, crossing around middle C. BLND moves the crossing.</li>
-            <li><strong>ALT:</strong> they take turns, so a repeated note doesn't sound like a machine.</li>
-            <li><strong>RND:</strong> each note picks B by chance, with BLND as the chance.</li>
+            <li><strong>LOOP:</strong> without it a note plays from STRT to END and stops. With it on, a held note loops between LSTR and END, through its release. <strong>FWD</strong> jumps back with a short crossfade (LXF); <strong>PING</strong> goes forwards and back, seamless, good for pads and drones from short sounds.</li>
+            <li><strong>TWIN</strong> adds a second reel (RLB): <strong>MIX</strong> both in every note, <strong>XFD</strong> low notes A and high notes B, <strong>ALT</strong> taking turns, or <strong>RND</strong> by chance. TUNB tunes B against A.</li>
           </ul>
-          <p>TUNB tunes B against A in semitones. OFF is POLY as it was.</p>
           <div class="figure-row">
-            <figure class="screen"><img class="pixelated" src="img/poly_twin.png" width="480" height="480" alt="POLY TWIN: MIX, BELL with DRON at 40 %" loading="lazy"><figcaption class="px">TWIN</figcaption></figure>
+            <figure class="screen"><img class="pixelated" src="img/poly_loop.png" width="480" height="480" alt="POLY LOOP: FWD, the loop LSTR to END marked" loading="lazy"><figcaption class="px">Loop</figcaption></figure>
+            <figure class="screen"><img class="pixelated" src="img/poly_twin.png" width="480" height="480" alt="POLY TWIN: MIX, BELL with DRON at 40 %" loading="lazy"><figcaption class="px">Twin</figcaption></figure>
           </div>
 
           <h3>DRUM</h3>
-          <p>Sixteen synthesized drums on the white keys, inspired by the CR-78. Pick one of ten patterns, write your own steps, or turn SEED away from 0 and it plays its own version of the pattern, with ghost notes and fills, the way a drummer would.</p>
+          <p>Sixteen synthesized drums on the white keys, inspired by the CR-78. HOME has PATTERN (ten rhythms, 1 to 4 bars), VARY (turn SEED away from 0 and it plays its own version, with ghost notes and fills) and STEP, for writing your own. ENV has KIT, the whole kit's TUNE, DEC, TONE and DRV, and KIT 2 with TRAN, a click on top of every hit.</p>
           <a class="more" href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/docs/manual/README.md#5-other-sources">Manual 5 &gt;</a>
         </section>
 
@@ -305,42 +337,50 @@ cd /tmp/bryo-site &amp;&amp; python3 -m http.server 8000
           <p>Every track goes through GRAIN, RIPPLE, COLOR and CHRONOS, in that order. They all start off. Each effect's first page ends with its mix, so press EDIT or FX and turn KNOB 4 to bring one in.</p>
 
           <h3>GRAIN</h3>
-          <p>Keeps the last few bars of the track and plays them back as small overlapping grains: stretched, held on one spot, or trailing behind with SCAN. Hold the black 0 key to freeze it, or tap to latch. Its SCAL can now be set to KEY, so the grains follow the project's scale.</p>
+          <p>Keeps the last few bars of the track and plays them back as small overlapping grains: stretched, held on one spot, or trailing behind with SCAN. Hold the black 0 key to freeze it, or tap to latch. SCAL can be set to KEY, so the grains follow the project's scale.</p>
+          <p><strong>BODY</strong> (GRAIN 5) puts a floor under the grains. On TRI or SIN, each grain gets a partial of its own at its own note, swelling and fading with it. With many grains the body plays a chord of what they play; with a few, each grain thuds on its note.</p>
 
-          <h3>RIPPLE (was RESONATOR)</h3>
-          <p>The track rings through something tuned. Press EDIT seven times to reach it, then <strong>hold EDIT and turn SELECT</strong> to choose its form:</p>
+          <h3>RIPPLE</h3>
+          <p>The track rings through something tuned. Press EDIT seven times to reach it, then <strong>hold EDIT and turn SELECT</strong> to choose its form (or turn MODE on page 5):</p>
           <ul>
             <li><strong>RIPPLE:</strong> four plucked strings, like a sitar's sympathetic strings.</li>
-            <li><strong>COMB:</strong> the same lines at half length, fed back inverted. Only the odd harmonics ring, for a hollow, clarinet-like body.</li>
-            <li><strong>RESO:</strong> four resonant bands on the chord's notes. DEC becomes RING and TONE becomes TILT.</li>
+            <li><strong>COMB:</strong> the same lines at half length. Only the odd harmonics ring, for a hollow, clarinet-like body.</li>
+            <li><strong>RESO:</strong> four resonant bands on the chord's notes.</li>
             <li><strong>12-BAND:</strong> twelve bands climbing through the octaves, a filter bank that sorts whatever comes in into the chord.</li>
           </ul>
-          <p>Its pages, after the first (PTCH, DEC and the mix):</p>
+          <p>Each form now comes out about as loud as what goes in, so turning WET up is a real change. Its pages:</p>
           <ul>
-            <li><strong>RIPPLE 2, what rings:</strong> SCAL picks the chord (HARM, MAJ, MIN, PEN, SUS2, SUS4, DOM7, MAJ7, MIN7, DIM, AUG, 5TH, OCT). TONE sets the brightness. DRV saturates the ring, so loud attacks get warm and gritty and the tail rings clean. RIPL lets the pitches drift, each a little behind the one below, like a ripple on water.</li>
-            <li><strong>RIPPLE 3:</strong> a filter in front (CUT, RES, TYPE), for what of the track reaches it.</li>
-            <li><strong>RIPPLE 4, the keys:</strong> KEYS on PLCK sets the root and plucks; on TUNE it only sets the root, so the track's own sound rings in that key. PICK goes from a soft mallet to a bright pick, STRM strums the strings one after another, and VARY makes each pluck a little different.</li>
+            <li><strong>RIPPLE 1:</strong> DEC (how long it rings; FDBK on COMB, RING on the resonators), TONE (TILT on the resonators), ROUT and WET.</li>
+            <li><strong>RIPPLE 2 changes with the form.</strong> Strings: SPRD, RIPL, DRV, PICK. COMB: <strong>POL</strong> (ODD for hollow, ALL for every harmonic, an octave up and more metallic), SPRD, RIPL, DRV. RESO and 12-BAND: <strong>FOCS</strong> and <strong>WDTH</strong>, a spotlight on the bands; <strong>FLOW</strong>, which moves that spotlight by itself so the sound walks up through the spectrum and back; and SPRD, which stretches the partials out of tune like a bell.</li>
+            <li><strong>RIPPLE 3, the pitch:</strong> PTCH (the root), SCAL (the chord: HARM, MAJ, MIN, PEN, SUS2, SUS4, DOM7, MAJ7, MIN7, DIM, AUG, 5TH, OCT), then KEYS and PLVL (how loud a pluck is).</li>
+            <li><strong>RIPPLE 4:</strong> a filter in front (CUT, RES, TYPE), plus STRM on the strings, PICK on the comb.</li>
+            <li><strong>RIPPLE 5:</strong> MODE (the form as a knob) and VARY. On COMB, FLOW here sweeps the filter in front for a wah on the comb. RESO and 12-BAND keep their keys (KEYS, PLVL, PICK, STRM) on page 5 and VARY on page 6.</li>
           </ul>
+          <p>KEYS on <strong>PLCK</strong> sets the root and plucks; on <strong>TUNE</strong> it only sets the root, so the track's own sound rings in that key.</p>
           <div class="figure-row">
             <figure class="screen"><img class="pixelated" src="img/reso_live.png" width="480" height="480" alt="RIPPLE ringing" loading="lazy"><figcaption class="px">Ripple</figcaption></figure>
-            <figure class="screen"><img class="pixelated" src="img/ripple2.png" width="480" height="480" alt="RIPPLE 2: SCAL TONE DRV RIPL" loading="lazy"><figcaption class="px">Ripple 2</figcaption></figure>
+            <figure class="screen"><img class="pixelated" src="img/ripple2.png" width="480" height="480" alt="RIPPLE 2: SPRD RIPL DRV PICK" loading="lazy"><figcaption class="px">Ripple 2</figcaption></figure>
+            <figure class="screen"><img class="pixelated" src="img/ripple_flow.png" width="480" height="480" alt="12-BAND page 2: FOCS WDTH FLOW SPRD, FLOW at 60" loading="lazy"><figcaption class="px">12-Band flow</figcaption></figure>
             <figure class="screen"><img class="pixelated" src="img/ripple_comb.png" width="480" height="480" alt="COMB: the odd harmonics' teeth" loading="lazy"><figcaption class="px">Comb</figcaption></figure>
-            <figure class="screen"><img class="pixelated" src="img/ripple_bank.png" width="480" height="480" alt="12-BAND: a meter for each band" loading="lazy"><figcaption class="px">12-Band</figcaption></figure>
           </div>
 
           <h3>COLOR</h3>
           <p>Drive and bit crush on the first page, noise that rides the sound and a tilt EQ on the second, and what the crusher crushes on the third.</p>
 
-          <h3>CHRONOS (was SPACE)</h3>
-          <p>A delay and two shared rooms. Press FX four times to reach it.</p>
+          <h3>CHRONOS</h3>
+          <p>A delay and two shared rooms. Press FX four times to reach it. The delay's pages come first, then the room's:</p>
           <ul>
             <li><strong>CHRONOS 1:</strong> TIME, FDBK, and the two sends, DLY and VERB.</li>
-            <li><strong>CHRONOS 2 and 3:</strong> which room the track sends to (A or B), the room's size, decay and pre-delay, and the tone and spread of the echoes. Room knobs are shared by every track on that room.</li>
-            <li><strong>CHRONOS 4, the echoes' character:</strong> SYNC puts the delay on the tempo. AGE makes each repeat darker and more saturated, with a tape-like wow and flutter. DIFF smears each repeat into a wash. DUCK dips the echoes while the track plays and lets them swell back in the gaps.</li>
-            <li><strong>CHRONOS 5, the room's character:</strong> TYPE is ROOM, PLAT (a plate, dense and bright), HALL (long and dark) or SPRG (a spring, short and twangy). MOD makes the tail waver so it sounds less metallic.</li>
+            <li><strong>CHRONOS 2, how the echoes sit:</strong> SYNC (on the tempo, 1/64 to 1/2), TONE, SPRD across the stereo field, and DUCK, which dips the echoes while the track plays.</li>
+            <li><strong>CHRONOS 3, what the repeats become:</strong> AGE (darker, more saturated, with a tape wow and flutter) and DIFF (smeared into a wash).</li>
+            <li><strong>CHRONOS 4, the room:</strong> ROOM (A or B), TYPE (ROOM, PLAT, HALL or SPRG), SIZE and DEC.</li>
+            <li><strong>CHRONOS 5, the room's finer points:</strong> PRE (a gap before it starts), RTON (its tone), MOD (a slow waver in the tail) and QUAL (HI, or LO for half the CPU and a darker tail).</li>
           </ul>
+          <p>Tracks 1 and 2 start on room A, 3 and 4 on room B. A room's knobs belong to the room, so turning them on one track changes it for every track on it.</p>
           <div class="figure-row">
             <figure class="screen"><img class="pixelated" src="img/space_long.png" width="480" height="480" alt="CHRONOS: TIME FDBK DLY VERB" loading="lazy"><figcaption class="px">Chronos</figcaption></figure>
+            <figure class="screen"><img class="pixelated" src="img/space2.png" width="480" height="480" alt="CHRONOS 2: SYNC TONE SPRD DUCK" loading="lazy"><figcaption class="px">Chronos 2</figcaption></figure>
+            <figure class="screen"><img class="pixelated" src="img/space4.png" width="480" height="480" alt="CHRONOS 4: ROOM TYPE SIZE DEC" loading="lazy"><figcaption class="px">Chronos 4</figcaption></figure>
           </div>
           <a class="more" href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/docs/manual/README.md#6-the-effects">Manual 6 &gt;</a>
         </section>
@@ -358,7 +398,7 @@ cd /tmp/bryo-site &amp;&amp; python3 -m http.server 8000
           <ol class="steps">
             <li><strong>Press ARP.</strong></li>
             <li><strong>Turn KNOB 1 (MODE) to KEY.</strong></li>
-            <li><strong>Hold a chord on the white keys.</strong> You'll hear its notes one after another, a sixteenth note each. On the screen, the bars are the pattern and the filled one is playing.</li>
+            <li><strong>Hold a chord on the white keys.</strong> You'll hear its notes one after another, a sixteenth note each. On the screen, the bars are the pattern and the filled one is playing. On the keys, each note's key is lit, and the one sounding goes dark for its step.</li>
           </ol>
 
           <div class="table-wrap" tabindex="0" role="region" aria-label="The arpeggiator's knobs">
@@ -367,20 +407,24 @@ cd /tmp/bryo-site &amp;&amp; python3 -m http.server 8000
               <tbody>
                 <tr><td>MODE</td><td><strong>OFF</strong>. <strong>KEY</strong> plays while you hold keys. <strong>LTCH</strong> keeps the last chord playing after you let go; press a new chord to replace it. <strong>ADD</strong> keeps every key you press, so the pattern grows one note at a time.</td></tr>
                 <tr><td>ORDR</td><td><strong>UP</strong>, <strong>DOWN</strong>, <strong>UPDN</strong> (up and back down), <strong>RND</strong> (random) or <strong>PLAY</strong> (the order you pressed them)</td></tr>
-                <tr><td>RNGE</td><td>1, 2 or 3 octaves: the notes, then the same notes an octave up, and so on. On TAPE and DRUM it stays at 1, since a slice or a drum has no octave.</td></tr>
+                <tr><td>RNGE</td><td>1, 2 or 3 octaves. On TAPE and DRUM it stays at 1, since a slice or a drum has no octave.</td></tr>
                 <tr><td>RATE</td><td>How long each step lasts: 1/4, 1/8, 8T, 1/16, 16T or 1/32 (T means triplet)</td></tr>
                 <tr><td>GATE (page 2)</td><td>How much of each step the note sounds, from short and plucky to long</td></tr>
                 <tr><td>SWNG (page 2)</td><td>Pushes every other step a little late</td></tr>
+                <tr><td>GRND (page 2)</td><td>Each note's length at random, up to this far either side of GATE, so the pattern breathes</td></tr>
+                <tr><td>FADE (page 2)</td><td>Let go of every key and the notes keep stepping while they fade out over this long. At 0, KEY stops at once and LTCH and ADD hold for good.</td></tr>
               </tbody>
             </table>
           </div>
 
-          <h3>Grow a pattern</h3>
-          <p>Set MODE to <strong>ADD</strong> and press keys one at a time. Each one joins the pattern and stays there. When you want to start over, hold the black <strong>POLY</strong> key on the ARP page to clear it.</p>
+          <h3>Grow a pattern, and take notes out</h3>
+          <p>Set MODE to <strong>ADD</strong> and press keys one at a time. Each one joins the pattern and stays. To take one note out, press its lit key again; the rest keep going. To clear everything, hold the black <strong>POLY</strong> key on the ARP page.</p>
+          <h3>Let it fade</h3>
+          <p>Turn <strong>FADE</strong> up on page 2 and let go: the notes keep stepping while their level falls away. Press any key during the fade and it comes back at full. In ADD the pile stays, quiet, until you press a key. On TAPE and DRUM, FADE is how long the slices or drums keep stepping after you let go.</p>
           <div class="figure-row">
             <figure class="screen"><img class="pixelated" src="img/arp.png" width="480" height="480" alt="ARP: two notes held, the one playing filled" loading="lazy"><figcaption class="px">ARP / KEY</figcaption></figure>
             <figure class="screen"><img class="pixelated" src="img/arp_add.png" width="480" height="480" alt="ARP in ADD mode with four notes piled up" loading="lazy"><figcaption class="px">ARP / ADD</figcaption></figure>
-            <figure class="screen"><img class="pixelated" src="img/arp_drum.png" width="480" height="480" alt="ARP on a DRUM track walking three drums up and down" loading="lazy"><figcaption class="px">ARP / Drum</figcaption></figure>
+            <figure class="screen"><img class="pixelated" src="img/arp_fade.png" width="480" height="480" alt="ARP page 2: GATE SWNG GRND FADE, FADE at 331 ms" loading="lazy"><figcaption class="px">ARP / Page 2</figcaption></figure>
           </div>
 
           <h3>RIPL ARP: an arpeggio for RIPPLE</h3>
@@ -388,7 +432,6 @@ cd /tmp/bryo-site &amp;&amp; python3 -m http.server 8000
           <ul>
             <li><strong>MODE</strong> turns it on (OFF, KEY, LTCH, ADD). ORDR, RNGE and RATE work the same as above.</li>
             <li>With RIPPLE's KEYS on <strong>PLCK</strong>, each step plucks the strings. On <strong>TUNE</strong>, each step retunes RIPPLE, so the track's own sound rings in the pattern.</li>
-            <li>With MODE on, the white keys on this page set the pattern and the track stays quiet. With MODE off, they play the track as usual.</li>
             <li>Turn RIPPLE's <strong>WET</strong> up to hear it (EDIT seven times, then KNOB 4).</li>
             <li>A latched or piled-up pattern keeps going after you leave the page. Hold POLY here to clear it.</li>
           </ul>
@@ -445,6 +488,10 @@ cd /tmp/bryo-site &amp;&amp; python3 -m http.server 8000
             <li><strong>Press REC again</strong> after 10 to 15 seconds. Track 2 now loops what the others played.</li>
           </ol>
           <p>For drum loops, hold REC and turn SELECT to record an exact number of bars. Cleared something by mistake? Hold SAVE to bring it back. The four tracks share about 20 seconds, so a long take leaves less for the others.</p>
+
+          <h3>Bounce: a loop straight to tape</h3>
+          <p>Got a SYNTH line, a POLY phrase, a DRUM pattern or a cloud of grains you want to keep as a loop? <strong>Hold REC and press PLAY.</strong> The track records itself from the next downbeat, for the bars you set with REC and SELECT (two if that's on FREE), and the transport starts if it was stopped. Keep playing through the bars. When the take is in, the track switches to TAPE by itself and loops it, in time, slices and all. The screen says something like "BOUNCED, 4.0 SEC ON TAPE".</p>
+          <p>On a TAPE track, a bounce records the track through its own effects, so you can print GRAIN, RIPPLE, COLOR and CHRONOS onto the tape. A take that was already there is cleared first, and holding SAVE brings it back. Tap REC before the downbeat to call it off.</p>
           <a class="more" href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/docs/manual/README.md#4-recording">Manual 4 &gt;</a>
         </section>
 
@@ -453,7 +500,7 @@ cd /tmp/bryo-site &amp;&amp; python3 -m http.server 8000
           <ul>
             <li><strong>Nothing is kept until you tap SAVE.</strong> It saves everything (every knob, source, pattern, modulation, arpeggio, scene, the mixer and the tempo) into the current project, P1 to start with. A tape you recorded goes into a user reel named after it, like <code>P1T2</code>.</li>
             <li><strong>Hold SAVE</strong> to undo the last clear, reset or load.</li>
-            <li><strong>Turn PRESETS</strong> to see the six project slots. OCT+ loads one, SAVE saves into it, holding POLY deletes it, and OCT&minus; leaves. Pick an empty slot and press OCT+ to start a blank project. Past P6, FACTORY brings back the factory scene, and TEST is a fixed project for comparing builds.</li>
+            <li><strong>Turn PRESETS</strong> to see the six project slots. OCT+ loads one, SAVE saves into it, holding POLY deletes it, and OCT&minus; leaves. Pick an empty slot and press OCT+ to start a blank project. Past P6, FACTORY brings back the factory project with its three scenes, and TEST is the same project set to GLITCH, for comparing builds.</li>
             <li><strong>Track presets</strong> (A to H, plus eight factory ones) keep one track's sound. Turn PRESETS, then press EDIT.</li>
           </ul>
           <p>Saving while it plays doesn't stop the sound. If there's a new recording to write, the sound fades out for a moment and back in. Bryo prepares the next save during a quiet moment, so a save in the middle of a set stays short.</p>
@@ -507,21 +554,23 @@ cd /tmp/bryo-site &amp;&amp; python3 -m http.server 8000
                 <tr><td>SCENES: KNOB 1 to 4</td><td>Morph toward that scene</td></tr>
                 <tr><td>OP1 to OP4</td><td>Mute tracks</td></tr>
                 <tr><td>OP5 / OP6</td><td>Tape backwards / half speed</td></tr>
-                <tr><td>HOME</td><td>The source's pages</td></tr>
+                <tr><td>HOME</td><td>The source's own pages</td></tr>
                 <tr><td>HOME held + SELECT</td><td>Change the source</td></tr>
                 <tr><td>EDIT</td><td>GRAIN, then RIPPLE</td></tr>
                 <tr><td>EDIT held + SELECT</td><td>RIPPLE's form: RIPPLE, COMB, RESO, 12-BAND</td></tr>
                 <tr><td>FX</td><td>COLOR, then CHRONOS</td></tr>
-                <tr><td>ENV</td><td>The source's envelope page</td></tr>
+                <tr><td>ENV</td><td>What shapes the source: envelopes, filter, kit</td></tr>
                 <tr><td>LFO / SEQ tapped</td><td>That modulator's pages</td></tr>
                 <tr><td>LFO / SEQ held + a knob</td><td>How much that modulator moves the knob (up to 12 knobs each)</td></tr>
                 <tr><td>LFO held + OP1 / OP2 / OP3</td><td>Which modulator LFO shows: M1, M2, M3</td></tr>
                 <tr><td>LFO held + SELECT</td><td>What the modulator is: LFO, ADSR or FOLLOW</td></tr>
                 <tr><td>ARP</td><td>The arpeggiator; its third page is RIPL ARP</td></tr>
                 <tr><td>ARP page, black POLY held</td><td>Clear the arpeggio's notes</td></tr>
+                <tr><td>ARP on, a lit key</td><td>Take that note out of the pattern</td></tr>
                 <tr><td>GLO held + OCT+</td><td>Black keys: shortcuts or notes</td></tr>
                 <tr><td>REC</td><td>Record onto the track</td></tr>
                 <tr><td>REC held + SELECT</td><td>Record an exact number of bars</td></tr>
+                <tr><td>REC held + PLAY</td><td>Bounce the track to a loop on its tape</td></tr>
                 <tr><td>REC held 1&nbsp;s, stopped</td><td>Record the computer</td></tr>
                 <tr><td>ALGORITHM</td><td>What REC records</td></tr>
                 <tr><td>Black POLY held</td><td>Clear the tape (on DRUM, the pattern)</td></tr>

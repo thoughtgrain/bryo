@@ -144,6 +144,18 @@
           say: "Press ARP for the arpeggiator. Every pad works this way: press it again for its next page." }
       ]
     },
+    tape: {
+      start: { K1: -135 },
+      steps: [
+        { press: ["HOME"], screen: "tape", label: "Home / Tape", alt: "TAPE's first page: STRT LEN SPD PTCH",
+          say: "Press HOME for TAPE. KNOB 4, PTCH, moves the loop in semitones, so you can play it like a transpose." },
+        { press: ["HOME", "HOME"], turn: { K1: 90 }, screen: "tape_frze", label: "Home / Tape tools",
+          alt: "TAPE's tools: FRZE on, the frozen window framed in orange",
+          say: "Press HOME twice more for TAPE's tools and turn KNOB 1 (FRZE) on. The head keeps looping the bit it was in, framed in orange. WOW and FLUT warble it like an old tape." },
+        { hold: ["REC"], press: ["PLAY"], screen: "tape_playing", label: "Home / Tape", alt: "TAPE playing",
+          say: "On any track, hold REC and press PLAY to bounce it: a synth line, a drum pattern or a cloud of grains goes straight onto the tape as a loop." }
+      ]
+    },
     grain: {
       start: { K4: -135 },
       steps: [
@@ -171,19 +183,22 @@
       ]
     },
     arp: {
-      start: { K1: -45 },
+      start: { K1: -45, K4: -135 },
       steps: [
         { press: ["ARP"], hold: ["W1", "W5"], screen: "arp", label: "ARP / Key", alt: "ARP: two notes held",
           say: "Press ARP, with MODE on KEY, and hold two white keys. They play one at a time, in time. The filled bar is the one sounding." },
         { turn: { K1: 135 }, press: ["W1", "W3", "W5", "W8"], screen: "arp_add", label: "ARP / Add",
           alt: "ARP in ADD mode with four notes piled up",
           say: "Turn KNOB 1 to ADD and tap keys one by one. Each one joins the pattern and stays." },
-        { press: ["ARP", "ARP"], screen: "arp_res", label: "RIPL ARP", alt: "RIPL ARP plucking RIPPLE's strings",
-          say: "Press ARP twice more for RIPL ARP, a second arpeggio that plays RIPPLE." }
+        { press: ["ARP"], turn: { K4: 45 }, screen: "arp_fade", label: "ARP / Page 2",
+          alt: "ARP page 2: GATE SWNG GRND FADE, FADE at 331 ms",
+          say: "Press ARP again for page 2 and turn KNOB 4 (FADE) up. Now when you let go, the notes keep stepping and fade away instead of stopping." },
+        { press: ["ARP"], screen: "arp_res", label: "RIPL ARP", alt: "RIPL ARP plucking RIPPLE's strings",
+          say: "Press ARP once more for RIPL ARP, a second arpeggio that plays RIPPLE." }
       ]
     }
   };
-  var TOUR_ORDER = ["pages", "grain", "scenes", "arp"];
+  var TOUR_ORDER = ["pages", "tape", "grain", "scenes", "arp"];
 
   function initTour() {
     var root = $("[data-tour]");

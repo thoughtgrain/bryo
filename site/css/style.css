@@ -1073,7 +1073,7 @@ tr:last-child td { border-bottom: 0; }
   .tour__panel { padding: 4px; }
 }
 @media (max-width: 479px) {
-  /* the four routines as one even row, so none sits alone on a second line */
-  .tour__routines { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+  /* the five routines in an even grid (three, then two), so the buttons line up */
+  .tour__routines { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
   .tour__routine { padding: 10px 4px; font-size: 0.75rem; }
 }

@@ -84,7 +84,7 @@
         </div>
 
         <div class="device" data-screens
-             data-list='[["img/boot.png","Boot","Boot screen: BRYO, 4-track sound sculpting"],["img/tape.png","Home / Tape","The TAPE page: the reel, the loop bracketed IN to OUT"],["img/synth_fm.png","Home / FM Synth","SYNTH as a two-operator FM synth"],["img/grain_playing.png","Edit / Grain","GRAIN with grains playing, lit in orange"],["img/reso_live.png","Edit / Ripple","RIPPLE: four strings ringing"],["img/space_live.png","FX / Chronos","CHRONOS: echoes and the tail of the room, in orange"],["img/arp_add.png","ARP","The arpeggiator with four notes piled up"],["img/mixer_morph.png","Glo / Scenes","SCENES: knob 2 halfway to scene 2"],["img/mod1.png","LFO / M1","An LFO modulator drawing its wave"]]'>
+             data-list='[["img/boot.png","Boot","Boot screen: BRYO, 4-track sound sculpting"],["img/tape.png","Home / Tape","The TAPE page: the reel, the loop bracketed IN to OUT"],["img/tape_frze.png","Home / Tape tools","TAPE frozen: the held window framed in orange"],["img/synth_fm.png","Home / FM Synth","SYNTH as a two-operator FM synth"],["img/grain_playing.png","Edit / Grain","GRAIN with grains playing, lit in orange"],["img/reso_live.png","Edit / Ripple","RIPPLE: four strings ringing"],["img/space_live.png","FX / Chronos","CHRONOS: echoes and the tail of the room, in orange"],["img/arp_add.png","ARP","The arpeggiator with four notes piled up"],["img/mixer_morph.png","Glo / Scenes","SCENES: knob 2 halfway to scene 2"],["img/mod1.png","LFO / M1","An LFO modulator drawing its wave"]]'>
           <figure class="device__screen">
             <img class="pixelated" src="img/boot.png" width="480" height="480" alt="Bryo's boot screen: BRYO, 4-track sound sculpting" data-screen-img>
           </figure>
@@ -123,6 +123,7 @@
         <div class="tour" data-tour>
           <div class="tour__routines" role="group" aria-label="Routines">
             <button class="btn tour__routine" type="button" data-routine="pages" aria-pressed="true">Pages</button>
+            <button class="btn tour__routine" type="button" data-routine="tape" aria-pressed="false">Tape</button>
             <button class="btn tour__routine" type="button" data-routine="grain" aria-pressed="false">Grains</button>
             <button class="btn tour__routine" type="button" data-routine="scenes" aria-pressed="false">Scenes</button>
             <button class="btn tour__routine" type="button" data-routine="arp" aria-pressed="false">Arp</button>
@@ -177,7 +178,7 @@
             <div class="prose">
               <h3>Source <span class="tag px">Home</span></h3>
               <p>Pick a tape loop, a synth, a sampler that spreads sounds across the keys, or a drum machine. Hold <strong>HOME</strong> and turn <strong>SELECT</strong> to switch. Each source remembers its own knobs, so you can switch back without losing anything.</p>
-              <p>The first time you turn it on, the four tracks play four factory reels: BEAT, BELL, DRON and FOLD.</p>
+              <p><strong>HOME</strong> has the source itself. <strong>ENV</strong> has everything that shapes it: the envelopes, the filter, and on DRUM the kit.</p>
             </div>
           </div>
 
@@ -189,7 +190,7 @@
             <div class="prose">
               <h3>Grain <span class="tag px">Edit</span></h3>
               <p>GRAIN listens to the last few bars of the track and plays them back as tiny overlapping pieces. You can stretch them out, hold them on one spot, or let them trail behind with SCAN.</p>
-              <p>Hold the black <strong>0</strong> key to freeze what it heard into a loop. Tap it instead and the freeze stays on until you tap again. The grains can follow the project's key, so changing the scale on the mixer moves them too.</p>
+              <p>Hold the black <strong>0</strong> key to freeze what it heard into a loop. Tap it instead and the freeze stays on until you tap again. The grains can follow the project's key, and BODY gives every grain a pitched partial of its own, so a busy cloud plays a chord.</p>
             </div>
           </div>
 
@@ -201,7 +202,8 @@
             <div class="prose">
               <h3>Ripple <span class="tag px">Edit</span></h3>
               <p>Something tuned that the track's sound rings through. Hold <strong>EDIT</strong> and turn <strong>SELECT</strong> to pick what: four plucked strings, a hollow COMB that only rings the odd harmonics, four resonant bands, or a 12-band filter bank that sorts whatever comes in into a chord.</p>
-              <p>The notes come from a chord you choose, from major and minor to sevenths and power chords. DRV saturates the ring, and RIPL lets the pitches drift slowly, one after another, like a ripple on water. On its page the white keys set the root. With KEYS on PLCK they pluck it too; on TUNE they only retune it, so what rings is the track's own sound.</p>
+              <p>Each form comes out about as loud as what goes in, so turning WET up is a real change: a drum loop through the 12-band bank gets sorted into the chord's notes. The second page is the form's own. The strings get detune, drift, drive and pick. The comb gets POL, for a hollow or a metallic ring. The resonators get a spotlight (FOCS and WDTH), and FLOW, which walks the sound up and down through the bands by itself.</p>
+              <p>The notes come from a chord you choose, from major and minor to sevenths and power chords. On its page the white keys set the root. With KEYS on PLCK they pluck it too; on TUNE they only retune it, so what rings is the track's own sound.</p>
             </div>
           </div>
 
@@ -224,7 +226,7 @@
             <div class="prose">
               <h3>Chronos <span class="tag px">FX</span></h3>
               <p>A delay and two rooms. The tracks share the rooms, and each track decides how much to send with its own DLY and VERB knobs.</p>
-              <p>The echoes can wear like old tape (AGE), melt into a wash (DIFF), or duck out of the way while the track plays (DUCK). Each room can be a room, a plate, a hall or a spring, and MOD makes its tail waver so it sounds less metallic. They only use memory while you're using them, so a dry project has more room for tape.</p>
+              <p>The delay's pages come first, then the room's. The echoes can sync to the tempo, wear like old tape (AGE), melt into a wash (DIFF), or duck out of the way while the track plays (DUCK). Each room can be a room, a plate, a hall or a spring, and MOD makes its tail waver so it sounds less metallic. They only use memory while you're using them, so a dry project has more room for tape.</p>
             </div>
           </div>
         </div>
@@ -240,28 +242,28 @@
             <img class="pixelated" src="img/tape.png" width="480" height="480" alt="TAPE page" loading="lazy">
             <div class="card__body">
               <h3 class="px">Tape</h3>
-              <p>A loop in memory with sixteen slices on the keys. Move where it starts and ends, change its speed, flip it backwards, or lock it to the tempo.</p>
+              <p>A loop in memory with sixteen slices on the keys. Move where it starts and ends, transpose it, lock it to the tempo, freeze a sliver of it, or let it warble like a worn cassette.</p>
             </div>
           </article>
           <article class="card">
             <img class="pixelated" src="img/synth_fm.png" width="480" height="480" alt="SYNTH as an FM synth" loading="lazy">
             <div class="card__body">
               <h3 class="px">Synth</h3>
-              <p>Three voices and nine waves. The classic shapes, plus FM for bells and electric pianos, PD for the Casio CZ's sweep, VOX for vowels, and WT, a wavetable that can be cut from any reel. CHRD plays a whole chord from one key.</p>
+              <p>Three voices and nine waves: the classics, FM, PD (the Casio CZ's sweep), VOX and WT. A second envelope can open the filter, bite the drive or zap the pitch, and the filter sings on its own past RES 93. CHRD plays a whole chord from one key.</p>
             </div>
           </article>
           <article class="card">
             <img class="pixelated" src="img/poly_twin.png" width="480" height="480" alt="POLY with TWIN mixing two reels" loading="lazy">
             <div class="card__body">
               <h3 class="px">Poly</h3>
-              <p>Plays any reel, or the track's own tape, across the keys. TWIN adds a second reel: blend them, split them across the keyboard, or take turns note by note.</p>
+              <p>Plays any reel, or the track's own tape, across the keys. LOOP holds a note as long as you like, and TWIN adds a second reel to blend, split across the keyboard, or take turns note by note.</p>
             </div>
           </article>
           <article class="card">
             <img class="pixelated" src="img/drum.png" width="480" height="480" alt="DRUM page" loading="lazy">
             <div class="card__body">
               <h3 class="px">Drum</h3>
-              <p>Sixteen drums, all synthesized, inspired by the CR-78. Ten patterns to start from, and SEED plays them with small changes, the way a drummer would.</p>
+              <p>Sixteen drums, all synthesized, inspired by the CR-78. Ten patterns from one to four bars, and SEED plays them with small changes, the way a drummer would. TRAN adds a click to every hit.</p>
             </div>
           </article>
         </div>
@@ -279,6 +281,7 @@
           <p class="lead">Each track has four modulators. They move knobs for you, so a sound keeps changing while your hands are busy.</p>
           <p>Three of them live on the <strong>LFO</strong> pad, and each can be an LFO, an ADSR envelope or an envelope follower. The fourth, on <strong>SEQ</strong>, is a step sequencer.</p>
           <p>To make a knob move, hold LFO or SEQ and turn that knob. How far you turn sets how far it moves, from &minus;100 to 100&nbsp;%. Each modulator can move up to twelve knobs, and while you hold its pad the screen counts them for you. A knob that's moving gets a purple mark, so you can see what's alive at a glance.</p>
+          <p>The envelope follower levels itself: a quiet pad pushes its knobs as far as a loud drum does. Point it at the kick and everything else can duck in time.</p>
         </div>
       </div>
     </section>
@@ -303,9 +306,9 @@
             <div><dt class="px">Order</dt><dd>Up, down, up and down, random, or the order you pressed them.</dd></div>
             <div><dt class="px">Range</dt><dd>One to three octaves (for notes; a slice or a drum has no octave).</dd></div>
             <div><dt class="px">Rate</dt><dd>Quarter notes down to 32nds, with triplets.</dd></div>
-            <div><dt class="px">Page 2</dt><dd>GATE for short or long notes, SWNG to push every other step late.</dd></div>
+            <div><dt class="px">Page 2</dt><dd>GATE for short or long notes, SWNG to push every other step late, GRND to vary them at random, FADE to let them fade out.</dd></div>
           </dl>
-          <p>To clear a latched or piled-up pattern, hold the black <strong>POLY</strong> key on the ARP page.</p>
+          <p>While it plays, the keys light up with its notes, and the one sounding goes dark for its step. Press a lit key to take that note out. On page 2, <strong>FADE</strong> lets the pattern keep stepping after you let go and fade away, and <strong>GRND</strong> varies each note's length so it breathes. To clear everything, hold the black <strong>POLY</strong> key on the ARP page.</p>
           <h3>A second one, for RIPPLE</h3>
           <p>Press ARP a third time and you're on <strong>RIPL ARP</strong>. It plays RIPPLE, one note per step, whatever the track itself is playing. With RIPPLE's KEYS on PLCK each step plucks the strings; on TUNE each step retunes RIPPLE, so the track's own sound rings in the pattern. Turn RIPPLE's WET up to hear it. A latched pattern keeps going after you leave the page, so you can set it running and go shape something else.</p>
           <p>Both follow the transport. STOP quiets them and keeps the notes, and PLAY starts them again from the top. Saving a project keeps the notes too.</p>
@@ -333,6 +336,7 @@
             <div><dt class="px">Morph</dt><dd>Turn a scene's knob. Each click moves the sound 5&nbsp;% of the way there, and you can stop anywhere, halfway between two sounds if you like.</dd></div>
           </dl>
           <p>If a track uses the same source in both scenes, its knobs morph smoothly. If the source changes, the track fades out, switches, and fades back in. Scenes are saved with the project, and the PROJECTS view shows how many each project has.</p>
+          <p>The factory project shows it off. It's one groove in A minor with three scenes: <strong>AMBIENT</strong>, a slow choir, drone and bowed bells; <strong>TECHNO</strong>, with the drums up and everything ducking on the kick; and <strong>GLITCH</strong>, crushed and stuttering. Turn KNOB 2, then KNOB 3, and drift from one to the next.</p>
         </div>
       </div>
     </section>
@@ -344,11 +348,12 @@
         <dl class="specs">
           <div><dt class="px">Hardware</dt><dd>M-VAVE FM-1 (JieLi AC79), bare metal</dd></div>
           <div><dt class="px">Tracks</dt><dd>4, each with a source and the full chain</dd></div>
-          <div><dt class="px">Sources</dt><dd>TAPE; SYNTH (SIN TRI SQR SAW PLS, FM, PD, VOX, WT, with chords); POLY (with TWIN, a second reel); DRUM</dd></div>
-          <div><dt class="px">Effects</dt><dd>GRAIN; RIPPLE (strings, comb, resonators or a 12-band bank); COLOR; CHRONOS (a delay and two shared rooms: room, plate, hall or spring)</dd></div>
+          <div><dt class="px">Sources</dt><dd>TAPE (with freeze, wow and flutter); SYNTH (SIN TRI SQR SAW PLS, FM, PD, VOX, WT; two envelopes, chords); POLY (looping notes, TWIN); DRUM (1 to 4 bars)</dd></div>
+          <div><dt class="px">Effects</dt><dd>GRAIN; RIPPLE (strings, comb, resonators or a 12-band bank, with FLOW); COLOR; CHRONOS (a delay and two shared rooms: room, plate, hall or spring)</dd></div>
           <div><dt class="px">Modulation</dt><dd>4 per track: 3 that can each be an LFO, ADSR or FOLLOW, and a step sequencer; up to 12 knobs each</dd></div>
           <div><dt class="px">Arpeggiators</dt><dd>1 per track (notes, chords, slices or drums), plus RIPL ARP for RIPPLE</dd></div>
           <div><dt class="px">Scenes</dt><dd>4 per project: recall, or morph between them with a knob</dd></div>
+          <div><dt class="px">Recording</dt><dd>REC onto a tape, exact bars, overdub, and bounce: any track straight to a loop with REC + PLAY</dd></div>
           <div><dt class="px">Tape memory</dt><dd>About 20&nbsp;s shared across the tracks, IMA ADPCM at 22.05&nbsp;kHz</dd></div>
           <div><dt class="px">Mixer</dt><dd>Level, LOW, HIGH, FILT and PAN per track; a master compressor; the project's key and 15 scales</dd></div>
           <div><dt class="px">Storage</dt><dd>6 projects, 8 track presets plus 8 factory ones, 4 factory reels plus 6 of yours</dd></div>
