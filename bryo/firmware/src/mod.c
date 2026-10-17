@@ -164,6 +164,7 @@ typedef struct {                     /* a depth, ready for the ISR */
 typedef struct {
     uint8_t n;                       /* entries, sorted by target */
     uint8_t used;                    /* the slots the entries use, a bit each */
+    uint8_t nrow;                    /* p-lock rows (0: none, mod_fq is never asked) */
     uint16_t arrs;                   /* the knob arrays they touch, a bit each */
     mod_ent_t e[MOD_MAX];
 } mod_list_t;
@@ -250,6 +251,7 @@ static void mod_rebuild(uint32_t t)
     L->arrs = 0;
     nl = mod_plk_tgts(t, lg);
     nl = nl < PLK_ROWS ? nl : PLK_ROWS;
+    L->nrow = (uint8_t)nl;
     for (r = 0; r < nl; r++) {
         if (mod_dep(t, SLOT_SEQ, lg[r]) || D.n >= MOD_MAX)
             continue;
@@ -1016,7 +1018,7 @@ static int HOT_CODE mod_rt_fresh(mod_rt_t *m, uint32_t t, uint32_t s, uint32_t e
 /* ISR: entry e's depth as fq on the step its SEQ is on (a p-lock's there), or its own (every other entry: one test) */
 static inline __attribute__((always_inline)) int32_t mod_fq(const mod_ent_t *e, const mod_rows_t *R, const mod_rt_t *m)
 {
-    if (e->row != 0xFFu && m->step >= 0) {
+    if (R && e->row != 0xFFu && m->step >= 0) {        /* (R 0: the list has no p-locks) */
         int32_t d = R->d[e->row & (PLK_ROWS - 1u)][m->step & 15];
         if (d != PLK_NONE)
             return (d * R->rf[e->row & (PLK_ROWS - 1u)]) >> 8;
@@ -1058,6 +1060,8 @@ static void HOT_CODE mod_tick(uint32_t keys, uint32_t sel, const int32_t *const 
     }
     for (t = 0; t < NTRK; t++) {
         const mod_list_t *L;
+        const mod_rows_t *R;
+        uint32_t sp;                                   /* a slot's right side apart from its left (SPRD at work) */
         uint32_t k = t == sel ? keys : mod_xkeys[t], press = k & ~mod_keys_prev[t], hit = (hits >> t) & 1u, i, a, arrs;
         int loop;
         mod_keys_prev[t] = k;
@@ -1106,6 +1110,7 @@ static void HOT_CODE mod_tick(uint32_t keys, uint32_t sel, const int32_t *const 
         }
         if (!L->n)
             continue;
+        sp = 0;
         for (s = 0; s < NSLOT; s++) {
             mod_rt_t *m = &mrt[t][s];
             const int16_t *v = tp[t].mod[s];
@@ -1126,6 +1131,7 @@ static void HOT_CODE mod_tick(uint32_t keys, uint32_t sel, const int32_t *const 
                 break;
             }
             }
+            sp |= (uint32_t)(m->outr != m->out);       /* (SPRD at work on a slot: the right side's sums needed) */
         }
         for (a = 0; arrs >> a; a++)                     /* the arrays with depths: the knobs as set */
             if ((arrs >> a) & 1u) {
@@ -1143,15 +1149,44 @@ static void HOT_CODE mod_tick(uint32_t keys, uint32_t sel, const int32_t *const 
                     d[i] = b[i];
             }
         mod_pan_r[t] = mda[t][MA_CH][CH_PAN];
-        if (arrs & (1u << MA_CH | 1u << DEV_COLOR)) {   /* (the right side's copies, from the knobs as set) */
+        R = L->nrow ? &mod_r[t][mod_cur[t] & 1u] : 0;
+        if (sp && (arrs & (1u << MA_CH | 1u << DEV_COLOR))) {   /* (the right side's copies, from the knobs as set) */
             for (i = 0; i < NCH; i++)
                 mdr[t][MR_CH][i] = mda[t][MA_CH][i];
             for (i = 0; i < NPK; i++)
                 mdr[t][MR_COLOR][i] = mda[t][DEV_COLOR][i];
         }
-        for (i = 0; i < L->n;) {                        /* each target: its depths summed, then clamped once */
+        if (!sp && !R) {                                /* no SPRD at work and no p-locks (most blocks): each target's
+                                                         * depths summed, then clamped once, the loop as it was */
+            for (i = 0; i < L->n;) {
+                const mod_ent_t *E = &L->e[i];
+                int16_t *p = &mda[t][E->arr][E->k];
+                int32_t sum = 0, g = E->tgt, s8 = 0;
+                uint32_t fi = E->slot >> 4u;
+                if (fi < FN_N) {
+                    for (; i < L->n && L->e[i].tgt == g; i++) {
+                        const mod_rt_t *m = &mrt[t][L->e[i].slot & 15u];
+                        int32_t x = (m->out >> 3) * L->e[i].fq, d = (x + (1 << 18)) >> 19;
+                        sum += d;
+                        s8 += m->engine == ME_SEQ + 1u && fi < FN_PITCHES ? d * 256 : (x + (1 << 10)) >> 11;
+                    }
+                    mod_f8[t][fi] = clamp(*p * 256 + s8, E->lo * 256, E->hi * 256);
+                    mod_fmask[t] |= (uint8_t)(1u << fi);
+                } else {
+                    for (; i < L->n && L->e[i].tgt == g; i++) {
+                        const mod_rt_t *m = &mrt[t][L->e[i].slot & 15u];
+                        sum += ((m->out >> 3) * L->e[i].fq + (1 << 18)) >> 19;
+                    }
+                }
+                *p = (int16_t)clamp(*p + sum, E->lo, E->hi);
+                if (g == (int32_t)(MOD_TCH + CH_PAN))
+                    mod_pan_r[t] = *p;
+            }
+            continue;
+        }
+        for (i = 0; i < L->n;) {                        /* each target: its depths summed, then clamped once (with the
+                                                         * p-locks' steps, and the right side where SPRD splits it) */
             const mod_ent_t *E = &L->e[i];
-            const mod_rows_t *R = &mod_r[t][mod_cur[t] & 1u];
             int16_t *p = &mda[t][E->arr][E->k];
             int32_t sum = 0, sumr = 0, g = E->tgt, s8 = 0;
             uint32_t fi = E->slot >> 4u;
@@ -1164,7 +1199,7 @@ static void HOT_CODE mod_tick(uint32_t keys, uint32_t sel, const int32_t *const 
                     int32_t fq = mod_fq(&L->e[i], R, m), x = (m->out >> 3) * fq, d = (x + (1 << 18)) >> 19;
                     sum += d;
                     s8 += m->engine == ME_SEQ + 1u && fi < FN_PITCHES ? d * 256 : (x + (1 << 10)) >> 11;
-                    if (fi == FN_FILT) {                /* (FILT: its right side too, for SPRD) */
+                    if (sp && fi == FN_FILT) {          /* (FILT: its right side too, for SPRD) */
                         int32_t xr = (m->outr >> 3) * fq, dr = (xr + (1 << 18)) >> 19;
                         sumr += dr;
                         s8r += (xr + (1 << 10)) >> 11;
@@ -1172,7 +1207,7 @@ static void HOT_CODE mod_tick(uint32_t keys, uint32_t sel, const int32_t *const 
                 }
                 mod_f8[t][fi] = clamp(*p * 256 + s8, E->lo * 256, E->hi * 256);
                 mod_fmask[t] |= (uint8_t)(1u << fi);
-                if (fi == FN_FILT) {
+                if (sp && fi == FN_FILT) {
                     mod_f8r[t] = clamp(*p * 256 + s8r, E->lo * 256, E->hi * 256);
                     mdr[t][MR_CH][E->k] = (int16_t)clamp(*p + sumr, E->lo, E->hi);
                     if (mod_f8r[t] != mod_f8[t][fi])
@@ -1183,20 +1218,27 @@ static void HOT_CODE mod_tick(uint32_t keys, uint32_t sel, const int32_t *const 
                     const mod_rt_t *m = &mrt[t][L->e[i].slot & 15u];
                     int32_t fq = mod_fq(&L->e[i], R, m);
                     sum += ((m->out >> 3) * fq + (1 << 18)) >> 19;
-                    sumr += ((m->outr >> 3) * fq + (1 << 18)) >> 19;
+                    if (sp)                             /* (no SPRD at work: the right side is the left's) */
+                        sumr += ((m->outr >> 3) * fq + (1 << 18)) >> 19;
                 }
             }
-            if (g == (int32_t)(MOD_TCH + CH_PAN))
-                mod_pan_r[t] = (int16_t)clamp(*p + sumr, E->lo, E->hi);
-            else if (fi >= FN_N && (E->arr == MA_CH || E->arr == DEV_COLOR)) {   /* SPRD on the channel or COLOR:
-                                                                               * its right side */
-                uint32_t gi = E->arr == MA_CH ? MR_CH : MR_COLOR;
-                int32_t vr = clamp(*p + sumr, E->lo, E->hi);
-                mdr[t][gi][E->k] = (int16_t)vr;
-                if (vr != clamp(*p + sum, E->lo, E->hi))
-                    mod_rsplit[t] |= (uint8_t)(1u << gi);
+            {
+                int32_t v = clamp(*p + sum, E->lo, E->hi);
+                if (sp) {                               /* SPRD at work: the right side, where a part reads it */
+                    int32_t vr = clamp(*p + sumr, E->lo, E->hi);
+                    if (g == (int32_t)(MOD_TCH + CH_PAN))
+                        mod_pan_r[t] = (int16_t)vr;
+                    else if (fi >= FN_N && (E->arr == MA_CH || E->arr == DEV_COLOR)) {   /* the channel, COLOR */
+                        uint32_t gi = E->arr == MA_CH ? MR_CH : MR_COLOR;
+                        mdr[t][gi][E->k] = (int16_t)vr;
+                        if (vr != v)
+                            mod_rsplit[t] |= (uint8_t)(1u << gi);
+                    }
+                } else if (g == (int32_t)(MOD_TCH + CH_PAN)) {
+                    mod_pan_r[t] = (int16_t)v;
+                }
+                *p = (int16_t)v;
             }
-            *p = (int16_t)clamp(*p + sum, E->lo, E->hi);
         }
     }
 }

@@ -60,6 +60,85 @@ static int32_t color_shape(int32_t x, const int16_t *v)
     return col_drive_bits(x, v[CP_DRIV] > 0 ? col_g8(v[CP_DRIV]) : 256, col_bits_off(v));
 }
 
+/* COLOR's settings for a block's loop (color_block works them out; col_run runs them) */
+typedef struct {
+    int32_t g8, g8r, gl, gh, glr, ghr, ng, ak, dk;
+    uint32_t sh, shr, hold, holdr;
+    int nois, tilt, par;
+    int32_t w0, w1, v0, v1, d0, d1;
+} col_k_t;
+
+/* audio ISR: COLOR's loop over a block. split (a constant: two copies are made) gives the right side its own drive,
+ * bits, hold and tilt (SPRD); unsplit it's the one loop for both sides, and the right side's hold count keeps in
+ * step so a split starts from where it is */
+static inline __attribute__((always_inline)) void col_run(color_t *C, int32_t *l, int32_t *r, uint32_t n,
+                                                         const col_k_t *K, const int split)
+{
+    int32_t env = C->env, nlp = C->nlp, h0 = C->held[0], h1 = C->held[1];   /* (the state in locals: the compiler
+                                                                             * can't know the buffers don't alias it) */
+    int32_t lo0 = C->tlo[0], lo1 = C->tlo[1], rng = C->rng;
+    int32_t wq = K->w0 << CTL_LOG2, gq = K->v0 << CTL_LOG2, dw = K->w1 - K->w0, dg = K->v1 - K->v0;
+    int32_t dq = K->d0 << CTL_LOG2, ddq = K->d1 - K->d0;
+    int32_t g8 = K->g8, gl = K->gl, gh = K->gh, ng = K->ng, ak = K->ak, dk = K->dk;
+    uint32_t sh = K->sh, hold = K->hold, hc = C->hcnt, hcr = C->hcnt_r, i;
+    int nois = K->nois, tilt = K->tilt, par = K->par;
+    for (i = 0; i < n; i++, wq += dw, gq += dg, dq += ddq) {
+        int32_t x0 = clamp(l[i], -65535, 65535), x1 = clamp(r[i], -65535, 65535), y0, y1, nz = 0;
+        int32_t w = wq >> CTL_LOG2, g = gq >> CTL_LOG2;
+        if (nois) {                                     /* the envelope opens at once and falls over NDEC */
+            int32_t a = x0 < 0 ? -x0 : x0, b = x1 < 0 ? -x1 : x1, e = a > b ? a : b;
+            e = e > 32767 ? 32767 << 12 : e << 12;
+            if (e > env)
+                env = e;
+            else {
+                env -= (env >> 16) * dk;
+                if (env < (1 << 16))
+                    env = 0;
+            }
+            nz = (int32_t)(int16_t)(noise32(&rng) >> 16) * ng >> 15;
+            nlp += ((nz - nlp) * ak) >> 7;              /* NTON */
+            nz = (nlp * (env >> 12)) >> 16;
+        }
+        if (++hc >= hold) {                             /* CRSH RATE: a value held for `hold` samples */
+            hc = 0;
+            h0 = col_drive_bits(x0, g8, sh);
+            if (!split)
+                h1 = col_drive_bits(x1, g8, sh);
+        }
+        if (split && ++hcr >= K->holdr) {               /* (split: the right side's own count, drive and bits) */
+            hcr = 0;
+            h1 = col_drive_bits(x1, K->g8r, K->shr);
+        }
+        y0 = clamp(h0 + nz, -65535, 65535);
+        y1 = clamp(h1 + nz, -65535, 65535);
+        if (tilt) {                                     /* the low band (one pole near 700 Hz) and what's above it */
+            lo0 += ((y0 - lo0) * 3267) >> 15;
+            lo1 += ((y1 - lo1) * 3267) >> 15;
+            y0 = (lo0 * gl + (y0 - lo0) * gh) >> 12;
+            y1 = split ? (lo1 * K->glr + (y1 - lo1) * K->ghr) >> 12 : (lo1 * gl + (y1 - lo1) * gh) >> 12;
+        }
+        if (par) {                                      /* WET: a send, dry x its share + the colour x WET */
+            int32_t d = dq >> CTL_LOG2;
+            y0 = (x0 * d + y0 * w) >> 12;
+            y1 = (x1 * d + y1 * w) >> 12;
+        } else {                                        /* WET: in the line, the crossfade */
+            y0 = x0 + (((y0 - x0) * w) >> 12);
+            y1 = x1 + (((y1 - x1) * w) >> 12);
+        }
+        l[i] = clamp(y0, -131071, 131071) * g >> 10;   /* LVL */
+        r[i] = clamp(y1, -131071, 131071) * g >> 10;
+    }
+    C->env = env;
+    C->nlp = nlp;
+    C->held[0] = h0;
+    C->held[1] = h1;
+    C->tlo[0] = lo0;
+    C->tlo[1] = lo1;
+    C->rng = rng;
+    C->hcnt = hc;
+    C->hcnt_r = split ? hcr : hc;
+}
+
 /* audio ISR: track t's COLOR on its stereo block */
 static void HOT_CODE color_block(uint32_t t, int32_t *l, int32_t *r, uint32_t n)
 {
@@ -149,64 +228,16 @@ static void HOT_CODE color_block(uint32_t t, int32_t *l, int32_t *r, uint32_t n)
     dk = 452198 / ts;                                   /* NDEC: falls 60 dB over it (6.9 / samples, Q16) */
     if (dk > 65535)
         dk = 65535;
-    {                                                   /* (the state in locals: the compiler can't know the */
-        int32_t env = C->env, nlp = C->nlp, h0 = C->held[0], h1 = C->held[1];   /* buffers don't alias it) */
-        int32_t lo0 = C->tlo[0], lo1 = C->tlo[1], rng = C->rng;
-        int32_t wq = w0 << CTL_LOG2, gq = v0 << CTL_LOG2, dw = w1 - w0, dg = v1 - v0, dq = d0 << CTL_LOG2, ddq = d1 - d0;
-        int par = v[CP_ROUT] || d0 + w0 != 4096;        /* a send (or switching): the dry and the colour apart */
-        uint32_t hc = C->hcnt, hcr = C->hcnt_r;
-        for (i = 0; i < n; i++, wq += dw, gq += dg, dq += ddq) {
-            int32_t x0 = clamp(l[i], -65535, 65535), x1 = clamp(r[i], -65535, 65535), y0, y1, nz = 0;
-            int32_t w = wq >> CTL_LOG2, g = gq >> CTL_LOG2;
-            if (nois) {                                 /* the envelope opens at once and falls over NDEC */
-                int32_t a = x0 < 0 ? -x0 : x0, b = x1 < 0 ? -x1 : x1, e = a > b ? a : b;
-                e = e > 32767 ? 32767 << 12 : e << 12;
-                if (e > env)
-                    env = e;
-                else {
-                    env -= (env >> 16) * dk;
-                    if (env < (1 << 16))
-                        env = 0;
-                }
-                nz = (int32_t)(int16_t)(noise32(&rng) >> 16) * ng >> 15;
-                nlp += ((nz - nlp) * ak) >> 7;          /* NTON */
-                nz = (nlp * (env >> 12)) >> 16;
-            }
-            if (++hc >= hold) {                         /* CRSH RATE: a value held for `hold` samples */
-                hc = 0;
-                h0 = col_drive_bits(x0, g8, sh);
-            }
-            if (++hcr >= holdr) {                       /* (the right side's own count: the same unless SPRD splits) */
-                hcr = 0;
-                h1 = col_drive_bits(x1, g8r, shr);
-            }
-            y0 = clamp(h0 + nz, -65535, 65535);
-            y1 = clamp(h1 + nz, -65535, 65535);
-            if (tilt || tiltr) {                        /* the low band (one pole near 700 Hz) and what's above it */
-                lo0 += ((y0 - lo0) * 3267) >> 15;
-                lo1 += ((y1 - lo1) * 3267) >> 15;
-                y0 = (lo0 * gl + (y0 - lo0) * gh) >> 12;
-                y1 = (lo1 * glr + (y1 - lo1) * ghr) >> 12;
-            }
-            if (par) {                                  /* WET: a send, dry x its share + the colour x WET */
-                int32_t d = dq >> CTL_LOG2;
-                y0 = (x0 * d + y0 * w) >> 12;
-                y1 = (x1 * d + y1 * w) >> 12;
-            } else {                                    /* WET: in the line, the crossfade */
-                y0 = x0 + (((y0 - x0) * w) >> 12);
-                y1 = x1 + (((y1 - x1) * w) >> 12);
-            }
-            l[i] = clamp(y0, -131071, 131071) * g >> 10;   /* LVL */
-            r[i] = clamp(y1, -131071, 131071) * g >> 10;
-        }
-        C->env = env;
-        C->nlp = nlp;
-        C->held[0] = h0;
-        C->held[1] = h1;
-        C->tlo[0] = lo0;
-        C->tlo[1] = lo1;
-        C->rng = rng;
-        C->hcnt = hc;
-        C->hcnt_r = hcr;
+    {
+        col_k_t K;
+        K.g8 = g8, K.g8r = g8r, K.gl = gl, K.gh = gh, K.glr = glr, K.ghr = ghr, K.ng = ng, K.ak = ak, K.dk = dk;
+        K.sh = sh, K.shr = shr, K.hold = hold, K.holdr = holdr;
+        K.nois = nois != 0, K.tilt = tilt || tiltr, K.par = v[CP_ROUT] || d0 + w0 != 4096;
+        K.w0 = w0, K.w1 = w1, K.v0 = v0, K.v1 = v1, K.d0 = d0, K.d1 = d1;
+        if (vr != v)                                    /* SPRD splitting the sides: each its own drive, bits, hold
+                                                         * and tilt */
+            col_run(C, l, r, n, &K, 1);
+        else                                            /* (the loop as it always was) */
+            col_run(C, l, r, n, &K, 0);
     }
 }
