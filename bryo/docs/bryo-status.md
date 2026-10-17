@@ -254,6 +254,9 @@ number.
   four), split by what each track's settings ask for when it runs short; what's left over is everyone's (since
   2026-10-11: a track alone has all 40, not just what RATE and SIZE ask). GRAIN 6's GRNS can hold a number for a
   track instead (1-40, taken from the AUTO tracks first, kept whatever the others do).
+- **2026-10-17: ARP's GATE goes to 400 %.** Past 100 each note rings on into the next steps, so the notes overlap
+  (SYNTH, POLY). The mask is built over the pattern's lowest note while they overlap, since the sources know a voice
+  by its bit. At 100 and under, as it was.
 - **2026-10-16: RIPPLE's FLOW.** The sound moves through the spectrum by itself: on RESO and 12-BAND the spotlight
   (FOCS WDTH) walks up the bands and back down at FLOW's rate (20 s a round trip at 1, 0.6 s at 100); on COMB the
   comb itself bounces E1 to E7 and back the same way, free of PTCH, the keys and the chord while it flows. One knob where an LFO on FOCS was needed before; at 0, as it

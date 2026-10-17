@@ -300,7 +300,7 @@ enum {
     PK_SHAPE, PK_FOLD, PK_SKEW, PK_SMOOTH, PK_STEPS, PK_SLEW, PK_SWING, PK_KEYS, PK_SHELF_LO, PK_SHELF_HI, PK_FILTER,
     PK_PAN, PK_TOGGLE, PK_FADE, PK_WINDOW, PK_GATE, PK_PRE, PK_MODE, PK_DIR, PK_STEPAT, PK_NONE,
     PK_CURVE, PK_VAR, PK_SRC, PK_OSC, PK_DETUNE, PK_CUTOFF, PK_RES, PK_ENVAMT, PK_KTRK, PK_VOICES, PK_PATTERN,
-    PK_SCALE, PK_SLOPE, PK_CMOD, PK_SCAN, PK_ROUTE, PK_BODY, PK_GRNS, PK_RMODE, PK_RIPPLE
+    PK_SCALE, PK_SLOPE, PK_CMOD, PK_SCAN, PK_ROUTE, PK_BODY, PK_GRNS, PK_RMODE, PK_RIPPLE, PK_NOTELEN
 };
 
 /* the waveform shapes WAVE's SHAPE picks, at phase p (0..63 a cycle), x1000 */
@@ -759,6 +759,17 @@ static void px_picto(uint32_t kind, int32_t x, int32_t y, const pdesc_t *d, int3
         px_line(x, t, x + 21, t, c, 2);
         break;
     }
+    case PK_NOTELEN: {                                   /* the arpeggiator's GATE: a step's dotted box (half the
+                                                          * width), the note's bar from its start, running out of the
+                                                          * box past 100 % (up to four steps: to the right edge) */
+        int32_t w = clamp(v, 10, 400), end = x + (w <= 100 ? w * 10 / 100 : 10 + (w - 100) * 11 / 300);
+        px_frame(x, y + 1, 11, 19, m, 2);
+        px_box(x + 1, y + 4, end - x, 13, c);
+        if (w > 100)                                     /* (the steps it rings into: a tick at each) */
+            for (i = 1; i < 4 && x + 10 + i * 11 / 3 <= end; i++)
+                px_line(x + 10 + i * 11 / 3, y + 19, x + 10 + i * 11 / 3, y + 20, m, 1);
+        break;
+    }
     case PK_PRE: {                                       /* pre-delay: the dry hit, a gap, the tail */
         int32_t g = x + 3 + r * 12 / 1000;
         px_line(x + 1, b, x + 1, y + 1, c, 1);
@@ -1136,7 +1147,7 @@ static const uint8_t *dev_pk(uint32_t t, uint32_t d)
 static const uint8_t CH_PK[NCH] = {PK_SHELF_LO, PK_SHELF_HI, PK_FILTER, PK_PAN};
 static const uint8_t MS_PK[NMS] = {PK_KNOB, PK_ATTACK, PK_RELEASE, PK_MIX};   /* the master compressor */
 static const uint8_t ARP_PK[NARP] = {   /* the arpeggiator: MODE ORDR RNGE RATE, GATE SWNG GRND FADE */
-    PK_TOGGLE, PK_DIR, PK_VOICES, PK_CLOCK, PK_GATE, PK_SWING, PK_VAR, PK_RELEASE};   /* (GRND: PK_VAR) */
+    PK_TOGGLE, PK_DIR, PK_VOICES, PK_CLOCK, PK_NOTELEN, PK_SWING, PK_VAR, PK_RELEASE};   /* (GRND: PK_VAR) */
 static const uint8_t KY_PK[4] = {PK_KEYS, PK_SCALE, PK_NONE, PK_NONE};   /* KEY: KEY SCAL */
 static const uint8_t SET_PK[NSET] = {PK_TOGGLE, PK_KNOB, PK_CLOCK, PK_STEPS};   /* SETUP: KEYS KNOB HOLD LEDS */
 static const uint8_t ME_PK[NME][NPK] = {   /* (in stored order: param.c's PLAYOUT places them on the pages) */

@@ -3180,6 +3180,21 @@ high ones at the half; COMB at FLOW 100 has its root under E2 early and over F#6
 ignored, and is brighter up there. Goldens: 12-BAND's page 2 and COMB's page 5, and the manual's new picture
 (`ripple_flow`).
 
+### ARP's GATE past 100 %: notes longer than a step (2026-10-17)
+
+GATE's top went from 100 to 400: a note rings on into the next one to three steps, so the arpeggio overlaps into a
+wash. The catch is the key mask: SYNTH and POLY remember each voice by its bit (`v->key`), so if the mask's base
+moved under a held note (as it does every step at 100 %: bit 0 at the step's note) a ringing note would be read as
+another. With a long gate `arp_mask` builds the mask over the pattern's lowest note (`tbase`) and keeps each note
+still ringing in `tnote`/`tleft` (up to four), decremented a block; a step whose note is still ringing ends that
+one and strikes it a block later (`defer`), so the source sees a fresh press; a note more than 31 semitones over the
+base (RNGE 3 over a wide chord) or the base moving (the notes changed) ends the overlap and that step plays as at
+100 %. TAPE and DRUM clamp GATE to 100 (`arp_block`): one slice, one drum. At 100 % and under the path is the old
+one (`r->lng` 0, no tails): every fingerprint held. The pictogram is new (`PK_NOTELEN`: a step's dotted box and the
+note's bar running out of it), since the shared gate picture scaled 50 against 400 read as a short note. Test
+(`test_arp_long`): GATE 100 one note at a time; 300, three at once over C3; one note at 200 struck again every step;
+DRUM at 400 never overlapping.
+
 ## USB record mode (2026-10-08)
 
 Recording from the computer is a mode of its own, not a source a track plays through: you go in, record, put the

@@ -21,6 +21,13 @@
  * and DRUM's drums can't fade under the reel or the pattern, so there the steps just stop at the end of FADE). At the
  * end KEY and LTCH forget the notes, ADD keeps its pile quiet until a key; any key brings the level straight back.
  * At FADE 0, KEY stops the moment the keys are let go and LTCH and ADD hold, as before.
+ * GATE past 100 % (2026-10-17, "notes longer than a step"): a note rings on into the steps after it, up to 400 %
+ * (four steps), so the notes overlap. SYNTH and POLY know a voice by its bit in the mask, so the mask can't move
+ * under held notes: with a long gate it's taken over the pattern's lowest note (tbase) and each note still ringing
+ * keeps its bit there (tnote, tleft: up to ARP_NT of them). A step whose note is still ringing ends that one and
+ * strikes it a block later (the source sees a press); a note more than 31 semitones over the base, or the base
+ * moving (the notes changed), ends the overlap and plays that step as before. TAPE and DRUM stop at 100 % (one
+ * slice, one drum at a time). With one voice (VOIC 1) the overlap is a legato. At 100 % and under, as it was.
  * RNGE spreads them over 1 to 3 octaves (the notes, then the notes an octave up, ...), ORDR walks that UP, DOWN,
  * UPDN (up and back down, the top and bottom once), PLAY (the order pressed, then again an octave up) or RND.
  *
@@ -35,6 +42,8 @@
 
 #define ARP_MAXN 32u                 /* the notes it holds */
 #define ARP_FD_FULL 8388607          /* a fade all the way down (Q23) */
+#define ARP_NT 4u                    /* notes still ringing past their step (GATE up to 400 %) */
+#define ARP_GMAX 400                 /* GATE's top, % of a step */
 
 typedef struct {
     uint8_t note[ARP_MAXN];          /* the notes held, absolute (0..127), in the order they came */
@@ -53,6 +62,12 @@ typedef struct {
     int32_t fd, fstep;               /* how far the fade has gone, Q23 (0: full level, ARP_FD_FULL: silent), and a
                                       * block's step of it */
     int32_t phase, len, gate;        /* samples into this step, its length, how long its note sounds */
+    uint8_t tnote[ARP_NT];           /* GATE past 100 %: the notes still ringing from earlier steps, */
+    int32_t tleft[ARP_NT];           /* .. the samples each has left, past this block's start */
+    uint8_t nt;                      /* .. how many */
+    uint8_t tbase;                   /* .. the mask's base while they ring (the pattern's lowest note) */
+    uint8_t lng;                     /* this step's note is long (its gate past the step) */
+    uint8_t defer;                   /* this step's note was still ringing: silent for a block, then struck */
     uint32_t pos;                    /* steps played since the notes started */
     uint32_t rng;                    /* RND's generator */
     uint32_t grng;                   /* GRND's */
@@ -193,6 +208,8 @@ static uint32_t HOT_CODE arp_pick(const int16_t *a, arp_rt_t *r)
     return arp_at(s, n, arp_place((uint32_t)a[AR_ORDR], len, r->pos, r->rng >> 8));
 }
 
+static uint32_t HOT_CODE arp_mask(arp_rt_t *r, uint32_t *nbase);
+
 /* audio ISR: one block of an arpeggiator (state r, knobs a: AR_*; on: it plays). keys: the keys held (a mask over
  * base); returns the mask that plays, and in *nbase its key_base (a step's note: bit 0 at that base) */
 static uint32_t HOT_CODE arp_run(arp_rt_t *r, const int16_t *a, int on, uint32_t keys, uint32_t base, uint32_t n,
@@ -220,6 +237,7 @@ static uint32_t HOT_CODE arp_run(arp_rt_t *r, const int16_t *a, int on, uint32_t
         r->held = keys;
         r->base_in = (uint8_t)base;
         r->pos = 0;
+        r->nt = r->lng = r->defer = 0;
         arp_fade_reset(r);
         if (r->on) {
             r->on = 0;
@@ -293,31 +311,84 @@ static uint32_t HOT_CODE arp_run(arp_rt_t *r, const int16_t *a, int on, uint32_t
         r->on = 0;
         r->pos = 0;
         r->phase = r->len = 0;
+        r->nt = r->lng = r->defer = 0;
         *nbase = r->cur;
         return 0;
     }
     if (r->len)                                          /* (len 0: nothing played yet, the first note starts now) */
         r->phase += (int32_t)n;
+    for (k = 0; k < r->nt; k++)                          /* (the notes ringing on: a block less each) */
+        r->tleft[k] -= (int32_t)n;
     while (r->phase >= r->len) {                         /* a step starts */
+        int32_t gmax = clamp(a[AR_GATE], 10, ARP_GMAX) > 100 ? ARP_GMAX : 100;
+        if (r->on && r->lng && r->gate > r->phase && r->nt < ARP_NT) {   /* the last note rings on past its step */
+            r->tnote[r->nt] = r->cur;
+            r->tleft[r->nt++] = r->gate - r->phase;
+        }
         r->phase -= r->len;
         r->len = arp_len(a, r->pos);
         r->cur = (uint8_t)arp_pick(a, r);
         r->pos++;
         {
-            int32_t g = clamp(a[AR_GATE], 10, 100), gr = clamp(a[AR_GRND], 0, 100);
+            int32_t g = clamp(a[AR_GATE], 10, gmax), gr = clamp(a[AR_GRND], 0, 100);
             if (gr) {                                    /* GRND: this step's gate GATE +- up to GRND points, at
                                                           * random (its own generator: RND's order stays as it was) */
                 r->grng = r->grng * 1664525u + 1013904223u;
-                g = clamp(g + (int32_t)((r->grng >> 8) % (uint32_t)(2 * gr + 1)) - gr, 10, 100);
+                g = clamp(g + (int32_t)((r->grng >> 8) % (uint32_t)(2 * gr + 1)) - gr, 10, gmax);
             }
-            r->gate = clamp(r->len * g / 100, (int32_t)CTL, r->len - (int32_t)CTL);
+            r->lng = g > 100;
+            r->gate = r->lng ? r->len * g / 100 : clamp(r->len * g / 100, (int32_t)CTL, r->len - (int32_t)CTL);
         }
         r->on = 1;
+        r->defer = 0;
+        for (k = 0; k < r->nt; k++)                      /* its note still ringing: that one ends, this one strikes
+                                                          * a block later */
+            if (r->tnote[k] == r->cur && r->tleft[k] > 0) {
+                r->tleft[k] = 0;
+                r->defer = 1;
+            }
     }
     if (r->phase >= r->gate)
         r->on = 0;
-    *nbase = r->cur;
-    return r->on;
+    return arp_mask(r, nbase);
+}
+
+/* audio ISR: what an arpeggiator plays this block, its notes as a mask over *nbase: the step's note alone (bit 0
+ * at its note), or with GATE past 100 % the notes still ringing too, over the pattern's lowest note */
+static uint32_t HOT_CODE arp_mask(arp_rt_t *r, uint32_t *nbase)
+{
+    uint32_t k, j, m = 0, lo = 127;
+    for (k = j = 0; k < r->nt; k++)                      /* (the ones done leave) */
+        if (r->tleft[k] > 0) {
+            r->tnote[j] = r->tnote[k];
+            r->tleft[j++] = r->tleft[k];
+        }
+    r->nt = (uint8_t)j;
+    if (!r->nt && !r->lng) {                             /* (no overlap: as it was) */
+        r->defer = 0;
+        *nbase = r->cur;
+        return r->on;
+    }
+    for (k = 0; k < r->n; k++)                           /* the base: the pattern's lowest note */
+        lo = r->note[k] < lo ? r->note[k] : lo;
+    if (lo != r->tbase || r->cur < lo || r->cur > lo + 31u) {   /* the notes changed, or out of reach: the
+                                                                 * overlap ends, this step as before */
+        r->tbase = (uint8_t)lo;
+        r->nt = 0;
+        if (r->cur < lo || r->cur > lo + 31u) {
+            *nbase = r->cur;
+            return r->on;
+        }
+    }
+    for (k = 0; k < r->nt; k++)
+        if (r->tnote[k] >= lo && r->tnote[k] <= lo + 31u)
+            m |= 1u << (r->tnote[k] - lo);
+    if (r->on && !r->defer)
+        m |= 1u << (r->cur - lo);
+    if (r->defer)                                        /* (the struck-again note silent this block, on the next) */
+        r->defer = 0;
+    *nbase = lo;
+    return m;
 }
 
 /* audio ISR: one block of track t's arpeggiator (the ARP pad's), between its keys and its source. SYNTH and POLY:
@@ -367,6 +438,7 @@ static uint32_t HOT_CODE arp_block(uint32_t t, uint32_t keys, uint32_t base, uin
     for (i = 0; i < NARP; i++)                           /* TAPE, DRUM: the slices or drums as they are */
         a[i] = tp[t].arp[i];
     a[AR_RNGE] = 1;
+    a[AR_GATE] = a[AR_GATE] < 100 ? a[AR_GATE] : 100;   /* (one slice or drum at a time: no overlap) */
     out = arp_run(r, a, 1, keys & 0xFFFFu, 0u, n, &nb, t);
     return out ? 1u << (nb & 15u) : 0u;                  /* (a step: that slice's or drum's key) */
 }

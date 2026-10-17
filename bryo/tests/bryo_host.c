@@ -10738,6 +10738,73 @@ static void test_arp_fade(void)
     render(2, 0);
 }
 
+/* GATE past 100 %: the notes ring on into the steps after them (2026-10-17) */
+static uint32_t bits_of(uint32_t m)
+{
+    uint32_t c = 0;
+    for (; m; m &= m - 1u)
+        c++;
+    return c;
+}
+static void test_arp_long(void)
+{
+    uint32_t b, most = 0, base_ok = 1, presses = 0, was = 0, c3 = note_bit_of_white(0), e3 = note_bit_of_white(4);
+    uint32_t g3 = note_bit_of_white(7);
+    char m[200];
+    power_on();
+    tp[0].src = SRC_SYNTH;
+    sys.bpm = 120;
+    tp[0].arp[AR_MODE] = ARM_KEY;
+    tp[0].arp[AR_RATE] = 3;                              /* 1/16: 172 blocks */
+    tp[0].arp[AR_GATE] = 100;
+    fm1_in.notes = c3 | e3 | g3;
+    for (b = 0; b < 1400u; b++) {
+        render(1, 0);
+        most = bits_of(syn[0].keys) > most ? bits_of(syn[0].keys) : most;
+    }
+    check("GATE 100: one note at a time, as before", most == 1u && ARP_P[AR_GATE].max == 400);
+    tp[0].arp[AR_GATE] = 300;
+    focus_dev(DEV_SRC, 0);
+    press(B_ARP);
+    press(B_ARP);                                        /* (ARP's page 2: GATE at 300, the bar out of its step) */
+    for (most = 0, b = 0; b < 1400u; b++) {
+        render(1, 0);
+        most = bits_of(syn[0].keys) > most ? bits_of(syn[0].keys) : most;
+        if (bits_of(syn[0].keys) > 1u)
+            base_ok &= key_base[0] == 48u;
+    }
+    snprintf(m, sizeof m, "GATE 300: each note rings into the next two steps (up to %u at once), over the pattern's "
+             "lowest note (C3)", most);
+    check(m, most == 3u && base_ok && syn_sounding(0) >= 2u);
+    shot("BRYO", "arp_long");
+    fm1_in.notes = 0;
+    render(4, 0);
+    check("..the keys let go: everything stops (KEY)", !syn[0].keys && !arp_rt[0].nt);
+    fm1_in.notes = c3;                                   /* one note, GATE 200: each step strikes it again */
+    tp[0].arp[AR_GATE] = 200;
+    for (b = 0; b < 172u * 6u + 20u; b++) {
+        render(1, 0);
+        presses += (syn[0].keys & 1u) && !was;
+        was = syn[0].keys & 1u;
+    }
+    snprintf(m, sizeof m, "..one note at GATE 200: struck again every step (%u presses in six steps), not held",
+             presses);
+    check(m, presses >= 6u);
+    fm1_in.notes = 0;
+    render(4, 0);
+    tp[0].src = SRC_DRUM;
+    tp[0].arp[AR_GATE] = 400;
+    fm1_in.notes = c3 | e3;
+    for (most = 0, b = 0; b < 800u; b++) {
+        render(1, 0);
+        most = arp_rt[0].nt > most ? arp_rt[0].nt : most;
+    }
+    check("..DRUM at GATE 400: one drum at a time (no overlap)", most == 0u && !arp_rt[0].lng);
+    fm1_in.notes = 0;
+    tp[0].arp[AR_MODE] = ARM_OFF;
+    tp[0].arp[AR_GATE] = 50;
+    render(4, 0);
+}
 static void test_arp_sources(void)
 {
     uint8_t seq[32];
@@ -11332,6 +11399,7 @@ int main(int argc, char **argv)
     test_tpfactory();
     test_arp_keys();
     test_arp_fade();
+    test_arp_long();
     test_arp_sources();
     test_factory_scene();
     test_drum_shed();

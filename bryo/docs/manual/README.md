@@ -737,7 +737,7 @@ The knobs:
 | **ORDR** | **UP**, **DOWN**, **UPDN** (up and back down), **RND** (random), **PLAY** (the order you pressed them) |
 | **RNGE** | 1, 2 or 3 octaves: the notes, then the same an octave up, and so on (on TAPE and DRUM there's no octave of a slice or a drum, so it stays at 1) |
 | **RATE** | how long each step is: 1/4, 1/8, 8T, 1/16, 16T, 1/32 (T is a triplet) |
-| **GATE** (page 2) | how much of each step the note sounds: short and plucky, or long |
+| **GATE** (page 2) | how much of each step the note sounds: short and plucky, or long. Past 100 % (up to 400) each note keeps ringing into the steps after it, so the notes overlap into a wash (SYNTH and POLY; TAPE and DRUM stop at 100) |
 | **SWNG** (page 2) | pushes every other step late |
 | **GRND** (page 2) | each step's note length at random, up to GRND points either side of GATE, so the pattern breathes |
 | **FADE** (page 2) | let every key go and the notes go on for this long, fading out (SYNTH, POLY). At 0, KEY stops the moment you let go and LTCH and ADD hold for good |
@@ -755,7 +755,7 @@ pile, quiet, and any key brings it back at full. Any key during the fade brings 
 tracks the steps can't fade under the reel or the pattern, so there FADE is how long the slices or drums keep stepping
 after you let go.
 
-<img src="img/arp_fade.png" width="240" alt="ARP page 2: GATE SWNG GRND FADE, FADE at 331 ms">
+<img src="img/arp_fade.png" width="240" alt="ARP page 2: GATE SWNG GRND FADE, FADE at 331 ms"> <img src="img/arp_long.png" width="240" alt="ARP page 2 with GATE at 300 %: the note's bar runs past its step">
 
 **The keys show the pattern:** while the arpeggiator is on, the key of each note it holds is lit, and the one sounding
 goes dark for its step, so you can see the pattern walk and find the key to take a note out.
