@@ -10386,6 +10386,60 @@ static void test_plock(void)
     sys.playing = 0;
     render(4, 0);
 }
+/* SPRD on the channel strip and COLOR (2026-10-17, the S-4's way): the right side modulated apart */
+static double lr_diff(void (*fx)(uint32_t, int32_t *, int32_t *, uint32_t), uint32_t blocks)
+{
+    static int32_t l[CTL], r[CTL];
+    int32_t rng = 5;
+    double d = 0, a = 0;
+    uint32_t b, i;
+    for (b = 0; b < blocks; b++) {
+        render(1, 0);                                    /* (the modulators move a block) */
+        for (i = 0; i < CTL; i++)
+            l[i] = r[i] = ((int32_t)(noise32(&rng) >> 17) - 16384) / 2;
+        fx(0, l, r, CTL);
+        for (i = 0; i < CTL; i++) {
+            d += (double)(l[i] - r[i]) * (l[i] - r[i]);
+            a += (double)l[i] * l[i];
+        }
+    }
+    return sqrt(d / (a + 1));
+}
+static void test_sprd_sides(void)
+{
+    double d0, d1, c0, c1;
+    uint32_t split = 0, b;
+    char m[200];
+    power_on();
+    sys.playing = 1;
+    tp[0].ch[CH_FILT] = -40;                             /* a low-pass on the channel */
+    tp[0].mod[0][0] = 100;                               /* M1: an LFO, fast */
+    mod_nudge(0, 0, MOD_TCH + CH_FILT, 30);
+    d0 = lr_diff(mix_channel, 400);
+    tp[0].mod[0][11] = 100;                              /* SPRD 100: the right side half a turn on */
+    d1 = lr_diff(mix_channel, 400);
+    for (b = 0; b < 200u; b++) {
+        render(1, 0);
+        split |= mod_rsplit[0];
+    }
+    snprintf(m, sizeof m, "SPRD on the channel's FILT: the sides apart (right against left %.3f; SPRD 0: %.4f), the "
+             "right side's own knobs (split %x)", d1, d0, split);
+    check(m, d0 == 0.0 && d1 > 0.05 && (split & 1u) && mdr[0][MR_CH][CH_FILT] != TPD(0, MA_CH)[CH_FILT]);
+    mod_clear(0);
+    tp[0].ch[CH_FILT] = 0;
+    tp[0].mod[0][11] = 0;
+    tp[0].dev[DEV_COLOR][CP_DRIV] = 30;                  /* COLOR: a drive, an LFO on it */
+    mod_nudge(0, 0, MOD_TG(DEV_COLOR, CP_DRIV), 60);
+    c0 = lr_diff(color_block, 400);
+    tp[0].mod[0][11] = 100;
+    c1 = lr_diff(color_block, 400);
+    snprintf(m, sizeof m, "SPRD on COLOR's DRV: the sides driven apart (%.3f; SPRD 0: %.4f)", c1, c0);
+    check(m, c0 == 0.0 && c1 > 0.01);
+    mod_clear(0);
+    render(2, 0);
+    check("..no depths: nothing split", !mod_rsplit[0]);
+    sys.playing = 0;
+}
 static void test_mod_engines(void)
 {
     const uint32_t WET = MOD_TG(DEV_GRAIN, GP_WET);
@@ -11520,6 +11574,7 @@ int main(int argc, char **argv)
     test_mod();
     test_mod_engines();
     test_plock();
+    test_sprd_sides();
     test_mod_audio();
     test_rails();
     test_source_level();

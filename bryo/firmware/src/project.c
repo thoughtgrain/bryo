@@ -12,7 +12,8 @@
  * What: a byte stream, written and read field by field (no struct is dumped, so the layout of the RAM can change):
  * the version (PJ_VERSION; 12, the same without the p-locks, and 11, without the scenes too, read too), then every
  * array as a count and its values (an array stops at its last knob with a label); every value is clamped to its
- * knob's range as it's read. The modulation depths are stored sparsely, by array and knob (not by target number, which moved when DRUM came in).
+ * knob's range as it's read. The modulation depths are stored sparsely, by array and knob (not by target number,
+ * which moved when DRUM came in).
  * The stream is packed (PackBits: runs of a byte, literals otherwise), written and read a byte at a time straight to
  * and from the flash, so no RAM holds a whole project: a project is about 2 KB packed, 3.8 KB at the very most, and
  * a sector's payload holds 3,840 B.

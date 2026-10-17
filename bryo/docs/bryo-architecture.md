@@ -2748,7 +2748,8 @@ modulated arrays 5.9 KB of the pool (now 322.4 of 336 KiB). Code about 9 KB on t
 - **LFO RATE with SYNC BPM** printed its 0..127; since phase 9 it prints the division.
 - **Seeing it move.** Since phase 9, a rail under each modulated knob with a block where it is now; the pictures
   below still draw the knobs as set.
-- **SPRD on PAN, a known consideration** (decided 2026-10-09 to leave it for now). SPRD gives the left and right
+- **SPRD on PAN, a known consideration** (decided 2026-10-09 to leave it for now; settled 2026-10-17 the S-4's way,
+  see "SPRD reaches the channel strip and COLOR"). SPRD gives the left and right
   channels their own pan; PAN is a balance (tracks are stereo), so at SPRD 100 the two swing apart in opposite
   directions and each turns its own side down at the same time: the sound pulses (a tremolo) instead of moving.
   Around 50 it circles. The S-4's SPREAD means the same (the right channel's modulation shifted against the left),
@@ -3259,6 +3260,37 @@ Test (`test_plock`): the gesture (a lock of +5 on step 5, said, no jump, no SEQ 
 its let-go), the strip's mark, the value on each step while playing with the lock alone (50 on step 5, 0 around it)
 and with a SEQ depth of +20 (15 steps at 20, step 5 at 50), a lock of 0, the save and load, the lock removed at the
 SEQ's depth, MONO's clear and undo.
+
+### SPRD reaches the channel strip and COLOR (2026-10-17)
+
+The parked decision on SPRD had three options: keep it; make SPRD on PAN a width; or let SPRD reach every knob of
+the parts that already run left and right apart (COLOR, the channel strip), the S-4's way, measured before it's
+kept. My lean was the last, and "do all of those" took it. PAN stays a balance (at SPRD 100 it still pulses, as the
+S-4's SPREAD would), and SPRD now moves the channel strip's LOW HIGH FILT and COLOR's DRV CRSH TILT apart on the two
+sides, which is where it reads as width and movement.
+
+**Engine.** `mod_tick` already summed each target's right side (`sumr`, from `outr`) but used it only for PAN. It now
+keeps the right side's knobs for the channel and COLOR in `mdr` (copied from the left's each block those arrays
+have depths, then each target's right value written over), and FILT's fine value in `mod_f8r`. `mod_rsplit` marks
+which of the two differ from the left this block; `TPDR(t, a)` gives the right side's array then, the left's
+otherwise. A flag cleared at the top of every track's pass, so a track that loses its depths never reads a stale
+split. One fix came with it: ADSR's and FOLLOW's SPRD 0 still slewed the right side by a coefficient of 32767/32768,
+leaving it a step off the left, harmless while only PAN read it but enough to split the sides now; at 0 it's the left
+exactly (the SEQ did that already).
+
+**Channel strip.** `mix_channel_both` is the old function, untouched: both sides alike. While the channel is split,
+`mix_channel_split` runs each side with its own knobs, gains, shelf coefficients and filter (`chan_t`'s `_r`
+fields). Unsplit, the right side's gains, coefficients and filter follow the left's every block, so a split starts
+from where the side already is and needs no reset.
+
+**COLOR.** One loop for both sides, as before, with the right side's drive, bits, hold and tilt its own variables
+(the same values unless split) and its own hold count. Noise, its envelope, WET and LVL stay shared.
+
+**Cost and sound.** Every fingerprint held (SPRD is 0 everywhere they use it). The factory scene measures 3,356
+instructions a sample against 3,347 before (the extra variables in COLOR's loop and the copies for modulated
+arrays); a split channel runs its coefficient work twice on that track only. Test (`test_sprd_sides`): an LFO on
+FILT with SPRD 100 sends the two sides apart (their difference 1.3 times the signal; 0 at SPRD 0) and marks the
+channel split; on COLOR's DRV the same (1.0; 0); no depths, no split.
 
 ## USB record mode (2026-10-08)
 

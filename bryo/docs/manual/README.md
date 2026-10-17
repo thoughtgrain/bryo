@@ -1098,6 +1098,11 @@ After you let go, a modulated knob has a **mark under it**: a rail showing how f
    RATE changes how many cycles you see.
 3. **Tap LFO again** for its other pages. The last one has **AMT** (how much it moves everything) and **OFS** (an
    offset).
+4. **SPRD** (on every modulator) moves the right side differently from the left: on an LFO the right side runs
+   ahead in its cycle, on ADSR, SEQ and FOLLOW it lags behind. It reaches the knobs that work on the two sides
+   separately: **PAN** (each side's own balance), the channel's **LOW HIGH FILT**, and COLOR's **DRV CRSH TILT**.
+   An LFO on FILT with SPRD up sweeps the filter one way on the left and the other on the right, so the sound moves
+   across the stereo field. At 0 both sides move together.
 
 <img src="img/mod1.png" width="240" alt="M1: LFO"> <img src="img/mod1_p4.png" width="240" alt="LFO's last page: PHAS SPRD AMT OFS">
 

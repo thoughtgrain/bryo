@@ -18,7 +18,7 @@ enum { CMOD_BIT, CMOD_RATE, CMOD_BOTH };
 
 typedef struct {                     /* ISR only */
     int32_t held[2];                 /* CRSH RATE: the value held, each side */
-    uint32_t hcnt;                   /* .. samples since it was taken */
+    uint32_t hcnt, hcnt_r;           /* .. samples since it was taken (the right side's own: SPRD can split the hold) */
     int32_t env;                     /* the noise's envelope, Q27 (|sample| << 12) */
     int32_t nlp;                     /* NTON's filter on the noise */
     int32_t tlo[2];                  /* TILT's low band, each side */
@@ -64,13 +64,21 @@ static int32_t color_shape(int32_t x, const int16_t *v)
 static void HOT_CODE color_block(uint32_t t, int32_t *l, int32_t *r, uint32_t n)
 {
     color_t *C = &color[t];
-    const int16_t *v = TPD(t, DEV_COLOR);
+    const int16_t *v = TPD(t, DEV_COLOR), *vr = TPDR(t, DEV_COLOR);   /* (vr: the right side's, SPRD; else v) */
     int32_t g8 = v[CP_DRIV] > 0 ? col_g8(v[CP_DRIV]) : 256, tilt = v[CP_TILT], nois = v[CP_NOIS];
+    int32_t g8r = g8, tiltr = tilt, glr = 4096, ghr = 4096;
     int32_t w0 = C->wet, w1 = v[CP_WET] >= 100 ? 4096 : clamp(v[CP_WET], 0, 100) * 4096 / 100, v0 = C->lvl;
     int32_t v1 = db_q10(v[CP_LVL]);                     /* (WET 100, the default: no divide every block) */
     int32_t gl = 4096, gh = 4096, ng = PCT_Q15[clamp(nois, 0, 100)], ak, ts, dk;   /* (ak ts dk: past the returns) */
-    uint32_t sh = col_bits_off(v), hold = col_hold(v), i;
-    int colours = g8 > 256 || sh || hold > 1u || nois || tilt;
+    uint32_t sh = col_bits_off(v), hold = col_hold(v), shr = sh, holdr = hold, i;
+    int colours;
+    if (vr != v) {                                      /* SPRD splitting the sides: DRV CRSH TILT the right's own */
+        g8r = vr[CP_DRIV] > 0 ? col_g8(vr[CP_DRIV]) : 256;
+        tiltr = vr[CP_TILT];
+        shr = col_bits_off(vr);
+        holdr = col_hold(vr);
+    }
+    colours = g8 > 256 || sh || hold > 1u || nois || tilt || g8r > 256 || shr || holdr > 1u || tiltr;
     if (!C->rng)
         C->rng = 0x2545F491 + (int32_t)t;              /* (xorshift from 0 stays 0) */
     int32_t d1 = v[CP_ROUT] ? 4096 : 4096 - w1, d0 = C->dry ? C->dry - 1 : d1;   /* the dry's share (ROUT) */
@@ -124,6 +132,16 @@ static void HOT_CODE color_block(uint32_t t, int32_t *l, int32_t *r, uint32_t n)
         gl = 4096 * (100 - tilt) / 100;
         gh = 4096 * 100 / (100 - tilt);
     }
+    if (tiltr == tilt) {                                /* (the right side: the same, or its own under SPRD) */
+        glr = gl;
+        ghr = gh;
+    } else if (tiltr > 0) {
+        ghr = 4096 * (100 + tiltr) / 100;
+        glr = 4096 * 100 / (100 + tiltr);
+    } else if (tiltr < 0) {
+        glr = 4096 * (100 - tiltr) / 100;
+        ghr = 4096 * 100 / (100 - tiltr);
+    }
     ak = (8 + (v[CP_NTON] + 100) * 75 / 200) * 128 / 100;
     ts = (int32_t)TIME_MS_X10[v[CP_NDEC] & 127] * 441 / 100;
     if (ts < 8)
@@ -136,7 +154,7 @@ static void HOT_CODE color_block(uint32_t t, int32_t *l, int32_t *r, uint32_t n)
         int32_t lo0 = C->tlo[0], lo1 = C->tlo[1], rng = C->rng;
         int32_t wq = w0 << CTL_LOG2, gq = v0 << CTL_LOG2, dw = w1 - w0, dg = v1 - v0, dq = d0 << CTL_LOG2, ddq = d1 - d0;
         int par = v[CP_ROUT] || d0 + w0 != 4096;        /* a send (or switching): the dry and the colour apart */
-        uint32_t hc = C->hcnt;
+        uint32_t hc = C->hcnt, hcr = C->hcnt_r;
         for (i = 0; i < n; i++, wq += dw, gq += dg, dq += ddq) {
             int32_t x0 = clamp(l[i], -65535, 65535), x1 = clamp(r[i], -65535, 65535), y0, y1, nz = 0;
             int32_t w = wq >> CTL_LOG2, g = gq >> CTL_LOG2;
@@ -157,15 +175,18 @@ static void HOT_CODE color_block(uint32_t t, int32_t *l, int32_t *r, uint32_t n)
             if (++hc >= hold) {                         /* CRSH RATE: a value held for `hold` samples */
                 hc = 0;
                 h0 = col_drive_bits(x0, g8, sh);
-                h1 = col_drive_bits(x1, g8, sh);
+            }
+            if (++hcr >= holdr) {                       /* (the right side's own count: the same unless SPRD splits) */
+                hcr = 0;
+                h1 = col_drive_bits(x1, g8r, shr);
             }
             y0 = clamp(h0 + nz, -65535, 65535);
             y1 = clamp(h1 + nz, -65535, 65535);
-            if (tilt) {                                 /* the low band (one pole near 700 Hz) and what's above it */
+            if (tilt || tiltr) {                        /* the low band (one pole near 700 Hz) and what's above it */
                 lo0 += ((y0 - lo0) * 3267) >> 15;
                 lo1 += ((y1 - lo1) * 3267) >> 15;
                 y0 = (lo0 * gl + (y0 - lo0) * gh) >> 12;
-                y1 = (lo1 * gl + (y1 - lo1) * gh) >> 12;
+                y1 = (lo1 * glr + (y1 - lo1) * ghr) >> 12;
             }
             if (par) {                                  /* WET: a send, dry x its share + the colour x WET */
                 int32_t d = dq >> CTL_LOG2;
@@ -186,5 +207,6 @@ static void HOT_CODE color_block(uint32_t t, int32_t *l, int32_t *r, uint32_t n)
         C->tlo[1] = lo1;
         C->rng = rng;
         C->hcnt = hc;
+        C->hcnt_r = hcr;
     }
 }

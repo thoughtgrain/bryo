@@ -43,6 +43,11 @@ typedef struct {                     /* ISR only */
     int32_t glo, ghi;                /* the shelves' gains (G - 1, Q12) at the end of last block: each block ramps from
                                       * them, so a modulated LOW or HIGH glides instead of stepping at block edges */
     uint8_t lorun, hirun;            /* each shelf ran last block (off: its state is stale, seeded again when it runs) */
+    /* the right side's own, while SPRD splits it from the left (mod.c TPDR; 2026-10-17): its coefficients and
+     * gains; unsplit, its gains follow the left's, so a split starts where the side already is */
+    int16_t lo_seen_r, hi_seen_r;
+    int32_t klo_r, khi_r, filt_seen_r, glo_r, ghi_r;
+    tsvf_t fc_r;
 } chan_t;
 
 static chan_t chan[NTRK];
@@ -112,11 +117,12 @@ static int32_t ch_cut(int32_t f8)
  * a sample when ramp) and the filter (f). Inlined with ramp a constant, so a strip whose gains hold runs no ramp */
 static inline __attribute__((always_inline)) void ch_side(chan_t *C, uint32_t c, int32_t *x, uint32_t n, int dolo,
                                                          int dohi, int32_t f, int32_t gl, int32_t gh, int32_t dlo,
-                                                         int32_t dhi, int ramp)
+                                                         int32_t dhi, int ramp, int32_t klo, int32_t khi,
+                                                         const tsvf_t *fc)
 {
     int32_t lo = C->lo[c], hi = C->hi[c], s1 = C->f1[c], s2 = C->f2[c];   /* (the state in locals: the compiler
                                                                            * can't know the buffer doesn't alias it) */
-    int32_t klo = C->klo, khi = C->khi, a1 = C->fc.a1, a2 = C->fc.a2, a3 = C->fc.a3, kd = C->fc.k;
+    int32_t a1 = fc->a1, a2 = fc->a2, a3 = fc->a3, kd = fc->k;
     uint32_t i;
     for (i = 0; i < n; i++) {
         int32_t y = clamp(x[i], -65535, 65535);
@@ -155,8 +161,8 @@ static inline __attribute__((always_inline)) void ch_side(chan_t *C, uint32_t c,
     C->f2[c] = s2;
 }
 
-/* audio ISR: track t's channel strip on its stereo block, before its level (LOW HIGH FILT) */
-static void HOT_CODE mix_channel(uint32_t t, int32_t *l, int32_t *r, uint32_t n)
+/* audio ISR: track t's channel strip on its stereo block, both sides alike (LOW HIGH FILT) */
+static void HOT_CODE mix_channel_both(uint32_t t, int32_t *l, int32_t *r, uint32_t n)
 {
     chan_t *C = &chan[t];
     const int16_t *ch = TPD(t, MA_CH);
@@ -222,10 +228,88 @@ static void HOT_CODE mix_channel(uint32_t t, int32_t *l, int32_t *r, uint32_t n)
     }
     for (c = 0; c < 2u; c++) {
         if (dlo || dhi)                                 /* (a gain moving: ramped; held: the loop without the ramp) */
-            ch_side(C, c, c ? r : l, n, dolo, dohi, f, glo0, ghi0, dlo, dhi, 1);
+            ch_side(C, c, c ? r : l, n, dolo, dohi, f, glo0, ghi0, dlo, dhi, 1, C->klo, C->khi, &C->fc);
         else
-            ch_side(C, c, c ? r : l, n, dolo, dohi, f, glo, ghi, 0, 0, 0);
+            ch_side(C, c, c ? r : l, n, dolo, dohi, f, glo, ghi, 0, 0, 0, C->klo, C->khi, &C->fc);
     }
+}
+
+/* audio ISR: the channel strip with SPRD splitting the sides: each side its own knobs (the right's through TPDR),
+ * gains, coefficients and filter. (No resting shortcut: it only runs while a modulator moves the sides apart) */
+static void HOT_CODE mix_channel_split(uint32_t t, int32_t *l, int32_t *r, uint32_t n)
+{
+    chan_t *C = &chan[t];
+    uint32_t c;
+    for (c = 0; c < 2u; c++) {
+        const int16_t *ch = c ? TPDR(t, MA_CH) : TPD(t, MA_CH);
+        int32_t *x = c ? r : l, *pglo = c ? &C->glo_r : &C->glo, *pghi = c ? &C->ghi_r : &C->ghi;
+        int32_t *pklo = c ? &C->klo_r : &C->klo, *pkhi = c ? &C->khi_r : &C->khi;
+        int32_t *pfs = c ? &C->filt_seen_r : &C->filt_seen;
+        int16_t *plos = c ? &C->lo_seen_r : &C->lo_seen, *phis = c ? &C->hi_seen_r : &C->hi_seen;
+        tsvf_t *fc = c ? &C->fc_r : &C->fc;
+        int32_t glo = ch[CH_LOW] ? db_q10(ch[CH_LOW]) * 4 - 4096 : 0;
+        int32_t ghi = ch[CH_HIGH] ? db_q10(ch[CH_HIGH]) * 4 - 4096 : 0;
+        int32_t f = ch[CH_FILT], glo0 = *pglo, ghi0 = *pghi, dlo, dhi;
+        int32_t f8 = c ? ((mod_fmask[t] >> FN_FILT) & 1u ? mod_f8r[t] : f * 256) : mod_fine8(t, FN_FILT, f);
+        int dolo = glo || glo0, dohi = ghi || ghi0;
+        if (dolo && !glo0)                              /* (a shelf back on: from the signal as it is) */
+            C->lo[c] = clamp(x[0], -65535, 65535);
+        if (dohi && !ghi0)
+            C->hi[c] = clamp(x[0], -65535, 65535);
+        *pglo = glo;
+        *pghi = ghi;
+        if (!dolo && !dohi && !f) {
+            *pfs = CH_NONE;
+            continue;
+        }
+        dlo = (glo - glo0) >> CTL_LOG2;
+        dhi = (ghi - ghi0) >> CTL_LOG2;
+        if (f && (f8 < 0) != (f < 0))
+            f8 = f < 0 ? -1 : 1;
+        if (ch[CH_LOW] != *plos || !*pklo) {
+            *pklo = ch_shelf_k(CH_FLO, ch[CH_LOW], 0);
+            *plos = ch[CH_LOW];
+        }
+        if (ch[CH_HIGH] != *phis || !*pkhi) {
+            *pkhi = ch_shelf_k(CH_FHI, ch[CH_HIGH], 1);
+            *phis = ch[CH_HIGH];
+        }
+        if (f && f8 != *pfs) {
+            if (*pfs == CH_NONE || (*pfs < 0) != (f8 < 0))
+                C->f1[c] = C->f2[c] = 0;                /* (off, or LP to HP: this side from rest) */
+            tsvf_coef_k(fc, ch_cut(f8), CH_BW);
+            *pfs = f8;
+        }
+        if (dlo || dhi)
+            ch_side(C, c, x, n, dolo, dohi, f, glo0, ghi0, dlo, dhi, 1, *pklo, *pkhi, fc);
+        else
+            ch_side(C, c, x, n, dolo, dohi, f, glo, ghi, 0, 0, 0, *pklo, *pkhi, fc);
+        if (!c) {
+            C->lorun = (uint8_t)dolo;
+            C->hirun = (uint8_t)dohi;
+        }
+    }
+}
+
+/* audio ISR: track t's channel strip on its stereo block, before its level: both sides alike, or each its own while
+ * SPRD splits them */
+static void HOT_CODE mix_channel(uint32_t t, int32_t *l, int32_t *r, uint32_t n)
+{
+    chan_t *C = &chan[t];
+    if ((mod_rsplit[t] >> MR_CH) & 1u) {
+        mix_channel_split(t, l, r, n);
+        return;
+    }
+    mix_channel_both(t, l, r, n);
+    C->glo_r = C->glo;                                  /* (the right side follows the left's gains, coefficients and
+                                                         * filter: a split starts from where the side already is) */
+    C->ghi_r = C->ghi;
+    C->klo_r = C->klo;
+    C->khi_r = C->khi;
+    C->lo_seen_r = C->lo_seen;
+    C->hi_seen_r = C->hi_seen;
+    C->filt_seen_r = C->filt_seen;
+    C->fc_r = C->fc;
 }
 
 /* PAN as the two sides' gains, Q15: sqrt 2 times cos and sin of the place (0 .. pi/2), at most 1 */

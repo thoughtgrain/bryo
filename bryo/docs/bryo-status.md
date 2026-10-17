@@ -254,6 +254,9 @@ number.
   four), split by what each track's settings ask for when it runs short; what's left over is everyone's (since
   2026-10-11: a track alone has all 40, not just what RATE and SIZE ask). GRAIN 6's GRNS can hold a number for a
   track instead (1-40, taken from the AUTO tracks first, kept whatever the others do).
+- **2026-10-17: SPRD reaches the channel strip and COLOR.** The parked SPRD decision, settled my recorded way (the
+  S-4's): a modulator's SPRD now moves LOW HIGH FILT and COLOR's DRV CRSH TILT apart on the two sides; PAN stays a
+  balance. Nothing changes at SPRD 0 (every fingerprint held); about 9 instructions a sample on the scene.
 - **2026-10-17: p-locks.** The SEQ pad and a step's white key held, then a knob: the SEQ's depth to that knob on
   that step only (the controls map's proposal, built as written). Up to 32 a track over 8 knobs, saved with the
   project (format 13, reading 12 and 11), cleared and restored with MONO's depths. With none, the engine runs as it
@@ -408,9 +411,6 @@ number.
 
 ## Known considerations and open questions
 
-- **SPRD on PAN** pulses (a tremolo) at 100 instead of moving the sound, because PAN is a balance. Left for now; the
-  options are in the architecture doc ("Modulation, as built", open points). My lean: let SPRD reach every knob of
-  COLOR and the channel strip, the S-4's way.
 - **VEL** (ADSR) does nothing: the keys have no velocity, and MIDI in doesn't reach the tracks yet.
 - **FOLLOW's USB source** listens to nothing until the computer's audio comes in outside the record mode.
 - **SEQ steps on TUNE** are a percentage of 48 semitones; a step page in semitones would be friendlier.
@@ -431,7 +431,7 @@ number.
 2. **Phase 10, tools and docs:** the manual is drafted (`docs/manual/`, checked on hardware as the checkpoint
    goes); the installer's text.
 3. **DRUM by ear:** listen to the kit and the rhythms, tune `DRM_KIT` and `DRM_PRESET`.
-4. Decisions waiting: SPRD on PAN. (Shared reverb buses are in: the two rooms. A shared delay the same
+4. No decisions waiting. (Shared reverb buses are in: the two rooms. A shared delay the same
    way is the next lever if the device needs one.)
 
 ## Where the details are

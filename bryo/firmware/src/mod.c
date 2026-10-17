@@ -662,6 +662,18 @@ static const int16_t *mdv[NTRK][MOD_NARR];     /* what the devices read: mda's a
 #define TPD(t, a) (mdv[t][a])                  /* track t's knob array a (DEV_*, MA_SYN, MA_POL, MA_DRM, MA_CH),
                                                 * modulated */
 static int16_t mod_pan_r[NTRK];                /* ISR: the right channel's PAN (SPRD), when the channel is modulated */
+/* SPRD on the parts that run left and right apart (2026-10-17, the S-4's way): a modulator's SPRD gives the right
+ * side its own modulation (outr: lagged or phase-shifted, mod.c's engines) and PAN alone heard it. Now the channel
+ * strip (LOW HIGH FILT) and COLOR (DRV CRSH TILT) take it too: mod_tick keeps their right side's knobs in mdr when
+ * they differ from the left's (mod_rsplit: bit 0 the channel, bit 1 COLOR), and the two read their right side
+ * through TPDR. Nothing split: the right reads the left's, the path as it was */
+#define MR_CH 0u
+#define MR_COLOR 1u
+static int16_t mdr[NTRK][2][NPK];              /* ISR: the right side's modulated knobs, the channel's and COLOR's */
+static uint8_t mod_rsplit[NTRK];               /* ISR: which of them differ from the left's this block */
+static int32_t mod_f8r[NTRK];                  /* ISR: FILT's right side, 1/256 of its step (mod_fine8's, for FILT) */
+#define TPDR(t, a) ((mod_rsplit[t] >> ((a) == MA_CH ? MR_CH : MR_COLOR)) & 1u ? \
+                    (const int16_t *)mdr[t][(a) == MA_CH ? MR_CH : MR_COLOR] : TPD(t, a))
 static uint16_t mod_arrs[NTRK];                /* ISR: the arrays mdv points into mda for */
 
 /* Some knobs modulate finer than they turn: a knob holds whole steps (TUNE semitones, CUT semitones of the filter's
@@ -875,7 +887,7 @@ static void HOT_CODE mod_adsr(mod_rt_t *m, const int16_t *v, int gate, int press
         m->ph = 0;
     }
     m->out = mod_place(m->lv, v, 10u, 0);
-    m->outr = mod_slew(m->outr, m->out, mod_lag(v[7]));
+    m->outr = v[7] ? mod_slew(m->outr, m->out, mod_lag(v[7])) : m->out;   /* (SPRD 0: the left exactly) */
 }
 
 /* SEQ: the step under the beat (from the restart: TRIG KEY, or PLAY), its value glided into by SLEW, then placed
@@ -949,7 +961,7 @@ static void HOT_CODE mod_follow(mod_rt_t *m, const int16_t *v, const int32_t *in
         m->held = m->env;
     }
     m->out = mod_place(m->held, v, 5u, 0);
-    m->outr = mod_slew(m->outr, m->out, mod_lag(v[7]));
+    m->outr = v[7] ? mod_slew(m->outr, m->out, mod_lag(v[7])) : m->out;   /* (SPRD 0: the left exactly) */
 }
 
 /* power-on (chain_init): no depths, every slot at rest, the clock at 0 */
@@ -1050,6 +1062,7 @@ static void HOT_CODE mod_tick(uint32_t keys, uint32_t sel, const int32_t *const 
         int loop;
         mod_keys_prev[t] = k;
         mod_fmask[t] = 0;
+        mod_rsplit[t] = 0;                             /* (set again below where SPRD splits a side) */
         if (mod_show && (mod_show - 1u) / NSLOT == t) { /* the SEQ on screen, if it modulates nothing (below it runs
                                                          * only with depths): stepped here, for its keys' lights */
             uint32_t ss = (mod_show - 1u) % NSLOT;
@@ -1130,6 +1143,12 @@ static void HOT_CODE mod_tick(uint32_t keys, uint32_t sel, const int32_t *const 
                     d[i] = b[i];
             }
         mod_pan_r[t] = mda[t][MA_CH][CH_PAN];
+        if (arrs & (1u << MA_CH | 1u << DEV_COLOR)) {   /* (the right side's copies, from the knobs as set) */
+            for (i = 0; i < NCH; i++)
+                mdr[t][MR_CH][i] = mda[t][MA_CH][i];
+            for (i = 0; i < NPK; i++)
+                mdr[t][MR_COLOR][i] = mda[t][DEV_COLOR][i];
+        }
         for (i = 0; i < L->n;) {                        /* each target: its depths summed, then clamped once */
             const mod_ent_t *E = &L->e[i];
             const mod_rows_t *R = &mod_r[t][mod_cur[t] & 1u];
@@ -1139,14 +1158,26 @@ static void HOT_CODE mod_tick(uint32_t keys, uint32_t sel, const int32_t *const 
             if (fi < FN_N) {                            /* a fine knob: 256 times finer too (the same product, 8 bits
                                                          * less shifted), except a SEQ's steps on a pitch, which land on
                                                          * semitones (a step is a note) */
+                int32_t s8r = 0;
                 for (; i < L->n && L->e[i].tgt == g; i++) {
                     const mod_rt_t *m = &mrt[t][L->e[i].slot & 15u];
-                    int32_t x = (m->out >> 3) * mod_fq(&L->e[i], R, m), d = (x + (1 << 18)) >> 19;
+                    int32_t fq = mod_fq(&L->e[i], R, m), x = (m->out >> 3) * fq, d = (x + (1 << 18)) >> 19;
                     sum += d;
                     s8 += m->engine == ME_SEQ + 1u && fi < FN_PITCHES ? d * 256 : (x + (1 << 10)) >> 11;
+                    if (fi == FN_FILT) {                /* (FILT: its right side too, for SPRD) */
+                        int32_t xr = (m->outr >> 3) * fq, dr = (xr + (1 << 18)) >> 19;
+                        sumr += dr;
+                        s8r += (xr + (1 << 10)) >> 11;
+                    }
                 }
                 mod_f8[t][fi] = clamp(*p * 256 + s8, E->lo * 256, E->hi * 256);
                 mod_fmask[t] |= (uint8_t)(1u << fi);
+                if (fi == FN_FILT) {
+                    mod_f8r[t] = clamp(*p * 256 + s8r, E->lo * 256, E->hi * 256);
+                    mdr[t][MR_CH][E->k] = (int16_t)clamp(*p + sumr, E->lo, E->hi);
+                    if (mod_f8r[t] != mod_f8[t][fi])
+                        mod_rsplit[t] |= 1u << MR_CH;
+                }
             } else {
                 for (; i < L->n && L->e[i].tgt == g; i++) {
                     const mod_rt_t *m = &mrt[t][L->e[i].slot & 15u];
@@ -1157,6 +1188,14 @@ static void HOT_CODE mod_tick(uint32_t keys, uint32_t sel, const int32_t *const 
             }
             if (g == (int32_t)(MOD_TCH + CH_PAN))
                 mod_pan_r[t] = (int16_t)clamp(*p + sumr, E->lo, E->hi);
+            else if (fi >= FN_N && (E->arr == MA_CH || E->arr == DEV_COLOR)) {   /* SPRD on the channel or COLOR:
+                                                                               * its right side */
+                uint32_t gi = E->arr == MA_CH ? MR_CH : MR_COLOR;
+                int32_t vr = clamp(*p + sumr, E->lo, E->hi);
+                mdr[t][gi][E->k] = (int16_t)vr;
+                if (vr != clamp(*p + sum, E->lo, E->hi))
+                    mod_rsplit[t] |= (uint8_t)(1u << gi);
+            }
             *p = (int16_t)clamp(*p + sum, E->lo, E->hi);
         }
     }
