@@ -312,7 +312,8 @@ static inline __attribute__((always_inline)) uint32_t syn_ratio(int32_t v) { ret
 #define SYN_NV 3u                /* voices per track */
 static const pdesc_t SYN_P[NPK] = {
     /* OSC: two oscillators of the same wave, the second DTUN cents up and MIX of the blend; white noise */
-    {"WAVE", 0, 8, 3, F_ENUM, N_OSC}, {"DTUN", 0, 100, 8, F_CT}, {"MIX", 0, 100, 50, F_PCT}, {"NOIS", 0, 100, 0, F_PCT},
+    {"WAVE", 0, 8, 3, F_ENUM, N_OSC, 1}, {"DTUN", 0, 100, 8, F_CT}, {"MIX", 0, 100, 50, F_PCT},
+    {"NOIS", 0, 100, 0, F_PCT},
     /* FILTER: a resonant low-pass; ENV opens (or, below 0, closes) it with the envelope; KTRK follows the keys */
     {"CUT", 0, 127, 72, F_HZ}, {"RES", 0, 100, 25, F_PCT}, {"ENV", -100, 100, 45, F_BIPCT}, {"KTRK", 0, 100, 50, F_PCT},
     /* AMP: the envelope's times (1 ms .. 10 s) and its sustain level */
@@ -335,7 +336,8 @@ static const pdesc_t SYN_P[NPK] = {
 /* SYN_P is SYNTH's storage (every knob any wave has: the projects, the modulation and the scenes read it); what the
  * pages show is a wave's own table: the classic waves' (SIN TRI SQR SAW PLS) this one, FM's, PD's, VOX's, WT's */
 static const pdesc_t SYN_CL_P[NPK] = {
-    {"WAVE", 0, 8, 3, F_ENUM, N_OSC}, {"DTUN", 0, 100, 8, F_CT}, {"MIX", 0, 100, 50, F_PCT}, {"NOIS", 0, 100, 0, F_PCT},
+    {"WAVE", 0, 8, 3, F_ENUM, N_OSC, 1}, {"DTUN", 0, 100, 8, F_CT}, {"MIX", 0, 100, 50, F_PCT},
+    {"NOIS", 0, 100, 0, F_PCT},
     {"CUT", 0, 127, 72, F_HZ}, {"RES", 0, 100, 25, F_PCT}, {"ENV", -100, 100, 45, F_BIPCT}, {"KTRK", 0, 100, 50, F_PCT},
     {"ATK", 0, 127, 0, F_TIME}, {"DEC", 0, 127, 60, F_TIME}, {"SUS", 0, 100, 60, F_PCT}, {"REL", 0, 127, 45, F_TIME},
     {"VOIC", 1, SYN_NV, SYN_NV, F_NUM}, {"GLID", 0, 127, 0, F_TIME}, {"DRV", 0, 100, 0, F_PCT},
@@ -346,7 +348,7 @@ static const pdesc_t SYN_CL_P[NPK] = {
  * pitch over the carrier's (DTUN's place); INDX, how hard it bends it (MIX's); FDBK, the modulator into itself (NOIS's,
  * sine to saw-ish to noise); IENV. Its own pages (PLAYOUT): WAVE RATI INDX IENV first, FDBK beside DRV */
 static const pdesc_t SYN_FM_P[NPK] = {
-    {"WAVE", 0, 8, 3, F_ENUM, N_OSC}, {"RATI", 0, 100, 8, F_RATIO}, {"INDX", 0, 100, 50, F_PCT},
+    {"WAVE", 0, 8, 3, F_ENUM, N_OSC, 1}, {"RATI", 0, 100, 8, F_RATIO}, {"INDX", 0, 100, 50, F_PCT},
     {"FDBK", 0, 100, 0, F_PCT},
     {"CUT", 0, 127, 72, F_HZ}, {"RES", 0, 100, 25, F_PCT}, {"ENV", -100, 100, 45, F_BIPCT}, {"KTRK", 0, 100, 50, F_PCT},
     {"ATK", 0, 127, 0, F_TIME}, {"DEC", 0, 127, 60, F_TIME}, {"SUS", 0, 100, 60, F_PCT}, {"REL", 0, 127, 45, F_TIME},
@@ -359,7 +361,7 @@ static const pdesc_t SYN_FM_P[NPK] = {
  * phase bends, a sine at 0 to the whole shape (the CZ's DCW; on the resonant shapes the resonance's sweep); AENV
  * (IENV's) the envelope's push on AMT, the CZ's sweep; NOIS as it is. Its own pages: WAVE SHAP AMT AENV first */
 static const pdesc_t SYN_PD_P[NPK] = {
-    {"WAVE", 0, 8, 3, F_ENUM, N_OSC}, {"SHAP", 0, 100, 8, F_PDSH}, {"AMT", 0, 100, 50, F_PCT},
+    {"WAVE", 0, 8, 3, F_ENUM, N_OSC, 1}, {"SHAP", 0, 100, 8, F_PDSH}, {"AMT", 0, 100, 50, F_PCT},
     {"NOIS", 0, 100, 0, F_PCT},
     {"CUT", 0, 127, 72, F_HZ}, {"RES", 0, 100, 25, F_PCT}, {"ENV", -100, 100, 45, F_BIPCT}, {"KTRK", 0, 100, 50, F_PCT},
     {"ATK", 0, 127, 0, F_TIME}, {"DEC", 0, 127, 60, F_TIME}, {"SUS", 0, 100, 60, F_PCT}, {"REL", 0, 127, 45, F_TIME},
@@ -372,7 +374,7 @@ static const pdesc_t SYN_PD_P[NPK] = {
  * HARM a harmonic swept up, FORM a resonance swept up, or a reel cut into eight frames); POS (DTUN's place) where in
  * it, a morph between frames; PENV (IENV's) the envelope's push on POS; NOIS as it is */
 static const pdesc_t SYN_WT_P[NPK] = {
-    {"WAVE", 0, 8, 3, F_ENUM, N_OSC}, {"POS", 0, 100, 8, F_PCT}, {""}, {"NOIS", 0, 100, 0, F_PCT},
+    {"WAVE", 0, 8, 3, F_ENUM, N_OSC, 1}, {"POS", 0, 100, 8, F_PCT}, {""}, {"NOIS", 0, 100, 0, F_PCT},
     {"CUT", 0, 127, 72, F_HZ}, {"RES", 0, 100, 25, F_PCT}, {"ENV", -100, 100, 45, F_BIPCT}, {"KTRK", 0, 100, 50, F_PCT},
     {"ATK", 0, 127, 0, F_TIME}, {"DEC", 0, 127, 60, F_TIME}, {"SUS", 0, 100, 60, F_PCT}, {"REL", 0, 127, 45, F_TIME},
     {"VOIC", 1, SYN_NV, SYN_NV, F_NUM}, {"GLID", 0, 127, 0, F_TIME}, {"DRV", 0, 100, 0, F_PCT},
@@ -384,7 +386,7 @@ static const pdesc_t SYN_WT_P[NPK] = {
  * morph between; SHFT (MIX's) the formants down or up, a big voice to a small one (0 at 50: a man's); VENV (IENV's)
  * the envelope's push on VOWL ("wah", "ow"); BRTH (NOIS's) breath into the formants. Its own pages, as FM's */
 static const pdesc_t SYN_VX_P[NPK] = {
-    {"WAVE", 0, 8, 3, F_ENUM, N_OSC}, {"VOWL", 0, 100, 8, F_VOWL}, {"SHFT", 0, 100, 50, F_C50},
+    {"WAVE", 0, 8, 3, F_ENUM, N_OSC, 1}, {"VOWL", 0, 100, 8, F_VOWL}, {"SHFT", 0, 100, 50, F_C50},
     {"BRTH", 0, 100, 0, F_PCT},
     {"CUT", 0, 127, 72, F_HZ}, {"RES", 0, 100, 25, F_PCT}, {"ENV", -100, 100, 45, F_BIPCT}, {"KTRK", 0, 100, 50, F_PCT},
     {"ATK", 0, 127, 0, F_TIME}, {"DEC", 0, 127, 60, F_TIME}, {"SUS", 0, 100, 60, F_PCT}, {"REL", 0, 127, 45, F_TIME},

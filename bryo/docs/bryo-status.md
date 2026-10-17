@@ -254,6 +254,9 @@ number.
   four), split by what each track's settings ask for when it runs short; what's left over is everyone's (since
   2026-10-11: a track alone has all 40, not just what RATE and SIZE ask). GRAIN 6's GRNS can hold a number for a
   track instead (1-40, taken from the AUTO tracks first, kept whatever the others do).
+- **2026-10-17: SYNTH's WAVE isn't a modulation target.** It switches whole oscillator engines, which stepped at
+  block edges (the audit's two flags); like RIPPLE's form it's a choice now, switched by hand or at a scene's
+  midpoint. The modulation audit reads 0 stepping.
 - **2026-10-17: SPRD reaches the channel strip and COLOR.** The parked SPRD decision, settled my recorded way (the
   S-4's): a modulator's SPRD now moves LOW HIGH FILT and COLOR's DRV CRSH TILT apart on the two sides; PAN stays a
   balance. Nothing changes at SPRD 0 (every fingerprint held); about 9 instructions a sample on the scene.

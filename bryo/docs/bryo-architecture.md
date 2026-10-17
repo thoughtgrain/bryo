@@ -3292,6 +3292,17 @@ arrays); a split channel runs its coefficient work twice on that track only. Tes
 FILT with SPRD 100 sends the two sides apart (their difference 1.3 times the signal; 0 at SPRD 0) and marks the
 channel split; on COLOR's DRV the same (1.0; 0); no depths, no split.
 
+### SYNTH's WAVE leaves the modulation targets (2026-10-17)
+
+Since the other session's new waves (FM, PD, CHRD, VOX, WT), the modulation audit flagged two targets that step: SYNTH
+WAVE and SYNTH WAVE held. WAVE picks the whole oscillator engine, so a depth on it switches engines at block edges,
+and unlike a filter's TYPE nothing softens that switch (a crossfade would mean running two engines a voice for a
+block). RIPPLE's form, the closest thing to it, was never a target, so WAVE follows it: marked `nomod` in SYN_P and
+the display tables. `mod_tdesc` refuses it (a depth on it says "THIS KNOB CAN'T BE MODULATED", and a project's old
+depth on it is dropped on load), and scenes keep switching it at the midpoint (`scn_kind` 2, as it already special-
+cased). The audit now reads 0 targets stepping; every fingerprint held. Test: not a target, kind 2 in scenes, a nudge
+refused.
+
 ## USB record mode (2026-10-08)
 
 Recording from the computer is a mode of its own, not a source a track plays through: you go in, record, put the

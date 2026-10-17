@@ -10438,6 +10438,10 @@ static void test_sprd_sides(void)
     mod_clear(0);
     render(2, 0);
     check("..no depths: nothing split", !mod_rsplit[0]);
+    check("SYNTH's WAVE isn't a modulation target (whole oscillators switching at block edges stepped; a scene still "
+          "switches it at the midpoint)", !mod_tdesc(MOD_TSRC + SRC_SYNTH * NPK + SY_WAVE) &&
+          scn_kind(MOD_TSRC + SRC_SYNTH * NPK + SY_WAVE) == 2u &&
+          mod_nudge(0, 0, MOD_TSRC + SRC_SYNTH * NPK + SY_WAVE, 20) == -128);
     sys.playing = 0;
 }
 static void test_mod_engines(void)
