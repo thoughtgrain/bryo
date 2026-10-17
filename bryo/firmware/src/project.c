@@ -374,7 +374,9 @@ static const int16_t *pj_dev_out(const track_params_t *P, uint32_t s)
 #define PJ_SC_LVL (NTRK * MOD_NTGT)
 #define PJ_SC_ROOM (PJ_SC_LVL + NTRK)
 #define PJ_SC_SRC (PJ_SC_ROOM + NROOM * NRM)
-#define PJ_SC_N (PJ_SC_SRC + NTRK)
+#define PJ_SC_BPM (PJ_SC_SRC + NTRK)       /* (2026-10-17: the scene's tempo, written whenever it holds one; a file
+                                            * from before has none, and older Bryos skip the id) */
+#define PJ_SC_N (PJ_SC_BPM + 1u)
 static uint8_t scn_lost;
 static uint32_t pj_ver;              /* the version of the project being read */             /* the scenes the last save couldn't hold, a bit each */
 /* scene s's value at id (and its live counterpart in *now) */
@@ -393,8 +395,12 @@ static int32_t pj_sc_val(const scene_t *s, uint32_t id, int32_t *now)
         *now = rmp[(id - PJ_SC_ROOM) / NRM][(id - PJ_SC_ROOM) % NRM];
         return s->rm[(id - PJ_SC_ROOM) / NRM][(id - PJ_SC_ROOM) % NRM];
     }
-    *now = tp[id - PJ_SC_SRC].src;
-    return s->src[id - PJ_SC_SRC];
+    if (id < PJ_SC_BPM) {
+        *now = tp[id - PJ_SC_SRC].src;
+        return s->src[id - PJ_SC_SRC];
+    }
+    *now = s->bpm ? -1 : 0;                              /* (held: always written, a load can't tell it otherwise) */
+    return s->bpm;
 }
 static void pj_write_scenes(void)
 {
@@ -433,6 +439,7 @@ static void pj_read_scenes(void)
             continue;
         scn_take(S);
         S->used = i < NSCN;
+        S->bpm = 0;                                      /* (none unless the file says) */
         c = pr_u16();
         for (j = 0; j < c && !pr.bad; j++) {
             uint32_t id = pr_u16();
@@ -446,8 +453,10 @@ static void pj_read_scenes(void)
             } else if (id < PJ_SC_SRC) {
                 uint32_t k = (id - PJ_SC_ROOM) % NRM;
                 S->rm[(id - PJ_SC_ROOM) / NRM][k] = (int16_t)clamp(v, RM_P[k].min, RM_P[k].max);
-            } else if (id < PJ_SC_N) {
+            } else if (id < PJ_SC_BPM) {
                 S->src[id - PJ_SC_SRC] = (uint8_t)(v >= 0 && v < (int32_t)NSRC ? v : SRC_TAPE);
+            } else if (id == PJ_SC_BPM) {
+                S->bpm = (uint16_t)(v ? clamp(v, 40, 240) : 0);
             }
         }
     }

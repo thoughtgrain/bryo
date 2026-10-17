@@ -319,10 +319,13 @@ static const struct {
     uint8_t n;
     uint8_t lvl[NTRK];
     int8_t room[NROOM][4];           /* each room's SIZE DEC TYPE MOD */
+    uint8_t bpm;                     /* its tempo (2026-10-17: scenes hold one) */
 } TPS_SC[TPS_NSC] = {
-    {TPS_AMB, (uint8_t)(sizeof TPS_AMB / sizeof TPS_AMB[0]), {0, 92, 88, 88}, {{50, 40, 0, 0}, {90, 80, 2, 50}}},
-    {TPS_TEC, (uint8_t)(sizeof TPS_TEC / sizeof TPS_TEC[0]), {100, 106, 100, 102}, {{35, 30, 1, 0}, {60, 45, 0, 0}}},
-    {TPS_GLI, (uint8_t)(sizeof TPS_GLI / sizeof TPS_GLI[0]), {100, 116, 98, 118}, {{25, 20, 1, 0}, {50, 40, 3, 70}}}};
+    {TPS_AMB, (uint8_t)(sizeof TPS_AMB / sizeof TPS_AMB[0]), {0, 92, 88, 88}, {{50, 40, 0, 0}, {90, 80, 2, 50}}, 124},
+    {TPS_TEC, (uint8_t)(sizeof TPS_TEC / sizeof TPS_TEC[0]), {100, 106, 100, 102}, {{35, 30, 1, 0}, {60, 45, 0, 0}},
+     128},
+    {TPS_GLI, (uint8_t)(sizeof TPS_GLI / sizeof TPS_GLI[0]), {100, 116, 98, 118}, {{25, 20, 1, 0}, {50, 40, 3, 70}},
+     136}};
 
 /* main loop: scene n's sound into the tracks: every track's devices, channel and source knobs from their defaults
  * (what plays aside: the reels, POLY's ROOT and RLB, DRUM's pattern knobs), then the scene's list, the levels, the
@@ -425,6 +428,7 @@ static void tpf_scene(void)
     }
     for (n = TPS_NSC; n-- > 0u;) {                      /* (GLITCH, TECHNO, AMBIENT: the last one stored plays) */
         tps_sound(n);
+        sys.bpm = TPS_SC[n].bpm;                         /* (each its tempo: 124, 128, 136) */
         scn_store(n);
     }
 }

@@ -3195,6 +3195,21 @@ note's bar running out of it), since the shared gate picture scaled 50 against 4
 (`test_arp_long`): GATE 100 one note at a time; 300, three at once over C3; one note at 200 struck again every step;
 DRUM at 400 never overlapping.
 
+### Scenes hold the tempo (2026-10-17)
+
+"Would it be weird to have tempo scene synced?" Not weird: Elektron boxes keep a tempo per pattern, and the factory's
+ambient-to-techno-to-glitch wants different speeds. `scene_t.bpm` is taken by `scn_take` (so a store holds the tempo
+as it is) and `scn_mix` switches `sys.bpm` at the midpoint like a choice, only when the scene holds one (non-zero).
+It doesn't glide: the tempo drives the arpeggiators, DRUM's clock, synced grains and delays and every synced tape's
+speed, so a glide would bend all of them on the way. In a project it's one more scene entry (`PJ_SC_BPM`, after the
+sources), written whenever the scene holds a tempo, since the scene writer only writes what differs from the state
+and the reader couldn't tell "same as the project" from "none". A file from before has no such entry and its
+scenes read with bpm 0, leaving the tempo alone; older Bryos skip the unknown id. The format number stays 12. The
+SCENES page shows each scene's tempo, bright where it isn't the one playing. The factory scenes are 124, 128 and
+136 (AMBIENT stays at the boot tempo, so only TEST, which sits on GLITCH, changed: run 32's fingerprint). Tests: the
+glide holds the old tempo a quarter in and has the scene's at three quarters; the hand morph switches at 50 % and
+back below it; a scene with none leaves it; the save and load round trip compares whole scenes, the tempo included.
+
 ## USB record mode (2026-10-08)
 
 Recording from the computer is a mode of its own, not a source a track plays through: you go in, record, put the

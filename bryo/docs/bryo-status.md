@@ -254,6 +254,8 @@ number.
   four), split by what each track's settings ask for when it runs short; what's left over is everyone's (since
   2026-10-11: a track alone has all 40, not just what RATE and SIZE ask). GRAIN 6's GRNS can hold a number for a
   track instead (1-40, taken from the AUTO tracks first, kept whatever the others do).
+- **2026-10-17: scenes hold the tempo.** Stored with the scene, switched at the midpoint of a recall or a morph (not
+  glided: it would bend every synced tape). Scenes saved before leave it alone. The factory's are 124, 128 and 136.
 - **2026-10-17: ARP's GATE goes to 400 %.** Past 100 each note rings on into the next steps, so the notes overlap
   (SYNTH, POLY). The mask is built over the pattern's lowest note while they overlap, since the sources know a voice
   by its bit. At 100 and under, as it was.

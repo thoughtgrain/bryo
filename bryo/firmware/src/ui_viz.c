@@ -1859,7 +1859,8 @@ static void viz_setup(void)
  * nearest solid one: param.c key_snap), the key's note marked under it; beside it, what the scale is called and how
  * many notes it keeps. SCAL OFF: every key solid. */
 /* SCENES (the mixer's first EDIT page): under each scene's knob, its tracks' sources (T S P D), lit where one differs
- * from the track's now (a change there fades out and in, not a morph), and a bar of how far the sound is toward it
+ * from the track's now (a change there fades out and in, not a morph), its tempo (lit where it isn't the one
+ * playing: a recall changes it at the midpoint), and a bar of how far the sound is toward it
  * (the morph's, or full for the current one). Under it all, what's going on, or that a scene moves every track (the
  * header's box names the project, not a track) */
 static void viz_scenes(void)
@@ -1877,6 +1878,11 @@ static void viz_scenes(void)
             char c[2] = {SRC_NAME[scn[k].src[t] % NSRC][0], 0};
             px_text(x + 4 + (int32_t)t * 6, 4, PXF_5, c, scn[k].src[t] != tp[t].src ? px_ink : px_dim);
         }
+        if (scn[k].bpm) {                                /* its tempo, lit where it isn't the one playing */
+            char tb[8];
+            fmt_int(tb, scn[k].bpm);
+            px_text_c(x, 30, 11, PXF_3, tb, scn[k].bpm != sys.bpm ? px_ink : px_dim);
+        }
         f = scm.on && scm.to == k ? scm.pos * 22 / SCN_FULL : scn_cur == k + 1u ? 22 : 0;
         px_frame(x + 3, 18, 24, 5, px_ink, 1);
         if (f)
@@ -1891,7 +1897,7 @@ static void viz_scenes(void)
         str_cpy(b, "GLIDING TO 1", sizeof b);
         b[11] = (char)('1' + scm.to);
     } else {
-        str_cpy(b, "ALL TRACKS. LIT: A NEW SOURCE", sizeof b);
+        str_cpy(b, "ALL TRACKS. LIT: A CHANGE", sizeof b);
     }
     px_text_c(0, 120, 28, PXF_3, b, scm.on ? px_ink : px_dim);
 }
@@ -2754,7 +2760,8 @@ static uint32_t viz_sig(void)
                 h = (h ^ (uint32_t)(mst[k] + 32768)) * 16777619u;
         if (ui.chan == CHAN_SCENES)                                    /* the scenes, the morph, the sources now */
             return h + 0x5C3u + (uint32_t)scm.on * 31u + scm.to * 977u + (uint32_t)scm.pos * 7919u +
-                   (tp[0].src | tp[1].src << 2 | tp[2].src << 4 | (uint32_t)tp[3].src << 6) * 104729u;
+                   (tp[0].src | tp[1].src << 2 | tp[2].src << 4 | (uint32_t)tp[3].src << 6) * 104729u +
+                   (scn[0].bpm ^ scn[1].bpm << 3 ^ scn[2].bpm << 6 ^ (uint32_t)scn[3].bpm << 9) * 31337u;
         if (ui.chan == CHAN_KEY)                                       /* the key and scale */
             return h + 0x6E1u + (uint32_t)keyp[KY_KEY] * 31u + (uint32_t)keyp[KY_SCAL] * 977u + ui.last * 7u;
         if (ui.chan == CHAN_SETUP)                                     /* the preferences */

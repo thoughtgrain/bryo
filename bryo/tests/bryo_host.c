@@ -4745,9 +4745,11 @@ static void test_scenes(void)
     tp[0].dev[DEV_RESO][RP_MODE] = RM_COMB;
     track[0].level = 80;
     tp[1].src = SRC_SYNTH;
+    sys.bpm = 132;                                       /* (scene 2 at 132, scene 1 at 120) */
     scn_key_down(2);
     press(B_SAVE);
     scn_key_up(2);
+    check("..scene 2 stored with its tempo (132; scene 1's 120)", scn[1].bpm == 132u && scn[0].bpm == 120u);
     tp[0].dev[DEV_SRC][TK_REEL] = 3;                     /* (the material isn't a scene's: it stays) */
     sys.bpm = 97;
     track[2].mute = 1;
@@ -4759,25 +4761,26 @@ static void test_scenes(void)
     snprintf(b, sizeof b, "white 1 tapped: scene 1 glides back (a quarter in: WET %d, the level %u; track 2's SYNTH fading "
              "out at %u)", gr[GP_WET], track[0].level, track[1].level);
     check(b, gr[GP_WET] == 60 && track[0].level == 85u && tp[0].dev[DEV_RESO][RP_MODE] == RM_COMB &&
-          tp[1].src == SRC_SYNTH && track[1].level == 50u);
+          tp[1].src == SRC_SYNTH && track[1].level == 50u && sys.bpm == 97);
     fm1_ms = 10000 + SCN_GLIDE_MS * 3u / 4u;
     ui_input();
-    check("..three quarters: the choice switched at the midpoint (RIPPLE STRG), track 2 back on TAPE fading in",
-          gr[GP_WET] == 20 && tp[0].dev[DEV_RESO][RP_MODE] == RM_STRG && tp[1].src == SRC_TAPE && track[1].level == 50u);
+    check("..three quarters: the choice switched at the midpoint (RIPPLE STRG), track 2 back on TAPE fading in, the "
+          "tempo switched too (120)", gr[GP_WET] == 20 && tp[0].dev[DEV_RESO][RP_MODE] == RM_STRG &&
+          tp[1].src == SRC_TAPE && track[1].level == 50u && sys.bpm == 120);
     fm1_ms = 10000 + SCN_GLIDE_MS;
     ui_input();
-    check("..the end: scene 1 as stored; the reel, the tempo and the mute left alone", gr[GP_WET] == 0 &&
-          track[0].level == 100u && track[1].level == 100u && tp[0].dev[DEV_SRC][TK_REEL] == 3 && sys.bpm == 97 &&
+    check("..the end: scene 1 as stored, its tempo; the reel and the mute left alone", gr[GP_WET] == 0 &&
+          track[0].level == 100u && track[1].level == 100u && tp[0].dev[DEV_SRC][TK_REEL] == 3 && sys.bpm == 120 &&
           track[2].mute == 1u && scm.on == 0u);
     turn(1, 10);                                         /* KNOB 2: the morph to scene 2, 5 % a detent, nothing held */
-    snprintf(b, sizeof b, "KNOB 2 turned 10: the morph halfway to scene 2 (WET %d, the level %u), no key held, the tempo "
-             "left alone", gr[GP_WET], track[0].level);
-    check(b, gr[GP_WET] == 40 && track[0].level == 90u && sys.bpm == 97 && scm.on == 2u && scm.to == 1u);
+    snprintf(b, sizeof b, "KNOB 2 turned 10: the morph halfway to scene 2 (WET %d, the level %u), no key held, scene "
+             "2's tempo from the midpoint (%u)", gr[GP_WET], track[0].level, sys.bpm);
+    check(b, gr[GP_WET] == 40 && track[0].level == 90u && sys.bpm == 132 && scm.on == 2u && scm.to == 1u);
     ui.msg_t = 0;
     shot("BRYO", "mixer_morph");
     turn(1, -4);
-    check("..back 4: 30 %, the choice back too (below the midpoint)", gr[GP_WET] == 24 &&
-          tp[0].dev[DEV_RESO][RP_MODE] == RM_STRG);
+    check("..back 4: 30 %, the choice and the tempo back too (below the midpoint)", gr[GP_WET] == 24 &&
+          tp[0].dev[DEV_RESO][RP_MODE] == RM_STRG && sys.bpm == 120);
     turn(0, 10);
     check("..KNOB 1 then: from there halfway back to scene 1 (WET 12)", gr[GP_WET] == 12 && scm.to == 0u);
     turn(1, 20);                                         /* (to scene 2 all the way: 2 the current one) */
@@ -4809,6 +4812,15 @@ static void test_scenes(void)
               !scn[2].used && !scn[3].used && gr[GP_WET] == 80);
         snprintf(b, sizeof b, "..the project with them: %u bytes packed", len0);
         check(b, len0 > 0u && len0 < 2500u);
+        {   /* a scene holding no tempo (one saved before scenes had one): the tempo left as it is */
+            scene_t keep = scn[0];
+            scn[0].bpm = 0;
+            sys.bpm = 99;
+            scn_take(&scn_from);
+            scn_mix(&scn_from, &scn[0], SCN_FULL);
+            check("..a scene with no tempo (saved before they had one): the tempo left alone", sys.bpm == 99);
+            scn[0] = keep;
+        }
         check("..the PROJECTS view knows: P1 holds scenes 1 and 2 (read from the slot, not the RAM)",
               pj_sum[0].scn == 3u && pj_sum[0].used && !pj_sum[1].scn);
         host_enc[panel.enc[EN_PRESET]] = 1;              /* (the project view on P1: the strip says 2 SCN) */
@@ -11168,6 +11180,8 @@ static void test_factory_scene(void)
           tp[3].pol[PL_RLB] == 1 && tp[1].arp[AR_MODE] == ARM_LTCH && tp[3].arp[AR_MODE] == ARM_LTCH && scn[0].used &&
           scn[1].used && scn[2].used && !scn[3].used && scn_cur == 1u && track[0].level == 0u && !pj_changed() &&
           pj_cur == 0u);
+    check("..each scene its tempo: AMBIENT 124 (playing), TECHNO 128, GLITCH 136", scn[0].bpm == 124u &&
+          scn[1].bpm == 128u && scn[2].bpm == 136u && sys.bpm == 124u);
     render(200, 0);
     check("..stopped: the arpeggiators hold their notes and wait for PLAY", arp_rt[1].n == 4u && arp_rt[3].n == 5u &&
           !arp_rt[1].on && !arp_rt[3].on && arp_rt[1].waiting);

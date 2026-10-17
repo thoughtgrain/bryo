@@ -155,7 +155,7 @@ come up and everything else ducks on the kick (each track has a FOLLOW of track 
 bass, track 3 a high-passed pump, track 4 short stabs. **KNOB 3** morphs on into **GLITCH**: crushed drums stuttering
 through grains, track 2 a resonant phase-distortion saw, track 3 stuttering through the 12-band bank, track 4 picking
 its bell or a drum loop at random for every note. Tap white keys 1-3 to jump between them instead. Scene 4 is free for
-your own ([3.9](#39-scenes-four-sounds-to-jump-or-morph-between)).
+your own ([3.9](#39-scenes-four-sounds-to-jump-or-morph-between)). Each scene has its own tempo too: AMBIENT 124, TECHNO 128, GLITCH 136.
 
 > If you've saved a project, it comes back at power-on instead. To hear the factory scene again, see
 > [9.4](#94-back-to-the-factory-scene).
@@ -372,8 +372,14 @@ Bryo thins out grains and strings to keep the sound clean.
 
 A project has four **scenes**. Each one is a snapshot of how the project sounds: every track's source (TAPE,
 SYNTH, POLY or DRUM), every knob of its sound (the source's, GRAIN, RIPPLE, COLOR, CHRONOS, the channel strip), the
-track levels and the rooms. A scene doesn't hold what's playing: the tapes and reels, the drum patterns, the steps,
-the modulation, the mutes, the arpeggios, the tempo and the key all stay as they are when you change scenes.
+track levels, the rooms and the **tempo**. A scene doesn't hold what's playing: the tapes and reels, the drum
+patterns, the steps, the modulation, the mutes, the arpeggios and the key all stay as they are when you change
+scenes.
+
+The tempo is taken when you store the scene and changes at the midpoint of a recall or a morph, the way a choice
+does: it doesn't glide, since a gliding tempo would drag every synced tape and delay out of tune on the way. So a
+slow ambient scene and a fast techno one can live in the same project. Scenes saved before scenes held a tempo
+leave it alone; store them again to give them one.
 
 Scenes have their own page on the mixer: open the mixer (**tap GLO**) and **tap EDIT**: **SCENES** is the first
 page (then CHANNEL, MASTER, KEY, SETUP). The mixer's own page stays just the levels. A scene moves **every
@@ -392,13 +398,14 @@ track, as it does on MASTER and KEY, which are the project's too; only CHANNEL i
 Track by track, a scene change does one of two things:
 
 - **The same source in both:** its knobs morph, every value moving smoothly. A choice that can't be halfway
-  (RIPPLE's form, ROUT, a filter's TYPE, a room's TYPE) switches at the midpoint.
+  (RIPPLE's form, ROUT, a filter's TYPE, a room's TYPE, and the tempo) switches at the midpoint.
 - **A different source:** there's no morph. The track fades out over the first half, switches to the scene's
   source and sound while it's silent, and fades back in over the second half.
 
 The SCENES page shows each scene's box: filled for the one you last recalled, stored or morphed all the way to,
 framed for a stored one, dotted for an empty one. Under each, its tracks' sources (**T S P D**, bright where a
-track would change source, so it fades rather than morphs) and a bar of how far the sound has come toward it.
+track would change source, so it fades rather than morphs), its tempo (bright where it differs from the one
+playing) and a bar of how far the sound has come toward it.
 White keys 1-4 light the same way.
 
 Scenes are saved with the project (**SAVE**). They're stored as only what differs from the project's own sound, so

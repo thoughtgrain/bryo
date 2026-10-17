@@ -4,8 +4,11 @@
  *
  * What a scene holds: each track's source (TAPE SYNTH POLY DRUM) and every knob of its sound (mod.c's numbering of
  * the knobs: the devices, every source's knobs, the channel strip, the DRUM instruments), each track's level, and
- * the rooms. Not the tapes and reels, the patterns, steps, modulation depths, mutes, arpeggios, the tempo or the
- * key: a scene is how it sounds, the playing stays the playing.
+ * the rooms, and (2026-10-17, "would it be weird to have tempo scene synced?") the tempo: taken when the scene is
+ * stored, switched at the midpoint of a morph or a recall's glide like any choice (a tempo gliding would retime
+ * the arpeggios and bend every synced tape as it went). A scene read from a project saved before holds none (bpm
+ * 0) and leaves the tempo alone. Not the tapes and reels, the patterns, steps, modulation depths, mutes, arpeggios
+ * or the key: a scene is how it sounds and how fast, the playing stays the playing.
  *
  * Between two scenes, track by track: the same source, and its knobs morph (every value on the way; a choice that
  * can't be halfway, a form, ROUT, a filter's TYPE, switches at the midpoint, each softened as when it's turned by
@@ -36,6 +39,7 @@ typedef struct {
     uint8_t lvl[NTRK];               /* .. levels */
     int16_t v[NTRK][MOD_NTGT];       /* every knob, by mod.c's numbering (scn_kind 0: not kept, 0) */
     int16_t rm[NROOM][NRM];          /* the rooms' */
+    uint16_t bpm;                    /* the tempo (0: none held, the tempo left as it is) */
 } scene_t;
 static scene_t scn[NSCN];
 static scene_t scn_from;             /* the morph's (or the glide's) start */
@@ -110,6 +114,7 @@ static void scn_take(scene_t *s)
     for (i = 0; i < NROOM; i++)
         for (k = 0; k < NRM; k++)
             s->rm[i][k] = rmp[i][k];
+    s->bpm = sys.bpm;
 }
 
 /* the sound at pos (0..SCN_FULL) of the way from a to b */
@@ -145,6 +150,11 @@ static void scn_mix(const scene_t *a, const scene_t *b, int32_t pos)
         for (k = 0; k < NRM; k++)
             rmp[i][k] = (int16_t)(RM_P[k].nomod ? (half ? b->rm[i][k] : a->rm[i][k])
                                                 : a->rm[i][k] + ((b->rm[i][k] - a->rm[i][k]) * pos) / SCN_FULL);
+    {
+        uint32_t bpm = half ? b->bpm : a->bpm;          /* the tempo: switched at the midpoint, if held */
+        if (bpm && bpm != sys.bpm)
+            sys.bpm = (uint16_t)clamp((int32_t)bpm, 40, 240);
+    }
 }
 
 /* every scene empty (a new project, a load before its own are read) */
