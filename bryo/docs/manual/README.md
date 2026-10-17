@@ -1145,6 +1145,26 @@ and GAIN by watching it, then give it a depth.
 
 <img src="img/mod3_steps.png" width="240" alt="SEQ with steps being set">
 
+### 7.6.1 P-locks: a depth for one step
+
+The SEQ's depth to a knob is the same on every step. A **p-lock** gives one step its own depth, so a single step can
+open the filter, throw a grain cloud wide, or do nothing at all while the rest of the pattern does its usual thing.
+
+1. Go to the page with the knob you want (GRAIN, the filter, any of them).
+2. **Hold SEQ**, then **hold the white key of the step** (key 5 is step 5).
+3. **Turn the knob.** That step's depth moves; the others stay where they were. The value under each knob shows
+   that step's depth: bright where it's locked, dim where it's the SEQ's own. The footer says which step.
+4. Let go. Hold several step keys at once to lock them together.
+
+A lock can be any depth, 0 too (that step does nothing). Turn a lock back to the SEQ's own depth and it's gone.
+Locks work without any SEQ depth on the knob at all: the step moves it, the rest leave it alone. A track holds up to
+32 locks over up to 8 knobs. MONO clears them with the depths (SAVE held brings them back), they're saved with the
+project, and a track preset doesn't carry them (loading one clears the track's).
+
+With SEQ held, a white key you tap without turning a knob still jumps to SEQ's page, as it's let go.
+
+<img src="img/plock.png" width="240" alt="GRAIN with SEQ and step 5 held: WET locked at +5 % on that step">
+
 ### 7.7 Clear modulation
 
 - **Hold black key MONO** half a second: every depth on the track is cleared (the slots' own settings stay).

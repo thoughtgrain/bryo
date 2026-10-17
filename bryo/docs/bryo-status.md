@@ -13,7 +13,7 @@ cite its sections as "PRD 2.2" and so on). Each track is a source (TAPE, SYNTH, 
 GRAIN, RIPPLE, COLOR, CHRONOS, then a channel strip into the mix and a master compressor. Four modulator slots
 per track move any of it: hold a slot's pad, turn a knob.
 
-**Phases 1 to 9 of 10 are built, with one piece open (p-locks).** On 2026-10-10 it ran on an FM-1 for the first
+**Phases 1 to 9 of 10 are built.** On 2026-10-10 it ran on an FM-1 for the first
 time: installed over USB-MIDI from stock V15, it boots, plays the four factory reels clean, and run 1 reads 25 % CPU.
 The rest of the hardware checkpoint (`docs/hardware-checkpoint.md`) is under way.
 
@@ -34,7 +34,7 @@ The rest of the hardware checkpoint (`docs/hardware-checkpoint.md`) is under way
 | 4 RIPPLE (RESONATOR until 2026-10-13) | done: four strings, keys set the root; MODE STRG COMB BANK, DRV, RIPL (2026-10-13) |
 | 5 COLOR + CHRONOS | done |
 | 6 Mixer + routing | done: channel strips (LOW HIGH FILT PAN), master compressor; routing is REC IN |
-| 7 Modulation | done but p-locks: LFO ADSR SEQ FOLLOW, hold-and-turn depths, MONO's clear and undo |
+| 7 Modulation | done: LFO ADSR SEQ FOLLOW, hold-and-turn depths, p-locks, MONO's clear and undo |
 | 7b DRUM | done: a fourth source, a CR-78-inspired drum machine of Bryo's own sounds, patterns, rhythms and SEED |
 | 8 Projects | done: six slots in flash (A/B), SAVE, the project view, the last one back at power-on; takes kept in user reels |
 | 9 Screen | done: the dot-grid screens; a rail under each modulated knob (reach, set, a block where it is now) |
@@ -254,6 +254,10 @@ number.
   four), split by what each track's settings ask for when it runs short; what's left over is everyone's (since
   2026-10-11: a track alone has all 40, not just what RATE and SIZE ask). GRAIN 6's GRNS can hold a number for a
   track instead (1-40, taken from the AUTO tracks first, kept whatever the others do).
+- **2026-10-17: p-locks.** The SEQ pad and a step's white key held, then a knob: the SEQ's depth to that knob on
+  that step only (the controls map's proposal, built as written). Up to 32 a track over 8 knobs, saved with the
+  project (format 13, reading 12 and 11), cleared and restored with MONO's depths. With none, the engine runs as it
+  did (every fingerprint held); with some, about 9 instructions a sample more.
 - **2026-10-17: freeze to tape.** REC held + 0: the bars GRAIN holds become the track's tape at once (its chunks
   change hands, nothing copied), the track on TAPE, synced to them.
 - **2026-10-17: scenes hold the tempo.** Stored with the scene, switched at the midpoint of a recall or a morph (not
@@ -404,7 +408,6 @@ number.
 
 ## Known considerations and open questions
 
-- **P-locks** (a SEQ step's own depth): waiting on a decision. SEQ's step values are in.
 - **SPRD on PAN** pulses (a tremolo) at 100 instead of moving the sound, because PAN is a balance. Left for now; the
   options are in the architecture doc ("Modulation, as built", open points). My lean: let SPRD reach every knob of
   COLOR and the channel strip, the S-4's way.
@@ -428,7 +431,7 @@ number.
 2. **Phase 10, tools and docs:** the manual is drafted (`docs/manual/`, checked on hardware as the checkpoint
    goes); the installer's text.
 3. **DRUM by ear:** listen to the kit and the rhythms, tune `DRM_KIT` and `DRM_PRESET`.
-4. Decisions waiting: p-locks, SPRD on PAN. (Shared reverb buses are in: the two rooms. A shared delay the same
+4. Decisions waiting: SPRD on PAN. (Shared reverb buses are in: the two rooms. A shared delay the same
    way is the next lever if the device needs one.)
 
 ## Where the details are

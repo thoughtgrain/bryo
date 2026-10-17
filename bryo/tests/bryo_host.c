@@ -10305,6 +10305,87 @@ static int32_t mod_step(uint32_t keys)
     return TPD(0, DEV_GRAIN)[GP_WET];
 }
 
+/* p-locks (2026-10-17): the SEQ's depth to a knob on one step only */
+static void test_plock(void)
+{
+    uint32_t g = MOD_TG(DEV_GRAIN, GP_WET), b, k, n5 = 0, st, w4 = note_bit_of_white(4), w1 = note_bit_of_white(1);
+    int32_t on[16], has;
+    char m[200];
+    power_on();
+    pj_wipe();
+    sys.sel = 0;
+    bryo_prefs = (uint8_t)(bryo_prefs & ~(3u << 1));     /* (KNOB 1X: a detent a point) */
+    for (k = 0; k < 16u; k++)
+        tp[0].steps[SLOT_SEQ][k] = 100;                  /* (every step at full: the depth is the move) */
+    tp[0].mod[SLOT_SEQ][1] = 4;                          /* (RATE 1/16: the 16 steps in a bar) */
+    focus_dev(DEV_GRAIN, 0);
+    ui_input();
+    hold(B_SEQ);
+    fm1_in.notes = w4;                                   /* white key 5 with the SEQ's pad: step 5 */
+    key_edge((uint32_t)__builtin_ctz(w4));
+    turn(3, 5);                                          /* KNOB 4: WET, on step 5 only */
+    check("SEQ held + white key 5 + KNOB 4 (WET) turned 5: a p-lock, step 5 at +5 (no depth on the other steps), "
+          "said", mpl[0].n == 1u && mpl[0].e[0].st == 4u && mpl[0].e[0].g == g && mpl[0].e[0].d == 5 &&
+          !mod_dep(0, SLOT_SEQ, g) && !strncmp(ui.msg, "STEP 5: WET +5%", 15) && plk_step() == 4);
+    shot("BRYO", "plock");
+    fm1_in.notes = 0;
+    ui_input();
+    let_go(B_SEQ);
+    check("..the key and the pad let go: no page jump, no SEQ page (the turn used them), still on GRAIN",
+          ui.kind == FOCUS_DEV && ui.dev == DEV_GRAIN && ui.page == 0u && !ui.plk_keys);
+    hold(B_SEQ);                                         /* the SEQ's pad + white key 2 tapped, no knob: its page 2 */
+    fm1_in.notes = w1;
+    key_edge((uint32_t)__builtin_ctz(w1));
+    check("..SEQ + white key 2 without a knob: no jump yet (it waits for the let-go)", ui.kind == FOCUS_DEV);
+    fm1_in.notes = 0;
+    ui_input();
+    check("..let go: SEQ's page 2", ui.kind == FOCUS_SLOT && ui.slot == SLOT_SEQ && ui.page == 1u);
+    let_go(B_SEQ);
+    check("..the lock's mark stays on the knob (mod_plk_any)", mod_plk_any(0, g) && !mod_any(0, g));
+    mod_plk_nudge(0, 4, g, 45);                          /* step 5: +50 */
+    sys.playing = 1;
+    for (k = 0; k < 16u; k++)
+        on[k] = -1;
+    for (b = 0; b < 2666u * 2u; b++) {                   /* two bars: every step twice */
+        render(1, 0);
+        st = (uint32_t)mrt[0][SLOT_SEQ].step;
+        if (st < 16u)
+            on[st] = TPD(0, DEV_GRAIN)[GP_WET];
+    }
+    snprintf(m, sizeof m, "..playing, a lock alone (+50 on step 5, no depth else): WET %d on step 5, %d on step 4, "
+             "%d on step 6", on[4], on[3], on[5]);
+    check(m, on[4] >= 49 && on[4] <= 51 && on[3] == 0 && on[5] == 0);
+    mod_nudge(0, SLOT_SEQ, g, 20);                       /* the SEQ's own depth: +20 everywhere but step 5 */
+    for (k = 0; k < 16u; k++)
+        on[k] = -1;
+    for (b = 0; b < 2666u * 2u; b++) {
+        render(1, 0);
+        st = (uint32_t)mrt[0][SLOT_SEQ].step;
+        if (st < 16u)
+            on[st] = TPD(0, DEV_GRAIN)[GP_WET];
+    }
+    for (k = 0, st = 0; k < 16u; k++)
+        if (k != 4u && on[k] >= 0) {
+            st++;
+            n5 += on[k] == 20;
+        }
+    snprintf(m, sizeof m, "..with the SEQ's depth +20: every other step it plays at 20 (%u of %u), step 5 at its lock "
+             "(%d)", n5, st, on[4]);
+    check(m, st == 15u && n5 == st && on[4] >= 49 && on[4] <= 51);
+    check("..the lock read back as locked, another step as the SEQ's depth", mod_plk(0, 4, g, &has) == 50 && has &&
+          mod_plk(0, 7, g, &has) == 20 && !has);
+    mod_plk_nudge(0, 9, g, -20);                         /* step 10 at 0: a lock of nothing */
+    check("..a lock of 0 is a lock (step 10: nothing there while the rest have +20)", mpl[0].n == 2u &&
+          mod_plk(0, 9, g, &has) == 0 && has);
+    check("..saves and loads (project format 13)", pj_save(0) == 0 && (mpl[0].n = 0, pj_load(0) == 0) &&
+          mpl[0].n == 2u && mpl[0].e[0].st == 4u && mpl[0].e[0].d == 50 && mpl[0].e[1].st == 9u && mpl[0].e[1].d == 0);
+    mod_plk_nudge(0, 9, g, 20);                          /* back to the SEQ's depth: the lock goes */
+    check("..turned back to the SEQ's depth: that lock goes", mpl[0].n == 1u);
+    check("..MONO's clear takes the locks too, and SAVE's undo brings them back", mod_clear(0) && !mpl[0].n &&
+          !mod_count(0) && mod_undo() == 0 && mpl[0].n == 1u && mod_count(0) == 1u);
+    sys.playing = 0;
+    render(4, 0);
+}
 static void test_mod_engines(void)
 {
     const uint32_t WET = MOD_TG(DEV_GRAIN, GP_WET);
@@ -11438,6 +11519,7 @@ int main(int argc, char **argv)
     test_chan_reseed();
     test_mod();
     test_mod_engines();
+    test_plock();
     test_mod_audio();
     test_rails();
     test_source_level();

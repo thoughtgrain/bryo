@@ -1267,6 +1267,37 @@ static void on_knob(uint32_t c, int32_t d)
         }
         return;
     }
+    if (plk_step() >= 0 && page_target(c) < MOD_NTGT) {   /* the SEQ's pad and steps held: their p-locks */
+        uint32_t g = page_target(c), w, held = ui.plk_keys & white_keys(fm1_in.notes) & 0xFFFFu;
+        int32_t v = 0;
+        char m[40];
+        ui.slot_used = 1;
+        ui.plk_used = 1;
+        ui.hot = (uint8_t)c;
+        ui.hot_t = 33;
+        ui.last = (uint8_t)c;
+        for (w = 0; w < 16u; w++)
+            if ((held >> w) & 1u) {
+                v = mod_plk_nudge(sys.sel, w, g, knob_steps(c, d, 200));
+                if (v < -100)
+                    break;
+            }
+        if (v < -100) {
+            ui_message(v == -126 ? "32 P-LOCKS ON THIS TRACK: MONO CLEARS" : v == -125 ? "8 KNOBS LOCKED ALREADY"
+                       : pdesc_empty(p) ? "NO KNOB THERE" : !mod_tdesc(g) ? "THIS KNOB CAN'T BE MODULATED"
+                       : "32 DEPTHS ON THIS TRACK: MONO CLEARS");
+            return;
+        }
+        str_cpy(m, "STEP ", sizeof m);
+        fmt_int(m + 5, plk_step() + 1);
+        str_cpy(m + str_len(m), ": ", 3);
+        str_cpy(m + str_len(m), p->label, 6);
+        str_cpy(m + str_len(m), v > 0 ? " +" : " ", 3);
+        fmt_int(m + str_len(m), v);
+        str_cpy(m + str_len(m), "%", 2);
+        ui_message(m);
+        return;
+    }
     if (ui.slot_held != SLOT_NONE && page_target(c) < MOD_NTGT) {   /* a slot's pad held: its depth to this knob */
         uint32_t g = page_target(c);
         int32_t o = mod_dep(sys.sel, ui.slot_held, g), v;
@@ -1542,6 +1573,9 @@ static void ui_input(void)
             } else if (ui.glo_held && KEY_WHITE[k] < sys.ntrk) {
                 sys.sel = KEY_WHITE[k];                  /* GLO + white key 1..TRACKS: the track */
                 ui.glo_used = 1;
+            } else if (pad_down() && ui.pg_pad == B_SEQ && ui.slot_held == SLOT_SEQ && KEY_WHITE[k] < 16u) {
+                ui.plk_keys |= (uint16_t)(1u << KEY_WHITE[k]);   /* the SEQ's pad + a white key: a step to p-lock (a
+                                                         * knob turned while it's held), or its page at the let-go */
             } else if (pad_down()) {                     /* a page's pad held + white key n: its page n */
                 pad_go(ui.pg_pad, KEY_WHITE[k]);
             } else if (drm_step_page() && sys.drum_mode == DMODE_HITS && !ui.glo_held) {
@@ -1551,6 +1585,20 @@ static void ui_input(void)
     for (k = 0; k < 4u; k++)
         if ((d = panel_enc(EN_K1 + k)) != 0)
             on_knob(k, d);
+    if (ui.plk_keys) {                                  /* the step keys pressed with the SEQ's pad, let go: a page
+                                                         * jump unless a knob locked something */
+        uint32_t up = ui.plk_keys & ~white_keys(fm1_in.notes), w;
+        for (w = 0; up && w < 16u; w++)
+            if ((up >> w) & 1u) {
+                if (!ui.plk_used && pad_down() && ui.pg_pad == B_SEQ)
+                    pad_go(B_SEQ, w);
+                ui.plk_keys &= (uint16_t)~(1u << w);
+            }
+        if (!pad_down() || ui.pg_pad != B_SEQ)          /* (the pad let go first: the keys play no part now) */
+            ui.plk_keys = 0;
+        if (!ui.plk_keys)
+            ui.plk_used = 0;
+    }
     if (ui.slot_held != SLOT_NONE && !((fm1_in.buttons >> panel.btn[ui.slot_btn % NB]) & 1u))
         slot_up();                                      /* (after the knobs: a turn in the same pass counts) */
     if ((d = panel_enc(EN_SELECT)) != 0) {

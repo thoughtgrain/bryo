@@ -10,9 +10,9 @@
  * Felucca sees an empty sector, never a project of the wrong shape.
  *
  * What: a byte stream, written and read field by field (no struct is dumped, so the layout of the RAM can change):
- * the version (PJ_VERSION, and 11, the same without the scenes, read too), then every array as a count and its values
- * (an array stops at its last knob with a label); every value is clamped to its knob's range as it's read. The
- * modulation depths are stored sparsely, by array and knob (not by target number, which moved when DRUM came in).
+ * the version (PJ_VERSION; 12, the same without the p-locks, and 11, without the scenes too, read too), then every
+ * array as a count and its values (an array stops at its last knob with a label); every value is clamped to its
+ * knob's range as it's read. The modulation depths are stored sparsely, by array and knob (not by target number, which moved when DRUM came in).
  * The stream is packed (PackBits: runs of a byte, literals otherwise), written and read a byte at a time straight to
  * and from the flash, so no RAM holds a whole project: a project is about 2 KB packed, 3.8 KB at the very most, and
  * a sector's payload holds 3,840 B.
@@ -30,7 +30,7 @@
 #define PJ_N 6u                      /* project slots */
 #define PJ_TEST (PJ_N + 1u)          /* the project view past FACTORY (PJ_N): TEST, the scene to read the load on */
 #define PJ_MAGIC 0x50595242u         /* "BRYP" */
-#define PJ_VERSION 12u               /* one format: a project of another version reads as one this Bryo can't
+#define PJ_VERSION 13u               /* one format: a project of another version reads as one this Bryo can't
                                          * (nothing older is kept up with: projects started with this one) */
 static uint8_t pj_arpn[NTRK][ARP_MAXN];  /* the notes a project being read holds, until pj_load hands them over */
 static uint8_t pj_arpc[NTRK];
@@ -337,6 +337,10 @@ static uint32_t pj_hash(void)
         for (i = 0; i < mdl[t].n; i++)
             h = (h ^ (mdl[t].e[i].s | (uint32_t)mdl[t].e[i].g << 8 | (uint32_t)(uint8_t)mdl[t].e[i].d << 16 |
                       t << 24)) * 16777619u;
+    for (t = 0; t < NTRK; t++)                           /* (the p-locks, sorted too) */
+        for (i = 0; i < mpl[t].n; i++)
+            h = (h ^ (mpl[t].e[i].st | (uint32_t)mpl[t].e[i].g << 4 | (uint32_t)(uint8_t)mpl[t].e[i].d << 16 |
+                      t << 24 | 1u << 30)) * 16777619u;
     for (t = 0; t < NTRK; t++) {
         h = (h ^ (track[t].level | track[t].mute << 8 | track[t].octave << 16)) * 16777619u;
         if (pj_own_tape(t))                              /* (its own tape: what's recorded on it) */
@@ -525,6 +529,18 @@ static void pj_write_state(void)
     pw_byte(NROOM);                                      /* the rooms (8) */
     for (i = 0; i < NROOM; i++)
         pw_a16(rmp[i], NRM);
+    for (n = 0, t = 0; t < NTRK; t++)                    /* the p-locks (format 13): track, step, array, knob, depth */
+        n += mpl[t].n;
+    pw_u16(n);
+    for (t = 0; t < NTRK; t++)
+        for (i = 0; i < mpl[t].n; i++) {
+            uint32_t k, a = mod_tarr(mpl[t].e[i].g, &k);
+            pw_byte((uint8_t)t);
+            pw_byte(mpl[t].e[i].st);
+            pw_byte((uint8_t)a);
+            pw_byte((uint8_t)k);
+            pw_byte((uint8_t)mpl[t].e[i].d);
+        }
     pj_write_scenes();
 }
 
@@ -557,8 +573,9 @@ static int pj_read_state(void)
     if (pr_byte() != 'B' || pr_byte() != 'P' || pr.bad)
         return -1;
     pj_ver = pr_byte();
-    if ((pj_ver != PJ_VERSION && pj_ver != 11u) || pr.bad)   /* (another version: not one this Bryo reads; 11 is
-                                                          * this one before the scenes) */
+    if ((pj_ver != PJ_VERSION && pj_ver != 12u && pj_ver != 11u) || pr.bad)   /* (another version: not one this
+                                                          * Bryo reads; 12 is this one before the p-locks, 11 before
+                                                          * the scenes) */
         return -1;
     {                                                    /* (the track count, looked at before anything changes) */
         uint32_t at = pr.at, lit = (uint32_t)pr.lit, run = (uint32_t)pr.run, nt;
@@ -577,6 +594,7 @@ static int pj_read_state(void)
     scn_clear();
     for (t = 0; t < NTRK; t++) {
         mdl[t].n = 0;
+        mpl[t].n = 0;
         pj_arpc[t] = 0;
     }
     sys.bpm = (uint16_t)clamp((int32_t)pr_u16(), 40, 240);
@@ -655,6 +673,22 @@ static int pj_read_state(void)
         int16_t junk[NRM];
         pr_a16(i < NROOM ? rmp[i] : junk, i < NROOM ? NRM : 0u, RM_P);
     }
+    if (pj_ver >= 13u) {                                 /* the p-locks */
+        n = pr_u16();
+        for (i = 0; i < n && !pr.bad; i++) {
+            uint32_t tt = pr_byte(), st = pr_byte(), a = pr_byte(), k = pr_byte(), g = pj_target(a, k);
+            int32_t dp = (int8_t)pr_byte();
+            mod_plks_t *P = tt < NTRK ? &mpl[tt] : 0;
+            if (P && st < 16u && g < MOD_NTGT && mod_tdesc(g) && P->n < PLK_MAX &&
+                (!P->n || P->e[P->n - 1u].g < g || (P->e[P->n - 1u].g == g && P->e[P->n - 1u].st < st))) {
+                P->e[P->n].st = (uint8_t)st;             /* (written sorted: read in order, anything out of it
+                                                          * dropped) */
+                P->e[P->n].g = (uint16_t)g;
+                P->e[P->n].d = (int8_t)clamp(dp, -100, 100);
+                P->n++;
+            }
+        }
+    }
     if (pj_ver >= 12u)
         pj_read_scenes();
     return 0;
@@ -680,7 +714,7 @@ static void pj_scan(uint32_t s)
     pr.bad = 0;
     if (pr_byte() != 'B' || pr_byte() != 'P')
         return;
-    if (pj_ver = pr_byte(), pj_ver != PJ_VERSION && pj_ver != 11u)
+    if (pj_ver = pr_byte(), pj_ver != PJ_VERSION && pj_ver != 12u && pj_ver != 11u)
         return;
     m->bpm = (uint16_t)pr_u16();
     (void)pr_byte();
@@ -726,6 +760,8 @@ static void pj_scan(uint32_t s)
             (void)pr_byte();
         for (k = pr_byte(), s2 = 0; s2 < k && !pr.bad; s2++)
             pr_a16(junk, 0, 0);
+        for (k = pj_ver >= 13u ? pr_u16() * 5u : 0u, s2 = 0; s2 < k && !pr.bad; s2++)
+            (void)pr_byte();                             /* (the p-locks) */
         for (k = pr_byte(), s2 = 0; s2 < k && !pr.bad; s2++) {
             uint32_t c;
             if (!pr_byte())
@@ -987,6 +1023,7 @@ static void pj_new(uint32_t s)
         track[t].mute = 0;
         track[t].octave = 3;
         mdl[t].n = 0;
+        mpl[t].n = 0;
         tape_unprepare(t);
         tape_ctl[t].empty = 1;
         tape_ver[t]++;

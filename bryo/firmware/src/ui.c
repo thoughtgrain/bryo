@@ -88,6 +88,9 @@ static struct {
     int8_t catch_dir;
     uint32_t catch_t;
     uint16_t steps_held;             /* a SEQ page: the white keys held, the steps KNOB 1 sets */
+    uint16_t plk_keys;               /* the SEQ pad held: the white keys pressed with it, steps to p-lock (their page
+                                      * jumps wait for their let-go) */
+    uint8_t plk_used;                /* .. a knob turned with them: no jump */
     uint8_t zero_held;               /* the 0 key down: let go before HOLD, a tap (the freeze latches or lets go) */
     uint8_t zoom;                    /* HOME held and a loop's edge turned with it (STRT LEN, POLY STRT END): its knob
                                       * + 1; 0 when not zooming (HOME let go) */
@@ -109,6 +112,16 @@ static struct {
     char msg[40];
     uint32_t sig_head, sig_strip, sig_viz, sig_foot, sig_rail;
 } ui;
+
+/* the step the SEQ's pad and a white key held p-lock (the lowest held), or -1 */
+static int32_t plk_step(void)
+{
+    uint32_t m = ui.slot_held == SLOT_SEQ ? ui.plk_keys & white_keys(fm1_in.notes) & 0xFFFFu : 0u, k;
+    for (k = 0; m && k < 16u; k++)
+        if ((m >> k) & 1u)
+            return (int32_t)k;
+    return -1;
+}
 
 enum { PJ_ASK_NONE, PJ_ASK_LOAD, PJ_ASK_SAVE };
 static void draw_viz(void);           /* ui_viz.c */
@@ -507,9 +520,16 @@ static void draw_strip(void)
         sig = hash_str(sig, pdesc_empty(d) ? "" : d->label) + (uint32_t)(*vp + 32768) * 2654435761u;
         if (ui.view == VIEW_MIXER && !ui.chan)          /* the faders carry the meters */
             sig = (sig ^ (uint32_t)(meter_w(track_rt[k].peak, 19) | track[k].mute << 8)) * 16777619u;
-        if (page_target(k) < MOD_NTGT)                  /* the depths: the marks, the held slot's values */
+        if (page_target(k) < MOD_NTGT) {                /* the depths: the marks, the held slot's values (a step held
+                                                         * with the SEQ's: its p-lock) */
+            int has;
             sig = (sig ^ (uint32_t)(mod_any(sys.sel, page_target(k)) |
                                     (ui.slot_held < NSLOT ? (mod_dep(sys.sel, ui.slot_held, page_target(k)) + 256) << 1 : 0))) * 16777619u;
+            if (plk_step() >= 0)
+                sig = (sig ^ (uint32_t)(mod_plk(sys.sel, (uint32_t)plk_step(), page_target(k), &has) + 256 + has * 512 +
+                                        plk_step() * 4096)) * 16777619u;
+            sig = (sig ^ (uint32_t)mod_plk_any(sys.sel, page_target(k))) * 31u;
+        }
     }
     sig += ui.slot_held * 2909u + ui.drm_inst * 6151u + ui.zoom * 50331653u;
     sig += (scn_cur | (uint32_t)scn[0].used << 3 | (uint32_t)scn[1].used << 4 | (uint32_t)scn[2].used << 5 |
@@ -581,8 +601,29 @@ static void draw_strip(void)
             px_text_c(x, 30, 37, PXF_5, off ? "OFF" : "MUTE", off ? px_dim : px_ink);
             continue;
         }
-        if (page_target(k) < MOD_NTGT && mod_any(sys.sel, page_target(k)))   /* modulated: a mark in the corner */
-            px_box(x + 26, 1, 2, 2, px_mod);
+        if (page_target(k) < MOD_NTGT && (mod_any(sys.sel, page_target(k)) || mod_plk_any(sys.sel, page_target(k))))
+            px_box(x + 26, 1, 2, 2, px_mod);            /* modulated (or p-locked): a mark in the corner */
+        if (page_target(k) < MOD_NTGT && plk_step() >= 0) {   /* the SEQ's pad and a step held: that step's depth
+                                                                * (bright: locked; dim: the SEQ's own there) */
+            int has;
+            int32_t dp = mod_plk(sys.sel, (uint32_t)plk_step(), page_target(k), &has);
+            if (!mod_tdesc(page_target(k))) {
+                px_text_c(x, 30, 37, PXF_5, "--", px_dim);
+                continue;
+            }
+            if (dp > 0) {
+                val[0] = '+';
+                fmt_int(val + 1, dp);
+            } else {
+                fmt_int(val, dp);
+            }
+            str_cpy(val + str_len(val), "%", 2);
+            if (has)
+                px_tag(x + (30 - px_text_w(PXF_5, val)) / 2 - 1, 36, PXF_5, val, px_mod, px_bg);
+            else
+                px_text_c(x, 30, 37, PXF_5, val, px_dim);
+            continue;
+        }
         if (ui.slot_held < NSLOT && page_target(k) < MOD_NTGT) {   /* a slot's pad held: its depth to this knob */
             int32_t dp = mod_dep(sys.sel, ui.slot_held, page_target(k));
             if (!mod_tdesc(page_target(k))) {
@@ -645,7 +686,11 @@ static void draw_foot(void)
                    ? "KEYS:PAGES KNOB:ZOOM" : ui.pg_pad == B_EDIT ? "KEYS:PAGES SEL:FORM" : "KEYS: ITS PAGES", sizeof a);
                                                       /* a page's pad held: the keys pick its pages (HOME on TAPE's or
                                                        * POLY's first: the zoom; EDIT: SELECT RIPPLE's form) */
-    else if (ui.slot_held < NSLOT) {                  /* a slot's pad held: what it does (the LFO pad: OP1-3 pick
+    else if (plk_step() >= 0) {                       /* the SEQ's pad and a step held: its p-locks */
+        str_cpy(a, "STEP ", 6);
+        fmt_int(a + 5, plk_step() + 1);
+        str_cpy(a + str_len(a), ": KNOB LOCKS", 13);
+    } else if (ui.slot_held < NSLOT) {                /* a slot's pad held: what it does (the LFO pad: OP1-3 pick
                                                        * its slot; the SEQ's engine stays), and the slot's depths
                                                        * used of its dozen (mod.c MOD_SLOT_MAX) */
         str_cpy(a, ui.slot_held == SLOT_SEQ ? "KNOB:DEPTH " : "DEPTH ", 12);

@@ -2744,8 +2744,7 @@ modulated arrays 5.9 KB of the pool (now 322.4 of 336 KiB). Code about 9 KB on t
 
 **What's still open:**
 
-- **P-locks** (a step's own depth: a SEQ slot's pad and a white key held, then a knob). The SEQ's step values are
-  in; per-step depths are a decision I haven't had an answer on, so `docs/controls.tsv` lists them as proposed.
+- **P-locks**: built 2026-10-17 (see "P-locks, as built").
 - **LFO RATE with SYNC BPM** printed its 0..127; since phase 9 it prints the division.
 - **Seeing it move.** Since phase 9, a rail under each modulated knob with a block where it is now; the pictures
   below still draw the knobs as set.
@@ -3224,6 +3223,42 @@ into another sound. What it keeps is what went into GRAIN (the source, before th
 is: the last bars heard, frozen or not. It replaces a take as a bounce does, and takes back the arm REC's press
 made while playing. Test: a SYNTH track's bar becomes its tape (the same chunks, the counts, SYNC, no arm, no
 freeze latched), it plays with sound, GRAIN has new chunks of its own; with GRAIN off it says so and keeps the tape.
+
+### P-locks, as built (2026-10-17)
+
+The controls map had proposed them since phase 7: the SEQ pad and a white key held, then a knob, the depth for that
+step only. "Do all of those" took the proposal as the decision, so it's built as written.
+
+**Storage.** `mpl[t]`, beside the depths (`mdl`): (step, target, depth) entries sorted by target then step, at most
+32 a track (`PLK_MAX`) over at most 8 targets (`PLK_ROWS`). A step without a lock has the SEQ's depth; a lock can be
+any depth, 0 included; `mod_plk_nudge` removes one that comes back to the SEQ's depth, so there's never a lock that
+changes nothing. A target can be locked with no SEQ depth on it at all.
+
+**The ISR.** `mod_rebuild` merges a 0 depth from the SEQ slot for each locked target without one (so the ISR walks
+it), and gives each locked target's entry a row (`mod_ent_t.row`, in what was padding: the entry stays 16 bytes):
+`mod_rows_t` holds each row's 16 steps (`PLK_NONE` where there's no lock) and a factor that turns a depth into the
+entry's `fq` (`(d x rf) >> 8`, rf = range x 327, 1.28 x 256). It's double-buffered with the list it belongs to and
+published with it. The rows live in main RAM (1.3 KB for four tracks, two buffers): the low pool, where the lists
+are, holds about 27.8 of its 31.7 KB before the flash driver's code. In `mod_tick` every entry goes through
+`mod_fq`: one test for an entry without a row, the row's step for one with. With no locks nothing else changed:
+every fingerprint held; with locks the scene measures about 9 instructions a sample more.
+
+**The gesture.** SEQ held + a white key used to jump to SEQ's page n at once. Now `ui.plk_keys` collects those keys
+and the jump waits for the key's let-go; a knob turned meanwhile (`on_knob`, while `plk_step()` is a step) sets the
+held steps' locks and marks the keys used, so the let-go doesn't jump. The knob strip shows the lowest held step's
+depth under each knob (a tag in the modulator colour where it's locked, dim where it's the SEQ's own) and the footer
+says "STEP n: KNOB LOCKS". A knob with a lock gets the modulated mark in its corner, as one with a depth does.
+
+**Everything else.** MONO's clear takes the locks with the depths and its undo (`mod_undo_buf.plk`) brings them
+back; a slot's pad + MONO on the SEQ clears that page's locks too. The project format goes to 13: the locks after
+the rooms and before the scenes (so the scenes' fit check counts them), track, step, array, knob, depth like the
+depths; 12 and 11 still read; `pj_scan` skips them; `pj_hash` covers them. A track preset carries no locks (its
+depths are its own), so loading one clears the track's, and SAVE held after the load brings them back.
+
+Test (`test_plock`): the gesture (a lock of +5 on step 5, said, no jump, no SEQ page; a tap without a turn jumps at
+its let-go), the strip's mark, the value on each step while playing with the lock alone (50 on step 5, 0 around it)
+and with a SEQ depth of +20 (15 steps at 20, step 5 at 50), a lock of 0, the save and load, the lock removed at the
+SEQ's depth, MONO's clear and undo.
 
 ## USB record mode (2026-10-08)
 

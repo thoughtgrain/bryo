@@ -61,8 +61,28 @@ typedef struct {
     mod_dep_t e[MOD_MAX];
 } mod_deps_t;
 static mod_deps_t mdl[NTRK];
+
+/* P-locks (2026-10-17): the SEQ slot's depth to a target on one step only (the SEQ pad and a white key held, then a
+ * knob). Main loop only, like the depths: (step, target, depth), sorted by target then step, at most PLK_MAX a
+ * track over at most PLK_ROWS targets. A step without a lock has the SEQ's depth as set; a lock can be any depth,
+ * 0 too (nothing on that step), and turning it back to the SEQ's depth removes it. mod_rebuild gives the ISR a row
+ * of 16 steps for each locked target (mod_rows_t) */
+#define PLK_MAX 32u
+#define PLK_ROWS 8u
+#define PLK_NONE (-128)                      /* (a row's step without a lock) */
+typedef struct {
+    uint8_t st;                      /* step, 0..15 */
+    uint16_t g;                      /* target */
+    int8_t d;                        /* depth, % */
+} mod_plk_t;
+typedef struct {
+    uint8_t n;
+    mod_plk_t e[PLK_MAX];
+} mod_plks_t;
+static mod_plks_t mpl[NTRK];
 static struct {                              /* MONO's clear and SAVE's undo of it: one track's depths */
     mod_deps_t dep;
+    mod_plks_t plk;
     uint8_t trk, valid;
 } mod_undo_buf;
 
@@ -136,6 +156,7 @@ static inline uint32_t mod_fine_of(uint32_t a, uint32_t k)
 typedef struct {                     /* a depth, ready for the ISR */
     uint8_t slot, arr, k;            /* from slot (bits 0..3; bits 4..7: the knob as a fine one, FN_*), to knob k of array
                                       * arr */
+    uint8_t row;                     /* its p-locks' row (mod_rows_t), 0xFF: none */
     uint16_t tgt;                    /* the target (past 255 since NPK 28, 2026-10-14) */
     int16_t lo, hi;                  /* the knob's range */
     int32_t fq;                      /* depth x range, scaled: (out >> 3) x fq >> 19 is the move at out (Q15) */
@@ -147,6 +168,12 @@ typedef struct {
     mod_ent_t e[MOD_MAX];
 } mod_list_t;
 static mod_list_t mod_l[NTRK][2] __attribute__((section(".lowpool")));
+typedef struct {                     /* a list's p-lock rows: each locked target's depth on each step (PLK_NONE: the
+                                      * entry's own), and the factor that makes a depth its fq ((d x rf) >> 8) */
+    int8_t d[PLK_ROWS][16];
+    int32_t rf[PLK_ROWS];
+} mod_rows_t;
+static mod_rows_t mod_r[NTRK][2];    /* (main RAM, beside mod_l: the low pool is nearly full) */
 static volatile uint8_t mod_cur[NTRK];       /* the list the ISR reads */
 static volatile uint8_t mod_on;              /* the tracks with a list, a bit each (the ISR skips the rest) */
 
@@ -198,15 +225,45 @@ static inline __attribute__((always_inline)) uint32_t mod_alen(uint32_t a) { ret
 /* main loop: track t's list from its depths, published whole */
 static uint32_t mod_gen[NTRK];        /* main loop: bumped at each rebuild (mod_peak_dev's spans are per list) */
 
+/* main loop: the targets track t has p-locks on, into g (at most PLK_ROWS, in order); their count */
+static uint32_t mod_plk_tgts(uint32_t t, uint16_t *g)
+{
+    uint32_t i, n = 0;
+    for (i = 0; i < mpl[t].n; i++)
+        if (!n || g[n - 1u] != mpl[t].e[i].g) {
+            if (n < PLK_ROWS)
+                g[n] = mpl[t].e[i].g;
+            n++;
+        }
+    return n;
+}
+
 static void mod_rebuild(uint32_t t)
 {
-    uint32_t b = mod_cur[t] ^ 1u, i;
+    uint32_t b = mod_cur[t] ^ 1u, i, j, nl, r;
     mod_list_t *L = &mod_l[t][b];
+    mod_rows_t *R = &mod_r[t][b];
+    mod_deps_t D = mdl[t];                               /* (the depths, and a 0 for a locked target without one) */
+    uint16_t lg[PLK_ROWS];
     L->n = 0;
     L->used = 0;
     L->arrs = 0;
-    for (i = 0; i < mdl[t].n; i++) {                     /* (already sorted by target, then slot) */
-        uint32_t g = mdl[t].e[i].g, s = mdl[t].e[i].s, k, a;
+    nl = mod_plk_tgts(t, lg);
+    nl = nl < PLK_ROWS ? nl : PLK_ROWS;
+    for (r = 0; r < nl; r++) {
+        if (mod_dep(t, SLOT_SEQ, lg[r]) || D.n >= MOD_MAX)
+            continue;
+        for (i = 0; i < D.n && (D.e[i].g < lg[r] || (D.e[i].g == lg[r] && D.e[i].s < SLOT_SEQ)); i++)
+            ;
+        for (j = D.n; j > i; j--)
+            D.e[j] = D.e[j - 1u];
+        D.e[i].s = SLOT_SEQ;
+        D.e[i].g = lg[r];
+        D.e[i].d = 0;
+        D.n++;
+    }
+    for (i = 0; i < D.n; i++) {                          /* (already sorted by target, then slot) */
+        uint32_t g = D.e[i].g, s = D.e[i].s, k, a;
         const pdesc_t *d = mod_tdesc(g);
         mod_ent_t *e = &L->e[L->n];
         if (!d || L->n >= MOD_MAX)
@@ -215,10 +272,21 @@ static void mod_rebuild(uint32_t t)
         e->slot = (uint8_t)(s | mod_fine_of(a, k) << 4);
         e->arr = (uint8_t)a;
         e->k = (uint8_t)k;
+        e->row = 0xFF;
         e->tgt = (uint16_t)g;
         e->lo = d->min;
         e->hi = d->max;
-        e->fq = mdl[t].e[i].d * (d->max - d->min) * 1280 / 1000;   /* (2^22 / (100 x 32767) = 1.28) */
+        e->fq = D.e[i].d * (d->max - d->min) * 1280 / 1000;   /* (2^22 / (100 x 32767) = 1.28) */
+        for (r = 0; s == SLOT_SEQ && r < nl; r++)        /* a locked target: its row, the steps' own depths */
+            if (lg[r] == g) {
+                e->row = (uint8_t)r;
+                R->rf[r] = (d->max - d->min) * 327;      /* (1.28 x 256: (d x rf) >> 8 is the fq of depth d) */
+                for (j = 0; j < 16u; j++)
+                    R->d[r][j] = (int8_t)PLK_NONE;
+                for (j = 0; j < mpl[t].n; j++)
+                    if (mpl[t].e[j].g == g)
+                        R->d[r][mpl[t].e[j].st & 15u] = mpl[t].e[j].d;
+            }
         L->used |= (uint8_t)(1u << s);
         L->arrs |= (uint16_t)(1u << a);
         L->n++;
@@ -267,12 +335,14 @@ static int mod_any(uint32_t t, uint32_t g)
 /* main loop: MONO held. Track t's depths go (kept for SAVE's undo); its slots' knobs stay. 0: there were none. */
 static int mod_clear(uint32_t t)
 {
-    if (!mod_count(t))
+    if (!mod_count(t) && !mpl[t].n)
         return 0;
     mod_undo_buf.dep = mdl[t];
+    mod_undo_buf.plk = mpl[t];
     mod_undo_buf.trk = (uint8_t)t;
     mod_undo_buf.valid = 1;
     mdl[t].n = 0;
+    mpl[t].n = 0;                                        /* (the p-locks with them) */
     mod_rebuild(t);
     return 1;
 }
@@ -286,11 +356,27 @@ static int mod_clear_slot(uint32_t t, uint32_t s, const uint32_t *g, uint32_t n)
     if (t >= NTRK)
         return 0;
     L = &mdl[t];
-    for (i = j = 0; j < n; j++)
+    for (i = j = 0; j < n; j++) {
+        uint32_t k;
         i |= (uint32_t)(mod_dep(t, s, g[j]) != 0);
+        for (k = 0; s == SLOT_SEQ && k < mpl[t].n; k++)
+            i |= (uint32_t)(mpl[t].e[k].g == g[j]);
+    }
     if (!i)                                      /* (nothing to clear: an earlier undo stays as it was) */
         return 0;
     mod_undo_buf.dep = *L;
+    mod_undo_buf.plk = mpl[t];
+    if (s == SLOT_SEQ) {                         /* (the SEQ's: its p-locks on these knobs too) */
+        uint32_t k, o2;
+        for (k = o2 = 0; k < mpl[t].n; k++) {
+            uint32_t hit = 0;
+            for (j = 0; j < n; j++)
+                hit |= (uint32_t)(mpl[t].e[k].g == g[j]);
+            if (!hit)
+                mpl[t].e[o2++] = mpl[t].e[k];
+        }
+        mpl[t].n = (uint8_t)o2;
+    }
     for (i = o = 0; i < L->n; i++) {
         uint32_t hit = 0;
         for (j = 0; j < n; j++)
@@ -312,9 +398,78 @@ static int mod_undo(void)
     if (!mod_undo_buf.valid || t >= NTRK)
         return -1;
     mdl[t] = mod_undo_buf.dep;
+    mpl[t] = mod_undo_buf.plk;
     mod_undo_buf.valid = 0;
     mod_rebuild(t);
     return 0;
+}
+
+/* main loop: track t's p-lock on step st for target g: its depth, *has 1; or the SEQ's own depth there, *has 0 */
+static int32_t mod_plk(uint32_t t, uint32_t st, uint32_t g, int *has)
+{
+    uint32_t i;
+    *has = 0;
+    for (i = 0; t < NTRK && i < mpl[t].n; i++)
+        if (mpl[t].e[i].g == g && mpl[t].e[i].st == st) {
+            *has = 1;
+            return mpl[t].e[i].d;
+        }
+    return mod_dep(t, SLOT_SEQ, g);
+}
+
+/* main loop: any p-lock on target g of track t (the strip's mark) */
+static int mod_plk_any(uint32_t t, uint32_t g)
+{
+    uint32_t i;
+    for (i = 0; t < NTRK && i < mpl[t].n; i++)
+        if (mpl[t].e[i].g == g)
+            return 1;
+    return 0;
+}
+
+/* main loop: step st's lock on target g, nudged by d from where it is (the SEQ's depth when there's none). Back at
+ * the SEQ's depth it's gone. Returns the depth, or -128 (g can't be modulated, or the track has MOD_MAX depths and
+ * this would need one more), -126 (PLK_MAX locks), -125 (PLK_ROWS knobs locked already) */
+static int32_t mod_plk_nudge(uint32_t t, uint32_t st, uint32_t g, int32_t d)
+{
+    mod_plks_t *P;
+    uint16_t lg[PLK_ROWS];
+    uint32_t i, j;
+    int has;
+    int32_t base, v;
+    if (t >= NTRK || st >= 16u || !mod_tdesc(g))
+        return -128;
+    P = &mpl[t];
+    base = mod_dep(t, SLOT_SEQ, g);
+    v = clamp(mod_plk(t, st, g, &has) + d, -100, 100);
+    for (i = 0; i < P->n && (P->e[i].g < g || (P->e[i].g == g && P->e[i].st < st)); i++)
+        ;
+    if (has) {
+        if (v == base) {                                 /* back at the SEQ's depth: the lock goes */
+            for (j = i; j + 1u < P->n; j++)
+                P->e[j] = P->e[j + 1u];
+            P->n--;
+        } else {
+            P->e[i].d = (int8_t)v;
+        }
+    } else if (v != base) {
+        if (P->n >= PLK_MAX)
+            return -126;
+        if (!mod_plk_any(t, g)) {
+            if (mod_plk_tgts(t, lg) >= PLK_ROWS)
+                return -125;
+            if (!base && mod_count(t) + mod_plk_tgts(t, lg) >= MOD_MAX)
+                return -128;
+        }
+        for (j = P->n; j > i; j--)
+            P->e[j] = P->e[j - 1u];
+        P->e[i].st = (uint8_t)st;
+        P->e[i].g = (uint16_t)g;
+        P->e[i].d = (int8_t)v;
+        P->n++;
+    }
+    mod_rebuild(t);
+    return v;
 }
 
 /* main loop: the highest value target g of track t can reach (its knob, plus every depth's full swing): the memory
@@ -807,6 +962,7 @@ static void mod_init(void)
             mrt[t][s] = z;
         }
         mdl[t].n = 0;
+        mpl[t].n = 0;
         mod_l[t][0].n = mod_l[t][1].n = 0;
         mod_l[t][0].used = mod_l[t][1].used = 0;
         mod_l[t][0].arrs = mod_l[t][1].arrs = 0;
@@ -843,6 +999,17 @@ static int HOT_CODE mod_rt_fresh(mod_rt_t *m, uint32_t t, uint32_t s, uint32_t e
     if (e == ME_WAVE)
         lfo_seed(m, t, s);
     return 1;
+}
+
+/* ISR: entry e's depth as fq on the step its SEQ is on (a p-lock's there), or its own (every other entry: one test) */
+static inline __attribute__((always_inline)) int32_t mod_fq(const mod_ent_t *e, const mod_rows_t *R, const mod_rt_t *m)
+{
+    if (e->row != 0xFFu && m->step >= 0) {
+        int32_t d = R->d[e->row & (PLK_ROWS - 1u)][m->step & 15];
+        if (d != PLK_NONE)
+            return (d * R->rf[e->row & (PLK_ROWS - 1u)]) >> 8;
+    }
+    return e->fq;
 }
 
 static void HOT_CODE mod_tick(uint32_t keys, uint32_t sel, const int32_t *const *last)
@@ -965,6 +1132,7 @@ static void HOT_CODE mod_tick(uint32_t keys, uint32_t sel, const int32_t *const 
         mod_pan_r[t] = mda[t][MA_CH][CH_PAN];
         for (i = 0; i < L->n;) {                        /* each target: its depths summed, then clamped once */
             const mod_ent_t *E = &L->e[i];
+            const mod_rows_t *R = &mod_r[t][mod_cur[t] & 1u];
             int16_t *p = &mda[t][E->arr][E->k];
             int32_t sum = 0, sumr = 0, g = E->tgt, s8 = 0;
             uint32_t fi = E->slot >> 4u;
@@ -973,7 +1141,7 @@ static void HOT_CODE mod_tick(uint32_t keys, uint32_t sel, const int32_t *const 
                                                          * semitones (a step is a note) */
                 for (; i < L->n && L->e[i].tgt == g; i++) {
                     const mod_rt_t *m = &mrt[t][L->e[i].slot & 15u];
-                    int32_t x = (m->out >> 3) * L->e[i].fq, d = (x + (1 << 18)) >> 19;
+                    int32_t x = (m->out >> 3) * mod_fq(&L->e[i], R, m), d = (x + (1 << 18)) >> 19;
                     sum += d;
                     s8 += m->engine == ME_SEQ + 1u && fi < FN_PITCHES ? d * 256 : (x + (1 << 10)) >> 11;
                 }
@@ -982,8 +1150,9 @@ static void HOT_CODE mod_tick(uint32_t keys, uint32_t sel, const int32_t *const 
             } else {
                 for (; i < L->n && L->e[i].tgt == g; i++) {
                     const mod_rt_t *m = &mrt[t][L->e[i].slot & 15u];
-                    sum += ((m->out >> 3) * L->e[i].fq + (1 << 18)) >> 19;
-                    sumr += ((m->outr >> 3) * L->e[i].fq + (1 << 18)) >> 19;
+                    int32_t fq = mod_fq(&L->e[i], R, m);
+                    sum += ((m->out >> 3) * fq + (1 << 18)) >> 19;
+                    sumr += ((m->outr >> 3) * fq + (1 << 18)) >> 19;
                 }
             }
             if (g == (int32_t)(MOD_TCH + CH_PAN))

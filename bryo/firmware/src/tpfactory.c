@@ -164,6 +164,7 @@ static void tpf_apply(uint32_t t, const tpf_t *F)
             P->steps[s][k] = SEQ_DEF[k];
     }
     mdl[t].n = 0;
+    mpl[t].n = 0;
     for (i = 0; i < F->nset; i++) {                      /* the preset's knobs, each held to its range */
         const pdesc_t *ds = 0;
         int16_t *v = tpf_arr(t, F->set[i].a, &ds);

@@ -109,6 +109,7 @@ static void tpr_read_rec(uint32_t t)
         pr_a16(s < DRM_NINST ? P->dins[s] : junk, s < DRM_NINST ? NDIN : 0u, DRI_P);
     }
     mdl[t].n = 0;
+    mpl[t].n = 0;
     n = pr_u16();
     for (i = 0; i < n && !pr.bad; i++) {
         uint32_t ss = pr_byte(), a = pr_byte(), k = pr_byte(), g = pj_target(a, k);
@@ -247,6 +248,7 @@ static int tpr_delete(uint32_t p) { return tpr_write(p, NTRK) == 0 ? 0 : -1; }
 static struct {
     track_params_t p;
     mod_deps_t dep;
+    mod_plks_t plk;                  /* (the p-locks: a preset doesn't carry them, so a load drops the track's) */
     int16_t mst[NMS], key[NKY];
     uint8_t lv[NTRK], rin[NTRK];
     uint8_t trk, valid;
@@ -259,6 +261,7 @@ static void trk_snap(uint32_t t)
         return;
     trk_undo.p = tp[t];
     trk_undo.dep = mdl[t];
+    trk_undo.plk = mpl[t];
     for (i = 0; i < NMS; i++)
         trk_undo.mst[i] = mst[i];
     for (i = 0; i < NKY; i++)
@@ -279,6 +282,7 @@ static int trk_restore(void)
         return -1;
     tp[t] = trk_undo.p;
     mdl[t] = trk_undo.dep;
+    mpl[t] = trk_undo.plk;
     for (i = 0; i < NMS; i++)
         mst[i] = trk_undo.mst[i];
     for (i = 0; i < NKY; i++)
