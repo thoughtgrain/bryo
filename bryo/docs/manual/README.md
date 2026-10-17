@@ -141,21 +141,23 @@ bright. Let go without pressing a key and the pad turns its page as usual.
 first, **AMBIENT**:
 - **Track 1:** a four-on-the-floor drum bar, silent here (its level is down in this scene).
 - **Track 2:** a choir: **VOX**, each note of its arpeggio a minor-seventh chord with a slow attack and the longest
-  release, so the notes smear into a pad that moves with the chords (Am, Dm, Em).
-- **Track 3:** a drone (**DRON**) through a wash of long grains and four resonators walking from note to note and
-  ringing out.
-- **Track 4:** bells (**BELL**) arpeggiated up and down, bowed rather than struck: each swells in and fades out slowly
-  into the large room.
+  release, gliding from note to note, so the notes smear into a soft pad that moves with the chords (Am, Dm, Em).
+- **Track 3:** a drone (**DRON**) through a wash of half-second grains, its highs shelved down, and four resonators
+  that ring out while a slow **FLOW** walks the sound through them.
+- **Track 4:** bells (**BELL**) arpeggiated up and down, bowed rather than struck: each swells in and fades out slowly,
+  its echoes smeared into a dark wash.
 
-Everything in this scene swells into existence and fades out gradually: slow attacks, the longest releases, long
-tails, and nothing percussive (the drums are silent here, since their kick would duck the other tracks).
+Everything in this scene swells into existence and fades out gradually, at a slow 80 BPM: slow attacks, the longest
+releases, no noise, darker filters, and nothing percussive (the drums are silent here, since their kick would duck the
+other tracks). All three tracks sit deep in the big room: a whole hall, long, dark and slowly moving, with a pre-delay
+so the sound lands before the room blooms behind it.
 
 **Then morph it.** Tap **GLO**, tap **EDIT** for **SCENES**, and turn **KNOB 2** to morph into **TECHNO**: the drums
 come up and everything else ducks on the kick (each track has a FOLLOW of track 1 on its level), track 2 becomes a saw
 bass, track 3 a high-passed pump, track 4 short stabs. **KNOB 3** morphs on into **GLITCH**: crushed drums stuttering
 through grains, track 2 a resonant phase-distortion saw, track 3 stuttering through the 12-band bank, track 4 picking
 its bell or a drum loop at random for every note. Tap white keys 1-3 to jump between them instead. Scene 4 is free for
-your own ([3.9](#39-scenes-four-sounds-to-jump-or-morph-between)). Each scene has its own tempo too: AMBIENT 124, TECHNO 128, GLITCH 136.
+your own ([3.9](#39-scenes-four-sounds-to-jump-or-morph-between)). Each scene has its own tempo too: AMBIENT 80, TECHNO 128, GLITCH 136.
 
 > If you've saved a project, it comes back at power-on instead. To hear the factory scene again, see
 > [9.4](#94-back-to-the-factory-scene).

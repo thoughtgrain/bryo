@@ -266,19 +266,30 @@ typedef struct {
 } tps_k_t;
 #define TPS_NSC 3u
 static const tps_k_t TPS_AMB[] = {   /* 2026-10-15: every sound swells and fades: slow attacks, the longest
-                                      * releases and tails, no transients (T1 silent: its kick would duck the rest) */
+                                      * releases and tails, no transients (T1 silent: its kick would duck the rest).
+                                      * 2026-10-17, "smooth sounds and big reverbs": at 80 BPM (the scene's own
+                                      * tempo), no noise, the voice gliding, darker filters and the drone's highs
+                                      * shelved (COLOR's TILT would have cost 400 instr/sample), every track deep in a
+                                      * long dark hall, the bells' echoes smeared to a wash, the drone's resonators
+                                      * walked slowly by FLOW */
     {1, MA_SYN, SY_WAVE, SY_VOX}, {1, MA_SYN, SY_DTUN, 80}, {1, MA_SYN, SY_MIX, 45}, {1, MA_SYN, SY_IENV, 30},
-    {1, MA_SYN, SY_NOIS, 20}, {1, MA_SYN, SY_ATK, 95}, {1, MA_SYN, SY_DEC, 100}, {1, MA_SYN, SY_SUS, 100},
-    {1, MA_SYN, SY_REL, 127}, {1, MA_SYN, SY_CUT, 100}, {1, MA_SYN, SY_RES, 10}, {1, MA_SYN, SY_ENV, 0},
+    {1, MA_SYN, SY_ATK, 105}, {1, MA_SYN, SY_DEC, 100}, {1, MA_SYN, SY_SUS, 100}, {1, MA_SYN, SY_REL, 127},
+    {1, MA_SYN, SY_CUT, 78}, {1, MA_SYN, SY_ENV, 0}, {1, MA_SYN, SY_GLID, 45},
     {1, MA_SYN, SY_CHRD, 7}, {1, MA_SYN, SY_TUNE, 12}, {1, MA_SYN, SY_LVL, 4},
-    {1, DEV_SPACE, SP_VERB, 60}, {1, DEV_SPACE, SP_ROOM, 1},   /* (everything in room B: room A rests) */
-    {2, DEV_GRAIN, GP_WET, 60}, {2, DEV_GRAIN, GP_SIZE, 350}, {2, DEV_GRAIN, GP_RATE, 12}, {2, DEV_GRAIN, GP_SPRY, 70},
-    {2, DEV_GRAIN, GP_SPRD, 80}, {2, DEV_GRAIN, GP_SCAL, 3}, {2, DEV_GRAIN, GP_PRND, 12}, {2, DEV_GRAIN, GP_REV, 40},
-    {2, DEV_RESO, RP_WET, 45}, {2, DEV_RESO, RP_PTCH, 45}, {2, DEV_RESO, RP_DEC, 110}, {2, DEV_RESO, RP_TONE, 45},
-    {2, DEV_RESO, RP_SCAL, 2}, {2, DEV_RESO, RP_MODE, RM_RESO}, {2, DEV_SPACE, SP_VERB, 70}, {2, DEV_SPACE, SP_ROOM, 1},
-    {3, MA_POL, PL_ATK, 64}, {3, MA_POL, PL_DEC, 100}, {3, MA_POL, PL_SUS, 100},   /* the bells bowed, not struck */
-    {3, MA_POL, PL_CUT, 70}, {3, MA_POL, PL_ENV, 30},                             /* (the filter opens with the swell) */
-    {3, MA_POL, PL_REL, 127}, {3, DEV_SPACE, SP_VERB, 60}, {3, DEV_SPACE, SP_ROOM, 1}};   /* (no echo: the room) */
+    {1, DEV_SPACE, SP_VERB, 90}, {1, DEV_SPACE, SP_ROOM, 1},   /* (everything in room B: room A rests) */
+    {2, DEV_GRAIN, GP_WET, 70}, {2, DEV_GRAIN, GP_SIZE, 500}, {2, DEV_GRAIN, GP_RATE, 10}, {2, DEV_GRAIN, GP_SPRY, 80},
+    {2, DEV_GRAIN, GP_SPRD, 100}, {2, DEV_GRAIN, GP_SCAL, 3}, {2, DEV_GRAIN, GP_PRND, 12}, {2, DEV_GRAIN, GP_REV, 50},
+    {2, DEV_RESO, RP_WET, 35}, {2, DEV_RESO, RP_PTCH, 45}, {2, DEV_RESO, RP_DEC, 100}, {2, DEV_RESO, RP_TONE, 30},
+    {2, DEV_RESO, RP_SCAL, 2}, {2, DEV_RESO, RP_MODE, RM_RESO}, {2, DEV_RESO, RP_WDTH, 55},
+    {2, DEV_RESO, RP_FLOW, 8},                           /* (a round trip through the bands every 15 s or so) */
+    {2, MA_CH, CH_HIGH, -6},                             /* (the drone's highs down a shelf: dark) */
+    {2, DEV_SPACE, SP_VERB, 95}, {2, DEV_SPACE, SP_ROOM, 1},
+    {3, MA_POL, PL_ATK, 80}, {3, MA_POL, PL_DEC, 100}, {3, MA_POL, PL_SUS, 100},   /* the bells bowed, not struck */
+    {3, MA_POL, PL_CUT, 55}, {3, MA_POL, PL_ENV, 30},                             /* (the filter opens with the swell) */
+    {3, MA_POL, PL_REL, 127},
+    {3, DEV_SPACE, SP_VERB, 90}, {3, DEV_SPACE, SP_ROOM, 1},
+    {3, DEV_SPACE, SP_DLY, 30}, {3, DEV_SPACE, SP_TIME, 370}, {3, DEV_SPACE, SP_FDBK, 60},   /* echoes smeared to a */
+    {3, DEV_SPACE, SP_DIFF, 85}, {3, DEV_SPACE, SP_TONE, -50}, {3, DEV_SPACE, SP_AGE, 25}};  /* .. dark wash */
 static const tps_k_t TPS_TEC[] = {
     {0, MA_DRM, DM_DECY, -30}, {0, MA_DRM, DM_TONE, 20}, {0, MA_DRM, DM_DRV, 10}, {0, MA_DRM, DM_ACNT, 70},
     {0, MA_DRM, DM_TRAN, 40}, {0, MA_DRM, DM_LVL, -3}, {0, MA_CH, CH_LOW, 3}, {0, DEV_SPACE, SP_VERB, 10},
@@ -319,14 +330,15 @@ static const struct {
     const tps_k_t *k;
     uint8_t n;
     uint8_t lvl[NTRK];
-    int8_t room[NROOM][4];           /* each room's SIZE DEC TYPE MOD */
+    int8_t room[NROOM][6];           /* each room's SIZE DEC TYPE MOD TONE PRE */
     uint8_t bpm;                     /* its tempo (2026-10-17: scenes hold one) */
 } TPS_SC[TPS_NSC] = {
-    {TPS_AMB, (uint8_t)(sizeof TPS_AMB / sizeof TPS_AMB[0]), {0, 92, 88, 88}, {{50, 40, 0, 0}, {90, 80, 2, 50}}, 124},
-    {TPS_TEC, (uint8_t)(sizeof TPS_TEC / sizeof TPS_TEC[0]), {100, 106, 100, 102}, {{35, 30, 1, 0}, {60, 45, 0, 0}},
-     128},
-    {TPS_GLI, (uint8_t)(sizeof TPS_GLI / sizeof TPS_GLI[0]), {100, 116, 98, 118}, {{25, 20, 1, 0}, {50, 40, 3, 70}},
-     136}};
+    {TPS_AMB, (uint8_t)(sizeof TPS_AMB / sizeof TPS_AMB[0]), {0, 92, 88, 88},
+     {{50, 40, 0, 0, 0, 20}, {100, 95, 2, 75, -40, 80}}, 80},   /* (room B: the whole hall, long, dark, slowly moving) */
+    {TPS_TEC, (uint8_t)(sizeof TPS_TEC / sizeof TPS_TEC[0]), {100, 106, 100, 102},
+     {{35, 30, 1, 0, 0, 20}, {60, 45, 0, 0, 0, 20}}, 128},
+    {TPS_GLI, (uint8_t)(sizeof TPS_GLI / sizeof TPS_GLI[0]), {100, 116, 98, 118},
+     {{25, 20, 1, 0, 0, 20}, {50, 40, 3, 70, 0, 20}}, 136}};
 
 /* main loop: scene n's sound into the tracks: every track's devices, channel and source knobs from their defaults
  * (what plays aside: the reels, POLY's ROOT and RLB, DRUM's pattern knobs), then the scene's list, the levels, the
@@ -367,6 +379,8 @@ static void tps_sound(uint32_t n)
         rmp[i][RM_DEC] = TPS_SC[n].room[i][1];
         rmp[i][RM_TYPE] = TPS_SC[n].room[i][2];
         rmp[i][RM_MOD] = TPS_SC[n].room[i][3];
+        rmp[i][RM_TONE] = TPS_SC[n].room[i][4];
+        rmp[i][RM_PRE] = TPS_SC[n].room[i][5];
         rmp[i][RM_QUAL] = RQ_LO;                         /* (the rooms at half the work: the scenes' load) */
     }
 }
@@ -429,7 +443,7 @@ static void tpf_scene(void)
     }
     for (n = TPS_NSC; n-- > 0u;) {                      /* (GLITCH, TECHNO, AMBIENT: the last one stored plays) */
         tps_sound(n);
-        sys.bpm = TPS_SC[n].bpm;                         /* (each its tempo: 124, 128, 136) */
+        sys.bpm = TPS_SC[n].bpm;                         /* (each its tempo: 80, 128, 136) */
         scn_store(n);
     }
 }

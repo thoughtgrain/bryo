@@ -210,7 +210,7 @@ told apart in these numbers):
 | 15 | everything on, all four tracks | 5,267 |
 | 29 | the busiest groove's devices all on, the transport stopped (what "nothing playing" costs) | 700 |
 | 30 | one track heard (dense grains, strings with RIPL ARP, a room), the other three muted | 2,335 |
-| 31 | the factory scene as it boots (AMBIENT, after 2026-10-15's swell; with the FOLLOW auto-levels) | 2,998 (120 of it the modulators) |
+| 31 | the factory scene as it boots (AMBIENT at 80 BPM in its hall, 2026-10-17) | 3,001 |
 | 32 | TEST, the project view's scene: every stage at work (GLITCH, at its scene tempo of 136 since 2026-10-17) | 2,896 |
 
 My target for a realistic four-track scene is 2,000. The first device reading (run 1, 2026-10-10: 25 %, in 5 % steps)
@@ -254,6 +254,9 @@ number.
   four), split by what each track's settings ask for when it runs short; what's left over is everyone's (since
   2026-10-11: a track alone has all 40, not just what RATE and SIZE ask). GRAIN 6's GRNS can hold a number for a
   track instead (1-40, taken from the AUTO tracks first, kept whatever the others do).
+- **2026-10-17: AMBIENT, smooth and deep.** 80 BPM (its own scene tempo), no noise, darker and gliding, the drone
+  walked by FLOW, the bells' echoes smeared, every track deep in a whole, long, dark hall with a pre-delay. The same
+  load as before (COLOR's TILT was tried and cost 412 instr/sample; filters and the room's tone do it free).
 - **2026-10-17: SYNTH's WAVE isn't a modulation target.** It switches whole oscillator engines, which stepped at
   block edges (the audit's two flags); like RIPPLE's form it's a choice now, switched by hand or at a scene's
   midpoint. The modulation audit reads 0 stepping.

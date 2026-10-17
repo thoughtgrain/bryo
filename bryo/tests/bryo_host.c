@@ -11349,6 +11349,49 @@ static uint32_t distinct_add(int32_t *seen, uint32_t n, int32_t v)
     return n;
 }
 
+/* the factory's AMBIENT (2026-10-17): smooth sounds in a big hall, a tail that outlives the playing */
+static void test_ambient_hall(void)
+{
+    static int32_t buf[1378 * CTL];
+    double on, tail;
+    uint32_t b;
+    char m[200];
+    power_on();
+    pj_wipe();
+    pj_boot();
+    check("AMBIENT's hall: room B whole (SIZE 100), long (DEC 95), HALL, moving (MOD 75), dark (TONE -40), PRE 80 ms; "
+          "every track sends to it at 90 or more; no noise in the voice, which glides",
+          rmp[1][RM_SIZE] == 100 && rmp[1][RM_DEC] == 95 && rmp[1][RM_TYPE] == 2 && rmp[1][RM_MOD] == 75 &&
+          rmp[1][RM_TONE] == -40 && rmp[1][RM_PRE] == 80 && tp[1].dev[DEV_SPACE][SP_VERB] >= 90 &&
+          tp[2].dev[DEV_SPACE][SP_VERB] >= 90 && tp[3].dev[DEV_SPACE][SP_VERB] >= 90 && !tp[1].syn[SY_NOIS] &&
+          tp[1].syn[SY_GLID] > 0 && sys.bpm == 80u);
+    sys.playing = 1;
+    for (b = 0; b < 4134u * 4u; b++)                     /* four bars at 80 */
+        chain_block(out, CTL);
+    for (b = 0; b < 1378u; b++) {
+        chain_block(out, CTL);
+        buf[b * CTL] = out[0];
+        {
+            uint32_t i;
+            for (i = 1; i < CTL; i++)
+                buf[b * CTL + i] = out[2u * i];
+        }
+    }
+    on = buf_rms(buf, 0, 1378 * CTL);
+    sys.playing = 0;                                     /* STOP: the arpeggios wait, the voices let go */
+    for (b = 0; b < 1378u * 2u; b++)
+        chain_block(out, CTL);
+    for (b = 0; b < 1378u; b++) {
+        uint32_t i;
+        chain_block(out, CTL);
+        for (i = 0; i < CTL; i++)
+            buf[b * CTL + i] = out[2u * i];
+    }
+    tail = buf_rms(buf, 0, 1378 * CTL);
+    snprintf(m, sizeof m, "..stopped, the hall and the releases still sound 2 to 3 s later (%.1f dB under the playing)",
+             20 * log10(tail / (on + 1e-9) + 1e-12));
+    check(m, tail > on * 0.03);
+}
 static void test_factory_scene(void)
 {
     int32_t an2[64], tu[64], rp[64], pk = 0, base3, min3 = 1 << 20, base3t, pk1 = 0;
@@ -11364,13 +11407,13 @@ static void test_factory_scene(void)
           tp[3].pol[PL_RLB] == 1 && tp[1].arp[AR_MODE] == ARM_LTCH && tp[3].arp[AR_MODE] == ARM_LTCH && scn[0].used &&
           scn[1].used && scn[2].used && !scn[3].used && scn_cur == 1u && track[0].level == 0u && !pj_changed() &&
           pj_cur == 0u);
-    check("..each scene its tempo: AMBIENT 124 (playing), TECHNO 128, GLITCH 136", scn[0].bpm == 124u &&
-          scn[1].bpm == 128u && scn[2].bpm == 136u && sys.bpm == 124u);
+    check("..each scene its tempo: AMBIENT 80 (playing), TECHNO 128, GLITCH 136", scn[0].bpm == 80u &&
+          scn[1].bpm == 128u && scn[2].bpm == 136u && sys.bpm == 80u);
     render(200, 0);
     check("..stopped: the arpeggiators hold their notes and wait for PLAY", arp_rt[1].n == 4u && arp_rt[3].n == 5u &&
           !arp_rt[1].on && !arp_rt[3].on && arp_rt[1].waiting);
     sys.playing = 1;
-    for (b = 0; b < 2666u * 8u; b++) {                   /* eight bars at 124 */
+    for (b = 0; b < 4134u * 8u; b++) {                   /* eight bars at 80 (AMBIENT's tempo) */
         chain_block(out, CTL);
         for (i = 0; i < 2u * CTL; i++)
             pk = out[i] > pk ? out[i] : -out[i] > pk ? -out[i] : pk;
@@ -11602,6 +11645,7 @@ int main(int argc, char **argv)
     test_arp_long();
     test_arp_sources();
     test_factory_scene();
+    test_ambient_hall();
     test_drum_shed();
     test_input();
     test_settings();

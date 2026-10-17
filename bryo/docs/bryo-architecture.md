@@ -3326,6 +3326,24 @@ anything unused (run 25 went 2,818 to 3,029 with them as first written, 2,806 no
 when neither is at work, and no longer sums a right side nobody reads). Run 32 sits on GLITCH, now at 136 BPM. The
 stress test balances.
 
+### AMBIENT, smooth and deep (2026-10-17)
+
+"It's not following ambient expectations with smooth sounds and big reverbs." The scene had slow envelopes but a
+groove's frame: sixteenth arpeggios at 124, noise in the voice, bright filters, a large but medium room, no echoes.
+Now, with scenes holding a tempo, AMBIENT plays at 80 (TECHNO and GLITCH keep 128 and 136), and its list
+(`TPS_AMB`): the VOX without noise, its cutoff down to 78, gliding (GLID 45), its attack longer; the drone's grains
+at 500 ms, wider and wetter, its resonators darker and walked by FLOW 8 through a 55 % spotlight, its highs shelved
+6 dB; the bells' attack 80 and cutoff 55, with a long echo (370 ms, FDBK 60) smeared to a wash (DIFF 85, TONE -50,
+AGE 25). Every track sends 90 to 95 to room B, which is now the whole hall: SIZE 100, DEC 95, HALL, MOD 75, TONE -40,
+PRE 80 ms. The scenes' room table grew TONE and PRE (TECHNO's and GLITCH's at the defaults they had).
+
+Load: COLOR's TILT was the first way to warm each track and it cost 412 instructions a sample, since it wakes COLOR's
+loop on three tracks; the filters, the drone's channel shelf and the room's and echoes' tone do it for nothing extra.
+The bells' echo costs about 150 (DIFF 32 of it), the room's MOD about 20, and the slower tempo saves about 120 (fewer
+notes). Run 31 measures 3,001 against 2,998 before. Its fingerprint is rewritten; TEST (GLITCH) is unchanged. Test
+(`test_ambient_hall`): the hall's settings, the sends, no noise, the glide, 80 BPM, and a tail still sounding 2 to 3 s
+after STOP (11.6 dB under the playing; the voices' 10 s releases set most of that, so it doesn't separate the halls).
+
 ## USB record mode (2026-10-08)
 
 Recording from the computer is a mode of its own, not a source a track plays through: you go in, record, put the
