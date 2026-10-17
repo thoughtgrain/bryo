@@ -2698,6 +2698,51 @@ static void test_bar_record(void)
           !((sys.rec >> 1) & 1u));
     sys.playing = 0;
     render(20, 0);
+
+    {   /* freeze to tape (2026-10-17): REC held + the 0 key, the bars GRAIN holds become the track's tape at once */
+        uint32_t n, len, bars, map0, z = black_note(BK_ZERO);
+        power_on();
+        pj_wipe();
+        sys.sel = 1;
+        tp[1].src = SRC_SYNTH;
+        tp[1].dev[DEV_SRC][TK_REEL] = 0;
+        tp[1].dev[DEV_GRAIN][GP_WET] = 50;
+        sys.playing = 1;
+        fm1_in.notes = note_bit_of_white(9);             /* A3, into GRAIN's buffer */
+        play_polled(1378u * 3u);
+        fm1_in.notes = 0;
+        n = gbuf[1].nch;
+        len = gbuf[1].len;
+        bars = gbuf[1].bars;
+        map0 = gbuf[1].map[0];
+        hold(B_REC);                                     /* (playing: the press arms REC; the combo takes it back) */
+        fm1_in.notes = 1u << z;
+        key_edge(z);
+        fm1_in.notes = 0;
+        let_go(B_REC);
+        ui_input();
+        snprintf(b, sizeof b, "REC held + 0, SYNTH with GRAIN on: its %u bar(s) (%u samples, %u chunks) the tape now, "
+                 "the same chunks, SYNC, no arm, no freeze", bars, len, n);
+        check(b, len > 0u && n > 0u && tp[1].src == SRC_TAPE && tape_ctl[1].map[0] == map0 && tape_ctl[1].nch == n &&
+              (uint32_t)tape_ctl[1].nblk * TAPE_BLK - tape_ctl[1].trim == len && mem_count(MEM_TAPE + 1) == n &&
+              tp[1].dev[DEV_SRC][TK_SYNC] == (bars == 1u ? 1 : bars == 2u ? 2 : 3) && !((sys.rec >> 1) & 1u) &&
+              !sys.freeze && !strncmp(ui.msg, "FROZEN TO TAPE: ", 16));
+        play_polled(1378u * 2u);
+        check("..it plays the frozen bars (sound on the tape), and GRAIN has a fresh buffer of its own",
+              tape_peak_at(1, 500) > 0 && gbuf[1].len == len && gbuf[1].nch && gbuf[1].map[0] != map0 &&
+              mem_count(MEM_GRAIN + 1) == gbuf[1].nch);
+        tp[1].dev[DEV_GRAIN][GP_WET] = 0;
+        play_polled(20u);
+        hold(B_REC);
+        fm1_in.notes = 1u << z;
+        key_edge(z);
+        fm1_in.notes = 0;
+        let_go(B_REC);
+        check("..with GRAIN off: nothing to freeze, said, the tape kept", !strncmp(ui.msg, "NOTHING IN GRAIN", 16) &&
+              tape_ctl[1].nch == n);
+        sys.playing = 0;
+        render(20, 0);
+    }
     sys.rec_bars = 0;
     pj_wipe();
 

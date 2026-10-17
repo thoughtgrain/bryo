@@ -3210,6 +3210,21 @@ SCENES page shows each scene's tempo, bright where it isn't the one playing. The
 glide holds the old tempo a quarter in and has the scene's at three quarters; the hand morph switches at 50 % and
 back below it; a scene with none leaves it; the save and load round trip compares whole scenes, the tempo included.
 
+### Freeze to tape: GRAIN's bars become the tape (2026-10-17)
+
+The offer from the bounce: keep what GRAIN holds as the track's tape. GRAIN's live buffer is already a tape in all
+but name (IMA ADPCM blocks at 22.05 kHz in the pool's chunks, sample 0 on the bar line where the transport started,
+`len` its bars at the tempo it was sized at), so nothing is copied: `freeze_to_tape` (ui_input.c, REC held + the 0
+key) takes the buffer's chunk list, lets GRAIN go of it (the length, then the chunks, each published, as
+`gr_buf_size` shrinks), and hands it to `tape_replace`, which changes the owners and makes it the track's tape;
+`trim` keeps the exact bars. The track goes to TAPE with SYNC set to the buffer's bars, so `tape_sync_frac` puts the
+head where the transport is in the bar and it plays on in time. GRAIN's next poll gives it a fresh, silent buffer
+(`mem_alloc` zeroes a chunk), so a grain still reading the old list at the handover fades into silence rather than
+into another sound. What it keeps is what went into GRAIN (the source, before the grains), the whole buffer as it
+is: the last bars heard, frozen or not. It replaces a take as a bounce does, and takes back the arm REC's press
+made while playing. Test: a SYNTH track's bar becomes its tape (the same chunks, the counts, SYNC, no arm, no
+freeze latched), it plays with sound, GRAIN has new chunks of its own; with GRAIN off it says so and keeps the tape.
+
 ## USB record mode (2026-10-08)
 
 Recording from the computer is a mode of its own, not a source a track plays through: you go in, record, put the

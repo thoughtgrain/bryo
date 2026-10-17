@@ -735,6 +735,49 @@ static void bounce_start(void)
     ui.last = 0xFF;
 }
 
+/* REC held + the 0 key (2026-10-17, freeze to tape): the bars GRAIN holds of the focused track become its tape, at
+ * once. GRAIN's live buffer is a tape already (ADPCM blocks at 22.05 kHz in the pool's chunks, sample 0 on the bar
+ * line), so its chunks change hands (tape_replace) rather than being copied: no wait, no memory twice. The track
+ * plays its tape (a SYNTH, POLY or DRUM track becomes a TAPE track, as a bounce does), SYNC to the buffer's bars so
+ * it keeps its place in the bar as the transport runs and when the tempo moves; GRAIN starts a fresh buffer. What it
+ * holds is what went into GRAIN (the source, before the grains): the last bars heard, frozen or not. A take on the
+ * tape is replaced, as a bounce's */
+static void freeze_to_tape(void)
+{
+    uint32_t t = sys.sel, n, len, bars, nblk, k, s;
+    gr_buf_t *B = &gbuf[t];
+    uint8_t map[MEM_NC];
+    char m[40];
+    if (!ui.rec_turned && sys.playing && ((sys.rec >> t) & 1u))
+        rec_arm();                                      /* (REC's press armed it: taken back) */
+    ui.rec_turned = 1;
+    n = B->nch;
+    len = B->len;
+    bars = B->bars;
+    if (!len || !n || (sys.bounce >> t) & 1u) {
+        ui_message(!len || !n ? "NOTHING IN GRAIN: TURN ITS WET UP FIRST" : "BOUNCING: WAIT FOR IT");
+        return;
+    }
+    for (k = 0; k < n; k++)
+        map[k] = B->map[k];
+    B->len = 0;                                         /* GRAIN lets go of them: the length, then the chunks */
+    RING_PUBLISH();
+    B->nch = 0;
+    RING_PUBLISH();
+    nblk = (len + TAPE_BLK - 1u) / TAPE_BLK;
+    tape_replace(t, map, n, nblk);
+    tape_ctl[t].trim = (uint8_t)(nblk * TAPE_BLK - len);   /* (exact bars: the last block's tail past them) */
+    tp[t].src = SRC_TAPE;
+    for (s = 1u, k = bars; k > 1u; k >>= 1)
+        s++;
+    tp[t].dev[DEV_SRC][TK_SYNC] = (int16_t)(bars ? s : 0u);
+    str_cpy(m, "FROZEN TO TAPE: ", sizeof m);
+    fmt_int(m + 16, bars);
+    str_cpy(m + str_len(m), bars == 1u ? " BAR" : " BARS", 6);
+    ui_message(m);
+    ui.last = 0xFF;
+}
+
 /* the USB record mode opens (REC held a second, stopped) */
 static void usbrec_open(void)
 {
@@ -960,6 +1003,8 @@ static void on_black(uint32_t k)
             ui_message(k == BK_OP5 ? "REVERSE: TAPE TRACKS ONLY" : "HALF SPEED: TAPE TRACKS ONLY");
         else
             tk[k == BK_OP5 ? TK_REV : TK_HALF] = (int16_t)!tk[k == BK_OP5 ? TK_REV : TK_HALF];
+    } else if (k == BK_ZERO && ui.rec_held && ((fm1_in.buttons >> panel.btn[B_REC]) & 1u)) {
+        freeze_to_tape();                               /* REC held + 0: the bars GRAIN holds, to tape */
     } else if (k == BK_ZERO) {                          /* GRAIN's freeze: held, while it's held (the ISR reads
                                                          * the key); tapped, latched until the next tap */
         ui.zero_held = 1;

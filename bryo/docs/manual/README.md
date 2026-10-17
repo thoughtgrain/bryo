@@ -466,6 +466,18 @@ A take already on the tape is cleared first (hold SAVE to get it back). On a TAP
 track itself through its effects (GRAIN, RIPPLE, COLOR, CHRONOS), so a tape can be printed with its effects on it.
 Tap REC before the downbeat to call it off.
 
+### 4.3.2 Freeze to tape: the last bars, kept at once
+
+GRAIN is always listening: with its WET up it keeps the last bars that went into it (1, 2 or 4 by how many tracks
+you have) for its grains to read. **Hold REC and press black key 0** and those bars become the track's tape right
+away, with no waiting for a take. It's for the moment you hear something good and it's already gone: the bars are
+still in GRAIN.
+
+The track switches to TAPE, loops those bars in time (SYNC is set to them, so it follows the tempo), and GRAIN
+starts listening again with a fresh buffer. What lands on the tape is what went into GRAIN: the source as it was,
+before the grains. To keep the grains too, bounce instead (4.3.1). A take already on the tape is replaced. With
+GRAIN off there's nothing to keep, and the screen says so.
+
 ### 4.4 Record over a loop (overdub)
 
 **DUB** on the TAPE page (KNOB 4) sets how much of the old recording stays when you record over it: 0 replaces it,

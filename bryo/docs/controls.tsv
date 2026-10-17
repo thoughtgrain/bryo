@@ -66,6 +66,7 @@ page	BLACK_MONO	hold	held 0.5 s: clear the focused track's modulation (every dep
 page	BLACK_POLY	hold	held 0.5 s: clear the focused track's tape (a reel: the track goes back to its own tape, cleared); SAVE held undoes	now	-	PRD 2.3
 page	BLACK_ZERO	hold	momentary global granular freeze while held: every GRAIN buffer stops recording and its grains loop the held bars (SCAN TAPE: the cursor stops); FROZEN on the GRAIN page	now	-	PRD 2.3
 page	BLACK_ZERO	tap	the freeze latched until the next tap (its LED lit), as a tapped GLO latches the mixer: the right hand is free for GRAIN's knobs	now	-	change
+page	BLACK_ZERO	combo	REC held + 0: freeze to tape (ui_input.c freeze_to_tape): the bars GRAIN holds of the focused track (what went into GRAIN, the last 1, 2 or 4 bars) become its tape at once, the buffer's chunks changing hands, the track on TAPE, SYNC to those bars; GRAIN starts a fresh buffer. GRAIN off (WET 0, SCAN TAPE): said, nothing changes	now	-	change
 page:tape	WHITE_1-16	press	play from slice n of the loop (finger drumming, stutter)	now	-	PRD 2.3
 page:grain	WHITE_1-16	press	on a TAPE track: GRAIN's cursor to sixteenth n of the tape's loop (SCAN TAPE) or of the buffer (POS: the spot, DLY: the trail); the tape's head stays; stopped, grains while the key is held	now	-	PRD 2.3
 page	BLACK_POLY	release	(the key, not the POLY source engine) letting go before 0.5 s cancels the clear	now	-	change
