@@ -3303,6 +3303,29 @@ depth on it is dropped on load), and scenes keep switching it at the midpoint (`
 cased). The audit now reads 0 targets stepping; every fingerprint held. Test: not a target, kind 2 in scenes, a nudge
 refused.
 
+### The load after 2026-10-17's changes
+
+`tests/checkpoint_sim.sh 10` after GATE 400, scene tempo, freeze to tape, p-locks, SPRD on the channel and COLOR,
+and WAVE out of the targets (instructions a sample, the whole chain; the modulators' share in brackets):
+
+| Run | Before (2026-10-15) | Now |
+| --- | --- | --- |
+| 1, four reels | 1,007 | 1,020 |
+| 15, everything on | 5,169 | 5,267 |
+| 19, the groove | 1,747 | 1,779 |
+| 24, the groove modulated | 1,950 (86) | 1,987 (91) |
+| 25, 128 depths | 2,766 (480) | 2,806 (434) |
+| 29, stopped | 668 | 700 |
+| 30, one track heard | 2,302 | 2,335 |
+| 31, the factory scene | 2,718 (123) | 2,998 (120) |
+| 32, TEST | 2,900 | 2,896 |
+
+Most of the rise is the other session's work between the two (the envelopes, TAPE's tools, RIPPLE's forms, FOLLOW's
+auto-levels, the AMBIENT swell); today's own changes measured flat or lower once p-locks and SPRD stopped costing
+anything unused (run 25 went 2,818 to 3,029 with them as first written, 2,806 now: the tick's original loop runs
+when neither is at work, and no longer sums a right side nobody reads). Run 32 sits on GLITCH, now at 136 BPM. The
+stress test balances.
+
 ## USB record mode (2026-10-08)
 
 Recording from the computer is a mode of its own, not a source a track plays through: you go in, record, put the

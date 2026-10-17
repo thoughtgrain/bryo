@@ -198,20 +198,20 @@ told apart in these numbers):
 
 | Run | What | Cost |
 | --- | --- | ---: |
-| 1 | four reels, nothing on | 1,007 |
-| 19 | a realistic four-track groove | 1,747 |
-| 24 | the groove, modulated the way I'd play it | 1,950 (86 of it the modulators) |
-| 21 | the groove's busiest moment | 2,621 |
-| 23 | GRAIN at its densest on one track | 3,030 |
-| 25 | every slot on every track, 128 depths | 2,766 (480 of it the modulators) |
-| 26 | DRUM busy alone (FUNK, VARY 100, FILL 100, long decays), the others plain reels | 1,348 |
-| 27 | the groove with a DRUM track in place of its drum reel | 1,971 |
-| 28 | four DRUM tracks at once, every voice (20) | 2,408 |
-| 15 | everything on, all four tracks | 5,169 |
-| 29 | the busiest groove's devices all on, the transport stopped (what "nothing playing" costs) | 668 |
-| 30 | one track heard (dense grains, strings with RIPL ARP, a room), the other three muted | 2,302 |
-| 31 | the factory scene as it boots (AMBIENT, after 2026-10-15's swell; with the FOLLOW auto-levels) | 2,934 (120 of it the modulators) |
-| 32 | TEST, the project view's scene: every stage at work | 2,900 |
+| 1 | four reels, nothing on | 1,020 |
+| 19 | a realistic four-track groove | 1,779 |
+| 24 | the groove, modulated the way I'd play it | 1,987 (91 of it the modulators) |
+| 21 | the groove's busiest moment | 2,660 |
+| 23 | GRAIN at its densest on one track | 3,043 |
+| 25 | every slot on every track, 128 depths | 2,806 (434 of it the modulators) |
+| 26 | DRUM busy alone (FUNK, VARY 100, FILL 100, long decays), the others plain reels | 1,361 |
+| 27 | the groove with a DRUM track in place of its drum reel | 2,003 |
+| 28 | four DRUM tracks at once, every voice (20) | 2,421 |
+| 15 | everything on, all four tracks | 5,267 |
+| 29 | the busiest groove's devices all on, the transport stopped (what "nothing playing" costs) | 700 |
+| 30 | one track heard (dense grains, strings with RIPL ARP, a room), the other three muted | 2,335 |
+| 31 | the factory scene as it boots (AMBIENT, after 2026-10-15's swell; with the FOLLOW auto-levels) | 2,998 (120 of it the modulators) |
+| 32 | TEST, the project view's scene: every stage at work (GLITCH, at its scene tempo of 136 since 2026-10-17) | 2,896 |
 
 My target for a realistic four-track scene is 2,000. The first device reading (run 1, 2026-10-10: 25 %, in 5 % steps)
 puts the ratio at about 37.6 host instructions a sample per percent, if the load scales with the host's count: the
