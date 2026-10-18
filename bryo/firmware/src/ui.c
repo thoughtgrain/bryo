@@ -770,7 +770,8 @@ static void draw_foot(void)
         } else
             str_cpy(a, ui.page == 3u ? STEP[m] : "KEYS:PLAY HOLD:EDIT", sizeof a);
     } else
-        str_cpy(a, tp[sys.sel].src != SRC_TAPE ? "KEYS: NOTES" : ui.kind == FOCUS_DEV && ui.dev == DEV_GRAIN ?
+        str_cpy(a, tp[sys.sel].src != SRC_TAPE ? "KEYS: NOTES" : ui.kind == FOCUS_DEV && ui.dev == DEV_GRAIN &&
+                   !gfx_flow_on(tp[sys.sel].dev[DEV_GRAIN]) ?
                    "KEYS: GRAIN CURSOR" : "KEYS: SLICES", sizeof a);   /* (what the keys do on this page) */
     str_cpy(b, "T", sizeof b);                        /* "T2 OCT 3": the track, its keys' octave (DRUM: "T2 BAR 1/2",
                                                        * the bar STEP shows, of the pattern's) */

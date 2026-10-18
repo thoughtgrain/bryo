@@ -55,8 +55,20 @@
 #define GR_BUF_MAX (12u * TAPE_SR)   /* a buffer's most, tape samples (12 s) */
 enum { GP_SIZE, GP_RATE, GP_PTCH, GP_SPRD, GP_WET, GP_SPRY, GP_CONT, GP_REV, GP_PATN, GP_SCAL, GP_PRND, GP_ROUT, GP_SCAN,
        GP_WARP, GP_OFST, GP_FDBK, GP_BODY, GP_BMOD, GP_ROOT, GP_BTON,
-       GP_GRNS, GP_SYNC };   /* (param.c DEV_P[DEV_GRAIN]) */
+       GP_GRNS, GP_SYNC, GP_FORM, GP_APPL, GP_WOW, GP_FLUT, GP_AGE, GP_SWEL, GP_CRKL, GP_NOIS, GP_X30,
+       GP_GTYP };   /* (param.c DEV_P[DEV_GRAIN]; 22 on, 2026-10-18: the WARBLE and VINYL forms', grainfx.c; 30 unused:
+                     * GRAIN's page 6's empty place) */
+#define GP_GLCH GP_SWEL                  /* (VINYL's GLCH is WARBLE's SWEL's knob: both an amount, 0 at first) */
 enum { BODY_SRC, BODY_TRI, BODY_SIN };
+enum { GF_GRAIN, GF_WARBLE, GF_VINYL };          /* GRAIN's forms (2026-10-18, grainfx.c) */
+enum { GA_FLOW, GA_GRNS };                       /* .. where WARBLE and VINYL act: the whole sound, the grains */
+enum { GT_SKIP, GT_STCK, GT_BRAK, GT_ALL };      /* .. VINYL's glitches */
+/* GRAIN's form, and its WARBLE or VINYL on the whole sound (APPL FLOW: no grains then) */
+static inline __attribute__((always_inline)) uint32_t gfx_form(const int16_t *p)
+{
+    return (uint32_t)clamp(p[GP_FORM], 0, 2);
+}
+static inline __attribute__((always_inline)) int gfx_flow_on(const int16_t *p) { return gfx_form(p) && !p[GP_APPL]; }
 #define GR_ROOT_RES 23                /* ROOT's lowest, RES: RIPPLE's root (reso.c, after this file) */
 static int32_t reso_root16(uint32_t t);
 enum { SCAN_TAPE, SCAN_STR, SCAN_POS, SCAN_DLY };
@@ -236,7 +248,8 @@ static int HOT_CODE gr_wants(uint32_t t, int loud)
     const int16_t *p = TPD(t, DEV_GRAIN);
     uint32_t scan = (uint32_t)clamp(p[GP_SCAN], 0, 3);
     int keys = t == sys.sel && sys.keys_grain;
-    if (!trk_live(t) || p[GP_WET] <= 0 || track[t].mute)
+    if (!trk_live(t) || p[GP_WET] <= 0 || track[t].mute || gfx_flow_on(p))   /* (WARBLE, VINYL on the whole sound:
+                                                         * no grains) */
         return 0;
     if (scan == SCAN_TAPE) {
         tape_view_t v;
@@ -875,6 +888,11 @@ static inline __attribute__((always_inline)) void gr_mix(grain_t *g, const tape_
     g->pos = pos;
 }
 
+static void HOT_CODE gfx_flow(uint32_t t, const int16_t *p, const int32_t *dry, int32_t *l, int32_t *r, uint32_t n,
+                              const gr_buf_t *B, const tape_view_t *v);
+static int HOT_CODE gfx_grns(uint32_t t, const int16_t *p, int32_t *xl, int32_t *xr, uint32_t h, int any);
+static void HOT_CODE gfx_cursor(uint32_t t, const int16_t *p, int32_t *cur, int32_t was, int32_t ls, int32_t ll,
+                                uint32_t n);
 /* audio ISR: track t's GRAIN on one block. dry: the source (n samples); keys: the white keys on the GRAIN page (0
  * otherwise); frozen: the 0 key held. The track's stereo out into l and r. */
 static void HOT_CODE grain_block(uint32_t t, const int32_t *dry, uint32_t keys, int frozen, int32_t *l, int32_t *r, uint32_t n)
@@ -883,7 +901,7 @@ static void HOT_CODE grain_block(uint32_t t, const int32_t *dry, uint32_t keys, 
     gr_buf_t *B = &gbuf[t];
     const int16_t *p = TPD(t, DEV_GRAIN);
     tape_view_t v;
-    int32_t ls = 0, ll = 0, wet = p[GP_WET], i, len, live = tp[t].src != SRC_TAPE, playing = sys.playing, rec = 0;
+    int32_t ls = 0, ll = 0, wet = p[GP_WET], i, len, live = tp[t].src != SRC_TAPE, playing = sys.playing, rec = 0, was;
     uint32_t k, j, mw, press = keys & ~G->keys, scan = (uint32_t)clamp(p[GP_SCAN], 0, 3);
     G->keys = keys;
     if (!G->rng)
@@ -939,6 +957,14 @@ static void HOT_CODE grain_block(uint32_t t, const int32_t *dry, uint32_t keys, 
             gr_bcommit(B);
     }
     B->was_playing = (uint8_t)playing;
+    if (gfx_flow_on(p)) {                               /* WARBLE or VINYL on the whole sound (grainfx.c; its glitches
+                                                         * read the buffer, when there is one) */
+        tape_view_t bv;
+        bv.len = 0;
+        if (scan != SCAN_TAPE && B->len && B->nch)
+            gr_buf_view(t, &bv);
+        gfx_flow(t, p, dry, l, r, n, B, &bv);
+    }
     if (scan == SCAN_TAPE) {                            /* what grains read: the tape, or the buffer */
         tape_view(t, &v);
         len = (int32_t)v.len;
@@ -970,6 +996,7 @@ static void HOT_CODE grain_block(uint32_t t, const int32_t *dry, uint32_t keys, 
             G->wait = 0;
             break;
         }
+    was = G->cur;
     switch (scan) {                                     /* the cursor */
     case SCAN_TAPE:                                     /* WARP 100 %: the tape's own pace; frozen or stopped, still */
         G->cur += frozen || !(playing || keys) ? 0 : 2048 * p[GP_WARP] / 100 * (int32_t)n;
@@ -996,6 +1023,8 @@ static void HOT_CODE grain_block(uint32_t t, const int32_t *dry, uint32_t keys, 
         G->cur -= ll << 12;
     while (G->cur < ls << 12)
         G->cur += ll << 12;
+    if (gfx_form(p) == GF_VINYL && p[GP_APPL])         /* VINYL's glitches on the grains: their cursor */
+        gfx_cursor(t, p, &G->cur, was, ls, ll, n);
     if (scan == SCAN_STR && rec) {                      /* STR never starts grains at the seam, where the newest sound
                                                          * meets the bars-old: the cursor began on the write head at
                                                          * PLAY, and WARP's pace and the head's drift apart. It keeps
@@ -1033,7 +1062,7 @@ static void HOT_CODE grain_block(uint32_t t, const int32_t *dry, uint32_t keys, 
         }
         G->wait = 1;                                    /* (the free clock waits) */
         if (G->sb < b1) {
-            if (wet && (playing || keys || (scan != SCAN_TAPE && (live || frozen)))) {
+            if (wet && !gfx_flow_on(p) && (playing || keys || (scan != SCAN_TAPE && (live || frozen)))) {
                 gr_start(t, G, p, ls, ll, &v, scan != SCAN_TAPE && B->staged ? (int32_t)B->sblk : -1);
                 G->n++;
             }
@@ -1045,7 +1074,8 @@ static void HOT_CODE grain_block(uint32_t t, const int32_t *dry, uint32_t keys, 
         G->sync_on = 0;
         G->wait -= (int32_t)n;
     }
-    if (!p[GP_SYNC] && G->wait <= 0 && wet && (playing || keys || (scan != SCAN_TAPE && (live || frozen)))) {
+    if (!p[GP_SYNC] && G->wait <= 0 && wet && !gfx_flow_on(p) &&
+        (playing || keys || (scan != SCAN_TAPE && (live || frozen)))) {
         gr_start(t, G, p, ls, ll, &v, scan != SCAN_TAPE && B->staged ? (int32_t)B->sblk : -1);
         G->n++;
         G->wait += gr_gap(G, p);
@@ -1155,6 +1185,8 @@ static void HOT_CODE grain_block(uint32_t t, const int32_t *dry, uint32_t keys, 
                 gr_tclr(t, k);
         }
         any |= gr_body(G, p, dry, xl + 3, xr + 3, h2, any, bb);   /* BODY: a floor under the grains (out of line) */
+        if (gfx_form(p) && p[GP_APPL])                  /* WARBLE or VINYL on the grains (grainfx.c) */
+            any |= gfx_grns(t, p, xl + 3, xr + 3, h2, any);
         {                                               /* WET on the track's grains together, ramped across the block
                                                          * from last block's (no step when it's turned or modulated;
                                                          * turned to 0, they fade out over this block, then stop).

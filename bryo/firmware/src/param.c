@@ -75,6 +75,10 @@ static const char *const N_GSCAL[2 + NSCALE] = {"OFF", "KEY", SCALE_NAMES};
 static const char *const N_ROOMS[2] = {"A", "B"};       /* SPACE's ROOM: the shared room a track sends to */
 static const char *const N_QUAL[2] = {"HI", "LO"};      /* a room's QUAL: 22.05 or 11.025 kHz */
 static const char *const N_RTYPE[4] = {"ROOM", "PLAT", "HALL", "SPRG"};   /* a room's TYPE (space.c SP_TYPE) */
+static const char *const N_GFORM[3] = {"GRAIN", "WARBLE", "VINYL"};   /* GRAIN's forms (2026-10-18, grainfx.c) */
+static const char *const N_GAPPL[2] = {"FLOW", "GRNS"};
+static const char *const N_GTYP[4] = {"SKIP", "STCK", "BRAK", "ALL"};   /* VINYL's glitch: a jump back a groove, a
+                                                                        * stuck groove, the platter braked, any */
 #define GR_GRNS_MAX 40                /* GRAIN's GRNS: the most it can hold (the pool for one track, grain.c GR_POOL) */
 static const char *const N_GRNS[1 + GR_GRNS_MAX] = {"AUTO", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40"};
 static const char *const N_RSCAL[13] = {"HARM", "MAJ", "MIN", "PEN", "SUS2", "SUS4", "DOM7", "MAJ7", "MIN7", "DIM",
@@ -243,7 +247,16 @@ static const pdesc_t DEV_P[NDEV][NPK] = {
          * the AUTO tracks first (grain.c gr_plan_into). Not a modulation target: it's the pool's split */
         {"GRNS", 0, GR_GRNS_MAX, 0, F_ENUM, N_GRNS, 1},
         /* SYNC: RATE in the tempo's divisions (1 bar .. 1/64), the grains on that grid, PATN shaping it (grain.c) */
-        {"SYNC", 0, 1, 0, F_ENUM, N_OFFON, 1}},
+        {"SYNC", 0, 1, 0, F_ENUM, N_OFFON, 1},
+        /* 22 (2026-10-18): GRAIN's forms, picked as RIPPLE's are (EDIT held + SELECT on GRAIN's pages): GRAIN, WARBLE
+         * (a tape's wow and flutter) or VINYL (a record's crackle, hiss, wear, warp and its needle's glitches),
+         * grainfx.c. APPL: on the whole sound as it flows through (FLOW) or on the grains (GRNS, GRAIN's grains as
+         * set in the GRAIN form). Then each form's: WOW (both), FLUT, AGE (VINYL's WEAR), SWEL (the warble kicked by
+         * each hit), CRKL, NOIS, GLCH (a glitch's chance a turn of the record) and its TYPE */
+        {"FORM", 0, 2, 0, F_ENUM, N_GFORM, 1}, {"APPL", 0, 1, 0, F_ENUM, N_GAPPL, 1},
+        {"WOW", 0, 100, 30, F_PCT}, {"FLUT", 0, 100, 20, F_PCT}, {"AGE", 0, 100, 25, F_PCT},
+        {"SWEL", 0, 100, 0, F_PCT}, {"CRKL", 0, 100, 35, F_PCT}, {"NOIS", 0, 100, 20, F_PCT},
+        {""}, {"TYPE", 0, 3, 3, F_ENUM, N_GTYP, 1}},   /* (27, SWEL: VINYL's GLCH too; 30: GRAIN page 6's empty) */
     RS_DESC("DEC", "TONE", RS_EVEN, RS_POL, RS_FOCS, RS_WDTH, RS_FLOW),   /* RIPPLE (the S-4's RING): the storage,
                                                     * every form's knobs (the projects, modulation and scenes read
                                                     * it); each form's pages its own table (RS_STR_P, RS_FORM_P) */
@@ -284,6 +297,19 @@ static const pdesc_t RS_STR_P[NPK] = RS_DESC("DEC", "TONE", {""}, {""}, {""}, {"
 static const pdesc_t RS_FORM_P[3][NPK] = {RS_DESC("FDBK", "TONE", {""}, RS_POL, {""}, {""}, RS_FLOW),
                                           RS_DESC("RING", "TILT", RS_EVEN, {""}, RS_FOCS, RS_WDTH, RS_FLOW),
                                           RS_DESC("RING", "TILT", RS_EVEN, {""}, RS_FOCS, RS_WDTH, RS_FLOW)};
+/* GRAIN's WARBLE and VINYL forms (2026-10-18): their pages' labels over GRAIN's storage (DEV_P[DEV_GRAIN], whose 22-31
+ * are theirs); the grains' knobs keep their values, unlabelled here: GRNS plays the grains as the GRAIN form sets
+ * them */
+#define GX_E {""}
+#define GX_WET {"WET", 0, 100, 0, F_PCT}
+#define GX_GRAINS GX_E, GX_E, GX_E, GX_E, GX_WET, GX_E, GX_E, GX_E, GX_E, GX_E, GX_E, P_ROUT, GX_E, GX_E, GX_E,      \
+        GX_E, GX_E, GX_E, GX_E, GX_E, GX_E, GX_E, {"FORM", 0, 2, 0, F_ENUM, N_GFORM, 1},                         \
+        {"APPL", 0, 1, 0, F_ENUM, N_GAPPL, 1}, {"WOW", 0, 100, 30, F_PCT}
+static const pdesc_t GR_WB_P[NPK] = {GX_GRAINS, {"FLUT", 0, 100, 20, F_PCT},
+                                     {"AGE", 0, 100, 25, F_PCT}, {"SWEL", 0, 100, 0, F_PCT}};
+static const pdesc_t GR_VN_P[NPK] = {GX_GRAINS, GX_E, {"WEAR", 0, 100, 25, F_PCT}, {"GLCH", 0, 100, 0, F_PCT},
+                                     {"CRKL", 0, 100, 35, F_PCT}, {"NOIS", 0, 100, 20, F_PCT}, GX_E,
+                                     {"TYPE", 0, 3, 3, F_ENUM, N_GTYP, 1}};
 
 /* The source engines: what starts a track's chain (docs/bryo-architecture.md, "Source engines"). TAPE's knobs are
  * DEV_P[DEV_SRC]; each other source has its own table, and each track keeps every source's values, so switching
@@ -674,7 +700,7 @@ static const playout_t PLAYOUT[] = {
                                                      * pages: OP6 flips it, and PTCH -12 is the same) */
     /* the effects open with their mix: ROUT and WET KNOB 3-4 of page 1 (SPACE: DLY and VERB, its sends), so the
      * first press of EDIT or FX can bring one in; the sound's knobs follow (2026-10-11) */
-    {DEV_P[DEV_GRAIN], 6, {0, 1, 11, 4, 2, 3, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23}},
+    {DEV_P[DEV_GRAIN], 6, {0, 1, 11, 4, 2, 3, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 30}},
                                                     /* GRAIN: SIZE RATE ROUT WET, PTCH SPRD SPRY CONT, REV PATN SCAL
                                                      * PRND, SCAN.., BODY.., GRNS */
     /* RIPPLE, every form (2026-10-13): PTCH DEC ROUT WET, SCAL TONE DRV RIPL (what rings), CUT RES TYPE . (the
@@ -702,6 +728,9 @@ static const playout_t PLAYOUT[] = {
                                                      * ARP, its rhythm */
     {RS_FORM_P[2], 8, {1, 2, 8, 3, 24, 25, 26, 21, 0, 7, 17, 18, 4, 5, 6, 16, 19, 20, 9, 10, 11, 22, 23, 31, 12, 13,
                        14, 15, 27, 28, 29, 30}},                    /* 12-BAND: the same */
+    {GR_WB_P, 2, {24, 25, 11, 4, 26, 27, 22, 23}},   /* WARBLE: WOW FLUT ROUT WET, AGE SWEL FORM APPL */
+    {GR_VN_P, 3, {28, 29, 11, 4, 24, 26, 22, 23, 27, 31, 0, 1}},   /* VINYL: CRKL NOIS ROUT WET, WOW WEAR FORM APPL,
+                                                                   * GLCH TYPE */
     {DEV_P[DEV_COLOR], 3, {0, 1, 9, 7, 2, 3, 4, 5, 6, 10, 11, 8}},              /* COLOR: DRV CRSH ROUT WET, NOIS TILT
                                                                                  * NDEC NTON, CMOD . . LVL */
     {DEV_P[DEV_SPACE], 5, {0, 1, 4, 5, 12, 6, 7, 15, 13, 14, 18, 19, 2, 16, 3, 8, 11, 9, 17, 10}},   /* CHRONOS
@@ -866,6 +895,10 @@ static const pdesc_t *dev_p(uint32_t t, uint32_t d)
              : tp[t].syn[SY_WAVE] == SY_VOX ? SYN_VX_P : SYN_WT_P;
     if (d == DEV_SRC && tp[t].src == SRC_SYNTH)
         return SYN_CL_P;                                 /* (the classic waves' pages: SYN_P is the storage) */
+    if (d == DEV_GRAIN) {                                /* (GRAIN: its form's, 2026-10-18) */
+        uint32_t m = (uint32_t)clamp(tp[t].dev[DEV_GRAIN][22], 0, 2);
+        return m == 1u ? GR_WB_P : m == 2u ? GR_VN_P : DEV_P[DEV_GRAIN];
+    }
     if (d == DEV_RESO) {                                 /* (RIPPLE: its form's) */
         uint32_t m = (uint32_t)clamp(tp[t].dev[DEV_RESO][16], 0, 3);
         return m ? RS_FORM_P[m - 1u] : RS_STR_P;
@@ -886,7 +919,8 @@ static const char *dev_name(uint32_t t, uint32_t d)
                            ? (tp[t].syn[SY_WAVE] == SY_FM ? "FM SYNTH" : tp[t].syn[SY_WAVE] == SY_PD ? "PD SYNTH"
                               : tp[t].syn[SY_WAVE] == SY_VOX ? "VOX SYNTH" : "WT SYNTH")
                            : SRC_NAME[tp[t].src % NSRC])
-           : d == DEV_RESO ? RS_FORM_NAME[clamp(tp[t].dev[DEV_RESO][16], 0, 3)] : DEV_NAME[d];
+           : d == DEV_RESO ? RS_FORM_NAME[clamp(tp[t].dev[DEV_RESO][16], 0, 3)]
+           : d == DEV_GRAIN ? N_GFORM[clamp(tp[t].dev[DEV_GRAIN][22], 0, 2)] : DEV_NAME[d];
 }
 
 static void drm_defaults(uint32_t t);   /* drum.c: the pattern a DRUM track starts with */

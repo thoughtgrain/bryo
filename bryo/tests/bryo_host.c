@@ -77,6 +77,7 @@ static void ui_redraw(void);
 #include "../firmware/src/arp.c"
 #include "../firmware/src/source.c"
 #include "../firmware/src/grain.c"
+#include "../firmware/src/grainfx.c"
 #include "../firmware/src/reso.c"
 #include "../firmware/src/color.c"
 #include "../firmware/src/space.c"
@@ -8222,7 +8223,8 @@ static void test_mod(void)
             {SYN_VX_P, 0, "LVL"}, {SYN_WT_P, 0, "LVL"},
             {POL_P, 0, "LVL"},
             {DRM_P, 0, "LVL"},
-            {DEV_P[DEV_COLOR], 0, "LVL", 0, "ROUT", "WET"}, {DEV_P[DEV_GRAIN], 0, 0, 0, "ROUT", "WET"},
+            {DEV_P[DEV_COLOR], 0, "LVL", 0, "ROUT", "WET"}, {DEV_P[DEV_GRAIN], 0, 0, 0xBF800000u, "ROUT", "WET"},
+            {GR_WB_P, 0, 0, 0, "ROUT", "WET"}, {GR_VN_P, 0, 0, 0, "ROUT", "WET"},   /* (23-31: the forms') */
             {RS_STR_P, 0, 0, 0, "ROUT", "WET"},   /* (12-15: RIPL ARP, RIPPLE's last page since 2026-10-18; 16,
                                                    * the form: EDIT held + SELECT, and page 5 since 2026-10-14) */
             {RS_FORM_P[0], 0, 0, 0, "ROUT", "WET"}, {RS_FORM_P[1], 0, 0, 0, "ROUT", "WET"},
@@ -8431,7 +8433,20 @@ static void test_mod(void)
         check("..at most 32 depths a track (the 33rd is refused)", n == MOD_MAX && mod_count(0) == MOD_MAX &&
               mod_slot_count(0, 1) + mod_slot_count(0, 2) + mod_slot_count(0, 3) == MOD_MAX - MOD_SLOT_MAX);
         render(2, 0);
-        check("..and they all run", TPD(0, DEV_GRAIN) == mda[0][DEV_GRAIN] && TPD(0, DEV_RESO) == mda[0][DEV_RESO]);
+        {                                                /* (every device with a depth reads its modulated copy) */
+            uint32_t d, i, ok = 1;
+            for (d = DEV_GRAIN; d < NDEV; d++) {
+                int has = 0;
+                for (i = 0; i < mdl[0].n; i++) {
+                    uint32_t k;
+                    has |= mod_tarr(mdl[0].e[i].g, &k) == d;
+                }
+                if (has)
+                    ok &= TPD(0, d) == mda[0][d];
+            }
+            check("..and they all run (each device with a depth reads its modulated copy)", ok &&
+                  TPD(0, DEV_GRAIN) == mda[0][DEV_GRAIN]);
+        }
     }
     power_on();
     {                                                    /* the depths are a short sorted list a track */
@@ -11185,6 +11200,234 @@ static void test_arp_long(void)
     render(4, 0);
 }
 /* the arpeggiator's HOLD, and scenes holding the arpeggiator (2026-10-18) */
+/* GRAIN's WARBLE and VINYL forms (2026-10-18, grainfx.c) */
+static int32_t gx_dry[CTL], gx_l[CTL], gx_r[CTL];
+static uint32_t gx_ph;
+/* a block of a 1 kHz sine at amp through track 0's FLOW (its l side into out, if given) */
+static void gx_block(int32_t amp, int32_t *out)
+{
+    tape_view_t v;
+    uint32_t i;
+    v.len = 0;
+    for (i = 0; i < CTL; i++) {
+        gx_ph += 97391549u;                              /* (1 kHz) */
+        gx_dry[i] = (sine_i(gx_ph) * amp) >> 15;
+        gx_l[i] = gx_r[i] = 0;
+    }
+    gfx_flow(0, TPD(0, DEV_GRAIN), gx_dry, gx_l, gx_r, CTL, &gbuf[0], &v);
+    if (out)
+        for (i = 0; i < CTL; i++)
+            out[i] = gx_l[i];
+}
+/* the spread of a 1 kHz sine's periods over nb blocks of FLOW, in thousandths (its upward zero crossings, to the
+ * sample, against the 44.1 a period) */
+static int32_t gx_spread(uint32_t nb)
+{
+    static int32_t o[CTL];
+    int32_t last = 0, prev = 0, lo = 1 << 20, hi = 0, at = 0, b, i;
+    for (b = 0; b < (int32_t)nb; b++) {
+        gx_block(16000, o);
+        for (i = 0; i < (int32_t)CTL; i++, at++) {
+            if (prev < 0 && o[i] >= 0) {
+                if (last && b > 40) {                    /* (past the line's first fill) */
+                    int32_t per = at - last;
+                    lo = per < lo ? per : lo;
+                    hi = per > hi ? per : hi;
+                }
+                last = at;
+            }
+            prev = o[i];
+        }
+    }
+    return hi > lo ? (hi - lo) * 1000 / 44 : 0;
+}
+static void test_grain_forms(void)
+{
+    int16_t *p = tp[0].dev[DEV_GRAIN];
+    static int32_t o[CTL * 200];
+    uint32_t b, i, ticks;
+    int32_t sp0, sp1, e;
+    char m[200];
+    power_on();
+    check("GRAIN's forms: GRAIN at first, its knobs as they were; 22-31 the forms' (FORM APPL WOW FLUT AGE SWEL CRKL "
+          "NOIS . TYPE)", p[GP_FORM] == GF_GRAIN && dev_p(0, DEV_GRAIN) == DEV_P[DEV_GRAIN] &&
+          !strcmp(DEV_P[DEV_GRAIN][GP_GTYP].label, "TYPE") && !strcmp(GR_VN_P[GP_GLCH].label, "GLCH"));
+    focus_dev(DEV_GRAIN, 0);
+    hold(B_EDIT);
+    host_enc[panel.enc[EN_SELECT]] = 1;
+    ui_input();
+    let_go(B_EDIT);
+    check("EDIT held + SELECT on GRAIN's page: WARBLE (WOW FLUT ROUT WET, AGE SWEL FORM APPL), its name in the header",
+          p[GP_FORM] == GF_WARBLE && !strcmp(dev_name(0, DEV_GRAIN), "WARBLE") &&
+          pdesc_pages(dev_p(0, DEV_GRAIN)) == 2u &&
+          ui.dev == DEV_GRAIN && sys.bpm == 120);
+    p[GP_WET] = 70;
+    p[GP_WOW] = 45;
+    p[GP_FLUT] = 30;
+    render(8, 0);
+    shot("BRYO", "warble");
+    hold(B_EDIT);
+    host_enc[panel.enc[EN_SELECT]] = 1;
+    ui_input();
+    let_go(B_EDIT);
+    check("..again: VINYL (CRKL NOIS ROUT WET, WOW WEAR FORM APPL, GLCH TYPE)", p[GP_FORM] == GF_VINYL &&
+          pdesc_pages(dev_p(0, DEV_GRAIN)) == 3u && !strcmp(dev_name(0, DEV_GRAIN), "VINYL"));
+    p[GP_CRKL] = 60;
+    p[GP_NOIS] = 40;
+    p[GP_GLCH] = 25;
+    p[GP_GTYP] = GT_STCK;
+    render(8, 0);
+    shot("BRYO", "vinyl");
+    p[GP_GLCH] = 0;
+    p[GP_FORM] = GF_WARBLE;
+    p[GP_WET] = 100;
+    gfx_poll();
+    check("..WET up: a line from the shared memory (one chunk)", gfx[0].nch == 1u && mem_count(MEM_GFX) == 1u);
+    p[GP_WOW] = p[GP_FLUT] = p[GP_AGE] = 0;
+    for (b = 0; b < 200u; b++)
+        gx_block(16000, o + b * CTL);
+    for (e = 0, i = 100u * CTL; i < 200u * CTL; i++) {
+        int32_t d;                                       /* (against the sine 440 samples back: the line's delay) */
+        uint32_t ph = gx_ph - (uint32_t)(200u * CTL - i) * 97391549u - 440u * 97391549u + 97391549u;
+        d = o[i] - ((sine_i(ph) * 16000) >> 15);
+        e = (d < 0 ? -d : d) > e ? (d < 0 ? -d : d) : e;
+    }
+    snprintf(m, sizeof m, "WARBLE, WOW FLUT AGE 0, WET 100: the sound 10 ms late, as it was (off by %d at most: WET "
+             "100 is 4095/4096, as GRAIN's)", e);
+    check(m, e <= 6);
+    sp0 = gx_spread(300);
+    p[GP_WOW] = 100;
+    sp1 = gx_spread(1400);
+    snprintf(m, sizeof m, "..WOW 100: a 1 kHz tone's periods spread %d/1000 (steady: %d/1000)", sp1, sp0);
+    check(m, sp0 <= 25 && sp1 >= 45);
+    p[GP_WOW] = 0;
+    p[GP_FLUT] = 100;
+    sp1 = gx_spread(300);
+    snprintf(m, sizeof m, "..FLUT 100: a quick flutter, %d/1000", sp1);
+    check(m, sp1 >= 45);
+    p[GP_FLUT] = 0;
+    p[GP_WOW] = 60;
+    p[GP_SWEL] = 100;
+    for (b = 0; b < 200u; b++)
+        gx_block(3000, 0);
+    e = gfx[0].msm;
+    gx_block(0, 0);
+    for (b = 0; b < 3u; b++)
+        gx_block(26000, 0);
+    for (b = 0; b < 30u; b++)
+        gx_block(3000, 0);
+    snprintf(m, sizeof m, "..SWEL 100: a steady sound barely wobbles (depth %d), a hit kicks it (%d), then it settles",
+             e, gfx[0].msm);
+    check(m, e < 2000 && gfx[0].msm > 20000);
+    for (b = 0; b < 2000u; b++)
+        gx_block(3000, 0);
+    check("..settled again", gfx[0].msm < 3000);
+    {                                                    /* (WOW FLUT 100, a hit's kick at 1.5: the swing reaches
+                                                          * past the 10 ms base; the read stays inside the line) */
+        int32_t lo = 1 << 30, hi = 0;
+        p[GP_WOW] = p[GP_FLUT] = 100;
+        for (b = 0; b < 3000u; b++) {
+            gx_block(b % 300u < 4u ? 26000 : 3000, 0);
+            lo = gfx[0].d0 < lo ? gfx[0].d0 : lo;
+            hi = gfx[0].d0 > hi ? gfx[0].d0 : hi;
+        }
+        snprintf(m, sizeof m, "..WOW FLUT SWEL 100, hits: the delay held inside the line (%d to %d of %u samples)",
+                 lo >> 8, hi >> 8, (unsigned)GX_LINE);
+        check(m, lo >= 256 && hi <= (int32_t)(GX_LINE - 2u) << 8 && lo >> 8 < 40);
+        p[GP_FLUT] = 0;
+        p[GP_WOW] = 60;
+    }
+    p[GP_SWEL] = 0;
+
+    /* VINYL: the surface while it plays */
+    p[GP_FORM] = GF_VINYL;
+    p[GP_WOW] = p[GP_AGE] = p[GP_NOIS] = 0;
+    p[GP_CRKL] = 100;
+    sys.playing = 1;
+    for (ticks = 0, b = 0; b < 1378u; b++) {             /* (a second of silence) */
+        gx_block(0, o);
+        for (i = 0; i < CTL; i++)
+            ticks += (o[i] < 0 ? -o[i] : o[i]) > 150 && (i == 0 || (o[i - 1] < 0 ? -o[i - 1] : o[i - 1]) <= 150);
+    }
+    snprintf(m, sizeof m, "VINYL, CRKL 100, playing silence: the needle's crackle (%u ticks and pops a second)", ticks);
+    check(m, ticks > 60u && ticks < 2000u);
+    p[GP_CRKL] = 0;
+    p[GP_NOIS] = 60;
+    for (e = 0, b = 0; b < 200u; b++) {
+        gx_block(0, o);
+        for (i = 0; i < CTL; i++)
+            e = (o[i] < 0 ? -o[i] : o[i]) > e ? (o[i] < 0 ? -o[i] : o[i]) : e;
+    }
+    snprintf(m, sizeof m, "..CRKL 0, NOIS 60: hiss alone (peak %d)", e);
+    check(m, e > 300 && e < 8000);
+    p[GP_NOIS] = 0;
+    p[GP_AGE] = 60;                                      /* (WEAR: both filters, their state left by the hiss) */
+    for (e = 0, b = 0; b < 200u; b++) {
+        gx_block(0, o);
+        for (i = 0; i < CTL; i++)
+            e |= b >= 100u ? o[i] : 0;
+    }
+    check("..CRKL 0, NOIS 0, WEAR 60: silence settles to silence (no filter stuck off 0: a DC offset)", e == 0);
+    p[GP_AGE] = 0;
+
+    /* a glitch: its turn comes round, GLCH 100 */
+    {
+        int32_t cur = 1000 << 12, was = cur;
+        p[GP_GLCH] = 100;
+        p[GP_GTYP] = GT_SKIP;
+        gfx[0].turn = 0;
+        gfx_cursor(0, p, &cur, was, 0, 200000, (uint32_t)GX_TURN);
+        check("VINYL on the grains, GLCH 100, SKIP: at the turn the cursor jumps back a groove (half a turn of the "
+              "buffer's samples)", cur == ((1000 - GX_TURN / 2 + 200000) << 12));
+        p[GP_GTYP] = GT_STCK;
+        cur = was = 50000 << 12;
+        gfx[0].turn = 0;
+        gfx_cursor(0, p, &cur, was, 0, 200000, (uint32_t)GX_TURN);
+        e = gfx[0].reps;
+        for (b = 0; b < 3u; b++) {
+            cur += 4096 << 4;
+            gfx_cursor(0, p, &cur, cur, 0, 200000, (uint32_t)GX_TURN / 2u + 1u);
+        }
+        check("..STCK: a stuck groove, sent back to where it stuck for one to three more turns",
+              e >= 1 && e <= 3 && (cur >> 12) <= 50000 + 64);
+        gfx[0].gk = 0;
+        p[GP_GTYP] = GT_BRAK;
+        cur = was = 50000 << 12;
+        gfx[0].turn = 0;
+        gfx_cursor(0, p, &cur, was, 0, 200000, (uint32_t)GX_TURN);
+        cur = was + (32 << 12);
+        for (b = 0; b < 600u; b++)                       /* (into the still part: 0.45 s) */
+            gfx_cursor(0, p, &cur, cur, 0, 200000, CTL), cur += 32 << 12;
+        was = cur;
+        cur += 32 << 12;
+        gfx_cursor(0, p, &cur, was, 0, 200000, CTL);
+        check("..BRAK: the cursor's pace down to a stop", cur == was && gfx[0].gk == 1u + GT_BRAK);
+        gfx[0].gk = 0;
+        p[GP_GLCH] = 0;
+    }
+    sys.playing = 0;
+
+    /* in the chain: FLOW starts no grains, GRNS plays them through the form */
+    power_on();
+    sys.playing = 1;
+    p[GP_WET] = 100;
+    p[GP_FORM] = GF_WARBLE;
+    gfx_poll();
+    grain_poll();
+    render(1378, 0);
+    check("WARBLE on the whole sound (FLOW): no grains start, the pool isn't asked", grain_count(0) == 0u &&
+          !gr_wants(0, 1));
+    p[GP_APPL] = GA_GRNS;
+    render(1378, 0);
+    check("..APPL GRNS: GRAIN's grains (as its knobs are), through the warble", grain_count(0) > 0u);
+    p[GP_FORM] = GF_GRAIN;
+    gfx_poll();
+    check("..back to GRAIN: the line given back", gfx[0].nch == 0u && mem_count(MEM_GFX) == 0u);
+    sys.playing = 0;
+    p[GP_WET] = 0;
+    render(4, 0);
+}
+
 /* the arpeggiator's rhythm (2026-10-18): which steps play, PATN's presets and the keys, VARY and EVOL, RIPL ARP's */
 static void test_arp_rhythm(void)
 {
@@ -12018,6 +12261,7 @@ int main(int argc, char **argv)
     test_arp_long();
     test_arp_hold();
     test_arp_rhythm();
+    test_grain_forms();
     test_arp_sources();
     test_factory_scene();
     test_pj_keys();

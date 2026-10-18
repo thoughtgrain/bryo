@@ -968,6 +968,65 @@ grain somewhere inside it.
 
 <img src="img/grain6.png" width="240" alt="GRAIN 6: GRNS 12; 4 OF 12 HELD">
 
+### 6.4.3 GRAIN's forms: WARBLE and VINYL
+
+GRAIN has forms, the way RIPPLE does. **Hold EDIT and turn SELECT** while you're on one of GRAIN's pages: GRAIN,
+**WARBLE**, **VINYL**, round. The name in the header changes, and so do the pages and the picture. FORM is also a knob
+on the last page of each form (KNOB 3 on GRAIN 6 and on the forms' page 2), so you can reach it without the gesture.
+
+Both new forms are about the medium a sound lives on: a tape that wobbles, a record that crackles. They each have
+**APPL** (KNOB 4 on page 2), which says where the form acts:
+
+- **APPL FLOW** (the default): the whole sound, as it flows through. No grains start; WET mixes the treated sound in
+  the way it mixes the grains (ROUT INS crossfades, SEND adds). This is the one to use on a tape, a synth, a drum
+  loop: anything you want to sound like it went through a worn machine.
+- **APPL GRNS**: the grains. GRAIN's grain knobs keep their values (you set them on the GRAIN form), and the grains
+  go through the warble or the record before WET. Switch to the GRAIN form to shape the cloud, then back.
+
+**WARBLE** is a tape machine with a tired motor:
+
+1. **WARBLE 1**: **WOW** (the slow wander of the speed, about 0.6 times a second, with a random drift in it, so the
+   pitch sags and rises), **FLUT** (the fast flicker, about 7 times a second), then ROUT and WET.
+2. **WARBLE 2**: **AGE** (darker and a little saturated: at 100 the top is rolled off at about 1.3 kHz, a cassette
+   that's been played too often), **SWEL**, then FORM and APPL.
+3. **SWEL** is the tape lurching as each hit lands: every hit kicks the wobble deeper, and it settles again in a few
+   hundred milliseconds. At 0 the wobble is steady; at 100 only the hits wobble and the rest plays straight. On a drum
+   loop it's the bass drum bending the pitch of everything around it.
+
+The picture is the next two seconds of the tape's speed as one wandering line (WOW makes it wide, FLUT makes it
+jitter), with SWEL's depth as a bar on the right.
+
+<img src="img/warble.png" width="240" alt="WARBLE 1: WOW 45, FLUT 30, ROUT INS, WET 70; the speed's line wandering">
+
+**VINYL** is a record, its surface and its needle:
+
+1. **VINYL 1**: **CRKL** (the dust: ticks and the odd pop, about 150 ticks and 8 pops a second at 100; it rises
+   gently at first, so the low settings stay subtle), **NOIS** (the groove's hiss), then ROUT and WET. The surface only
+   plays while something plays: a stopped track with nothing coming in is silent, as a lifted needle is.
+2. **VINYL 2**: **WOW** (here it's the record's warp: once a turn, about 0.56 times a second, at 33 1/3), **WEAR**
+   (AGE's darkening plus a thinner low end, as a worn pressing), FORM, APPL.
+3. **VINYL 3**: **GLCH** and **TYPE**. A turn takes 1.8 s, and at each one GLCH is the chance of a glitch:
+   - **SKIP**: the needle jumps back a groove: the last turn plays once more.
+   - **STCK**: a stuck groove: the last turn two to four times over, then on.
+   - **BRAK**: a hand on the platter: down to a stop, still for a moment, back up to speed (under a second all told).
+   - **ALL**: any of the three.
+
+   On FLOW a glitch reads GRAIN's own buffer (the last bars, which keeps recording as it always has), so it needs
+   GRAIN's buffer: SCAN on STR, POS or DLY (not TAPE). On GRNS it moves the grains' cursor instead.
+
+The picture is the record turning (its dust as CRKL scatters it, the needle where the turn is), the groove's hiss and
+crackle beside it, and the glitch's name when one happens (SKIP!, STUCK!, BRAKE!). Under it: ON THE SOUND or ON THE
+GRAINS.
+
+<img src="img/vinyl.png" width="240" alt="VINYL 1: CRKL 60, NOIS 40, ROUT INS, WET 70; the record and its groove; STCK 25%/TURN">
+
+Every knob of both forms can be modulated (FORM, APPL and TYPE are switches and stay out). An LFO on WOW makes the
+wobble come and go; SEQ on CRKL puts dust on some steps and not others.
+
+Memory: each form takes a short line (24 ms) from the shared sound memory while WET is up, and gives it back when you
+switch to GRAIN or turn WET to 0. If the memory is all in use, the form's share stays silent until some frees up
+(on ROUT INS you hear the dry sound turned down by WET, as GRAIN does with no buffer).
+
 ### 6.5 RIPPLE: strings, combs, resonators
 
 The track rings through something tuned: four strings like a sitar's sympathetic strings, or one of three other
@@ -1404,7 +1463,7 @@ M-VAVE's updater puts the stock firmware back. Bryo's projects and tapes can't b
 | **GLO** (black key) held | lean the tempo forward 4 % while held |
 | **HOME** | the source's pages |
 | **HOME** held + SELECT | change the source |
-| **EDIT** held + SELECT | RIPPLE's form (RIPPLE, COMB, RESO, 12-BAND) |
+| **EDIT** held + SELECT | the form of the device shown: RIPPLE's (RIPPLE, COMB, RESO, 12-BAND) or GRAIN's (GRAIN, WARBLE, VINYL) |
 | **EDIT** | GRAIN's or RIPPLE's pages, round; held + OCT- / OCT+: GRAIN / RIPPLE |
 | **FX** | COLOR's or CHRONOS's pages, round; held + OCT- / OCT+: COLOR / CHRONOS |
 | **ENV** | the source's shaping pages (envelope, filter, kit) |

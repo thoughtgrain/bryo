@@ -96,6 +96,13 @@ static void setup(uint32_t g)
             tp[0].pol[PL_SUS] = 30;
         if (g == MOD_TG(DEV_RESO, RP_RES))
             tp[0].dev[DEV_RESO][RP_CUT] = 60;
+        if (g >= MOD_TG(DEV_GRAIN, GP_WOW) && g <= MOD_TG(DEV_GRAIN, GP_NOIS)) {   /* (2026-10-18: their form, on
+                                                      * the whole sound: WARBLE's WOW FLUT AGE SWEL, VINYL's CRKL
+                                                      * NOIS) */
+            tp[0].dev[DEV_GRAIN][GP_FORM] = g >= MOD_TG(DEV_GRAIN, GP_CRKL) ? GF_VINYL : GF_WARBLE;
+            tp[0].dev[DEV_GRAIN][GP_APPL] = GA_FLOW;
+            gfx_poll();                                  /* (its line) */
+        }
         if (g == MOD_TG(DEV_GRAIN, GP_ROOT) || g == MOD_TG(DEV_GRAIN, GP_BTON)) {   /* (BODY up; ROOT: a wave) */
             tp[0].dev[DEV_GRAIN][GP_BODY] = 60;
             if (g == MOD_TG(DEV_GRAIN, GP_ROOT))

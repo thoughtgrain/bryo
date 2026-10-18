@@ -1710,7 +1710,9 @@ static void ui_input(void)
                               !(drm_step_page() && sys.drum_mode == DMODE_HITS));   /* under GLO the white keys pick
                                                                 * the track, on a SEQ page the steps, on DRUM's STEP
                                                                 * (HITS, ACC) the bar's steps: they don't play */
-    sys.keys_grain = (uint8_t)(ui.view == VIEW_PAGE && ui.kind == FOCUS_DEV && ui.dev == DEV_GRAIN);
+    sys.keys_grain = (uint8_t)(ui.view == VIEW_PAGE && ui.kind == FOCUS_DEV && ui.dev == DEV_GRAIN &&
+                               !gfx_flow_on(tp[sys.sel].dev[DEV_GRAIN]));   /* (WARBLE, VINYL on the sound: no
+                                                         * cursor to move, the keys play) */
     sys.keys_rarp = (uint8_t)(rarp_page() && !rhy_page());   /* (RIPL ARP, RIPPLE's: the keys its arpeggio's) */
     sys.keys_reso = (uint8_t)(ui.view == VIEW_PAGE && ui.kind == FOCUS_DEV && ui.dev == DEV_RESO && !sys.keys_rarp &&
                               !rhy_page());
@@ -1799,6 +1801,18 @@ static void ui_input(void)
                     ui_message(m);
                 }
             }
+        } else if (ui.pg_pad == B_EDIT && pad_down() && ui.view == VIEW_PAGE && ui.kind == FOCUS_DEV &&
+                   ui.dev == DEV_GRAIN) {
+            /* EDIT held + SELECT on GRAIN's pages (2026-10-18): GRAIN's form, GRAIN WARBLE VINYL (grainfx.c), round;
+             * the page kept where the new form has it, else its last */
+            int16_t *m = &tp[sys.sel].dev[DEV_GRAIN][GP_FORM];
+            uint32_t np;
+            *m = (int16_t)(((int32_t)*m + d % 3 + 3) % 3);
+            np = pdesc_pages(dev_p(sys.sel, DEV_GRAIN));
+            if (ui.page >= np)
+                ui.page = (uint8_t)(np - 1u);
+            ui.last = 0xFF;
+            ui.pg_used = 1;
         } else if (ui.pg_pad == B_EDIT && pad_down() && ui.view == VIEW_PAGE) {
             /* EDIT held + SELECT, from any page: RIPPLE's form (RIPPLE's strings, COMB, RESO, 12-BAND: reso.c
              * RM_*), shown on its first page (from RIPPLE's own pages: the page stays, every form's are alike);

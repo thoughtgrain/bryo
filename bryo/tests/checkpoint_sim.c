@@ -134,6 +134,24 @@ static double run(int n, char *say, size_t sz)
         play(6);
         snprintf(say, sz, "the factory scene");
         return 6;
+    case 33:                                             /* the factory scene, T3 on VINYL (the whole sound, a glitch
+                                                          * most turns), T2 on WARBLE (2026-10-18) */
+    case 34:                                             /* .. T3's grains through WARBLE (GRNS) */
+        pj_wipe();
+        pj_boot();
+        sys.playing = 1;
+        tp[2].dev[DEV_GRAIN][GP_FORM] = n == 33 ? GF_VINYL : GF_WARBLE;
+        tp[2].dev[DEV_GRAIN][GP_APPL] = n == 33 ? GA_FLOW : GA_GRNS;
+        tp[2].dev[DEV_GRAIN][GP_GLCH] = n == 33 ? 60 : 0;
+        if (n == 33) {
+            tp[1].dev[DEV_GRAIN][GP_FORM] = GF_WARBLE;
+            tp[1].dev[DEV_GRAIN][GP_WET] = 70;
+            tp[1].dev[DEV_GRAIN][GP_SWEL] = 50;
+        }
+        play(6);
+        snprintf(say, sz, n == 33 ? "the factory scene, T3 on VINYL, T2 on WARBLE" : "the factory scene, T3's grains "
+                 "through WARBLE");
+        return 6;
     case 32:                                             /* TEST (the project view, past FACTORY): every stage at work */
         pj_wipe();
         pj_test();
@@ -830,7 +848,7 @@ int main(int argc, char **argv)
     if (argc > 1 && !strcmp(argv[1], "fp")) {            /* every run's audio fingerprint (the suite compares them
                                                           * with tests/bryo_audio.txt; "fp update" writes it) */
         static const int RUNS[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
-                                   25, 26, 27, 28, 29, 30, 31, 32};
+                                   25, 26, 27, 28, 29, 30, 31, 32, 33, 34};
         uint32_t k;
         FILE *f = argc > 3 && !strcmp(argv[2], "update") ? fopen(argv[3], "w") : 0;
         int bad = 0;

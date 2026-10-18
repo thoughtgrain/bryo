@@ -81,6 +81,7 @@ static void ui_redraw(void);
 #include "arp.c"                 /* the arpeggiator: the keys into one note at a time, in time */
 #include "source.c"              /* the source engines a track starts with */
 #include "grain.c"               /* GRAIN: grains of the track's tape */
+#include "grainfx.c"             /* GRAIN's WARBLE and VINYL forms */
 #include "reso.c"                /* RIPPLE: four tuned strings */
 #include "color.c"               /* COLOR: drive, crush, noise, tilt */
 #include "space.c"               /* SPACE: the delay and the room */

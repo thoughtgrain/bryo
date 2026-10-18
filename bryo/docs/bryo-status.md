@@ -99,7 +99,7 @@ One core, no RTOS. Three contexts, and the rules between them are most of the ar
 **Memory.** Sound lives in one pool of 108 chunks (20.1 s of tape-format sound: `mem.c`) handed out by use: tapes as
 long as what's on them, GRAIN's live buffers, RIPPLE's strings and CHRONOS's lines while they're on. Nothing is
 set aside per track. When it runs short: a cleared tape's chunks first, then a parked track's tape, then the end of
-the longest tape. Main RAM holds 87.3 of 96 KB (.data+.bss: the grain slots and the audio's constant tables among it; the stacks have their own RAM), the pool 257.7 of 264 KiB, the code in RAM (`.hot`) about 61.5 of 72 KiB (2026-10-18; 32-bit
+the longest tape. Main RAM holds 89.1 of 96 KB (.data+.bss: the grain slots and the audio's constant tables among it; the stacks have their own RAM), the pool 257.7 of 264 KiB, the code in RAM (`.hot`) about 65.8 of 72 KiB (2026-10-18, after WARBLE and VINYL; 32-bit
 build: the firmware preprocessed, its inline assembly taken out, compiled `-m32 -Os`, `size -A`; `.hot` scaled by 0.63, its ratio to the device build at `f4a6bc9`).
 
 **Parameters.** `param.c` holds every knob as an integer in its own range (`tp[t]`), with a descriptor (name,
@@ -129,6 +129,7 @@ Felucca's `felucca.c` did); `tests/bryo_host.c` includes the same files for the 
 | `arp.c` | the arpeggiator: the keys into one at a time, in time, before the source (notes, slices, drums); RIPPLE's arpeggio runs the same core (`arp_run`) |
 | `drum_voice.c`, `drum.c` | DRUM: the one synthesizer every instrument shares; the kit, the rhythms, SEED's versions, the player |
 | `grain.c` | GRAIN: the live buffer, the scheduler, the shared pool of grains |
+| `grainfx.c` | GRAIN's WARBLE and VINYL forms: the line, the wow and flutter, AGE and WEAR, the surface, the glitches |
 | `reso.c`, `color.c`, `space.c` | RIPPLE, COLOR, CHRONOS |
 | `mixer.c` | the channel strips and the master compressor |
 | `usbrec.c` | the USB record mode (the endpoint itself is in `usb.c`) |
@@ -212,6 +213,8 @@ told apart in these numbers):
 | 30 | one track heard (dense grains, strings with RIPL ARP, a room), the other three muted | 2,335 |
 | 31 | the factory scene as it boots (AMBIENT at 80 BPM in its hall, its chords held, nothing stepping, 2026-10-18) | 2,998 |
 | 32 | TEST, the project view's scene: every stage at work (GLITCH, at its scene tempo of 136 since 2026-10-17) | 2,896 |
+| 33 | the factory scene, T3 on VINYL over the whole sound (GLCH 60: a glitch most turns), T2 on WARBLE (SWEL 50) (2026-10-18) | 3,328 |
+| 34 | the factory scene, T3's grains through WARBLE (APPL GRNS) (2026-10-18) | 3,093 |
 
 My target for a realistic four-track scene is 2,000. The first device reading (run 1, 2026-10-10: 25 %, in 5 % steps)
 puts the ratio at about 37.6 host instructions a sample per percent, if the load scales with the host's count: the
@@ -254,6 +257,11 @@ number.
   four), split by what each track's settings ask for when it runs short; what's left over is everyone's (since
   2026-10-11: a track alone has all 40, not just what RATE and SIZE ask). GRAIN 6's GRNS can hold a number for a
   track instead (1-40, taken from the AUTO tracks first, kept whatever the others do).
+- **2026-10-18: GRAIN's WARBLE and VINYL.** GRAIN has forms now, as RIPPLE does (EDIT held + SELECT on its pages,
+  or FORM): GRAIN, WARBLE (a tape's WOW and FLUT, AGE, SWEL: each hit kicks the wobble deeper, then it settles) and
+  VINYL (CRKL dust and pops, NOIS hiss, the record's warp, WEAR, and at each 1.8 s turn GLCH's chance of a SKIP, a
+  stuck groove or a brake). APPL picks where: FLOW, the whole sound (any source, no grains), or GRNS, the grains. A
+  24 ms line from the shared memory while it's on. Runs 1-32's fingerprints unchanged; run 33 3,328, run 34 3,093.
 - **2026-10-18: the arpeggiator has a rhythm.** ARP's page 3, RHYTHM: PATN writes a rhythm (ALL OFF 8TH 332 GLOP
   CLAV SKIP SPRS) over 16 steps the white keys toggle, LEN 1-16 steps round, VARY drops steps and plays rests as
   DRUM's VARY does, EVOL a new version every n rounds. A rest doesn't move the melody. RIPL ARP has the same, on

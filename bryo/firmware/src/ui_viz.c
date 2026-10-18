@@ -275,6 +275,66 @@ static int32_t gr_wrap(int32_t d, int32_t ll)
     return d;
 }
 
+/* GRAIN's WARBLE and VINYL (2026-10-18). WARBLE: the next two seconds of the tape's speed, the wow and the flutter as
+ * one wandering line (the deeper, the wider), SWEL's kick a bar at the right. VINYL: the record, its grooves, its dust
+ * as CRKL scatters it, the needle where the turn is; beside it the groove's hiss and, when one comes, the glitch.
+ * Under them: where it acts (FLOW, GRNS) and the knob last turned */
+static void viz_gfx(const int16_t *v, uint32_t f)
+{
+    const gfx_t *X = &gfx[sys.sel];
+    uint32_t form = gfx_form(v), i;
+    const pdesc_t *d = dev_p(sys.sel, DEV_GRAIN);
+    if (form == GF_WARBLE) {
+        int32_t w = clamp(v[GP_WOW], 0, 100), fl = clamp(v[GP_FLUT], 0, 100), py = DMID;
+        px_line(DX0, DMID, DX1 - 6, DMID, px_dim, 3);
+        for (i = 0; i <= (uint32_t)(DW - 6); i++) {
+            uint32_t at = i * 760u;                     /* (two seconds over the plot: 760 samples a dot) */
+            int32_t y = (sine_i(X->wph + 58450u * at) * w * 14 / 100 + sine_i(X->fph + 711000u * at) * fl * 4 / 100)
+                        >> 15;
+            y = DMID - y;
+            if (i)
+                px_line(DX0 + (int32_t)i - 1, py, DX0 + (int32_t)i, y, px_ink, 1);
+            py = y;
+        }
+        if (v[GP_SWEL] > 0) {                           /* (SWEL: the kick's depth now) */
+            int32_t hh = clamp(X->msm >> 10, 0, DH);
+            px_frame(DX1 - 3, DY0, 4, DH, px_dim, 1);
+            px_box(DX1 - 3, DY1 - hh, 4, hh, px_live);
+        }
+    } else {
+        int32_t cx = 18, cy = 17, r, a = (int32_t)(X->turn / (GX_TURN / 64));
+        for (r = 4; r <= 16; r += 3)                    /* (the grooves) */
+            px_ring(cx, cy, r, r == 4 ? px_ink : px_dim, 2);
+        vz_seed = 4242u;
+        for (i = 0; i < (uint32_t)clamp(v[GP_CRKL], 0, 100) / 4u; i++) {   /* (the dust) */
+            int32_t da = (int32_t)(vz_rand() % 64u), dr = 5 + (int32_t)(vz_rand() % 11u);
+            px_dot(px_px(cx, dr, da), px_py(cy, dr, da), px_ink);
+        }
+        px_line(cx, cy, px_px(cx, 16, a), px_py(cy, 16, a), px_live, 1);   /* (the needle's place in the turn) */
+        vz_seed = 77u + X->turn / 4410u;
+        for (i = 40u; i <= 116u; i++) {                 /* (the groove: its hiss at NOIS, a pop where CRKL has one) */
+            int32_t n = (int32_t)(vz_rand() % 9u) - 4, h = n * clamp(v[GP_NOIS], 0, 100) / 50;
+            if (vz_rand() % 100u < (uint32_t)clamp(v[GP_CRKL], 0, 100) / 6u)
+                h = (vz_rand() & 1u) ? 8 : -8;
+            px_dot((int32_t)i, DMID + 4 + h, px_ink);   /* (under the glitch's line) */
+        }
+        if (X->gk) {
+            static const char *const GN[3] = {"SKIP!", "STUCK!", "BRAKE!"};
+            px_tag(60, DY0 + 1, PXF_3, GN[(X->gk - 1u) % 3u], px_live, px_bg);
+        } else if (v[GP_GLCH] > 0) {
+            char b[20];
+            str_cpy(b, N_GTYP[clamp(v[GP_GTYP], 0, 3)], 6);
+            str_cpy(b + str_len(b), " ", 2);
+            fmt_int(b + str_len(b), v[GP_GLCH]);
+            str_cpy(b + str_len(b), "%/TURN", 7);
+            px_text(60, DY0 + 1, PXF_3, b, px_dim);
+        }
+    }
+    px_text(DX0, DLBL, PXF_3, v[GP_APPL] ? "ON THE GRAINS" : "ON THE SOUND", px_ink);
+    if (f < NPK && !pdesc_empty(&d[f]) && f != GP_APPL)
+        vz_ktag(118, DLBL - 1, &d[f], v[f]);
+}
+
 static void viz_grain(const int16_t *v, uint32_t f)
 {
     /* A field of the grains as they sound, not the whole sample. Across: where a grain reads; up and down: its pitch
@@ -2877,6 +2937,12 @@ static uint32_t viz_sig(void)
         h = (h ^ (tape_ver[sys.sel] * 31u)) * 16777619u;
     if (ui.kind == FOCUS_DEV && ((ui.dev == DEV_SRC && tp[sys.sel].src == SRC_TAPE) || ui.dev == DEV_GRAIN))   /* the tape, the head */
         h = (h ^ (tape_ver[sys.sel] * 31u + (uint32_t)(tape_head(sys.sel) * DW / 1000 + 7) + sys.rec * 977u)) * 16777619u;
+    if (ui.kind == FOCUS_DEV && ui.dev == DEV_GRAIN && gfx_form(tp[sys.sel].dev[DEV_GRAIN])) {   /* WARBLE, VINYL:
+                                                                                     * their motion, the record's turn */
+        const gfx_t *X = &gfx[sys.sel];
+        h = (h ^ ((X->wph >> 26) + (X->fph >> 27) * 64u + (X->turn >> 13) * 4096u + X->gk * 65536u +
+                  (uint32_t)(X->msm >> 11) * 1048576u + sys.playing * 31u)) * 16777619u;
+    }
     if (ui.kind == FOCUS_SLOT && tp[sys.sel].engine[ui.slot] == ME_FOLLOW) {
         for (t = 0; t < NTRK; t++)
             h = (h ^ tape_ver[t]) * 16777619u;
@@ -2969,7 +3035,12 @@ static void draw_viz(void)
                 else
                     viz_tape(v, f);
                 break;
-            case DEV_GRAIN: viz_grain(v, f); break;
+            case DEV_GRAIN:
+                if (gfx_form(v))                        /* (WARBLE, VINYL: their own pictures) */
+                    viz_gfx(v, f);
+                else
+                    viz_grain(v, f);
+                break;
             case DEV_RESO: {                                    /* (a key's root shows as PTCH's) */
                 int16_t rv[NPK];
                 uint32_t k;

@@ -3515,6 +3515,89 @@ Tests (`test_arp_rhythm`): the defaults; PATN 8TH written; a key toggling a step
 step with C E G in order through the rests; VARY dropping and adding steps, the same every round with EVOL OFF and
 another with EVOL 1, exactly as written at 0; save and load; RIPL ARP's PATN writing its own mask, not the track's.
 
+### GRAIN's WARBLE and VINYL (2026-10-18)
+
+The ask was a warble that tapes could use too, and a vinyl one with noise, distortion, crackle and the record's
+glitches, maybe as "a new granular engine, like we have different filters". So I built them the way RIPPLE has forms:
+GRAIN gets a FORM knob (GRAIN, WARBLE, VINYL) and EDIT held + SELECT on GRAIN's pages cycles it. The choices I asked
+about: the forms live in GRAIN (not a new device), SWEL makes the warble swell on each hit, the glitches are SKIP,
+STCK (a stuck groove) and BRAK (a spin-down), and where the form acts is a knob, APPL.
+
+**Why a form of GRAIN and not its own device.** GRAIN already has the pieces both need: a WET and ROUT, a recording
+buffer of the last bars (which is what a skipping needle jumps back into), a cursor (what a stuck groove holds), and
+the half-rate grain mix to process. A new device would have meant a new page pad, a new slot in every track's chain
+and its memory, and new project fields. As a form, every new knob lands in GRAIN's existing storage (`DEV_P[DEV_GRAIN]`
+22-31, which RIPPLE-style form tables `GR_WB_P` and `GR_VN_P` label), so projects, presets, scenes and modulation
+picked them up for free.
+
+**APPL.** FLOW (0, the default) processes the whole sound, the device's input, at the output rate: `grain_block` calls
+`gfx_flow` right after the buffer records, and it adds the treated sound to l/r at WET, the dry share already set as
+for the grains (INS crossfades, SEND adds). No grains start (`gr_wants` returns 0 and both start conditions check
+`gfx_flow_on`), so the pool isn't asked and the cost of the grains goes away. GRNS (1) leaves the grains as the GRAIN
+form sets them and runs the form on their half-rate mix (`gfx_grns`, after `gr_body`, before WET), each side its own
+half of the line. GRAIN's white keys move the grains' cursor, so on FLOW they're the source's keys again (`keys_grain`
+is skipped and the footer stops saying GRAIN CURSOR).
+
+**The line.** Both forms are a short delay line read at a moving delay: one 2,112 B chunk of the shared sound memory
+(`MEM_GFX + t`), 1,056 samples, taken by `gfx_poll` (main loop, after `grain_poll`) while the form isn't GRAIN and
+WET's modulated peak is above 0, and given back otherwise, as RIPPLE's strings are. Stored at half level because the
+chain runs past full scale. The base delay is 10 ms on FLOW (440 samples) and the same 10 ms on GRNS (220 at the half
+rate), Q8 with linear interpolation. The delay's target is computed once a block (`gfx_delay`) and ramped per sample to
+it, so a fast LFO on WOW never steps. It's clamped to the line (1 sample to its length less 2): WOW and FLUT at 100
+swing +-422 samples, inside the base, but SWEL's kick takes that to 1.5 times, past it, and a negative delay read
+outside the line. I found that writing the ranges down here, not in a test; there's one now (WOW FLUT SWEL 100 with
+hits: the delay reaches 1 and stays inside). At the clamp the pitch just stops bending for a moment.
+
+- **WARBLE**: wow is a 0.6 Hz sine plus a random glide (a new target once a wow cycle, smoothed by >>9 a block), up
+  to +-400 samples (+-9 ms) at 100; flutter is 7.3 Hz plus a sine at 1.5 times that, +-22 samples. **SWEL**: a hit
+  (the block's peak over 1,500 and over twice the slow level + 400) sets a kick to full; the kick decays by 1/256 a
+  block (about 190 ms to a third), and the depth goes from steady (SWEL 0) to only the kick (SWEL 100), reaching 1.5
+  times at the hit. AGE is a one-pole low-pass (32767 - AGE x 270, about 1.3 kHz at 100) and a linear mix toward a
+  soft clip of the sound by AGE: linear, so a modulated AGE ramps rather than steps.
+- **VINYL**: the same line with the record's warp (0.5556 Hz, 33 1/3, three parts sine and one the glide) at WOW;
+  WEAR is AGE plus a high-pass (40 to 160 Hz) for a thin worn pressing. The surface (`GX_SURFACE`): hiss is noise
+  low-passed by >>2, at NOIS (about -31 dB at 100); dust ticks ring a few samples with the sign flipping (crisp), and
+  pops are a short decaying thump, their chances CRKL squared (about 150 ticks and 8 pops a second at 100), so the
+  low settings are sparse. The surface only plays while the needle is down: the transport playing, something coming
+  in, or a source that isn't a tape.
+- **Glitches** (`gfx_roll`): a turn is 79,380 output samples (1.8 s); at each one, GLCH's chance of TYPE's glitch
+  (ALL picks one). On FLOW (`gfx_glitch`) a private `grain_t` reader reads GRAIN's ADPCM buffer through `gr_read`
+  and crossfades in over 10 ms: SKIP plays the last turn once (half a turn of the buffer's 22.05 kHz samples back),
+  STCK plays it 2 to 4 times, BRAK plays from just behind the write head at a pace that falls to 0 over 0.35 s,
+  holds 0.15 s, and comes back up over 0.35 s (`gfx_brake`, Q10). With SCAN TAPE there's no buffer, so no glitches.
+  On GRNS (`gfx_cursor`) the glitch moves GRAIN's cursor instead: SKIP jumps it back at once, STCK returns it to the
+  same place each pass, BRAK scales its movement by the same pace.
+
+**Overflow and steps.** The modulation audit found two real problems. The first was an int32 overflow in the
+low-pass: `(y - lp) * a` with y past full scale and a in Q15. It's Q13 inside now (`(a + 1) >> 2`, so AGE 0 is exact
+unity). The glitch crossfade had the same overflow and halves the difference first. The second was a ramp rounding
+past its target and making a negative high-pass coefficient (unstable): the ramps now use a truncating divide (toward
+0) once a block and land exactly on the target. With those, `mod_audit.sh` reports 0 targets stepping, the six new
+ones included. Then a third, from a test: both filters' states were Q0, and an arithmetic shift rounds toward minus
+infinity, so a state a little below 0 never decayed (the high-pass's dead band was 32768 / its coefficient, up to 160
+samples' worth): silence came out as a small DC offset, which would also keep the devices after it from resting on
+silence. Both states are Q8 now, read back rounded, and silence after the hiss settles to exactly 0 (tested at WEAR
+60).
+
+**The screens** (`viz_gfx`): WARBLE draws the next two seconds of the speed (WOW and FLUT's sines from the live
+phases) and SWEL's depth as a bar; VINYL draws the record (grooves, dust as CRKL scatters it, the needle at the turn's
+position), the groove's hiss and pops beside it, and the glitch's name while one runs, or TYPE and GLCH as a chance a
+turn. The bottom line is ON THE SOUND or ON THE GRAINS.
+
+**Cost** (callgrind, host instructions a sample of `chain_block`). `gfx_flow` is about 100 a sample in its loop and
+165 with its block setup, a track. Keeping the filter, the surface and the line's index in locals didn't move it at
+-O2 (the compiler already had them in registers); the target compiler may do worse without that, so I left the locals.
+Run 33 (the factory scene with T3 on VINYL FLOW, GLCH 60, and T2 on WARBLE FLOW, SWEL 50) is 3,328 against the
+scene's 2,998: T3's grains stop, which gives some back. Run 34 (T3's grains through WARBLE, GRNS) is 3,093. On the
+i386 measure `.hot` grows 6.1 KB (about 3.8 KiB on the device: about 65.8 of 72 KiB) and `.bss` 1.8 KB (`gfx_t` x 4,
+most of it the FLOW reader). Runs 1-32's fingerprints are unchanged: with FORM at GRAIN nothing new runs.
+
+Tests (`test_grain_forms`): EDIT held + SELECT cycling GRAIN, WARBLE, VINYL with their names, labels and page counts;
+the line taken and freed; WOW, FLUT and AGE at 0 with WET 100 giving the sound 10 ms late; WOW and FLUT each moving
+the delay over its range; SWEL's kick and its settling; CRKL on silence (the needle's ticks and pops a second) and
+silence after it (WEAR 60, exactly 0); the delay inside the line at WOW FLUT SWEL 100; SKIP, STCK and BRAK on the cursor; FLOW starting no grains, GRNS keeping them. Two screen
+shots (warble, vinyl) are in the goldens and the manual.
+
 ## USB record mode (2026-10-08)
 
 Recording from the computer is a mode of its own, not a source a track plays through: you go in, record, put the

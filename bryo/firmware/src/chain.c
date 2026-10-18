@@ -364,6 +364,7 @@ static void chain_poll(void)
     tape_poll();
     drm_poll();
     grain_poll();
+    gfx_poll();
     reso_poll();
     wt_poll();                                          /* (SYNTH WT: its tables' memory, synth.c) */
     space_poll();

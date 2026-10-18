@@ -239,3 +239,14 @@ After it, on the i386 measure: main RAM .data+.bss 87.3 of 96 KB, the pool 257.7
 build wants 8), `.hot` 97.7 KB (about 61.5 of 72 KiB on the device). Every audio fingerprint is unchanged: it's
 the same code in another place. What it buys can only be read on the FM-1: TEST's CPU, SRC's line most of all, and
 the factory scene's. If the theory holds, SRC drops a few points where a SYNTH track plays.
+
+**WARBLE and VINYL (2026-10-18).** GRAIN's two new forms (`grainfx.c`) are `HOT_CODE` from the start: they run every
+sample on FLOW. `gfx_flow` is about 100 host instructions a sample in its loop and 165 with its block's setup, a
+track: the line's write and interpolated read (about 31), AGE's filters and curve (25), the surface (12 on VINYL). I
+tried keeping the filters', the surface's and the line's state in locals for the block, so the line's stores can't
+make the compiler reload them; at -O2 on the host it changed nothing (they were in registers already), but I kept it,
+since the target's compiler is older and gets less from alias analysis. Run 33 (VINYL and WARBLE on the factory
+scene's sound) is 3,328 against the scene's 2,998, run 34 (WARBLE on T3's grains) 3,093. `.hot` grows about 3.8 KiB
+on the device (about 65.8 of 72), `.bss` 1.8 KB. The glitch reader costs nothing between glitches (it returns before
+its loop); during one it decodes GRAIN's ADPCM buffer, a grain's worth. If the FM-1 reads high on run 33, the line's
+interpolation and AGE's curve (which only runs while AGE or WEAR is above 0) are the places to look.
