@@ -254,6 +254,9 @@ number.
   four), split by what each track's settings ask for when it runs short; what's left over is everyone's (since
   2026-10-11: a track alone has all 40, not just what RATE and SIZE ask). GRAIN 6's GRNS can hold a number for a
   track instead (1-40, taken from the AUTO tracks first, kept whatever the others do).
+- **2026-10-18: drum clicks.** A drum struck while its voice still rang faded the old sound through the new hit's
+  coefficients (filter, pitch, level): a jump of up to 28 % of the peak on every accented repeat and stolen voice.
+  The new hit's coefficients now wait for the fade.
 - **2026-10-18: TWIN's spike fixed.** MIX or XFD turned on with more than two notes sounding left voices 3 and 4
   reading both reels through one block reader: a block decoded every sample, 50 times the load while they rang. They
   fade out over the block now, and both reels use the fast block read (MIX is cheaper than plain POLY with four).

@@ -10794,6 +10794,41 @@ static uint32_t arp_steps(uint32_t t, uint32_t blocks, uint8_t *seq, uint32_t ma
 
 /* the ARP pad's arpeggio on TAPE (its slices) and DRUM (its drums), and RIPPLE's own (its page 3) */
 /* the arpeggiator's FADE, a note's key taking it out, and the keys' LEDs (2026-10-15) */
+/* a drum voice struck again while it rings fades under its own sound (2026-10-18, "clicks with drums") */
+static double drm_fade_err(int restrike)
+{
+    static int32_t blk[CTL];
+    static int32_t ref[CTL];
+    uint32_t b;
+    double e = 0, pk = 1;
+    int k;
+    for (k = 0; k < 2; k++) {
+        uint32_t i;
+        power_on();
+        tp[0].src = SRC_DRUM;
+        for (b = 1; b < NTRK; b++)
+            track[b].mute = 1;
+        drm_strike(0, tp[0].drm, DI_BD, 0, 0);           /* a kick, unaccented */
+        render(40, 0);
+        if (k && restrike)
+            drm_strike(0, tp[0].drm, DI_BD, 1, 0);       /* again, accented: other coefficients */
+        render(1, k ? blk : ref);
+        for (i = 0; k && i < CTL; i++) {
+            double want = (double)ref[i] * (double)(CTL - 1u - i) / CTL;
+            e = fabs(blk[i] - want) > e ? fabs(blk[i] - want) : e;
+            pk = fabs((double)ref[i]) > pk ? fabs((double)ref[i]) : pk;
+        }
+    }
+    return e / pk;
+}
+static void test_drum_steal(void)
+{
+    double e = drm_fade_err(1);
+    char m[200];
+    snprintf(m, sizeof m, "DRUM: a kick struck again (accented) while it rings: the fading block is the old kick going "
+             "down, not the old kick through the new hit's coefficients (off by %.3f of its peak)", e);
+    check(m, e < 0.05);
+}
 static uint32_t key_of_white(uint32_t w)
 {
     uint32_t n;
@@ -11664,6 +11699,7 @@ int main(int argc, char **argv)
     test_tpresets();
     test_tpfactory();
     test_arp_keys();
+    test_drum_steal();
     test_arp_fade();
     test_arp_long();
     test_arp_sources();

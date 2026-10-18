@@ -423,6 +423,14 @@ static void HOT_CODE drm_step(uint32_t t, const int16_t *p, uint32_t v, uint32_t
 static uint32_t drm_cap = DRM_NV;    /* the voices a track may use now: chain_shed lowers it (down to 2) when the
                                       * audio runs out of time, a calm second raises it again (drm_recover) */
 static uint32_t drm_calm;
+/* a hit on a voice that still rings (2026-10-18, "clicks with drums"): the voice fades what it rings over one block
+ * and strikes the next (drum_voice.c dk_run), but the hit set the voice's coefficients at once, so the fading block
+ * played the old sound through the new instrument's filter, pitch and gains: a jump. Now the new hit's instrument and
+ * knobs wait here (main RAM: a few bytes, not a second set of coefficients) and the coefficients are built when the
+ * strike starts */
+static dk_knobs_t drm_pk[NTRK][DRM_NV];
+static uint8_t drm_pi[NTRK][DRM_NV];
+static uint8_t drm_pend[NTRK];               /* the voices with a hit waiting for their fade, a bit each */
 #define DRM_STEP (1u << 14)          /* a sixteenth, in beats Q16 */
 typedef struct {                     /* audio ISR only */
     dk_coef_t c[DRM_NV];
@@ -532,7 +540,15 @@ static void HOT_CODE drm_strike(uint32_t t, const int16_t *p, uint32_t i, uint32
     k.accent = (uint8_t)(acc ? clamp(p[DM_ACNT], 0, 100) * 127 / 100 : 0);
     k.drive = (uint8_t)(clamp(p[DM_DRV], 0, 100) * 127 / 100);
     k.tran = (uint8_t)(clamp(p[DM_TRAN], 0, 100) * 127 / 100);
-    dk_setup(&r->c[j], &DRM_KIT[i], &k);
+    if (r->v[j].live) {                                  /* (ringing: it fades a block first, under its own
+                                                          * coefficients; the new ones when it's struck) */
+        drm_pk[t][j] = k;
+        drm_pi[t][j] = (uint8_t)i;
+        drm_pend[t] |= (uint8_t)(1u << j);
+    } else {
+        dk_setup(&r->c[j], &DRM_KIT[i], &k);
+        drm_pend[t] &= (uint8_t)~(1u << j);
+    }
     dk_trigger(&r->v[j]);
     r->inst[j] = (uint8_t)i;
     r->age[j] = ++r->n;
@@ -619,7 +635,12 @@ static void HOT_CODE drm_block(uint32_t t, uint32_t keys, const int32_t *rec, in
     for (j = drm_cap; j < DRM_NV; j++)                  /* over the cap (shed): its tail ends in 1.5 ms, no click */
         if (r->v[j].live && !r->v[j].choke)
             dk_choke(&r->v[j]);
-    for (j = 0; j < DRM_NV; j++)
+    for (j = 0; j < DRM_NV; j++) {
+        if (((drm_pend[t] >> j) & 1u) && !r->v[j].live) {   /* (its fade done: the waiting hit's coefficients) */
+            dk_setup(&r->c[j], &DRM_KIT[drm_pi[t][j] % DRM_NINST], &drm_pk[t][j]);
+            drm_pend[t] &= (uint8_t)~(1u << j);
+        }
         if (r->v[j].live || r->v[j].trig)
             dk_run(&r->c[j], &r->v[j], out, n);         /* (each voice adds itself into out) */
+    }
 }

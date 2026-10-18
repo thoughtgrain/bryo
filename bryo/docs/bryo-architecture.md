@@ -3357,6 +3357,19 @@ heads: no call, bounds check or block lookup a sample), so steady MIX with two v
 POLY with four (it was about 880). Every fingerprint held. Test: MIX turned on with four notes sounding, voices 3 and
 4 silent within the block, the largest sample step 308.
 
+### Drum clicks: a restruck voice faded through the wrong coefficients (2026-10-18)
+
+"I am hearing some clicks that aren't related to CPU. Happening with drums." Since 2026-10-14 a voice struck while it
+rings (its own instrument again, or the oldest taken when all five ring) fades what it rings over one block and
+strikes the next. But `drm_strike` wrote the new hit's coefficients (`dk_setup`) into the voice at once, so the fading
+block rendered the old sound's state through the new hit's filter, pitch, gains and level: a jump at the block's
+start. Any repeat with another accent or a ghost level does it, and every stolen voice: in a busy pattern, often.
+Now a hit on a ringing voice leaves its instrument and knobs waiting (`drm_pk`, `drm_pi`, `drm_pend`: a few bytes in
+main RAM, not a second set of 116-byte coefficients per voice in the nearly full low pool); `drm_block` builds the
+coefficients when the fade is done, just before the strike. Test (`test_drum_steal`): a kick struck again accented
+while it rings; the fading block against the unstruck run's ramped down: off by 28 % of the kick's peak before, 1.2 %
+now. Runs 26, 27, 28 and 32 (the ones with drums) have new fingerprints; the rest held.
+
 ## USB record mode (2026-10-08)
 
 Recording from the computer is a mode of its own, not a source a track plays through: you go in, record, put the
