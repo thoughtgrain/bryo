@@ -102,10 +102,15 @@ turn a knob, no menus) before reading about it, so the panel drawing is the stag
 - Every screen is a real render from the manual, picked so it matches the step. Where no render exists for a moment
   (GRAIN switched on but stopped, say), I ordered the steps so the picture is always true.
 - If the fetch fails, the plain `<img>` panel stays and the steps and screen still work.
+- The layout keeps a step in one view: panel and screen side by side on desktop, with one caption bar under both
+  (numbered step markers, the step's words, Prev, Play and Next). On a phone it's panel, caption, then screen, so
+  the words sit right under the hands, and the routines scroll sideways in one row. It used to list every step in
+  a column beside the panel, which made the section twice as tall as the panel and pushed the buttons out of view.
 
 It plays by itself only while it's on screen and the tab is visible, never with `prefers-reduced-motion`, and stops
 once you use Prev, Next or a step (then each step is announced in a polite live region). The panel itself is
-`aria-hidden`: the numbered steps say in words what the hands are doing.
+`aria-hidden`: the caption says in words what the hands are doing, and each numbered step marker
+carries its step's words as its label.
 
 ## Accessibility
 

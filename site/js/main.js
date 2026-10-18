@@ -206,11 +206,12 @@
     var panelBox = $("[data-tour-panel]", root);
     var screen = $("[data-tour-screen]", root);
     var label = $("[data-tour-label]", root);
-    var list = $("[data-tour-steps]", root);
+    var progress = $("[data-tour-progress]", root);
+    var say = $("[data-tour-say]", root);
     var live = $("[data-tour-live]", root);
     var playBtn = $("[data-tour-play]", root);
     var routineBtns = $$("[data-routine]", root);
-    if (!panelBox || !screen || !list || !playBtn) return;
+    if (!panelBox || !screen || !progress || !say || !playBtn) return;
 
     var svg = null;           // the inline panel, once it's loaded
     var routine = "pages";
@@ -261,16 +262,17 @@
       if (inner) inner.setAttribute("href", src(st.screen));
     }
 
+    // one numbered marker a step: a quick way to jump, and a glance at how far along the routine is
     function renderList() {
-      list.innerHTML = "";
+      progress.innerHTML = "";
       TOUR[routine].steps.forEach(function (st, i) {
-        var li = document.createElement("li");
         var b = document.createElement("button");
         b.type = "button";
-        b.textContent = st.say;
+        b.className = "tour__dot";
+        b.textContent = String(i + 1);
+        b.setAttribute("aria-label", "Step " + (i + 1) + ": " + st.say);
         b.addEventListener("click", function () { manual(); go(i, true); });
-        li.appendChild(b);
-        list.appendChild(li);
+        progress.appendChild(b);
       });
     }
 
@@ -282,9 +284,10 @@
       clearClasses();
       if (index === 0) resetKnobs();
 
-      $$("li", list).forEach(function (li, n) {
-        if (n === index) li.setAttribute("aria-current", "step"); else li.removeAttribute("aria-current");
+      $$("button", progress).forEach(function (b, n) {
+        if (n === index) b.setAttribute("aria-current", "step"); else b.removeAttribute("aria-current");
       });
+      say.textContent = st.say;
 
       (st.hold || []).forEach(function (n) { var g = ctl(n); if (g) g.classList.add("is-hold"); });
       var turns = st.turn || {};

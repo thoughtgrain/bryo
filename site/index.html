@@ -133,14 +133,13 @@
             <div class="tour__panel" data-tour-panel>
               <img src="img/panel.svg" width="960" height="540" alt="The FM-1's panel, labelled for Bryo.">
             </div>
-            <div class="tour__side">
-              <figure class="screen tour__screen">
-                <img class="pixelated" src="img/tape.png" width="480" height="480" alt="The TAPE page" data-tour-screen>
-                <figcaption class="px" data-tour-label>Home / Tape</figcaption>
-              </figure>
-              <ol class="tour__steps" data-tour-steps>
-                <li aria-current="step"><button type="button">Press HOME. You're on the track's source, here the TAPE page.</button></li>
-              </ol>
+            <figure class="screen tour__screen">
+              <img class="pixelated" src="img/tape.png" width="480" height="480" alt="The TAPE page" data-tour-screen>
+              <figcaption class="px" data-tour-label>Home / Tape</figcaption>
+            </figure>
+            <div class="tour__caption">
+              <div class="tour__progress" role="group" aria-label="Steps" data-tour-progress></div>
+              <p class="tour__say" data-tour-say>Press HOME. You're on the track's source, here the TAPE page.</p>
               <div class="tour__controls">
                 <button class="btn" type="button" data-tour-prev aria-label="Previous step">&lt;</button>
                 <button class="btn" type="button" data-tour-play aria-pressed="false">Pause</button>
