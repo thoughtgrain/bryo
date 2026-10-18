@@ -49,7 +49,7 @@
 
 /* the knobs (param.c DEV_P[DEV_SRC]) */
 enum { TK_STRT, TK_LEN, TK_SPD, TK_DUB, TK_FADE, TK_REV, TK_HALF, TK_GAIN, TK_REEL, TK_ROTA, TK_LVL, TK_SYNC, TK_ATK,
-       TK_DEC, TK_SUS, TK_REL, TK_PTCH, TK_FRZE, TK_FLEN, TK_WOW, TK_FLUT };
+       TK_DEC, TK_SUS, TK_REL, TK_PTCH, TK_RPT, TK_FLEN, TK_WOW, TK_FLUT };
 /* PTCH (2026-10-13): the speed in semitones on top of SPD, 2^(s/12) Q16 for s -24..24 (so a tape plays in tune with
  * the keys: SPD's percent never landed on a note) */
 static const int32_t TAPE_SEMI_Q16[49] HOT_TABLE = {
@@ -135,7 +135,7 @@ typedef struct {                     /* ISR only */
     int32_t rec_left;                /* .. output samples it has left */
     uint8_t rec_full;                /* .. it ran its bars on a blank tape (the main loop sets SYNC to them) */
     uint16_t soff;                   /* SYNC: where a slice key moved the loop against the beat (Q16 of the loop) */
-    int32_t fpos;                    /* FRZE: where the held window starts (a tape sample), -1: not frozen */
+    int32_t fpos;                    /* RPT: where the held window starts (a tape sample), -1: not frozen */
     uint32_t wph, fph, dph;          /* WOW and FLUT: the wow's, the flutter's and the drift's phases */
 } tape_rt_t;
 enum { TB_IDLE, TB_WAIT, TB_REC, TB_DONE };   /* not armed for bars; armed, waiting for a downbeat; recording; done
@@ -642,7 +642,7 @@ static void HOT_CODE tape_block(uint32_t t, uint32_t keys, const int32_t *rec_in
     } else {
         wlen = (int32_t)v.len;
         tape_window(t, v.len ? v.len : TAPE_LEN, &ls, &ll);
-        if (TPD(t, DEV_SRC)[TK_FRZE] && v.len && rt->running) {   /* FRZE: the window FLEN long the head is in,
+        if (TPD(t, DEV_SRC)[TK_RPT] && v.len && rt->running) {   /* RPT: the window FLEN long the head is in,
                                                          * from the block it went on (behind the head, backwards);
                                                          * the seam and the slices work inside it as in the loop */
             int32_t fl = clamp(TPD(t, DEV_SRC)[TK_FLEN], 10, 1000) * (TAPE_SR / 50) / 20;
@@ -1124,7 +1124,7 @@ static int32_t tape_head(uint32_t t)
     return clamp((tape_rt[t].pos >> 12) * 1000 / (int32_t)v.len, 0, 1000);
 }
 
-/* FRZE's held window on track t, 0..1000 of what it plays (0: not frozen) */
+/* RPT's held window on track t, 0..1000 of what it plays (0: not frozen) */
 static int tape_frozen(uint32_t t, int32_t *a, int32_t *b)
 {
     tape_view_t v;

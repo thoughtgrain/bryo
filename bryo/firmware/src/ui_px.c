@@ -1049,7 +1049,7 @@ static const uint8_t DEV_PK[NDEV][NPK] = {
      PK_FADE, PK_TOGGLE, PK_TOGGLE, PK_FADER,        /*       XFAD REV HALF GAIN */
      PK_SRC, PK_CLOCK, PK_FADER, PK_CLOCK,           /*       REEL ROTA LVL SYNC */
      PK_ATTACK, PK_DECAY, PK_SUSTAIN, PK_RELEASE,    /*       ATK DEC SUS REL (its page 2: PLAYOUT) */
-     PK_KNOB, PK_TOGGLE, PK_WINDOW, PK_RIPPLE,       /*       PTCH FRZE FLEN WOW */
+     PK_KNOB, PK_TOGGLE, PK_WINDOW, PK_RIPPLE,       /*       PTCH RPT FLEN WOW */
      PK_OSC},                                        /*       FLUT */
     {PK_SQUARE, PK_DOTS, PK_KNOB, PK_BOWTIE,         /* GRAIN: SIZE RATE PTCH SPRD */
      PK_MIX, PK_NOISE, PK_WINDOW, PK_DOTS,           /*        WET SPRY CONT REV */

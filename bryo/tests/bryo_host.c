@@ -4385,7 +4385,7 @@ static void test_tape_ptch(void)
           pdesc_at(DEV_P[DEV_SRC], 3) == TK_PTCH);
 }
 
-/* TAPE's FRZE, WOW and FLUT (2026-10-15) */
+/* TAPE's RPT, WOW and FLUT (2026-10-15) */
 static void test_tape_frze(void)
 {
     enum { NB = 1400 };                                  /* ~1 s */
@@ -4402,7 +4402,7 @@ static void test_tape_frze(void)
     render(NB, o);                                       /* not frozen: the beat, a lag of 100 ms isn't a repeat */
     for (j = NB * CTL / 2; j + lag < NB * CTL; j++)
         d0 += fabs((double)o[j + lag] - o[j]);
-    tp[0].dev[DEV_SRC][TK_FRZE] = 1;
+    tp[0].dev[DEV_SRC][TK_RPT] = 1;
     tp[0].dev[DEV_SRC][TK_FLEN] = 100;
     render(8, 0);
     f0 = tape_rt[0].fpos;
@@ -4412,7 +4412,7 @@ static void test_tape_frze(void)
         e += fabs((double)o[j]);
     }
     in = tape_rt[0].pos >> 12 >= f0 && tape_rt[0].pos >> 12 <= f0 + 2205 && tape_rt[0].fpos == f0;
-    snprintf(b, sizeof b, "FRZE ON, FLEN 100: the head held in 100 ms from where it was (%d), the sound repeating every 100 "
+    snprintf(b, sizeof b, "RPT ON, FLEN 100: the head held in 100 ms from where it was (%d), the sound repeating every 100 "
              "ms (off by %.0f %% of it; not frozen %.0f %%)", f0, 100 * d / (e + 1), 100 * d0 / (e + 1));
     check(b, f0 >= 0 && in && d < e / 10 && d0 > e / 2);
     tp[0].dev[DEV_SRC][TK_WOW] = 40;                     /* (the page as it'd be: a little wow on it) */
@@ -4420,9 +4420,9 @@ static void test_tape_frze(void)
     ui.msg_t = 0;
     shot("BRYO", "tape_frze");
     tp[0].dev[DEV_SRC][TK_WOW] = 0;
-    tp[0].dev[DEV_SRC][TK_FRZE] = 0;
+    tp[0].dev[DEV_SRC][TK_RPT] = 0;
     render(4, 0);
-    check("..FRZE OFF: the loop again from there", tape_rt[0].fpos == -1 && tape_rt[0].running);
+    check("..RPT OFF: the loop again from there", tape_rt[0].fpos == -1 && tape_rt[0].running);
     tp[0].dev[DEV_SRC][TK_WOW] = 100;                    /* WOW 100, FLUT 100: the head's step a block wavers */
     tp[0].dev[DEV_SRC][TK_FLUT] = 100;
     prev = tape_rt[0].pos;
@@ -4440,7 +4440,7 @@ static void test_tape_frze(void)
              100.0 * (lo - 2048 * CTL) / (2048 * CTL), 100.0 * (hi - 2048 * CTL) / (2048 * CTL));
     check(b, lo < 2048 * CTL * 982 / 1000 && lo > 2048 * CTL * 968 / 1000 && hi > 2048 * CTL * 1018 / 1000 &&
              hi < 2048 * CTL * 1032 / 1000 && !strcmp(DEV_P[DEV_SRC][TK_WOW].label, "WOW") &&
-             pdesc_at(DEV_P[DEV_SRC], 12u) == TK_FRZE && pdesc_at(DEV_P[DEV_SRC], 19u) == TK_LVL);
+             pdesc_at(DEV_P[DEV_SRC], 12u) == TK_RPT && pdesc_at(DEV_P[DEV_SRC], 19u) == TK_LVL);
     sys.playing = 0;
 }
 

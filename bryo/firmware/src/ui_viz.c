@@ -215,7 +215,7 @@ static void viz_tape(const int16_t *v, uint32_t f)
             px_line(px, top + 1, px, bot - 1, px_live, 2);
         }
     }
-    {   /* FRZE: the window it holds, framed in orange over the sound, and said */
+    {   /* RPT: the window it holds, framed in orange over the sound, and said */
         int32_t fa, fb;
         if (tape_frozen(sys.sel, &fa, &fb)) {
             int32_t xa = r0 + fa * rw / 1000, xb = r0 + fb * rw / 1000;

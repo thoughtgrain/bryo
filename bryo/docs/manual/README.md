@@ -257,18 +257,19 @@ Press **ENV**: **ATK DEC SUS REL**, an envelope for the slices you play from the
 
 <img src="img/tape_env.png" width="240" alt="ENV on TAPE: the slice envelope">
 
-### 2.4c Freeze it, warble it: TAPE's tools
+### 2.4c Repeat it, warble it: TAPE's tools
 
-Press **HOME** to the third page: **FRZE FLEN WOW FLUT**.
+Press **HOME** to the third page: **RPT FLEN WOW FLUT**.
 
-- **FRZE ON** holds the moment: the head keeps looping the **FLEN** milliseconds it was in when you turned it on
+- **RPT ON** (repeat) holds the moment: the head keeps looping the **FLEN** milliseconds it was in when you turned it on
   (10 ms to 1 s), framed in orange on the picture, until you turn it off and the loop plays on from there. A short
   FLEN is a buzz or a stutter, a long one a phrase on repeat. The white keys slice the frozen bit, so you can play
-  it; put an LFO (square) on FRZE for a stutter that comes and goes.
+  it; put an LFO (square) on RPT for a stutter that comes and goes. (It was called FRZE until 2026-10-18; "freeze"
+  is GRAIN's word now, the **0** key.)
 - **WOW** is a slow, wandering waver of the tape's speed (and pitch), up to about a quarter tone at 100: a worn
   cassette. **FLUT** is a quick one, a flutter. Together they make an old machine's warble.
 
-<img src="img/tape_frze.png" width="240" alt="TAPE's tools: FRZE FLEN WOW FLUT, the frozen window in orange">
+<img src="img/tape_frze.png" width="240" alt="TAPE's tools: RPT FLEN WOW FLUT, the frozen window in orange">
 
 ### 2.5 Play a different reel
 

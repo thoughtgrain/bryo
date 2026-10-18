@@ -188,9 +188,9 @@ static const pdesc_t DEV_P[NDEV][NPK] = {
         {"REL", 0, 127, 127, F_TIME},
         /* PTCH (page 1 beside SPD, 2026-10-13): the speed in semitones on top of SPD, in tune with the keys */
         {"PTCH", -24, 24, 0, F_ST},
-        /* the tape's tools (2026-10-15): FRZE holds the FLEN ms the head was in when it went on, looping (the keys
+        /* the tape's tools (2026-10-15): RPT holds the FLEN ms the head was in when it went on, looping (the keys
          * slice that); WOW, a slow wandering of the speed, FLUT a quick one: an old machine's warble */
-        {"FRZE", 0, 1, 0, F_ENUM, N_OFFON}, {"FLEN", 10, 1000, 120, F_MS}, {"WOW", 0, 100, 0, F_PCT},
+        {"RPT", 0, 1, 0, F_ENUM, N_OFFON}, {"FLEN", 10, 1000, 120, F_MS}, {"WOW", 0, 100, 0, F_PCT},
         {"FLUT", 0, 100, 0, F_PCT}},
     {   /* GRAIN (the S-4's MOSAIC) */
         {"SIZE", 5, 500, 80, F_MS}, {"RATE", 0, 100, 40, F_PCT},
@@ -650,7 +650,7 @@ typedef struct {
 static const playout_t PLAYOUT[] = {
     {DEV_P[DEV_SRC], 5, {0, 1, 2, 16, 12, 13, 14, 15, 3, 7, 4, 5, 17, 18, 19, 20, 8, 9, 11, 10, 6, 21, 22, 23}, 0x02},
                                                     /* TAPE: STRT LEN SPD PTCH, the envelope (ENV's), DUB GAIN XFAD
-                                                     * REV, FRZE FLEN WOW FLUT, REEL ROTA SYNC LVL (HALF, past the
+                                                     * REV, RPT FLEN WOW FLUT, REEL ROTA SYNC LVL (HALF, past the
                                                      * pages: OP6 flips it, and PTCH -12 is the same) */
     /* the effects open with their mix: ROUT and WET KNOB 3-4 of page 1 (SPACE: DLY and VERB, its sends), so the
      * first press of EDIT or FX can bring one in; the sound's knobs follow (2026-10-11) */
