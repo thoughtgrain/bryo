@@ -568,8 +568,8 @@ static const pdesc_t ARP_P[NPK] = {   /* (NPK long: pdesc_pages looks past the l
                                            * 0: KEY stops at once, LTCH and ADD hold). RIPPLE's own arpeggio, RIPL
                                            * ARP, was this pad's page 3; since 2026-10-18 it's RIPPLE's last page */
 
-/* SETUP, the mixer's last page (EDIT tapped six times): how the panel behaves, for the instrument, not a project
- * (settings.c keeps them). KEYS: the black keys as the shortcuts (SHRT: mutes, reverse, clears, freeze) or as notes
+/* SETUP, with KEY the mixer's settings (EDIT held + OCT+, then EDIT; 2026-10-18): how the panel behaves, for the
+ * instrument, not a project (settings.c keeps them). KEYS: the black keys as the shortcuts (SHRT: mutes, reverse, clears, freeze) or as notes
  * (NOTE: the 27 keys a keyboard, F to G, on SYNTH and POLY; GLO held + OCT+ flips it too). KNOB: how far a detent
  * moves a value with a range wider than 32 steps: 1X, 2X, 4X, or ACC (a slow turn 1, a fast one up to 4). HOLD: how
  * long a pad is held before it counts as held. LEDS: how the idle pads glow (settings.c LEDS_*, in the menu's

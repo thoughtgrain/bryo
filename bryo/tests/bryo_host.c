@@ -706,8 +706,13 @@ static void test_input(void)
     check("..KNOB 1 sets the master compressor's AMT (0 -> 20), one for all tracks", mst[MS_AMT] == 20);
     mst[MS_AMT] = 0;
     tap(B_EDIT);
-    check("..tapped again: KEY, the project's key and scale (latched)", ui.chan == CHAN_KEY && ui.chan_latched &&
-          ui.view == VIEW_MIXER);
+    check("..tapped again: the levels (the playing round: LEVELS SCENES CHANNEL MASTER, 2026-10-18)",
+          !ui.chan && !ui.chan_latched && ui.view == VIEW_MIXER);
+    hold(B_EDIT);
+    press(B_OCTUP);
+    let_go(B_EDIT);
+    check("..EDIT held + OCT+: KEY, the project's key and scale (latched; the let-go leaves it)", ui.chan == CHAN_KEY &&
+          ui.chan_latched && ui.view == VIEW_MIXER && track[sys.sel].octave == 3u);
     host_enc[panel.enc[EN_K1 + 1u]] = 1;
     ui_input();
     check("..KNOB 2 sets SCAL (MIN -> DOR), one for the project", keyp[KY_SCAL] == 3);
@@ -716,7 +721,11 @@ static void test_input(void)
     check("..tapped again: SETUP, the panel's preferences (latched)", ui.chan == CHAN_SETUP && ui.chan_latched &&
           ui.view == VIEW_MIXER);
     tap(B_EDIT);
-    check("..tapped again: the levels", !ui.chan && !ui.chan_latched && ui.view == VIEW_MIXER);
+    check("..tapped again: KEY (the settings' round: KEY SETUP)", ui.chan == CHAN_KEY && ui.chan_latched);
+    hold(B_EDIT);
+    press(B_OCTDN);
+    let_go(B_EDIT);
+    check("..EDIT held + OCT-: back to the levels", !ui.chan && !ui.chan_latched && ui.view == VIEW_MIXER);
     press(B_FX);
     check("a page pad closes the mixer (FX: the device it was last on)", ui.view == VIEW_PAGE &&
           ui.dev == ui.pair_dev[1] && (ui.dev == DEV_COLOR || ui.dev == DEV_SPACE) && !ui.glo_latched);
@@ -1256,9 +1265,7 @@ static void screens_in(const char *pal)
     comp.gr_q8 = 0;
     for (s = 0; s < NMS; s++)
         mst[s] = MS_P[s].def;
-    tap(B_EDIT);                                         /* (KEY, SETUP, then the levels: the channel's marks) */
-    tap(B_EDIT);
-    tap(B_EDIT);
+    tap(B_EDIT);                                         /* (the levels, MASTER's next: the channel's marks) */
     shot(pal, "mixer_eq");
     tap(B_GLO);
     hold(B_GLO);
@@ -7042,6 +7049,36 @@ static void led_on(const uint8_t *a, uint32_t id)
                 return (void)(led_lit = (a[p] >> r) & 1u);
     led_lit = 0;
 }
+/* the project view's white keys (2026-10-18): a key points at a slot by its number, its LED lit; nothing plays */
+static void test_pj_keys(void)
+{
+    power_on();
+    pj_wipe();
+    pj_boot();
+    check("a project saved into P3", pj_save(2) == 0);
+    host_enc[panel.enc[EN_PRESET]] = 1;
+    ui_input();
+    key_edge(note_of_white(2));
+    ui_leds();
+    led_on(fm1_led, 14u + note_of_white(2));
+    check("the project view, white key 3: P3 pointed at, its key lit; the keys play nothing there",
+          ui.view == VIEW_PROJECT && ui.pj_sel == 2u && led_lit && !sys.keys_live);
+    key_edge(note_of_white(6));
+    check("..key 7: FACTORY", ui.pj_sel == PJ_N);
+    key_edge(note_of_white(9));
+    check("..key 10: nothing there (P1-P6, FACTORY), the pointer stays", ui.pj_sel == PJ_N);
+    press(B_EDIT);
+    key_edge(note_of_white(9));
+    check("..PRESETS page, key 10: the factory preset 2 (A-H, then 1-8)", ui.pj_page == 1u && ui.tpr_sel == TPR_N + 1u);
+    press(B_EDIT);
+    key_edge(note_of_white(1));
+    check("..REELS page, key 2: U2", ui.pj_page == 2u && ui.reel_sel == 1u);
+    press(B_EDIT);
+    key_edge(note_of_white(2));
+    press(B_OCTUP);
+    check("..PROJECTS, key 3, OCT+: P3 loaded", ui.pj_page == 0u && pj_cur == 2u);
+    pj_wipe();
+}
 static void test_controls_more(void)
 {
     uint32_t oct;
@@ -9126,12 +9163,11 @@ static void test_key_tuning(void)
     keyp[KY_KEY] = 9;
     keyp[KY_SCAL] = 2;                                   /* A MIN */
     tap(B_GLO);
-    tap(B_EDIT);
-    tap(B_EDIT);
-    tap(B_EDIT);
-    tap(B_EDIT);
+    hold(B_EDIT);
+    press(B_OCTUP);
+    let_go(B_EDIT);
     ui.msg_t = 0;
-    check("the KEY page: GLO, EDIT x4 (SCENES CHANNEL MASTER KEY)", ui.view == VIEW_MIXER && ui.chan == CHAN_KEY);
+    check("the KEY page: GLO, EDIT held + OCT+", ui.view == VIEW_MIXER && ui.chan == CHAN_KEY);
     shot("BRYO", "mixer_key");
     tap(B_GLO);
     tp[0].src = SRC_POLY;
@@ -11459,12 +11495,11 @@ static void test_arp_keys(void)
 
     /* SETUP: the mixer's last page; KNOB's steps */
     tap(B_GLO);
+    hold(B_EDIT);
+    press(B_OCTUP);
+    let_go(B_EDIT);
     tap(B_EDIT);
-    tap(B_EDIT);
-    tap(B_EDIT);
-    tap(B_EDIT);
-    tap(B_EDIT);
-    check("SETUP: the mixer's last page (GLO, EDIT x5: SCENES CHANNEL MASTER KEY SETUP)", ui.view == VIEW_MIXER &&
+    check("SETUP: the mixer's settings, after KEY (GLO, EDIT held + OCT+, EDIT)", ui.view == VIEW_MIXER &&
           ui.chan == CHAN_SETUP);
     turn(1, 2);                                          /* KNOB: 1X -> 4X */
     check("..KNOB 2 sets KNOB: 4X", ((bryo_prefs >> 1) & 3u) == KNOB_4X);
@@ -11836,6 +11871,7 @@ int main(int argc, char **argv)
     test_arp_hold();
     test_arp_sources();
     test_factory_scene();
+    test_pj_keys();
     test_ambient_hall();
     test_drum_shed();
     test_input();

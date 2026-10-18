@@ -91,7 +91,7 @@ come back to the one you used last. To switch effect, hold the pad and press OCT
 | ENV | the source's shaping pages: SYNTH's and POLY's AMP and FILTER, TAPE's slice envelope, DRUM's KIT and KIT 2 |
 | LFO, SEQ | a modulator's pages (LFO: M1, M2 or M3; SEQ: M4) |
 | ARP | the arpeggiator: 2 pages (RIPPLE's own arpeggio, RIPL ARP, is RIPPLE's last page) |
-| GLO | the mixer (EDIT then steps CHANNEL, MASTER, KEY, SETUP) |
+| GLO | the mixer (EDIT then steps SCENES, CHANNEL, MASTER; **hold EDIT and press OCT+** for its settings, KEY and SETUP) |
 
 KNOB 1 to 4 always change the four values you see. There's nothing hidden.
 
@@ -318,7 +318,9 @@ page pad, to leave.
 
 1. In the mixer, **tap EDIT three times**: the **MASTER** page.
 2. **AMT** is how much it squeezes, **ATK** and **REL** how fast, **MIX** how much of it you hear.
-3. Tap EDIT once more for KEY (3.6), again for SETUP (3.7), and again to get back to the levels.
+3. Tap EDIT once more to get back to the levels. The two set-and-forget pages, KEY (3.6) and SETUP (3.7), sit apart
+   so they don't slow down the round you play with: **hold EDIT and press OCT+** for them (tap EDIT to go between
+   KEY and SETUP), and **hold EDIT and press OCT-** to come back.
 
 <img src="img/mixer_master.png" width="240" alt="MASTER: AMT ATK REL MIX">
 
@@ -336,7 +338,7 @@ The four tracks share one memory (about 20 seconds of sound in all). You can swi
 One key and scale for the whole project, for SYNTH and POLY (TAPE, DRUM and the effects don't use it). A new
 project starts on **A MIN**, the key all the factory reels are in, and so does the factory scene.
 
-1. Tap **GLO**, then tap **EDIT four times** (SCENES, CHANNEL, MASTER, KEY).
+1. Tap **GLO**, then **hold EDIT and press OCT+**: **KEY**.
 2. **KEY** is the key's note, C to B. **SCAL** is the scale: **OFF** (every note, as normal), then the seven modes
    **MAJ**, **MIN**, **DOR** (dorian), **PHR** (phrygian), **LYD** (lydian), **MIX** (mixolydian), **LOC** (locrian);
    **HMIN** (harmonic minor), **MMIN** (melodic minor); **PEN** (major pentatonic), **MPEN** (minor pentatonic);
@@ -355,7 +357,7 @@ the project.
 The mixer's last page holds your preferences. They belong to the FM-1, not to a project, and they're kept when
 you turn it off.
 
-1. Tap **GLO**, then tap **EDIT five times** (SCENES, CHANNEL, MASTER, KEY, SETUP).
+1. Tap **GLO**, then **hold EDIT and press OCT+** (KEY), and tap **EDIT** once more: **SETUP**.
 2. **KEYS**: **SHRT** (the black keys are the shortcuts: mutes, reverse, clears, freeze) or **NOTE** (the black keys
    play notes: see [5.9](#59-play-the-black-keys-as-notes)).
 3. **KNOB**: how far a knob moves a value per click. **1X**, **2X**, **4X**, or **ACC** (turn slowly for fine
@@ -391,7 +393,7 @@ slow ambient scene and a fast techno one can live in the same project. Scenes sa
 leave it alone; store them again to give them one.
 
 Scenes have their own page on the mixer: open the mixer (**tap GLO**) and **tap EDIT**: **SCENES** is the first
-page (then CHANNEL, MASTER, KEY, SETUP). The mixer's own page stays just the levels. A scene moves **every
+page (then CHANNEL and MASTER). The mixer's own page stays just the levels. A scene moves **every
 track** at once, not just the one you've selected: the header's box shows the project (**P1**) here instead of a
 track, as it does on MASTER and KEY, which are the project's too; only CHANNEL is the selected track's. On SCENES, the white keys
 1-4 are scenes 1-4 (they don't play notes there) and each knob sits under its scene:
@@ -1226,7 +1228,8 @@ is stopped and nothing sounds, so a save mid-performance doesn't have to stop th
 There are six project slots, P1 to P6.
 
 1. Turn **PRESETS**. The **PROJECTS** view opens.
-2. Turn **PRESETS** to point at a slot.
+2. Turn **PRESETS** to point at a slot, or press its white key: keys 1-6 are P1-P6, key 7 the factory scene. The
+   keys light up: dim where something's saved, bright for the one pointed at. (They don't play notes here.)
 3. Then:
    - **OCT+** loads it. (If you have changes you haven't saved, press OCT+ again within 3 seconds to confirm.)
    - **SAVE** saves into it. (Over another project, press SAVE again within 3 seconds.)
@@ -1266,7 +1269,7 @@ A track preset is **a track's sound**: its source and knobs, the effects, the ch
 its pattern, level, REC IN or arpeggiator.
 
 1. Turn **PRESETS**, then press **EDIT**: the **PRESETS** page, eight slots **A to H**.
-2. Turn **PRESETS** to a slot.
+2. Turn **PRESETS** to a slot, or press its white key: keys 1-8 are A-H, 9-16 the eight factory presets.
 3. **SAVE** saves the track you're on into it. **OCT+** loads it into the track you're on.
 4. Changed your mind after loading? **Hold SAVE** to put the track back.
 
@@ -1286,7 +1289,7 @@ Your six user reels (U1 to U6) hold the takes your projects saved and the WAVs y
 take keeps pointing at its reel, so deleting a project leaves its reels; delete them here.
 
 1. Turn **PRESETS**, then press **EDIT twice**: the **REELS** page.
-2. Turn **PRESETS** to a reel. The strip shows its name, its length, and which tracks play it right now. A reel longer
+2. Turn **PRESETS** to a reel (or press white key 1-6 for U1-U6). The strip shows its name, its length, and which tracks play it right now. A reel longer
    than 3.3 seconds runs on into the slots after it, shown as (CONT.).
 3. **Hold POLY** half a second to delete it (from any of its slots). A track playing it goes silent; a project that
    names it plays nothing there. There's no undo.
@@ -1364,7 +1367,7 @@ M-VAVE's updater puts the stock firmware back. Bryo's projects and tapes can't b
 | **GLO** tapped, **EDIT** | SCENES: white key 1-4 recalls (held + SAVE stores), KNOB 1-4 morphs |
 | **GLO** held + KNOB 1-4 | track levels |
 | **GLO** held + SELECT | how many tracks are on |
-| **GLO** tapped, then **EDIT** | SCENES, CHANNEL, MASTER, KEY, SETUP |
+| **GLO** tapped, then **EDIT** | SCENES, CHANNEL, MASTER; EDIT held + OCT+: KEY, SETUP (OCT-: back) |
 | **OP1-OP4** | mute tracks |
 | **OP5 / OP6** | the tape backwards / half speed |
 | **HOME** | the source's pages |
@@ -1379,7 +1382,7 @@ M-VAVE's updater puts the stock firmware back. Bryo's projects and tapes can't b
 | **LFO** held + SELECT | the modulator's engine (LFO, ADSR, SEQ, FOLLOW) |
 | **ARP** | the arpeggiator (notes on SYNTH and POLY, slices on TAPE, drums on DRUM); RIPPLE's strings have their own, RIPL ARP, on RIPPLE's last page |
 | **GLO** held + OCT+ | black keys: shortcuts or notes |
-| **GLO** tapped, **EDIT** ×5 | SETUP: keys, knob speed, hold time, LEDs |
+| **GLO** tapped, **EDIT** held + OCT+, **EDIT** | SETUP: keys, knob speed, hold time, LEDs |
 | **REC** | record onto the track |
 | **REC** held 1 s, stopped | record the computer |
 | **ALGORITHM** | what REC records |

@@ -2521,7 +2521,7 @@ static void viz_project(void)
     if (ui.pj_sel == PJ_TEST) {                                        /* TEST, past FACTORY: what it's for */
         px_text_c(0, 120, 3, PXF_3, "FACTORY, T1'S DRUMS IN GRAIN:", px_ink);
         px_text_c(0, 120, 11, PXF_3, "READ THE LOAD ON SETUP", px_ink);
-        px_text_c(0, 120, 19, PXF_3, "(GLO, EDIT TO SETUP)", px_ink);
+        px_text_c(0, 120, 19, PXF_3, "(GLO, EDIT+OCT+, EDIT)", px_ink);
         px_text_c(0, 120, 31, PXF_3, "YOUR PROJECTS STAY", px_dim);
         return;
     }

@@ -228,6 +228,21 @@ static void ui_leds(void)
             }
         }
     }
+    if (ui.view == VIEW_PROJECT && !pad_down()) {      /* the project view: the keys its slots (dim: one holds
+                                                         * something, lit: the one pointed at), as pj_key picks */
+        uint32_t n = ui.pj_page == 2u ? USLOT_N : ui.pj_page ? TPR_N + TPF_N : PJ_N + 1u;
+        uint32_t sel = ui.pj_page == 2u ? ui.reel_sel : ui.pj_page ? ui.tpr_sel : ui.pj_sel;
+        for (k = 0; k < 27u; k++) {
+            uint32_t w = KEY_WHITE[k];
+            led_clear(nl, 14u + k);
+            led_clear(nd, 14u + k);
+            if (w == KEY_NONE || w >= n)
+                continue;
+            led_put(nd, 14u + k, ui.pj_page == 2u ? uslot_ok[w] != 0u : ui.pj_page ? (w >= TPR_N || tpr_sum[w].used)
+                                                                                    : (w >= PJ_N || pj_sum[w].used));
+            led_put(nl, 14u + k, w == sel);
+        }
+    }
     if (ui.glo_held || scn_page()) {                    /* GLO held: keys 1-TRACKS the tracks (dim, the focused
                                                          * lit); the SCENES page: keys 1-4 the scenes (stored dim, the
                                                          * current one lit) */
@@ -507,6 +522,22 @@ static void pj_turn(int32_t d)
     } else {
         ui.pj_sel = (uint8_t)clamp((int32_t)ui.pj_sel + d, 0, (int32_t)PJ_TEST);   /* (past P6: FACTORY, TEST) */
     }
+    ui.pj_ask = PJ_ASK_NONE;
+    ui.last = 0xFF;
+}
+/* the project view's white key w (2026-10-18): what PRESETS would point at, by its number: PROJECTS keys 1-6 P1..P6
+ * and 7 FACTORY; PRESETS 1-8 A..H and 9-16 the factory ones; REELS 1-6 U1..U6. OCT+ still loads (nothing plays) */
+static void pj_key(uint32_t w)
+{
+    uint32_t n = ui.pj_page == 2u ? USLOT_N : ui.pj_page ? TPR_N + TPF_N : PJ_N + 1u;
+    if (w >= n)
+        return;
+    if (ui.pj_page == 2u)
+        ui.reel_sel = (uint8_t)w;
+    else if (ui.pj_page)
+        ui.tpr_sel = (uint8_t)w;
+    else
+        ui.pj_sel = (uint8_t)w;
     ui.pj_ask = PJ_ASK_NONE;
     ui.last = 0xFF;
 }
@@ -878,11 +909,17 @@ static void on_button(uint32_t b)
             break;
         }
         if (ui.view == VIEW_MIXER) {                    /* (held: while held; tapped: latched; tapped again: off) */
-            if (ui.chan == CHAN_SETUP && ui.chan_latched) {   /* LEVELS SCENES CHANNEL MASTER KEY SETUP, LEVELS */
+            if (ui.chan >= CHAN_KEY && ui.chan_latched) {   /* (2026-10-18: two rounds. Playing: LEVELS SCENES CHANNEL
+                                                         * MASTER, LEVELS; settings, EDIT held + OCT+: KEY SETUP) */
+                ui.chan = ui.chan == CHAN_KEY ? CHAN_SETUP : CHAN_KEY;
+                ui.chan_held = 1;                       /* (held: OCT- leaves for the levels, below) */
+                ui.chan_used = 0;
+                ui.chan_t0 = fm1_ms;
+            } else if (ui.chan == CHAN_MASTER && ui.chan_latched) {
                 ui.chan = CHAN_LEVELS;
                 ui.chan_latched = 0;
             } else {
-                ui.chan = !ui.chan_latched || ui.chan >= CHAN_SETUP ? CHAN_SCENES : (uint8_t)(ui.chan + 1u);
+                ui.chan = !ui.chan_latched || ui.chan >= CHAN_MASTER ? CHAN_SCENES : (uint8_t)(ui.chan + 1u);
                 ui.chan_latched = 0;
                 ui.chan_held = 1;
                 ui.chan_used = 0;
@@ -943,7 +980,13 @@ static void on_button(uint32_t b)
         break;
     case B_OCTDN:
     case B_OCTUP:
-        if (pad_pair(b == B_OCTUP)) {                   /* EDIT or FX held + OCT-/OCT+: its first or second device */
+        if (ui.view == VIEW_MIXER && ui.chan_held && ((fm1_in.buttons >> panel.btn[B_EDIT]) & 1u)) {
+            ui.chan = b == B_OCTUP ? CHAN_KEY : CHAN_LEVELS;   /* the mixer, EDIT held + OCT+: its settings, KEY
+                                                         * (EDIT then SETUP); OCT-: back to the levels */
+            ui.chan_latched = b == B_OCTUP;
+            ui.chan_held = 0;                           /* (the let-go leaves it as it is) */
+            ui.last = 0xFF;
+        } else if (pad_pair(b == B_OCTUP)) {            /* EDIT or FX held + OCT-/OCT+: its first or second device */
         } else if (ui.glo_held && b == B_OCTUP) {      /* GLO held + OCT+: the black keys, shortcuts or notes */
             keys_set(!sys.keys_notes);
             ui.glo_used = 1;
@@ -1557,7 +1600,8 @@ static void ui_input(void)
     sys.black_short = (uint8_t)(!sys.keys_notes || ui.glo_held);   /* (the 0 key's freeze: chain.c) */
     if (!scn_page() && scm.on == 2)
         scn_morph_end();                                /* (off the SCENES page: a turn there later starts afresh) */
-    sys.keys_live = (uint8_t)(!ui.glo_held && !scn_page() && !seq_page() && !pad_down() &&   /* (a page pad held: the keys pick
+    sys.keys_live = (uint8_t)(!ui.glo_held && !scn_page() && !seq_page() && !pad_down() && ui.view != VIEW_PROJECT &&
+                              /* (a page pad held: the keys pick
                                                                             * pages, they don't play) */
                               !(drm_step_page() && sys.drum_mode == DMODE_HITS));   /* under GLO the white keys pick
                                                                 * the track, on a SEQ page the steps, on DRUM's STEP
@@ -1583,6 +1627,8 @@ static void ui_input(void)
                                                          * as it's let go; held + SAVE, stored */
                 ui.scn_used = 0;
                 ui.chan_used = 1;
+            } else if (ui.view == VIEW_PROJECT && KEY_WHITE[k] < 16u) {
+                pj_key(KEY_WHITE[k]);                    /* the project view: the key picks a slot (OCT+ loads) */
             } else if (ui.glo_held && KEY_WHITE[k] < sys.ntrk) {
                 sys.sel = KEY_WHITE[k];                  /* GLO + white key 1..TRACKS: the track */
                 ui.glo_used = 1;

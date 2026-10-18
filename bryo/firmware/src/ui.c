@@ -719,8 +719,9 @@ static void draw_foot(void)
                                                        * knob morphs */
         str_cpy(a, ui.scn_key ? "SAVE: STORE IT" : "KEY:GO KNOB:MORPH", sizeof a);
     else if (ui.view == VIEW_MIXER)
-        str_cpy(a, ui.chan == CHAN_SETUP ? "EDIT: LEVELS" : ui.chan == CHAN_KEY ? "EDIT: SETUP" : ui.chan == CHAN_MASTER
-                   ? "EDIT: KEY" : ui.chan == CHAN_STRIP ? "EDIT: MASTER" : "EDIT: SCENES", sizeof a);
+        str_cpy(a, ui.chan == CHAN_SETUP ? "EDIT: KEY" : ui.chan == CHAN_KEY ? "EDIT: SETUP"
+                   : ui.chan == CHAN_MASTER ? "EDIT: LEVELS" : ui.chan == CHAN_STRIP ? "EDIT: MASTER" : "EDIT: SCENES",
+                sizeof a);
     else if (ui.view == VIEW_ROUTE)
         str_cpy(a, "KNOBS: REC IN", sizeof a);
     else if ((tp[sys.sel].src == SRC_DRUM || tp[sys.sel].src == SRC_TAPE) && ui.kind == FOCUS_DEV &&
