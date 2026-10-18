@@ -1063,7 +1063,8 @@ static const uint8_t DEV_PK[NDEV][NPK] = {
      PK_TOGGLE, PK_DIR, PK_VOICES, PK_CLOCK,         /*            its arpeggio: MODE ORDR RNGE RATE */
      PK_RMODE, PK_DRIVE, PK_RIPPLE, PK_TOGGLE,       /*            MODE DRV RIPL KEYS */
      PK_FADER, PK_BOWTIE, PK_PAN, PK_TOGGLE,         /*            PLVL SPRD EVEN POL */
-     PK_START, PK_WINDOW, PK_SWING},                 /*            FOCS WDTH FLOW */
+     PK_START, PK_WINDOW, PK_SWING,                  /*            FOCS WDTH FLOW */
+     PK_PATTERN, PK_LENGTH, PK_VAR, PK_LOOP},        /*            its arpeggio's rhythm: PATN LEN VARY EVOL */
     {PK_DRIVE, PK_STAIRS, PK_NOISE, PK_TONE,         /* COLOR: DRV CRSH NOIS TILT */
      PK_DECAY, PK_TONE, PK_CMOD, PK_MIX,             /*        NDEC NTON CMOD WET */
      PK_FADER, PK_ROUTE, PK_NONE, PK_NONE},          /*        LVL ROUT */
@@ -1146,8 +1147,10 @@ static const uint8_t *dev_pk(uint32_t t, uint32_t d)
 }
 static const uint8_t CH_PK[NCH] = {PK_SHELF_LO, PK_SHELF_HI, PK_FILTER, PK_PAN};
 static const uint8_t MS_PK[NMS] = {PK_KNOB, PK_ATTACK, PK_RELEASE, PK_MIX};   /* the master compressor */
-static const uint8_t ARP_PK[NARP] = {   /* the arpeggiator: MODE ORDR RNGE RATE, GATE SWNG GRND FADE */
-    PK_TOGGLE, PK_DIR, PK_VOICES, PK_CLOCK, PK_NOTELEN, PK_SWING, PK_VAR, PK_RELEASE};   /* (GRND: PK_VAR) */
+static const uint8_t ARP_PK[NARP] = {   /* the arpeggiator: MODE ORDR RNGE RATE, GATE SWNG GRND FADE, PATN LEN VARY
+                                         * EVOL */
+    PK_TOGGLE, PK_DIR, PK_VOICES, PK_CLOCK, PK_NOTELEN, PK_SWING, PK_VAR, PK_RELEASE,   /* (GRND: PK_VAR) */
+    PK_PATTERN, PK_LENGTH, PK_VAR, PK_LOOP, PK_NONE, PK_NONE};   /* (as DRUM's PATN LEN VARY EVOL) */
 static const uint8_t KY_PK[4] = {PK_KEYS, PK_SCALE, PK_NONE, PK_NONE};   /* KEY: KEY SCAL */
 static const uint8_t SET_PK[NSET] = {PK_TOGGLE, PK_KNOB, PK_CLOCK, PK_STEPS};   /* SETUP: KEYS KNOB HOLD LEDS */
 static const uint8_t ME_PK[NME][NPK] = {   /* (in stored order: param.c's PLAYOUT places them on the pages) */

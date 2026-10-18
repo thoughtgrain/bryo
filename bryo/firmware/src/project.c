@@ -381,10 +381,28 @@ static const int16_t *pj_dev_out(const track_params_t *P, uint32_t s)
 #define PJ_SC_SRC (PJ_SC_ROOM + NROOM * NRM)
 #define PJ_SC_BPM (PJ_SC_SRC + NTRK)       /* (2026-10-17: the scene's tempo, written whenever it holds one; a file
                                             * from before has none, and older Bryos skip the id) */
-#define PJ_SC_ARP (PJ_SC_BPM + 1u)         /* (2026-10-18: track t's arpeggiator knob k, PJ_SC_ARP + t x NARP + k) */
-#define PJ_SC_AMT (PJ_SC_ARP + NTRK * NARP)   /* (2026-10-18: track t's modulator slot s's AMT, PJ_SC_AMT + t x NSLOT
-                                               * + s; a file from before: the AMT as the project has it) */
-#define PJ_SC_N (PJ_SC_AMT + NTRK * NSLOT)
+#define PJ_ARP0 8u                         /* the arpeggiator's first knobs, MODE..FADE: the ids below are by them */
+#define PJ_SC_ARP (PJ_SC_BPM + 1u)         /* (2026-10-18: track t's arpeggiator knob k < 8, PJ_SC_ARP + t x 8 + k) */
+#define PJ_SC_AMT (PJ_SC_ARP + NTRK * PJ_ARP0)   /* (2026-10-18: track t's modulator slot s's AMT, PJ_SC_AMT + t x
+                                               * NSLOT + s; a file from before: the AMT as the project has it) */
+#define PJ_SC_ARP2 (PJ_SC_AMT + NTRK * NSLOT)   /* (2026-10-18: the rhythm's knobs, k 8 and up: PJ_SC_ARP2 + t x
+                                                 * (NARP - 8) + k - 8; the ids before them stay as they were) */
+#define PJ_SC_N (PJ_SC_ARP2 + NTRK * (NARP - PJ_ARP0))
+/* id is an arpeggiator knob's: its track and knob */
+static int pj_sc_arp(uint32_t id, uint32_t *t, uint32_t *k)
+{
+    if (id >= PJ_SC_ARP && id < PJ_SC_AMT) {
+        *t = (id - PJ_SC_ARP) / PJ_ARP0;
+        *k = (id - PJ_SC_ARP) % PJ_ARP0;
+        return 1;
+    }
+    if (id >= PJ_SC_ARP2 && id < PJ_SC_N) {
+        *t = (id - PJ_SC_ARP2) / (NARP - PJ_ARP0);
+        *k = PJ_ARP0 + (id - PJ_SC_ARP2) % (NARP - PJ_ARP0);
+        return 1;
+    }
+    return 0;
+}
 static uint8_t scn_lost;
 static uint32_t pj_ver;              /* the version of the project being read */             /* the scenes the last save couldn't hold, a bit each */
 /* scene s's value at id (and its live counterpart in *now) */
@@ -411,12 +429,15 @@ static int32_t pj_sc_val(const scene_t *s, uint32_t id, int32_t *now)
         *now = s->bpm ? -1 : 0;                          /* (held: always written, a load can't tell it otherwise) */
         return s->bpm;
     }
-    if (id >= PJ_SC_AMT) {
-        *now = *scn_amt((id - PJ_SC_AMT) / NSLOT, (id - PJ_SC_AMT) % NSLOT);
-        return s->amt[(id - PJ_SC_AMT) / NSLOT][(id - PJ_SC_AMT) % NSLOT];
+    {
+        uint32_t t, k;
+        if (pj_sc_arp(id, &t, &k)) {
+            *now = tp[t].arp[k];
+            return s->arp[t][k];
+        }
     }
-    *now = tp[(id - PJ_SC_ARP) / NARP].arp[(id - PJ_SC_ARP) % NARP];
-    return s->arp[(id - PJ_SC_ARP) / NARP][(id - PJ_SC_ARP) % NARP];
+    *now = *scn_amt((id - PJ_SC_AMT) / NSLOT, (id - PJ_SC_AMT) % NSLOT);
+    return s->amt[(id - PJ_SC_AMT) / NSLOT][(id - PJ_SC_AMT) % NSLOT];
 }
 static void pj_write_scenes(void)
 {
@@ -473,12 +494,12 @@ static void pj_read_scenes(void)
                 S->src[id - PJ_SC_SRC] = (uint8_t)(v >= 0 && v < (int32_t)NSRC ? v : SRC_TAPE);
             } else if (id == PJ_SC_BPM) {
                 S->bpm = (uint16_t)(v ? clamp(v, 40, 240) : 0);
-            } else if (id >= PJ_SC_AMT && id < PJ_SC_N) {
+            } else if (id >= PJ_SC_AMT && id < PJ_SC_ARP2) {
                 S->amt[(id - PJ_SC_AMT) / NSLOT][(id - PJ_SC_AMT) % NSLOT] = (int16_t)clamp(v, 0, 100);
-            } else if (id < PJ_SC_N) {
-                uint32_t k = (id - PJ_SC_ARP) % NARP;
-                S->arp[(id - PJ_SC_ARP) / NARP][k] = (int16_t)(pdesc_empty(&ARP_P[k]) ? 0 : clamp(v, ARP_P[k].min,
-                                                                                                    ARP_P[k].max));
+            } else {
+                uint32_t tt, k;
+                if (pj_sc_arp(id, &tt, &k))
+                    S->arp[tt][k] = (int16_t)(pdesc_empty(&ARP_P[k]) ? 0 : clamp(v, ARP_P[k].min, ARP_P[k].max));
             }
         }
     }

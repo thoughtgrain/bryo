@@ -254,6 +254,10 @@ number.
   four), split by what each track's settings ask for when it runs short; what's left over is everyone's (since
   2026-10-11: a track alone has all 40, not just what RATE and SIZE ask). GRAIN 6's GRNS can hold a number for a
   track instead (1-40, taken from the AUTO tracks first, kept whatever the others do).
+- **2026-10-18: the arpeggiator has a rhythm.** ARP's page 3, RHYTHM: PATN writes a rhythm (ALL OFF 8TH 332 GLOP
+  CLAV SKIP SPRS) over 16 steps the white keys toggle, LEN 1-16 steps round, VARY drops steps and plays rests as
+  DRUM's VARY does, EVOL a new version every n rounds. A rest doesn't move the melody. RIPL ARP has the same, on
+  RIPPLE's last page. Defaults (ALL, 16, VARY 0) play as before: every fingerprint unchanged.
 - **2026-10-18: the controls, pruned.** From a pass over every row of controls.tsv: TAPE's FRZE is RPT (freeze is
   GRAIN's word); EDIT and FX go round the device shown, held + OCT- / OCT+ switches it; RIPL ARP is RIPPLE's last
   page; the mixer's round is LEVELS SCENES CHANNEL MASTER, its settings (KEY SETUP) on EDIT held + OCT+; the

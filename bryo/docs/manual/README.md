@@ -802,8 +802,28 @@ goes dark for its step, so you can see the pattern walk and find the key to take
 
 <img src="img/arp_add.png" width="240" alt="ARP in ADD mode, four notes piled up"> <img src="img/arp_drum.png" width="240" alt="ARP on a DRUM track: three drums, up and down">
 
+**Give it a rhythm (page 3, RHYTHM).** By default the arpeggiator plays on every step. Its third page decides which
+steps play, the way DRUM's pattern does:
+
+| Knob | What it does |
+| --- | --- |
+| **PATN** | writes a rhythm over the steps: **ALL** (every step), **OFF** (the off-beat eighths), **8TH**, **332** (3 + 3 + 2), **GLOP** (a gallop), **CLAV** (son clave), **SKIP**, **SPRS** (sparse) |
+| **LEN** | how many steps the rhythm runs before it goes round (1 to 16): LEN 5 against a 4-note chord makes a pattern that shifts every round |
+| **VARY** | how far each round strays from what's written: steps drop out and rests play, the off-beats first and more toward the end of the round, as DRUM's VARY does. At 0 it's exactly as written |
+| **EVOL** | how often a new variation comes: **OFF** keeps the same one every round, **1 2 4 8** a new one every that many rounds |
+
+On this page the **white keys are the steps**: press one to switch that step on or off (the keys light: dim inside
+LEN, bright for a step that plays, the playing step flips as it passes). Turning PATN writes its rhythm over your
+edits; the strip says **EDITED** once they differ. A rest lets the time go by without moving the melody, so the
+notes keep their order and the rhythm only decides when they land. Latch a chord on page 1 first (**MODE LTCH** or
+**ADD**), then come here to shape it while it plays. (HOLD has no steps, so it has no rhythm either.) Scenes hold the rhythm too (PATN, LEN, EVOL and the steps
+switch at the midpoint of a morph; VARY morphs).
+
+<img src="img/arp_rhythm.png" width="240" alt="ARP page 3, RHYTHM: 8TH, VARY 30 %, two rests played this round">
+
 **RIPL ARP (RIPPLE's last page): an arpeggio for the strings.** On RIPPLE (EDIT held + OCT+), press EDIT until the
-header says RIPL ARP, its last page (or hold EDIT and press white key 12; 13 on RESO and 12-BAND). Until 2026-10-18
+header says RIPL ARP (or hold EDIT and press white key 12; 13 on RESO and 12-BAND); the page after it is its rhythm,
+the same PATN LEN VARY EVOL and step keys as the ARP pad's page 3. Until 2026-10-18
 it was the ARP pad's third page; it moved so that everything RIPPLE does over time sits with RIPPLE. It's RIPPLE's own arpeggio, separate from the track's: each step plucks RIPPLE's four strings at
 that note (or, with RIPPLE's KEYS on TUNE, retunes it to that note), whatever the track plays. **MODE** turns it on (OFF, KEY, LTCH, ADD); **ORDR**, **RNGE** and **RATE** work
 as above. With MODE on, the white keys on this page play the strings' pattern and the track itself stays quiet; with

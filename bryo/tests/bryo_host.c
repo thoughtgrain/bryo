@@ -451,8 +451,9 @@ static void test_input(void)
     press(B_EDIT);
     press(B_EDIT);
     press(B_EDIT);
-    check("..EDIT again past RIPPLE's six pages (RIPL ARP its last): RIPPLE's first", ui.dev == DEV_RESO &&
-          ui.page == 0u);
+    press(B_EDIT);
+    check("..EDIT again past RIPPLE's seven pages (RIPL ARP and its rhythm last): RIPPLE's first",
+          ui.dev == DEV_RESO && ui.page == 0u);
     press(B_FX);
     check("FX: COLOR", ui.dev == DEV_COLOR);
     press(B_EDIT);
@@ -533,8 +534,8 @@ static void test_input(void)
     press(B_EDIT);
     check("..again: RIPPLE's page 3, the pitch (PTCH SCAL; the strings: KEYS PLVL)", ui.dev == DEV_RESO && ui.page == 2u &&
           pdesc_at(RS_STR_P, 8u) == RP_PTCH && pdesc_at(RS_STR_P, 9u) == RP_SCAL && pdesc_at(RS_STR_P, 10u) == RP_KEYS &&
-          pdesc_at(RS_FORM_P[2], 8u) == RP_PTCH && pdesc_pages(RS_STR_P) == 6u && pdesc_pages(RS_FORM_P[0]) == 6u &&
-          pdesc_pages(RS_FORM_P[1]) == 7u && pdesc_pages(RS_FORM_P[2]) == 7u);
+          pdesc_at(RS_FORM_P[2], 8u) == RP_PTCH && pdesc_pages(RS_STR_P) == 7u && pdesc_pages(RS_FORM_P[0]) == 7u &&
+          pdesc_pages(RS_FORM_P[1]) == 8u && pdesc_pages(RS_FORM_P[2]) == 8u);
     press(B_EDIT);
     check("..again: RIPPLE's page 4, the filter in front (CUT RES TYPE)",
           ui.dev == DEV_RESO && ui.page == 3u && pdesc_at(RS_STR_P, 12u) == RP_CUT && pdesc_at(RS_STR_P, 14u) == RP_SLOP &&
@@ -548,7 +549,11 @@ static void test_input(void)
           !strcmp(DEV_P[DEV_RESO][RP_FOCS].label, "FOCS") && DEV_P[DEV_RESO][RP_WDTH].def == 100 &&
           !strcmp(RS_STR_P[RP_PLVL].label, "PLVL") && RS_STR_P[RP_PLVL].def == 100);
     press(B_EDIT);
-    check("..again: RIPPLE's page 6, RIPL ARP (its own arpeggio)", ui.dev == DEV_RESO && ui.page == 5u && rarp_page());
+    check("..again: RIPPLE's page 6, RIPL ARP (its own arpeggio)", ui.dev == DEV_RESO && ui.page == 5u && rarp_page() &&
+          !rhy_page());
+    press(B_EDIT);
+    check("..again: page 7, RIPL ARP's rhythm (PATN LEN VARY EVOL)", ui.page == 6u && rhy_page() &&
+          pdesc_at(RS_STR_P, 24u) == RP_APAT && pdesc_at(RS_STR_P, 27u) == RP_AEVO);
     press(B_EDIT);
     check("..again: back to RIPPLE's page 1", ui.dev == DEV_RESO && ui.page == 0u);
     hold(B_EDIT);
@@ -573,10 +578,12 @@ static void test_input(void)
     press(B_ARP);
     check("..again: its page 2", ui.kind == FOCUS_ARP && ui.page == 1u);
     press(B_ARP);
-    check("..and round to the first (two pages: RIPL ARP is RIPPLE's last page since 2026-10-18)",
-          ui.kind == FOCUS_ARP && ui.page == 0u && pdesc_pages(ARP_P) == 2u);
-    focus_dev(DEV_RESO, pdesc_pages(dev_p(0, DEV_RESO)) - 1u);
-    check("..RIPPLE's last page: RIPL ARP (RIPPLE's arpeggio: its MODE is RIPPLE's knob 12)", rarp_page() &&
+    check("..again: page 3, RHYTHM (PATN LEN VARY EVOL; the white keys its steps)", ui.kind == FOCUS_ARP &&
+          ui.page == 2u && rhy_page() && !sys.keys_live && pdesc_pages(ARP_P) == 3u);
+    press(B_ARP);
+    check("..and round to the first (RIPL ARP is RIPPLE's since 2026-10-18)", ui.kind == FOCUS_ARP && ui.page == 0u);
+    focus_dev(DEV_RESO, pdesc_pages(dev_p(0, DEV_RESO)) - 2u);
+    check("..RIPPLE's last pages: RIPL ARP (RIPPLE's arpeggio: its MODE is RIPPLE's knob 12)", rarp_page() &&
           ({ int16_t *vp; const pdesc_t *d = ui_page(0, &vp); vp == &tp[0].dev[DEV_RESO][RP_AMODE] &&
           !strcmp(d->label, "MODE"); }));
     hold(B_LFO);                                         /* LFO held + OP3: the LFO pad shows M3 */
@@ -1039,7 +1046,7 @@ static void screens_in(const char *pal)
             shot(pal, SHOT[m]);
             ok &= tp[0].dev[DEV_RESO][RP_MODE] == (int16_t)m && ui.dev == DEV_RESO && ui.page == 1u &&
                   !strcmp(dev_name(0, DEV_RESO), RS_FORM_NAME[m]) &&
-                  pdesc_pages(dev_p(0, DEV_RESO)) == (m >= RM_RESO ? 7u : 6u);
+                  pdesc_pages(dev_p(0, DEV_RESO)) == (m >= RM_RESO ? 8u : 7u);
         }
         ok &= !strcmp(dev_p(0, DEV_RESO)[RP_TONE].label, "TILT") && !strcmp(dev_p(0, DEV_RESO)[RP_DEC].label, "RING");
         hold(B_EDIT);
@@ -9745,7 +9752,7 @@ static void test_page_keys(void)
     let_go(B_ARP);
     check("ARP held + key 2: the arpeggiator's page 2", ui.kind == FOCUS_ARP && ui.page == 1u);
     press(B_ARP);
-    check("..ARP tapped: its next page (on the let-go), round to the first", ui.kind == FOCUS_ARP && ui.page == 0u);
+    check("..ARP tapped: its next page (on the let-go), RHYTHM", ui.kind == FOCUS_ARP && ui.page == 2u);
     hold(B_ENV);
     ui_leds();
     led_on(fm1_led, 14u + note_of_white(0));
@@ -11178,6 +11185,97 @@ static void test_arp_long(void)
     render(4, 0);
 }
 /* the arpeggiator's HOLD, and scenes holding the arpeggiator (2026-10-18) */
+/* the arpeggiator's rhythm (2026-10-18): which steps play, PATN's presets and the keys, VARY and EVOL, RIPL ARP's */
+static void test_arp_rhythm(void)
+{
+    uint32_t c3 = note_bit_of_white(0), e3 = note_bit_of_white(4), g3 = note_bit_of_white(7), n, k, r, s;
+    uint8_t seq[32];
+    int gaps;
+    int16_t a[NARP];
+    char m[200];
+    power_on();
+    check("the rhythm's defaults: every step plays (ALL, LEN 16, VARY 0): the arpeggiator as it was",
+          tp[0].arp[AR_STPS] == -1 && tp[0].arp[AR_LEN] == 16 && tp[0].arp[AR_VARY] == 0 && tp[0].arp[AR_RSTP] == -1 &&
+          tp[0].dev[DEV_RESO][RP_ALEN] == 16);
+    tp[0].src = SRC_SYNTH;
+    sys.bpm = 120;
+    sys.playing = 1;
+    tp[0].arp[AR_MODE] = ARM_LTCH;
+    tp[0].arp[AR_RATE] = 3;                              /* (1/16: 172 blocks a step at 120) */
+    press(B_ARP);
+    press(B_ARP);
+    press(B_ARP);
+    check("ARP's page 3: RHYTHM (PATN LEN VARY EVOL), the white keys its steps, not notes", ui.kind == FOCUS_ARP &&
+          ui.page == 2u && rhy_page() && !sys.keys_live);
+    turn(0, 2);
+    check("..PATN turned to 8TH: its rhythm written over the steps", tp[0].arp[AR_PATN] == 2 &&
+          (uint16_t)tp[0].arp[AR_STPS] == 0x5555u);
+    key_edge(note_of_white(1));
+    ui_leds();
+    led_on(fm1_led, 14u + note_of_white(1));
+    check("..white key 2: step 2 on too (0x5557), its LED lit", (uint16_t)tp[0].arp[AR_STPS] == 0x5557u && led_lit);
+    key_edge(note_of_white(1));
+    press(B_ARP);                                        /* (the notes: on page 1, the keys play) */
+    fm1_in.notes = c3 | e3 | g3;
+    render(4, 0);
+    fm1_in.notes = 0;
+    n = arp_steps(0, 172u * 16u, seq, 32, &gaps);
+    snprintf(m, sizeof m, "8TH: every other step plays (%u notes in 16 steps), the melody on through the rests "
+             "(C E G in turn, from where it was: %d %d %d %d)", n, seq[0], seq[1], seq[2], seq[3]);
+    check(m, n >= 7u && n <= 9u && ((seq[0] == 48u && seq[1] == 52u && seq[2] == 55u) ||
+                                    (seq[0] == 52u && seq[1] == 55u && seq[2] == 48u) ||
+                                    (seq[0] == 55u && seq[1] == 48u && seq[2] == 52u)) && seq[3] == seq[0]);
+    press(B_ARP);                                        /* (RHYTHM, playing: the picture) */
+    press(B_ARP);
+    turn(2, 30);                                         /* (VARY 30: some steps change) */
+    render(172u * 5u + 40u, 0);
+    shot("BRYO", "arp_rhythm");
+    tp[0].arp[AR_VARY] = 0;
+    for (k = 0; k < NARP; k++)
+        a[k] = ARP_P[k].def;
+    a[AR_VARY] = 100;
+    {
+        uint32_t m0 = 0, m1 = 0, m2 = 0, drop = 0, added = 0;
+        for (s = 0; s < 16u; s++) {
+            m0 |= (uint32_t)arp_hit(a, 0x5555u, s, 0) << s;
+            m1 |= (uint32_t)arp_hit(a, 0x5555u, 16u + s, 0) << s;
+        }
+        a[AR_EVOL] = 1;
+        for (r = 0; r < 4u && !m2; r++)
+            for (s = 0, m2 = 0; s < 16u; s++)
+                m2 |= (uint32_t)arp_hit(a, 0x5555u, 16u * (r + 1u) + s, 0) << s;
+        for (s = 0; s < 16u; s++) {
+            drop += (0x5555u >> s & 1u) && !(m0 >> s & 1u);
+            added += !(0x5555u >> s & 1u) && (m0 >> s & 1u);
+        }
+        snprintf(m, sizeof m, "VARY 100 on 8TH: %u steps dropped, %u rests played, the downbeat kept; the same every "
+                 "round (EVOL OFF); EVOL 1: the next round another (%04X %04X)", drop, added, m0, m2);
+        check(m, drop + added > 0u && (m0 & 1u) && m0 == m1 && m2 != m0);
+    }
+    check("..VARY 0: as written, exactly", ({ uint32_t ok = 1; a[AR_VARY] = 0;
+          for (s = 0; s < 32u; s++) ok &= arp_hit(a, 0x5555u, s, 0) == (int)((0x5555u >> (s % 16u)) & 1u); ok; }));
+    tp[0].arp[AR_LEN] = 6;
+    tp[0].arp[AR_VARY] = 30;
+    check("saved with the project: the steps, LEN, VARY", pj_save(0) == 0);
+    tp[0].arp[AR_STPS] = -1;
+    tp[0].arp[AR_LEN] = 16;
+    check("..loaded: back", pj_load(0) == 0 && (uint16_t)tp[0].arp[AR_STPS] == 0x5555u && tp[0].arp[AR_LEN] == 6 &&
+          tp[0].arp[AR_VARY] == 30);
+    tp[0].arp[AR_MODE] = ARM_OFF;
+    render(4, 0);
+
+    /* RIPL ARP's rhythm: RIPPLE's last page */
+    focus_dev(DEV_RESO, pdesc_pages(dev_p(0, DEV_RESO)) - 1u);
+    ui_input();
+    turn(0, 3);
+    check("RIPL ARP's rhythm (RIPPLE's last page): PATN 332 written into its own steps, the track's left alone",
+          rhy_page() && tp[0].dev[DEV_RESO][RP_APAT] == 3 && (uint16_t)tp[0].arp[AR_RSTP] == 0x4949u &&
+          (uint16_t)tp[0].arp[AR_STPS] == 0x5555u && !sys.keys_reso && !sys.keys_rarp);
+    key_edge(note_of_white(15));
+    check("..white key 16: its step 16", (uint16_t)tp[0].arp[AR_RSTP] == 0xC949u);
+    shot("BRYO", "arp_rhythm_ripl");
+    sys.playing = 0;
+}
 static void test_arp_hold(void)
 {
     uint32_t b, strikes = 0, was = 0, c3 = note_bit_of_white(0), e3 = note_bit_of_white(4), g3 = note_bit_of_white(7);
@@ -11280,7 +11378,7 @@ static void test_arp_sources(void)
           seq[3] == 4u && gaps);
     check("..the tape plays them", tape_rt[0].running);
     tp[0].arp[AR_RNGE] = 3;
-    arp_rt[0].pos = 0;
+    arp_rt[0].pos = arp_rt[0].mpos = 0;
     n = arp_steps(0, 172 * 4, seq, 32, &gaps);
     check("..RNGE 3 spreads nothing (no octaves of a slice): still 1 5 1 5", n >= 4u && seq[0] == 0u && seq[1] == 4u &&
           seq[2] == 0u && seq[3] == 4u);
@@ -11322,12 +11420,13 @@ static void test_arp_sources(void)
         uint32_t f, k, same = 1;
         for (f = 0; f < 4u; f++) {
             const pdesc_t *p = f ? RS_FORM_P[f - 1u] : RS_STR_P;
-            uint32_t last = pdesc_pages(p) - 1u;
+            uint32_t last = pdesc_pages(p) - 2u;
             for (k = 0; k < 4u; k++)
                 same &= pdesc_at(p, 4u * last + k) == RP_AMODE + k && !strcmp(p[RP_AMODE + k].label,
                                                                              DEV_P[DEV_RESO][RP_AMODE + k].label);
         }
-        check("RIPL ARP is every RIPPLE form's last page, RIPPLE's knobs 12-15 (MODE ORDR RNGE RATE)", same);
+        check("RIPL ARP is every RIPPLE form's last page but its rhythm, RIPPLE's knobs 12-15 (MODE ORDR RNGE RATE)",
+              same);
     }
     power_on();                                          /* RIPPLE's arpeggio on a TAPE track */
     sys.bpm = 120;
@@ -11411,13 +11510,13 @@ static void test_arp_keys(void)
     shot("BRYO", "arp");
     tp[0].arp[AR_RNGE] = 2;
     tp[0].arp[AR_ORDR] = ARO_UPDN;
-    arp_rt[0].pos = 0;
+    arp_rt[0].pos = arp_rt[0].mpos = 0;
     n = arp_steps(0, 172 * 7, seq, 32, &gaps);
     check("RNGE 2, UPDN: C3 E3 C4 E4 C4 E3, then round", n >= 6u && seq[0] == 48u && seq[1] == 52u && seq[2] == 60u &&
           seq[3] == 64u && seq[4] == 60u && seq[5] == 52u);
     tp[0].arp[AR_RNGE] = 1;
     tp[0].arp[AR_ORDR] = ARO_DOWN;
-    arp_rt[0].pos = 0;
+    arp_rt[0].pos = arp_rt[0].mpos = 0;
     n = arp_steps(0, 172 * 3, seq, 32, &gaps);
     check("DOWN: E3 C3 E3", n >= 3u && seq[0] == 52u && seq[1] == 48u && seq[2] == 52u);
     fm1_in.notes = 0;
@@ -11918,6 +12017,7 @@ int main(int argc, char **argv)
     test_arp_fade();
     test_arp_long();
     test_arp_hold();
+    test_arp_rhythm();
     test_arp_sources();
     test_factory_scene();
     test_pj_keys();

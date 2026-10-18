@@ -108,8 +108,24 @@ static const char *const N_EDST[3] = {"CUT", "DRV", "PTCH"};
 #define P_SUB {"SUB", 0, 100, 0, F_PCT}
 #define P_ROUT {"ROUT", 0, 1, 0, F_ENUM, N_ROUT, 1}
 /* the arpeggiator's knobs and names (ARP_P below; RIPPLE's own arpeggio uses them too) */
-enum { AR_MODE, AR_ORDR, AR_RNGE, AR_RATE, AR_GATE, AR_SWNG, AR_GRND, AR_FADE, NARP = 8 };   /* (GRND 2026-10-13: each
-                                                                                       * step's gate, at random) */
+enum { AR_MODE, AR_ORDR, AR_RNGE, AR_RATE, AR_GATE, AR_SWNG, AR_GRND, AR_FADE, AR_PATN, AR_LEN, AR_VARY, AR_EVOL,
+       AR_STPS, AR_RSTP, NARP };     /* (GRND 2026-10-13: each step's gate, at random. 2026-10-18, the rhythm: PATN
+                                      * writes a preset into STPS, the steps that play a bit each, LEN of them round;
+                                      * VARY drops and adds steps as DRUM's VARY does, EVOL a new version every n
+                                      * rounds. STPS isn't on a page: the white keys set it on page 3. RSTP: RIPL
+                                      * ARP's steps, RIPPLE's own arpeggio's, kept here) */
+static const char *const N_EVOL[5] = {"OFF", "1", "2", "4", "8"};   /* (DRUM's EVOL and the arpeggiators') */
+#define ARP_NRHY 8u                  /* the rhythms PATN writes (bit s: step s plays), over 16 steps */
+static const char *const N_ARHY[ARP_NRHY] = {"ALL", "OFF", "8TH", "332", "GLOP", "CLAV", "SKIP", "SPRS"};
+static const uint16_t ARP_RHY[ARP_NRHY] = {
+    0xFFFFu,                         /* ALL: every step (as the arpeggiator always played) */
+    0x4444u,                         /* OFF: the off-beat eighths (3 7 11 15) */
+    0x5555u,                         /* 8TH: every other step */
+    0x4949u,                         /* 332: 3 + 3 + 2, the tresillo, twice */
+    0xDDDDu,                         /* GLOP: a gallop, x.xx a beat */
+    0x1449u,                         /* CLAV: son clave, 3-2 */
+    0xBBBBu,                         /* SKIP: xx.x a beat */
+    0x0481u};                        /* SPRS: sparse, 1 8 11 */
 enum { ARM_OFF, ARM_KEY, ARM_LTCH, ARM_ADD, ARM_HOLD };   /* (HOLD 2026-10-18: the arpeggiator's own page only) */
 enum { ARO_UP, ARO_DOWN, ARO_UPDN, ARO_RND, ARO_PLAY };   /* (PK_DIR's order, then PLAY) */
 static const char *const N_ARM[5] = {"OFF", "KEY", "LTCH", "ADD", "HOLD"};
@@ -147,7 +163,11 @@ static const char *const N_TSYNC[6] = {"OFF", "1BR", "2BR", "4BR", "8BR", "16BR"
         /* 23 (2026-10-15): k23, COMB's POL; k24 k25, the resonators' FOCS and WDTH; k26 (2026-10-16), FLOW: the  \
          * sound moving through the spectrum by itself (the spotlight walking the bands; the comb itself bouncing)  \
          */                                                                                                         \
-        k23, k24, k25, k26}
+        k23, k24, k25, k26,                                                                                        \
+        /* 27 (2026-10-18): RIPL ARP's rhythm, as the ARP pad's page 3 (PATN LEN VARY EVOL; its steps, set by the \
+         * white keys on its page, are the track's tp.arp[AR_RSTP]: RIPPLE's 32 knobs had no room) */            \
+        {"PATN", 0, ARP_NRHY - 1, 0, F_ENUM, N_ARHY, 1}, {"LEN", 1, 16, 16, F_NUM, 0, 1},                          \
+        {"VARY", 0, 100, 0, F_PCT, 0, 1}, {"EVOL", 0, 4, 0, F_ENUM, N_EVOL, 1}}
 #define RS_EVEN {"EVEN", -100, 100, 0, F_BIPCT}
 /* COMB's POL: ODD, the feedback inverted (the odd harmonics, hollow: the comb as it was); ALL, not (every harmonic,
  * the half line an octave up: metallic) */
@@ -453,7 +473,6 @@ static const char *const N_DPATN[DRM_NPRESET] = {"ROCK", "DISC", "FUNK", "SHFL",
 static const char *const N_DINST[16] = {"BD", "SD", "CP", "RS", "LC", "LB", "HB", "CL",
                                         "CB", "MA", "TB", "GU", "HH", "OH", "MB", "CY"};
 static const char *const N_DMODE[4] = {"HITS", "ACC", "LIVE", "ERAS"};
-static const char *const N_EVOL[5] = {"OFF", "1", "2", "4", "8"};
 static const pdesc_t DRM_P[NPK] = {
     /* PATTERN: a written rhythm (turned: it replaces the pattern; SAVE held undoes), the bars it loops, swing on
      * the off-sixteenths, an accented step's extra punch */
@@ -564,9 +583,14 @@ static const pdesc_t ARP_P[NPK] = {   /* (NPK long: pdesc_pages looks past the l
     {"MODE", 0, 4, ARM_OFF, F_ENUM, N_ARM, 1}, {"ORDR", 0, 4, ARO_UP, F_ENUM, N_ARO, 1}, {"RNGE", 1, 3, 1, F_NUM, 0, 1},
     {"RATE", 0, 5, 3, F_ENUM, N_ARATE, 1},
     {"GATE", 10, 400, 50, F_PCT, 0, 1}, {"SWNG", 0, 100, 0, F_PCT, 0, 1}, {"GRND", 0, 100, 0, F_PCT, 0, 1},
-    {"FADE", 0, 127, 0, F_TIME, 0, 1}};   /* (2026-10-15: the notes go on this long after the keys are let go, fading;
-                                           * 0: KEY stops at once, LTCH and ADD hold). RIPPLE's own arpeggio, RIPL
-                                           * ARP, was this pad's page 3; since 2026-10-18 it's RIPPLE's last page */
+    {"FADE", 0, 127, 0, F_TIME, 0, 1},   /* (2026-10-15: the notes go on this long after the keys are let go, fading;
+                                          * 0: KEY stops at once, LTCH and ADD hold). RIPPLE's own arpeggio, RIPL ARP,
+                                          * was this pad's page 3; since 2026-10-18 it's RIPPLE's last pages */
+    /* page 3, RHYTHM (2026-10-18): which steps play (PATN writes a preset, the white keys toggle steps), LEN steps
+     * round, VARY dropping and adding steps, EVOL a new version every 1-8 rounds; STPS, the steps, past the page */
+    {"PATN", 0, ARP_NRHY - 1, 0, F_ENUM, N_ARHY, 1}, {"LEN", 1, 16, 16, F_NUM, 0, 1},
+    {"VARY", 0, 100, 0, F_PCT, 0, 1}, {"EVOL", 0, 4, 0, F_ENUM, N_EVOL, 1},
+    {"STPS", -32768, 32767, -1, F_NUM, 0, 1}, {"RSTP", -32768, 32767, -1, F_NUM, 0, 1}};
 
 /* SETUP, with KEY the mixer's settings (EDIT held + OCT+, then EDIT; 2026-10-18): how the panel behaves, for the
  * instrument, not a project (settings.c keeps them). KEYS: the black keys as the shortcuts (SHRT: mutes, reverse, clears, freeze) or as notes
@@ -664,17 +688,20 @@ static const playout_t PLAYOUT[] = {
      * specific filter type": page 1 the form's ring and brightness with ROUT WET, page 2 more of the form's own, the
      * pitch and chord on page 3, then the filter in front, the keys, the form. 12-15, RIPL ARP, past the pages) */
     /* (2026-10-18: RIPL ARP, 12-15, is each form's last page: what RIPPLE does over time sits with RIPPLE) */
-    {RS_STR_P, 6, {1, 2, 8, 3, 21, 18, 17, 9, 0, 7, 19, 20, 4, 5, 6, 10, 16, 11, 22, 23, 12, 13, 14, 15}},
+    {RS_STR_P, 7, {1, 2, 8, 3, 21, 18, 17, 9, 0, 7, 19, 20, 4, 5, 6, 10, 16, 11, 22, 23, 12, 13, 14, 15, 27, 28, 29,
+                   30}},                            /* (and RIPL ARP 2, its rhythm: PATN LEN VARY EVOL) */
                                                     /* RIPPLE: DEC TONE ROUT WET, SPRD RIPL DRV PICK, PTCH SCAL KEYS PLVL,
                                                      * CUT RES TYPE STRM, MODE VARY, RIPL ARP (MODE ORDR RNGE RATE) */
-    {RS_FORM_P[0], 6, {1, 2, 8, 3, 23, 21, 18, 17, 0, 7, 19, 20, 4, 5, 6, 9, 16, 10, 11, 26, 12, 13, 14, 15}},
+    {RS_FORM_P[0], 7, {1, 2, 8, 3, 23, 21, 18, 17, 0, 7, 19, 20, 4, 5, 6, 9, 16, 10, 11, 26, 12, 13, 14, 15, 27, 28,
+                       29, 30}},
                                                     /* COMB: FDBK TONE ROUT WET, POL SPRD RIPL DRV, PTCH SCAL KEYS PLVL,
                                                      * CUT RES TYPE PICK, MODE STRM VARY FLOW */
-    {RS_FORM_P[1], 7, {1, 2, 8, 3, 24, 25, 26, 21, 0, 7, 17, 18, 4, 5, 6, 16, 19, 20, 9, 10, 11, 22, 23, 27, 12, 13,
-                       14, 15}},                    /* RESO: RING TILT ROUT WET, FOCS WDTH FLOW SPRD, PTCH SCAL DRV RIPL,
-                                                     * CUT RES TYPE MODE, KEYS PLVL PICK STRM, VARY EVEN */
-    {RS_FORM_P[2], 7, {1, 2, 8, 3, 24, 25, 26, 21, 0, 7, 17, 18, 4, 5, 6, 16, 19, 20, 9, 10, 11, 22, 23, 27, 12, 13,
-                       14, 15}},                    /* 12-BAND: the same */
+    {RS_FORM_P[1], 8, {1, 2, 8, 3, 24, 25, 26, 21, 0, 7, 17, 18, 4, 5, 6, 16, 19, 20, 9, 10, 11, 22, 23, 31, 12, 13,
+                       14, 15, 27, 28, 29, 30}},   /* RESO: RING TILT ROUT WET, FOCS WDTH FLOW SPRD, PTCH SCAL DRV
+                                                     * RIPL, CUT RES TYPE MODE, KEYS PLVL PICK STRM, VARY EVEN, RIPL
+                                                     * ARP, its rhythm */
+    {RS_FORM_P[2], 8, {1, 2, 8, 3, 24, 25, 26, 21, 0, 7, 17, 18, 4, 5, 6, 16, 19, 20, 9, 10, 11, 22, 23, 31, 12, 13,
+                       14, 15, 27, 28, 29, 30}},                    /* 12-BAND: the same */
     {DEV_P[DEV_COLOR], 3, {0, 1, 9, 7, 2, 3, 4, 5, 6, 10, 11, 8}},              /* COLOR: DRV CRSH ROUT WET, NOIS TILT
                                                                                  * NDEC NTON, CMOD . . LVL */
     {DEV_P[DEV_SPACE], 5, {0, 1, 4, 5, 12, 6, 7, 15, 13, 14, 18, 19, 2, 16, 3, 8, 11, 9, 17, 10}},   /* CHRONOS
@@ -706,6 +733,8 @@ static const playout_t PLAYOUT[] = {
                                                     /* POLY: HOME REEL STRT END TUNE, LOOP LSTR LXF TRAN, TWIN RLB TUNB
                                                      * BLND, VOIC ROOT FINE LVL; ENV (pages 3 4 6 7) AMP, FILTER (CUT
                                                      * RES TYPE), ENV 2, ETYP . . ENV */
+    {ARP_P, 3, {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}},   /* ARP: MODE.., GATE.., PATN LEN VARY EVOL (STPS, RSTP: the
+                                                         * white keys', past the pages) */
     {ME_P[ME_WAVE], 4, {0, 1, 2, 3, 4, 5, 6, 7, 12, 13, 14, 15, 10, 11, 8, 9}},  /* LFO: timing, then PHAS SPRD AMT OFS */
     {ME_P[ME_SEQ], 3, {0, 1, 2, 3, 4, 5, 6, 7, 11, 8, 9, 10}},                  /* SEQ: . SPRD AMT OFS */
     {ME_P[ME_FOLLOW], 2, {0, 1, 2, 3, 4, 7, 5, 6}},                             /* FOLLOW: HOLD SPRD AMT OFS */

@@ -72,7 +72,9 @@ typedef struct {
     uint8_t tbase;                   /* .. the mask's base while they ring (the pattern's lowest note) */
     uint8_t lng;                     /* this step's note is long (its gate past the step) */
     uint8_t defer;                   /* this step's note was still ringing: silent for a block, then struck */
-    uint32_t pos;                    /* steps played since the notes started */
+    uint32_t pos;                    /* steps since the notes started (time: the rhythm's place, SWNG's half) */
+    uint32_t mpos;                   /* .. of them, the ones that played (the melody's place: a rest doesn't move it,
+                                      * 2026-10-18) */
     uint32_t rng;                    /* RND's generator */
     uint32_t grng;                   /* GRND's */
 } arp_rt_t;
@@ -209,7 +211,25 @@ static uint32_t HOT_CODE arp_pick(const int16_t *a, arp_rt_t *r)
     uint8_t s[ARP_MAXN];
     uint32_t n = arp_notes(a, r, s), len = n * (uint32_t)clamp(a[AR_RNGE], 1, 3);
     r->rng = r->rng * 1664525u + 1013904223u;
-    return arp_at(s, n, arp_place((uint32_t)a[AR_ORDR], len, r->pos, r->rng >> 8));
+    return arp_at(s, n, arp_place((uint32_t)a[AR_ORDR], len, r->mpos, r->rng >> 8));
+}
+
+/* the rhythm (2026-10-18): does step pos play? Its place in LEN steps; STPS's bit there (steps: STPS, or RIPL
+ * ARP's); VARY drops a written step or plays a rest, the weak places first and more toward the round's end, in a
+ * version that's the same every round until EVOL moves it on (DRUM's way: drm_roll). salt: the arpeggiator's own */
+static int HOT_CODE arp_hit(const int16_t *a, uint32_t steps, uint32_t pos, uint32_t salt)
+{
+    static const uint8_t EVERY[5] = {0, 1, 2, 4, 8}, DROP[4] = {0, 25, 50, 80}, ADD[4] = {45, 35, 25, 15};
+    uint32_t len = (uint32_t)clamp(a[AR_LEN], 1, 16), s = pos % len, w = (steps >> s) & 1u, vary, e, v, lv, roll;
+    vary = (uint32_t)clamp(a[AR_VARY], 0, 100);
+    if (!vary)
+        return (int)w;
+    e = EVERY[clamp(a[AR_EVOL], 0, 4)];
+    v = 1u + (e ? pos / len / e : 0u) + salt * 7919u;
+    lv = drm_level(s);
+    vary = vary * (len > 1u ? 6u + 4u * s / (len - 1u) : 10u) / 10u;   /* (the round's start 60 %, its end 100 %) */
+    roll = drm_roll(v, 0, s, 0, 3);
+    return w ? roll >= vary * DROP[lv] / 100u : roll < vary * ADD[lv] / 100u;
 }
 
 static uint32_t HOT_CODE arp_mask(arp_rt_t *r, uint32_t *nbase);
@@ -241,7 +261,7 @@ static uint32_t HOT_CODE arp_run(arp_rt_t *r, const int16_t *a, int on, uint32_t
                                                           * step's note was sounding, so it ends) */
         r->held = keys;
         r->base_in = (uint8_t)base;
-        r->pos = 0;
+        r->pos = r->mpos = 0;
         r->nt = r->lng = r->defer = 0;
         arp_fade_reset(r);
         if (r->on) {
@@ -314,7 +334,7 @@ static uint32_t HOT_CODE arp_run(arp_rt_t *r, const int16_t *a, int on, uint32_t
     if (!r->n || (r->waiting && !keys) || r->faded) {    /* nothing to play (or waiting for PLAY, or faded out):
                                                           * quiet, and the next note starts at once */
         r->on = 0;
-        r->pos = 0;
+        r->pos = r->mpos = 0;
         r->phase = r->len = 0;
         r->nt = r->lng = r->defer = 0;
         *nbase = r->cur;
@@ -345,8 +365,16 @@ static uint32_t HOT_CODE arp_run(arp_rt_t *r, const int16_t *a, int on, uint32_t
         }
         r->phase -= r->len;
         r->len = arp_len(a, r->pos);
+        if (!arp_hit(a, (uint16_t)a[AR_STPS], r->pos, salt)) {   /* a rest: time goes on, the melody waits */
+            r->pos++;
+            r->on = 0;
+            r->lng = 0;
+            r->gate = 0;
+            continue;
+        }
         r->cur = (uint8_t)arp_pick(a, r);
         r->pos++;
+        r->mpos++;
         {
             int32_t g = clamp(a[AR_GATE], 10, gmax), gr = clamp(a[AR_GRND], 0, 100);
             if (gr) {                                    /* GRND: this step's gate GATE +- up to GRND points, at
@@ -444,7 +472,7 @@ static uint32_t HOT_CODE arp_block(uint32_t t, uint32_t keys, uint32_t base, uin
         }
         r->held = notes ? keys : keys & 0xFFFFu;
         r->base_in = (uint8_t)(notes ? base : 0u);
-        r->pos = 0;
+        r->pos = r->mpos = 0;
         *nbase = base;
         return keys;
     }

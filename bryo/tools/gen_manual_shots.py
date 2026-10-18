@@ -15,7 +15,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw
 
 SHOTS = [
-    "arp", "arp_add", "arp_drum", "arp_fade", "arp_long", "arp_res", "plock", "boot", "calibration", "color", "color2", "color3", "crash", "drum", "drum_inst", "drum_kit", "drum_step",
+    "arp", "arp_add", "arp_drum", "arp_fade", "arp_long", "arp_res", "arp_rhythm", "plock", "boot", "calibration", "color", "color2", "color3", "crash", "drum", "drum_inst", "drum_kit", "drum_step",
     "drum_vary", "grain", "grain2", "grain4", "grain_body", "grain6", "grain_busy", "space_live", "reso_live", "grain_frozen", "grain_playing", "mixer", "mixer_channel",
     "mixer_held", "mixer_master", "mixer_key", "poly_tuning", "synth_tuning", "reels", "rec_bars", "tape_zoom", "poly_zoom", "mixer_tracks3", "mod1", "mod1_p4", "mod2", "mod3_steps", "mod4_follow",
     "mod_depth", "mod_marks", "poly", "presets", "presets_factory", "projects", "resonator2", "resonator_wet", "ripple2", "ripple_comb", "ripple_bank", "ripple_flow", "mixer_scenes", "mixer_morph", "projects_scenes", "synth_fm", "synth_pd", "synth_vox", "synth_wt", "poly_twin", "poly_loop", "follow_live",

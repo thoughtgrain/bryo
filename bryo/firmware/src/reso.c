@@ -27,7 +27,8 @@
 #define RS_LEN (sizeof(mem_chunk_t) / 2u)   /* a string's delay line: a chunk as samples (1,056) */
 enum { RP_PTCH, RP_DEC, RP_TONE, RP_WET, RP_CUT, RP_RES, RP_SLOP, RP_SCAL, RP_ROUT, RP_PICK, RP_STRM, RP_VARY,
        RP_AMODE, RP_AORD, RP_ARNG, RP_ARAT, RP_MODE, RP_DRV, RP_RIPL, RP_KEYS, RP_PLVL, RP_SPRD, RP_EVEN, RP_POL,
-       RP_FOCS, RP_WDTH, RP_FLOW };
+       RP_FOCS, RP_WDTH, RP_FLOW, RP_APAT, RP_ALEN, RP_AVAR, RP_AEVO };   /* (27-30, 2026-10-18: RIPL ARP's rhythm;
+                                                                         * its steps, tp.arp[AR_RSTP]) */
                                                     /* (12-15: its arpeggio; 16: its form, EDIT held + SELECT) */
 /* the form, MODE (2026-10-13: picked as a source is, EDIT held + SELECT on RIPPLE's pages, each with its own pages
  * and picture): STRG the strings; COMB, combs (half the line, fed back inverted: the odd harmonics only, hollow);
@@ -323,6 +324,10 @@ static uint32_t HOT_CODE reso_arp_block(uint32_t t, uint32_t keys, uint32_t base
     a[AR_RNGE] = p[RP_ARNG];
     a[AR_RATE] = p[RP_ARAT];
     a[AR_GATE] = 50;
+    a[AR_LEN] = p[RP_ALEN];                              /* (its rhythm, 2026-10-18: RIPPLE's knobs 27-30, the steps */
+    a[AR_VARY] = p[RP_AVAR];                             /* .. kept with the track's arpeggiator's) */
+    a[AR_EVOL] = p[RP_AEVO];
+    a[AR_STPS] = tp[t].arp[AR_RSTP];
     return arp_run(&reso_arp[t], a, p[RP_AMODE] != ARM_OFF, keys, base, n, note, t + 4u) & 1u;
 }
 

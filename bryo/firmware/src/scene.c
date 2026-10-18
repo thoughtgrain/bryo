@@ -91,7 +91,8 @@ static uint32_t scn_kind(uint32_t g)
             const pdesc_t *d = scn_desc(i);
             uint32_t k = i % NPK;
             uint8_t v = !d || pdesc_empty(d) || d->names == N_REEL ? 0 : d->nomod ? 2 : 1;
-            if (i >= MOD_TG(DEV_RESO, RP_AMODE) && i <= MOD_TG(DEV_RESO, RP_ARAT))
+            if ((i >= MOD_TG(DEV_RESO, RP_AMODE) && i <= MOD_TG(DEV_RESO, RP_ARAT)) ||
+                (i >= MOD_TG(DEV_RESO, RP_APAT) && i <= MOD_TG(DEV_RESO, RP_AEVO)))   /* (RIPL ARP's, as the rest) */
                 v = 0;
             if (i >= MOD_TG(DEV_SPACE, 0) && i < MOD_TG(DEV_SPACE, 0) + NPK && SP_RMK[k])
                 v = 0;
@@ -143,7 +144,9 @@ static void scn_mix(const scene_t *a, const scene_t *b, int32_t pos)
         for (k = 0; k < NARP; k++) {                     /* the arpeggiator: its choices at the midpoint, the rest
                                                           * on the way */
             int32_t x = a->arp[t][k], y = b->arp[t][k];
-            tp[t].arp[k] = (int16_t)(k <= AR_RATE || x == y ? (half ? y : x) : x + ((y - x) * pos) / SCN_FULL);
+            int sw = k <= AR_RATE || k == AR_PATN || k == AR_LEN || k == AR_EVOL || k >= AR_STPS;   /* (the rhythm's
+                                                         * choices and steps: at the midpoint too; VARY morphs) */
+            tp[t].arp[k] = (int16_t)(sw || x == y ? (half ? y : x) : x + ((y - x) * pos) / SCN_FULL);
         }
         for (k = 0; k < NSLOT; k++) {                    /* the modulators' AMT, on the way */
             int32_t x = a->amt[t][k], y = b->amt[t][k];

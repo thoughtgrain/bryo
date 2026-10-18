@@ -1821,6 +1821,47 @@ static void viz_arp(const int16_t *v, uint32_t f)
     }
 }
 
+/* an arpeggio's rhythm page (2026-10-18): its LEN steps in a row, as this round plays them: a written step that plays
+ * solid, one VARY drops framed, a rest VARY plays dim and solid, a rest a dot; the step playing orange. Under it the
+ * pattern's name and length, or the last-turned knob */
+static void viz_rhy(uint32_t f)
+{
+    int16_t a[NARP] = {0};
+    uint32_t st = (uint16_t)*rhy_steps(a), len = (uint32_t)clamp(a[AR_LEN], 1, 16), s, salt;
+    int res = ui.kind != FOCUS_ARP;
+    const arp_rt_t *r = res ? &reso_arp[sys.sel] : &arp_rt[sys.sel];
+    uint32_t round = r->pos ? (r->pos - 1u) / len : 0u, now = r->pos ? (r->pos - 1u) % len : 0xFFu;
+    const int16_t *pv = res ? tp[sys.sel].dev[DEV_RESO] : tp[sys.sel].arp;
+    uint32_t pat = (uint32_t)clamp(pv[res ? RP_APAT : AR_PATN], 0, (int32_t)ARP_NRHY - 1);
+    char b[24];
+    salt = sys.sel + (res ? 4u : 0u);
+    for (s = 0; s < len; s++) {
+        int32_t x = DX0 + 1 + (int32_t)s * 7, y = 9, w = (st >> s) & 1u;
+        int plays = arp_hit(a, st, round * len + s, salt);
+        if (s == now && r->len && sys.playing)
+            px_box(x, y, 6, 16, plays ? px_live : px_dim);
+        else if (plays)
+            px_box(x, y, 6, 16, w ? px_ink : px_dim);
+        else if (w)
+            px_frame(x, y, 6, 16, px_dim, 1);
+        else
+            px_dot(x + 2, y + 14, px_dim);
+        if (!(s & 3u))                                                 /* (the beats marked under) */
+            px_line(x, y + 19, x + 5, y + 19, px_dim, 1);
+    }
+    if (f >= AR_PATN && f <= AR_EVOL && !res) {
+        vz_ktag(118, DLBL - 1, &ARP_P[f], tp[sys.sel].arp[f]);
+    } else if (res && f >= RP_APAT && f <= RP_AEVO) {
+        vz_ktag(118, DLBL - 1, &dev_p(sys.sel, DEV_RESO)[f], pv[f]);
+    } else {
+        fmt_int(b, (int32_t)len);
+        str_cpy(b + str_len(b), " STEPS", 8);
+        px_text(118 - px_text_w(PXF_3, b), DLBL, PXF_3, b, px_ink);
+    }
+    px_text(DX0, DLBL, PXF_3, ((uint16_t)st & ((1u << len) - 1u)) == (ARP_RHY[pat] & ((1u << len) - 1u))
+            ? N_ARHY[pat] : "EDITED", px_ink);
+}
+
 /* SETUP (the mixer's last page): what each preference does, in words */
 static void viz_setup(void)
 {
@@ -2801,7 +2842,9 @@ static uint32_t viz_sig(void)
         for (k = 0; k < NARP; k++)
             h = (h ^ (uint32_t)(tp[sys.sel].arp[k] + 32768)) * 16777619u;
         for (k = 0; k < 4u; k++)
-            h = (h ^ (uint32_t)(tp[sys.sel].dev[DEV_RESO][RP_AMODE + k] + 32768)) * 16777619u;
+            h = (h ^ (uint32_t)(tp[sys.sel].dev[DEV_RESO][RP_AMODE + k] + 32768) ^
+                 (uint32_t)(tp[sys.sel].dev[DEV_RESO][RP_APAT + k] + 32768) << 8) * 16777619u;
+        h += (uint32_t)rhy_page() * 0x3D3u + sys.playing * 0x7F1u;   /* (the rhythm page: its picture, the playhead) */
         for (k = 0; k < r->n; k++)
             h = (h ^ r->note[k]) * 16777619u;
         return h + ui.page * 389u + tp[sys.sel].src * 3571u + r->n * 131u + r->cur * 7u + r->on * 65537u + (r->pos & 63u) * 524287u;
@@ -2903,7 +2946,9 @@ static void draw_viz(void)
     } else if (ui.view == VIEW_ROUTE) {
         viz_route(ui.last < 4u ? ui.last : 0xFFu);
     } else {
-        if (ui.kind == FOCUS_ARP || rarp_page()) {      /* (RIPL ARP, RIPPLE's last page: its arpeggio) */
+        if (rhy_page()) {                               /* (an arpeggio's rhythm, 2026-10-18) */
+            viz_rhy(f);
+        } else if (ui.kind == FOCUS_ARP || rarp_page()) {   /* (RIPL ARP, RIPPLE's last pages: its arpeggio) */
             viz_arp(v, f);
         } else if (ui.kind == FOCUS_SLOT) {
             switch (tp[sys.sel].engine[ui.slot]) {

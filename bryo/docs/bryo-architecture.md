@@ -3480,6 +3480,41 @@ Tests: the page rounds and the pad + OCT gestures, RIPL ARP on RIPPLE's last pag
 rounds, the project view's keys and LEDs (`test_pj_keys`), OP5 OP6 through the scenes, the tap tempo, both leans,
 ALGORITHM in REC IN. Every screen golden that moved was looked at; the audio fingerprints are unchanged.
 
+### The arpeggiator's rhythm (2026-10-18)
+
+"Being able to adjust the rhythm of the arp would be nice, some sort of seq that maybe inherits variation of
+patterns like drums have." Agreed: presets and step keys; VARY drops and adds steps; RIPL ARP too.
+
+**Knobs.** ARP_P grows from 8 to 14 (`AR_PATN AR_LEN AR_VARY AR_EVOL`, page 3, and two hidden: `AR_STPS`, the
+track's steps, and `AR_RSTP`, RIPL ARP's), with a PLAYOUT entry so the pad shows three pages. RIPPLE's own copy of
+the four knobs is 27-30 (`RP_APAT .. RP_AEVO`), a last page on every form (7 pages, 8 on RESO and 12-BAND); its step
+mask lives in the track's arp array because RIPPLE's 32 knobs had no position left for a hidden one (RESO's page 6
+needs two empty places). The mask is an int16 knob with a label (an empty one is zeroed on load) and the range of a
+uint16. PATN writes `ARP_RHY[PATN]` into the mask when it turns (`on_knob`) and SCL resets the mask with it; the white
+keys on a rhythm page (`rhy_page()`: ARP's page 3, or RIPPLE's last) flip a bit.
+
+**Playing it** (`arp_run`): each step start asks `arp_hit(a, steps, pos, salt)`. A rest advances `pos` (time,
+SWNG's half) but not the new `mpos` (the melody's place, which `arp_pick` now walks), sets the gate to 0 and moves
+on; a note still ringing past its step (GATE over 100) rings on through it. `arp_hit` takes the step's place in LEN,
+its bit, and with VARY up DRUM's hash (`drm_roll`, `drm_level`): a written step drops at VARY x 0/25/50/80 % by its
+place (downbeat, beat, eighth, sixteenth), a rest plays at VARY x 45/35/25/15 %, both ramped from 60 % at the round's
+start to 100 % at its end; the version is 1 + rounds / EVOL's 1-8 (+ the arpeggiator's salt), so it repeats exactly
+until EVOL moves it. HOLD has no steps and no rhythm. With the defaults every step plays and the fingerprints are
+unchanged.
+
+**Saving.** The track's arp array is written with its count, so older files read the new knobs at their defaults
+and older Bryos skip them. Scene ids keep the first eight knobs' numbering (`PJ_SC_ARP`, t x 8 + k) and put the rest
+after the AMTs (`PJ_SC_ARP2`), so a scene saved this morning reads the same; PATN LEN EVOL and the masks switch at a
+morph's midpoint, VARY morphs. RIPPLE's 27-30 stay out of scenes, as its arpeggio's other knobs do.
+
+**The page** (`viz_rhy`): the LEN steps as this round plays them (a written step that plays solid, one VARY drops
+framed, a rest VARY plays grey, a rest a dot, the step playing orange), the beats marked under, the preset's name or
+EDITED, the knob last turned. The keys' LEDs: dim inside LEN, lit a step that's set, the playing one flipped.
+
+Tests (`test_arp_rhythm`): the defaults; PATN 8TH written; a key toggling a step and its LED; 8TH playing every other
+step with C E G in order through the rests; VARY dropping and adding steps, the same every round with EVOL OFF and
+another with EVOL 1, exactly as written at 0; save and load; RIPL ARP's PATN writing its own mask, not the track's.
+
 ## USB record mode (2026-10-08)
 
 Recording from the computer is a mode of its own, not a source a track plays through: you go in, record, put the

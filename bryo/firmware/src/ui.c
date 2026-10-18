@@ -162,11 +162,34 @@ static void ui_init(void)
 }
 
 /* the four values the knobs edit right now, and their descriptors */
-/* the page shown is RIPPLE's last, RIPL ARP: its own arpeggio (the ARP pad's page 3 until 2026-10-18) */
+/* the page shown is one of RIPPLE's last two, RIPL ARP and its rhythm: its own arpeggio (the ARP pad's page 3
+ * until 2026-10-18) */
 static int rarp_page(void)
 {
     return ui.view == VIEW_PAGE && ui.kind == FOCUS_DEV && ui.dev == DEV_RESO &&
-           ui.page + 1u == pdesc_pages(dev_p(sys.sel, DEV_RESO));
+           ui.page + 2u >= pdesc_pages(dev_p(sys.sel, DEV_RESO));
+}
+/* .. an arpeggio's rhythm page (2026-10-18): the ARP pad's page 3, or RIPL ARP's second; the white keys its steps */
+static int rhy_page(void)
+{
+    return (ui.view == VIEW_PAGE && ui.kind == FOCUS_ARP && ui.page == 2u) ||
+           (rarp_page() && ui.page + 1u == pdesc_pages(dev_p(sys.sel, DEV_RESO)));
+}
+/* .. its steps: the track's arpeggiator's (STPS) or RIPL ARP's (RSTP), and the knobs it reads them by (AR_*) */
+static int16_t *rhy_steps(int16_t *a)
+{
+    const int16_t *p = tp[sys.sel].dev[DEV_RESO];
+    if (ui.kind == FOCUS_ARP) {
+        uint32_t k;
+        for (k = 0; k < NARP; k++)
+            a[k] = tp[sys.sel].arp[k];
+        return &tp[sys.sel].arp[AR_STPS];
+    }
+    a[AR_LEN] = p[RP_ALEN];
+    a[AR_VARY] = p[RP_AVAR];
+    a[AR_EVOL] = p[RP_AEVO];
+    a[AR_STPS] = tp[sys.sel].arp[AR_RSTP];
+    return &tp[sys.sel].arp[AR_RSTP];
 }
 
 static const pdesc_t *ui_page(uint32_t k, int16_t **vp)
@@ -712,6 +735,8 @@ static void draw_foot(void)
         str_cpy(a + str_len(a), "/12", 4);
         str_cpy(a + str_len(a), ui.slot_btn == B_LFO ? " OP:M1-3" : ui.slot_held == SLOT_SEQ ? "" : " SEL:ENG", 9);
     }                                                 /* (19 letters at most: DRUM's "T2 BAR 1/2" takes the right) */
+    else if (rhy_page())                              /* a rhythm page: the keys its steps */
+        str_cpy(a, "KEYS: STEPS", sizeof a);
     else if (rarp_page())                             /* RIPL ARP: the keys the strings' */
         str_cpy(a, tp[sys.sel].dev[DEV_RESO][RP_AMODE] >= ARM_LTCH ? "POLY HELD: CLEAR"
                    : tp[sys.sel].dev[DEV_RESO][RP_AMODE] == ARM_OFF ? "MODE: OFF"

@@ -174,6 +174,26 @@ static void ui_leds(void)
                 led_clear(nl, 14u + id);
         }
     }
+    if (rhy_page() && !ui.glo_held && !pad_down()) {   /* a rhythm page: the steps in LEN glow, the ones that play are
+                                                         * lit, the step playing flipped as it passes */
+        int16_t a[NARP] = {0};
+        uint32_t st = (uint16_t)*rhy_steps(a), len = (uint32_t)clamp(a[AR_LEN], 1, 16), s, glow = 0;
+        const arp_rt_t *r = ui.kind == FOCUS_ARP ? &arp_rt[sys.sel] : &reso_arp[sys.sel];
+        for (s = 0; s < len; s++)
+            glow |= 1u << s;
+        st &= glow;
+        if (r->pos && r->len)
+            st ^= 1u << ((r->pos - 1u) % len);
+        for (k = 0; k < 27u; k++) {
+            uint32_t w = KEY_WHITE[k];
+            if (w == KEY_NONE || w >= 16u)
+                continue;
+            led_clear(nl, 14u + k);
+            led_clear(nd, 14u + k);
+            led_put(nd, 14u + k, (glow >> w) & 1u);
+            led_put(nl, 14u + k, (st >> w) & 1u);
+        }
+    }
     if ((drm_step_page() && sys.drum_mode == DMODE_HITS) || seq_page()) {   /* (GLO held: the mixer, not these) */
         /* the white keys as steps, where they set steps: DRUM's STEP page (HITS, ACC) lights the bar's steps that are
          * set (the instrument's hits, or the accents) and flips the one playing as it passes (a set step goes dim
@@ -1347,6 +1367,9 @@ static int scl_default(uint32_t c, const pdesc_t *p, int16_t *vp)
         *vp = v;
     if (p == &DRM_P[DM_LEN] && tp[sys.sel].drm[DM_BAR] > v)   /* (the bar shown stays in the pattern) */
         tp[sys.sel].drm[DM_BAR] = v;
+    if (vp == &tp[sys.sel].arp[AR_PATN] || vp == &tp[sys.sel].dev[DEV_RESO][RP_APAT])   /* (an arpeggio's PATN: ALL,
+                                                         * its steps too) */
+        tp[sys.sel].arp[vp == &tp[sys.sel].arp[AR_PATN] ? AR_STPS : AR_RSTP] = (int16_t)ARP_RHY[0];
     return 1;
 }
 
@@ -1511,6 +1534,9 @@ static void on_knob(uint32_t c, int32_t d)
         ui_message(m);
     } else if (p == &DRM_P[DM_LEN] && tp[sys.sel].drm[DM_BAR] > v) {   /* (the bar shown stays in the pattern) */
         tp[sys.sel].drm[DM_BAR] = v;
+    } else if (vp == &tp[sys.sel].arp[AR_PATN] || vp == &tp[sys.sel].dev[DEV_RESO][RP_APAT]) {
+        tp[sys.sel].arp[vp == &tp[sys.sel].arp[AR_PATN] ? AR_STPS : AR_RSTP] =   /* an arpeggio's PATN: its rhythm */
+            (int16_t)ARP_RHY[(uint32_t)v % ARP_NRHY];                         /* written over the steps */
     }
     ui.hot = (uint8_t)c;
     ui.hot_t = 33;
@@ -1678,14 +1704,16 @@ static void ui_input(void)
     if (!scn_page() && scm.on == 2)
         scn_morph_end();                                /* (off the SCENES page: a turn there later starts afresh) */
     sys.keys_live = (uint8_t)(!ui.glo_held && !scn_page() && !seq_page() && !pad_down() && ui.view != VIEW_PROJECT &&
+                              !rhy_page() &&
                               /* (a page pad held: the keys pick
                                                                             * pages, they don't play) */
                               !(drm_step_page() && sys.drum_mode == DMODE_HITS));   /* under GLO the white keys pick
                                                                 * the track, on a SEQ page the steps, on DRUM's STEP
                                                                 * (HITS, ACC) the bar's steps: they don't play */
     sys.keys_grain = (uint8_t)(ui.view == VIEW_PAGE && ui.kind == FOCUS_DEV && ui.dev == DEV_GRAIN);
-    sys.keys_rarp = (uint8_t)rarp_page();        /* (RIPPLE's last page, RIPL ARP: the keys its arpeggio's) */
-    sys.keys_reso = (uint8_t)(ui.view == VIEW_PAGE && ui.kind == FOCUS_DEV && ui.dev == DEV_RESO && !sys.keys_rarp);
+    sys.keys_rarp = (uint8_t)(rarp_page() && !rhy_page());   /* (RIPL ARP, RIPPLE's: the keys its arpeggio's) */
+    sys.keys_reso = (uint8_t)(ui.view == VIEW_PAGE && ui.kind == FOCUS_DEV && ui.dev == DEV_RESO && !sys.keys_rarp &&
+                              !rhy_page());
     mod_show = (uint8_t)(seq_page() || (ui.view == VIEW_PAGE && ui.kind == FOCUS_SLOT &&
                                         tp[sys.sel].engine[ui.slot] == ME_FOLLOW)
                          ? 1u + sys.sel * NSLOT + ui.slot % NSLOT : 0u);   /* (a SEQ's keys show its step; a FOLLOW's
@@ -1714,6 +1742,9 @@ static void ui_input(void)
                                                          * knob turned while it's held), or its page at the let-go */
             } else if (pad_down()) {                     /* a page's pad held + white key n: its page n */
                 pad_go(ui.pg_pad, KEY_WHITE[k]);
+            } else if (rhy_page() && KEY_WHITE[k] < 16u) {   /* a rhythm page: the key's step on or off */
+                int16_t a[NARP], *st = rhy_steps(a);
+                *st = (int16_t)(uint16_t)((uint16_t)*st ^ (1u << KEY_WHITE[k]));
             } else if (drm_step_page() && sys.drum_mode == DMODE_HITS && !ui.glo_held) {
                 drm_toggle(sys.sel, KEY_WHITE[k]);      /* STEP (HITS, ACC): the step toggled */
             }
@@ -1774,14 +1805,17 @@ static void ui_input(void)
              * the knobs are the same ones in every form, each form its own labels and picture */
             int16_t *m = &tp[sys.sel].dev[DEV_RESO][RP_MODE];
             int ra = rarp_page();
-            uint32_t np;
+            uint32_t np, off = pdesc_pages(dev_p(sys.sel, DEV_RESO)) - 1u - ui.page;   /* (from the last page) */
             *m = (int16_t)(((int32_t)*m + d % (int32_t)NRMODE + (int32_t)NRMODE) % (int32_t)NRMODE);
-            np = pdesc_pages(dev_p(sys.sel, DEV_RESO));  /* (the forms have 6 or 7 pages, RIPL ARP the last: on
-                                                         * it, it stays; past another's last sound page, that one) */
+            np = pdesc_pages(dev_p(sys.sel, DEV_RESO));  /* (the forms have 7 or 8 pages, RIPL ARP and its rhythm
+                                                         * the last two: on them, it stays; past another's last sound
+                                                         * page, that one) */
             if (ui.kind != FOCUS_DEV || ui.dev != DEV_RESO)
                 focus_dev(DEV_RESO, 0);
-            else if (ra || ui.page + 1u >= np)
-                ui.page = (uint8_t)(np - (ra ? 1u : 2u));
+            else if (ra)                                /* (RIPL ARP or its rhythm: the same one) */
+                ui.page = (uint8_t)(np - 1u - off);
+            else if (ui.page + 2u >= np)
+                ui.page = (uint8_t)(np - 3u);
             ui.last = 0xFF;
             ui.pg_used = 1;
         } else if (ui.home_held && ((fm1_in.buttons >> panel.btn[B_HOME]) & 1u)) {
