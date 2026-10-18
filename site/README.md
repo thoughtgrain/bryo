@@ -88,6 +88,15 @@ Colour isn't decoration. It follows Bryo's own screen rule: white on black, and 
 what's alive. Blue is a page, purple is modulation, orange is sound, red is recording, yellow is something to know.
 The tokens live at the top of `css/style.css`.
 
+## The homepage's bands
+
+Below the walkthrough the homepage runs in bands, the way Elektron's product pages do: each part gets a full-width
+row with one big firmware screen beside its words, and the screen swaps sides from one band to the next (chain,
+then Tape, Synth, Poly, Drum, Modulation, Arpeggiators, Scenes). The screens never grow past 480 px, exactly twice
+the firmware's 240, so the dots stay square; a source's name is set big in the bold pixel face, in the blue the
+screen uses for a page. On phones every band is screen first (at 65 %), then words. It replaced a grid of small
+source cards and two-column sections of different shapes, which read as a patchwork.
+
 ## The walkthrough ("Watch your hands")
 
 The homepage's section 02 plays the FM-1 for you. I wanted people to see the instrument's whole idea (hold a pad,

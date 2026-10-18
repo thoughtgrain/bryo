@@ -544,28 +544,6 @@ a:hover { text-decoration-thickness: 2px; }
 }
 .chain__panel .tag { color: var(--orange); }
 
-/* ---------- source cards ---------- */
-
-.cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 1px;
-  margin-top: 40px;
-  background: var(--line);
-  border: 1px solid var(--line);
-}
-
-.card {
-  display: flex;
-  flex-direction: column;
-  background: var(--bg);
-}
-.card img { background: #000; width: 100%; }
-.card__body { padding: 20px 20px 28px; }
-.card img { border-bottom: 1px dashed var(--line); }
-.card__body h3 { margin: 0 0 8px; font-size: 1.375rem; }
-.card__body p { margin: 0; color: var(--ink-soft); font-size: 0.9375rem; }
-
 /* ---------- specs ---------- */
 
 .specs {
@@ -898,7 +876,6 @@ tr:last-child td { border-bottom: 0; }
 .section__num,
 .menu__list a,
 .chain__tab,
-.card__body h3.px,
 .hero__kicker { font-weight: 700; }
 
 /* Registration ticks: an L of white at each corner of the things you look at, over their 1 px wire, the way a
@@ -957,12 +934,10 @@ tr:last-child td { border-bottom: 0; }
   .device { width: 65%; }
   .device__controls { flex-wrap: wrap; }
   .chain__panel > .screen,
-  .split > .screen,
-  .card > img {
+  .split > .screen {
     width: 65%;
     margin-inline: auto;
   }
-  .card > img { margin-top: 16px; }
   .figure-row:not(.figure-row--2) {
     grid-template-columns: minmax(0, 65%);
     justify-content: center;
@@ -1081,3 +1056,94 @@ tr:last-child td { border-bottom: 0; }
   .tour__routine { flex: 0 0 auto; padding: 10px 14px; font-size: 0.75rem; }
 }
 
+
+/* ---------- bands: Elektron-style alternating rows ----------
+ * One big screen and its words a band, the screen swapping sides from band to band, with room to breathe. The
+ * screen is never wider than 480 px, exactly twice the firmware's 240, so its dots stay square. Phones: the
+ * screen first (at 65 %, as everywhere), then the words. */
+
+.band { padding-block: clamp(72px, 10vw, 160px); border-bottom: 1px solid var(--line); }
+.band-group { padding-bottom: 0; }
+.band-group > .wrap { padding-bottom: clamp(24px, 4vw, 48px); }
+.band-group__lede { margin: 0; max-width: 52ch; color: var(--ink-soft); font-size: 1.0625rem; }
+.band-group .band:last-child { border-bottom: 0; }
+.band-group .band { padding-block: clamp(56px, 8vw, 120px); border-bottom: 1px dashed var(--line); }
+
+.band__grid {
+  display: grid;
+  gap: 32px;
+  align-items: center;
+}
+@media (min-width: 900px) {
+  .band__grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: clamp(56px, 7vw, 120px);
+  }
+  /* the screen on the right for every other band */
+  .band--flip .band__grid > .band__media,
+  .band--flip.band__grid > .band__media { order: 2; }
+}
+
+.band__media {
+  width: 100%;
+  max-width: 480px;
+  justify-self: center;
+}
+.band__media > .screen { width: 100%; }
+
+/* small screens under a band's big one */
+.band__thumbs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+.band__thumbs figcaption { padding: 8px 10px; font-size: 0.6875rem; }
+
+.band__text { max-width: 56ch; }
+.band__text .section__title { max-width: 16ch; }
+.band__text p { color: var(--ink-soft); margin: 0 0 1.1em; }
+.band__text p.lead { color: var(--ink); font-size: 1.2em; line-height: 1.5; }
+.band__text strong { color: var(--ink); font-weight: 600; }
+
+/* a source's name, big in the firmware's bold pixel face, as the screen titles its pages */
+.band__title {
+  margin: 0 0 20px;
+  font-weight: 700;
+  font-size: clamp(2.5rem, 6vw, 4.5rem);
+  line-height: 1;
+  color: var(--blue);
+}
+
+.more-link {
+  display: inline-flex;
+  margin-top: 8px;
+  font-size: 0.8125rem;
+  color: var(--ink);
+}
+.more-link:hover { color: var(--orange); }
+
+@media (max-width: 899px) {
+  .band__grid > .band__media,
+  .band__grid > div.band__media { order: 0; }
+}
+@media (max-width: 719px) {
+  .band__media { width: 65%; margin-inline: auto; }
+  /* a band with thumbnails keeps them readable: the big screen 65 %, the row full width */
+  .band__media:has(.band__thumbs) { width: 100%; }
+  .band__media:has(.band__thumbs) > .screen { width: 65%; margin-inline: auto; }
+}
+
+/* the chain's stages laid out as a band too: the stage's screen big on the left, its words on the right */
+@media (min-width: 900px) {
+  .chain__panel {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: clamp(56px, 7vw, 120px);
+    align-items: center;
+  }
+  .chain__panel > .screen { max-width: 480px; width: 100%; justify-self: center; }
+}
+.chain__panel h3 { font-size: clamp(1.75rem, 3.5vw, 2.5rem); }
+@media (min-width: 900px) {
+  .band__text { font-size: 1.125rem; }
+}
