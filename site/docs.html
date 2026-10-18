@@ -211,13 +211,41 @@ cd /tmp/bryo-site &amp;&amp; python3 -m http.server 8000
             <li><strong>Green pads, the transport:</strong> PLAY and REC. SAVE saves, and holding it undoes. Holding SCL resets things.</li>
             <li><strong>Keys:</strong> the 16 white keys play the track. The 11 black keys above them mute tracks, flip the tape (or step scenes on other sources), set the tempo, clear things and freeze GRAIN.</li>
           </ul>
+          <h3>The dials</h3>
+          <p>The FM-1 has eight dials. They all turn endlessly, so there's no "position" to remember: what matters is the value on the screen.</p>
+          <figure class="panel-figure">
+            <img src="img/steps/dials.svg" width="960" height="540" alt="The FM-1's eight dials lit in orange: MASTER, SELECT, PRESETS and ALGORITHM top left, KNOB 1 to 4 top right." loading="lazy">
+            <figcaption>The eight dials. The four on the left always do the same job; the four on the right change whatever the page shows.</figcaption>
+          </figure>
+          <div class="table-wrap" tabindex="0" role="region" aria-label="The dials">
+            <table>
+              <thead><tr><th scope="col">Dial</th><th scope="col">What it does</th></tr></thead>
+              <tbody>
+                <tr><td>MASTER</td><td>Volume, on every page</td></tr>
+                <tr><td>SELECT</td><td>Tempo, on every page. Held with a pad, it picks that pad's thing: HOME + SELECT the source, LFO + SELECT the modulator's type, EDIT + SELECT RIPPLE's form, REC + SELECT the bars to record</td></tr>
+                <tr><td>PRESETS</td><td>Opens the projects (then EDIT for track presets, again for your reels) and points at a slot</td></tr>
+                <tr><td>ALGORITHM</td><td>Opens REC IN, what each track records; turned again, the track you're arming</td></tr>
+                <tr><td>KNOB 1 to 4</td><td>The four values on the screen, left to right. Hold LFO or SEQ while you turn one to make a modulator move it; hold SCL to send it back to its default</td></tr>
+              </tbody>
+            </table>
+          </div>
           <a class="more" href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/docs/manual/README.md#01-the-panel">Manual 0.1 &gt;</a>
         </section>
 
         <section id="screen" aria-labelledby="h-screen">
           <h2 id="h-screen"><span class="px">05</span>Reading the screen</h2>
-          <p>Along the top you'll see the track (T1 to T4), the page's name with a dot for each of its pages, then the transport (&#9632; stopped, &#9654; playing, &#9679; recording) and the tempo. On pages that belong to the whole project (SCENES, MASTER, KEY) the box shows the project, like P1, instead of a track. A <strong>&#10033;</strong> means you have changes you haven't saved yet.</p>
-          <p>Below that are the four knobs. Each one is a little picture, a four-letter name and a value. The picture shows the value too: a dial points, a fader fills. The knob you turned last has its name inverted, so you can find your place.</p>
+          <figure class="screen screen--marks">
+            <img src="img/screen.png" width="524" height="568" alt="The TAPE page with seven numbered marks: 1 the track, 2 the page's name and dots, 3 the transport and tempo, 4 the four knobs, 5 the picture, 6 what the white keys do, 7 the track and octave." loading="lazy">
+          </figure>
+          <ol class="screen-key">
+            <li><strong>The track</strong> you're on, T1 to T4 (or the project, P1, on the project's own pages).</li>
+            <li><strong>The page's name</strong>, with a dot for each of its pages; the bright one is where you are.</li>
+            <li><strong>The transport and tempo:</strong> &#9632; stopped, &#9654; playing, &#9679; recording, then the BPM. A &#10033; before them means unsaved changes.</li>
+            <li><strong>The four knobs,</strong> left to right, KNOB 1 to 4: a picture, a four-letter name and a value. The picture shows the value too (a dial points, a fader fills), and the last one you turned has its name inverted, so you can find your place.</li>
+            <li><strong>The picture</strong> of what the page does: here the tape, the loop bracketed IN to OUT.</li>
+            <li><strong>What the white keys do</strong> on this page: here, play slices.</li>
+            <li><strong>The track and octave</strong> of the white keys.</li>
+          </ol>
           <p>The screen is white on black, and colour only tells you two things: where you are, and what's making sound. A shape or a word always says the same thing, so you never need to tell the colours apart.</p>
           <div class="table-wrap" tabindex="0" role="region" aria-label="What the screen's colours mean">
             <table>
@@ -249,75 +277,243 @@ cd /tmp/bryo-site &amp;&amp; python3 -m http.server 8000
 
         <section id="song" aria-labelledby="h-song">
           <h2 id="h-song"><span class="px">07</span>Your first song</h2>
-          <p>Let's build something from nothing: a beat, a bass line and some chords, kept safe on tape, then two scenes to drift between. It takes about fifteen minutes. Each step says where you'll land, so you can check you're in the right place.</p>
+          <p>Let's build something from nothing: a beat, a bass line and some chords, kept safe on tape, then two scenes to drift between. It takes about fifteen minutes. Every step comes with two pictures: the panel, with what to press, hold or turn lit up, and the screen you should see afterwards.</p>
           <div class="callout">
             <span class="px">The idea</span>
             <p>Synths are where you play; tapes are where you keep. Play a part on a SYNTH track, bounce it to tape, and that track is free to become something else, while the loop plays on. Scenes then move the whole project at once.</p>
           </div>
+          <div class="walk-legend" aria-label="How to read the pictures">
+            <span class="walk-legend__item"><span class="walk-legend__swatch walk-legend__swatch--press" aria-hidden="true"></span>Orange outline: press it</span>
+            <span class="walk-legend__item"><span class="walk-legend__swatch walk-legend__swatch--hold" aria-hidden="true"></span>Orange fill: hold it down while you do the rest</span>
+            <span class="walk-legend__item"><span class="walk-legend__swatch walk-legend__swatch--turn" aria-hidden="true"><i></i></span>Orange pointer: turn that dial, about this far</span>
+          </div>
 
           <h3>1. A blank page</h3>
-          <ol class="steps">
-            <li><strong>Turn PRESETS.</strong> You're on the PROJECTS view. White keys 1 to 6 are the slots P1 to P6, lit dim where something's saved.</li>
-            <li><strong>Press the white key of an empty slot, then OCT+.</strong> If you have unsaved changes, press OCT+ again within 3 seconds. Every track is now an empty tape, with no pattern and no modulation, at 120 BPM.</li>
+          <ol class="walk">
+            <li class="walk__step">
+              <div class="walk__text"><p><strong>Turn PRESETS.</strong> You're on the PROJECTS view. White keys 1 to 6 are the slots P1 to P6, lit dim where something's saved.</p></div>
+              <figure class="walk__fig">
+                <img class="walk__panel" src="img/steps/song-1a.svg" width="960" height="540" alt="On the panel: PRESETS turned" loading="lazy">
+                <div class="walk__screen screen"><img class="pixelated" src="img/projects.png" width="480" height="480" alt="The screen: Projects" loading="lazy"><span class="px">Projects</span></div>
+              </figure>
+            </li>
+            <li class="walk__step">
+              <div class="walk__text"><p><strong>Press the white key of an empty slot, then OCT+.</strong> If you have unsaved changes, press OCT+ again within 3 seconds. Every track is now an empty tape, with no pattern and no modulation, at 120 BPM.</p></div>
+              <figure class="walk__fig">
+                <img class="walk__panel" src="img/steps/song-1b.svg" width="960" height="540" alt="On the panel: White key 3 then OCT+ pressed" loading="lazy">
+                <div class="walk__screen screen"><img class="pixelated" src="img/project_new.png" width="480" height="480" alt="The screen: Projects / New" loading="lazy"><span class="px">Projects / New</span></div>
+              </figure>
+            </li>
           </ol>
 
           <h3>2. A beat on track 1</h3>
-          <ol class="steps">
-            <li><strong>Hold GLO and press white key 1</strong> to be on track 1.</li>
-            <li><strong>Hold HOME, turn SELECT to DRUM,</strong> and let go. You're on the PATTERN page.</li>
-            <li><strong>Turn KNOB 1 (PATN)</strong> to pick a rhythm, FUNK or ROCK say, and <strong>KNOB 2 (LEN)</strong> to 1 for a tight one-bar loop.</li>
-            <li><strong>Press PLAY.</strong> Set the tempo with SELECT, or tap the black <strong>PIT</strong> key a few times in time.</li>
-            <li><strong>Press HOME</strong> for VARY and turn <strong>SEED</strong> away from 0, so it plays like a drummer, with ghost notes and fills.</li>
+          <ol class="walk">
+            <li class="walk__step">
+              <div class="walk__text"><p><strong>Hold GLO and press white key 1.</strong> The mixer shows while GLO is down; the box around T1 says you're on track 1.</p></div>
+              <figure class="walk__fig">
+                <img class="walk__panel" src="img/steps/song-2a.svg" width="960" height="540" alt="On the panel: GLO held, white key 1 pressed" loading="lazy">
+                <div class="walk__screen screen"><img class="pixelated" src="img/mixer_held.png" width="480" height="480" alt="The screen: Glo / Mixer" loading="lazy"><span class="px">Glo / Mixer</span></div>
+              </figure>
+            </li>
+            <li class="walk__step">
+              <div class="walk__text"><p><strong>Hold HOME and turn SELECT to DRUM,</strong> then let go. You're on the PATTERN page.</p></div>
+              <figure class="walk__fig">
+                <img class="walk__panel" src="img/steps/song-2b.svg" width="960" height="540" alt="On the panel: HOME held, SELECT turned" loading="lazy">
+                <div class="walk__screen screen"><img class="pixelated" src="img/drum.png" width="480" height="480" alt="The screen: Home / Drum" loading="lazy"><span class="px">Home / Drum</span></div>
+              </figure>
+            </li>
+            <li class="walk__step">
+              <div class="walk__text"><p><strong>Turn KNOB 1 (PATN)</strong> to pick a rhythm, ROCK or FUNK say, and <strong>KNOB 2 (LEN)</strong> for 1 to 4 bars. The dots under the knobs are the pattern, a row per drum.</p></div>
+              <figure class="walk__fig">
+                <img class="walk__panel" src="img/steps/song-2c.svg" width="960" height="540" alt="On the panel: KNOB 1 and KNOB 2 turned" loading="lazy">
+                <div class="walk__screen screen"><img class="pixelated" src="img/drum.png" width="480" height="480" alt="The screen: Home / Drum" loading="lazy"><span class="px">Home / Drum</span></div>
+              </figure>
+            </li>
+            <li class="walk__step">
+              <div class="walk__text"><p><strong>Press PLAY.</strong> The bar under the pattern walks along with the beat. Set the tempo with SELECT, or tap the black <strong>PIT</strong> key a few times in time.</p></div>
+              <figure class="walk__fig">
+                <img class="walk__panel" src="img/steps/song-2d.svg" width="960" height="540" alt="On the panel: PLAY pressed, PIT tapped" loading="lazy">
+                <div class="walk__screen screen"><img class="pixelated" src="img/drum_playing.png" width="480" height="480" alt="The screen: Home / Drum, playing" loading="lazy"><span class="px">Home / Drum, playing</span></div>
+              </figure>
+            </li>
+            <li class="walk__step">
+              <div class="walk__text"><p><strong>Press HOME</strong> for VARY and turn <strong>KNOB 1 (SEED)</strong> away from 0, so it plays like a drummer, with ghost notes and fills.</p></div>
+              <figure class="walk__fig">
+                <img class="walk__panel" src="img/steps/song-2e.svg" width="960" height="540" alt="On the panel: HOME pressed, KNOB 1 turned" loading="lazy">
+                <div class="walk__screen screen"><img class="pixelated" src="img/drum_vary.png" width="480" height="480" alt="The screen: Home / Vary" loading="lazy"><span class="px">Home / Vary</span></div>
+              </figure>
+            </li>
           </ol>
 
           <h3>3. A bass line on track 2, bounced to tape</h3>
-          <ol class="steps">
-            <li><strong>Hold GLO and press white key 2,</strong> then <strong>hold HOME and turn SELECT to SYNTH.</strong></li>
-            <li><strong>Turn KNOB 1 (WAVE) to SAW.</strong> Press <strong>ENV</strong> twice for the FILTER page and bring <strong>CUT</strong> down, with a little <strong>RES</strong>, for a round bass. Press OCT&minus; once or twice to drop it into the low end.</li>
-            <li><strong>Press ARP and turn MODE to LTCH.</strong> Hold two or three keys and let go: the arpeggiator keeps playing them, a sixteenth note each.</li>
-            <li><strong>Hold REC and turn SELECT to 2 BARS,</strong> then let go. That's how long the bounce will be.</li>
-            <li><strong>Hold REC and press PLAY.</strong> From the next downbeat the track records itself for two bars. When it's done the screen says BOUNCED, and track 2 is a TAPE playing your bass line as a loop, in time.</li>
+          <ol class="walk">
+            <li class="walk__step">
+              <div class="walk__text"><p><strong>Hold GLO and press white key 2,</strong> then <strong>hold HOME and turn SELECT to SYNTH.</strong> Its first page is the oscillators, with WAVE on KNOB 1. Set it to <strong>SAW</strong>.</p></div>
+              <figure class="walk__fig">
+                <img class="walk__panel" src="img/steps/song-3a.svg" width="960" height="540" alt="On the panel: GLO held with white key 2, then HOME held with SELECT turned" loading="lazy">
+                <div class="walk__screen screen"><img class="pixelated" src="img/synth.png" width="480" height="480" alt="The screen: Home / Synth" loading="lazy"><span class="px">Home / Synth</span></div>
+              </figure>
+            </li>
+            <li class="walk__step">
+              <div class="walk__text"><p><strong>Press ENV twice</strong> for the FILTER page. Turn <strong>KNOB 1 (CUT)</strong> down and <strong>KNOB 2 (RES)</strong> up a little for a round bass, and press <strong>OCT&minus;</strong> once or twice to drop it into the low end.</p></div>
+              <figure class="walk__fig">
+                <img class="walk__panel" src="img/steps/song-3b.svg" width="960" height="540" alt="On the panel: ENV pressed, KNOB 1 and KNOB 2 turned, OCT- pressed" loading="lazy">
+                <div class="walk__screen screen"><img class="pixelated" src="img/synth_filter.png" width="480" height="480" alt="The screen: Env / Filter" loading="lazy"><span class="px">Env / Filter</span></div>
+              </figure>
+            </li>
+            <li class="walk__step">
+              <div class="walk__text"><p><strong>Press ARP and turn KNOB 1 (MODE) to LTCH.</strong> Hold two or three keys and let go: the arpeggiator keeps playing them, a sixteenth note each. (The picture shows the ARP page on KEY.)</p></div>
+              <figure class="walk__fig">
+                <img class="walk__panel" src="img/steps/song-3c.svg" width="960" height="540" alt="On the panel: ARP pressed, KNOB 1 turned, white keys 1, 4 and 8 pressed" loading="lazy">
+                <div class="walk__screen screen"><img class="pixelated" src="img/arp.png" width="480" height="480" alt="The screen: ARP page" loading="lazy"><span class="px">ARP page</span></div>
+              </figure>
+            </li>
+            <li class="walk__step">
+              <div class="walk__text"><p><strong>Hold REC and turn SELECT to 2,</strong> then let go. The 2 in front of the REC dot in the header is the number of bars the bounce will take.</p></div>
+              <figure class="walk__fig">
+                <img class="walk__panel" src="img/steps/song-3d.svg" width="960" height="540" alt="On the panel: REC held, SELECT turned" loading="lazy">
+                <div class="walk__screen screen"><img class="pixelated" src="img/rec_bars.png" width="480" height="480" alt="The screen: Rec / 2 bars" loading="lazy"><span class="px">Rec / 2 bars</span></div>
+              </figure>
+            </li>
+            <li class="walk__step">
+              <div class="walk__text"><p><strong>Hold REC and press PLAY.</strong> From the next downbeat the track records itself for two bars. When it's done the screen says BOUNCED, and track 2 is a TAPE playing your bass line as a loop, in time.</p></div>
+              <figure class="walk__fig">
+                <img class="walk__panel" src="img/steps/song-3e.svg" width="960" height="540" alt="On the panel: REC held, PLAY pressed" loading="lazy">
+                <div class="walk__screen screen"><img class="pixelated" src="img/tape_playing.png" width="480" height="480" alt="The screen: Home / Tape, playing" loading="lazy"><span class="px">Home / Tape, playing</span></div>
+              </figure>
+            </li>
           </ol>
           <p>Now the bass is safe, and you can do tape things to it: the white keys play its slices, PTCH transposes it, and RPT on HOME's third page repeats a sliver of it. The synth isn't gone either: hold HOME and turn SELECT back to SYNTH and its knobs are where you left them, with the tape waiting on TAPE.</p>
 
           <h3>4. Chords on track 3, kept with a freeze</h3>
-          <ol class="steps">
-            <li><strong>Hold GLO and press white key 3,</strong> then <strong>switch it to SYNTH.</strong></li>
-            <li><strong>Press HOME through to the last page and turn CHRD to MIN7.</strong> Now one key plays a whole chord.</li>
-            <li><strong>Press ENV</strong> for AMP: turn <strong>ATK</strong> up and <strong>REL</strong> up for a soft pad.</li>
-            <li><strong>Press ARP and turn MODE to HOLD.</strong> Press a key and let go: the chord keeps sounding, whole and sustained.</li>
-            <li><strong>Press EDIT</strong> for GRAIN and turn <strong>KNOB 4 (WET)</strong> up. GRAIN starts listening and scattering the chord into grains.</li>
-            <li><strong>When it sounds right, hold REC and press the black 0 key.</strong> The last bars GRAIN heard become track 3's tape at once, looping in time. (What's kept is the chord before the grains. To keep the grains too, bounce with REC + PLAY instead.)</li>
+          <ol class="walk">
+            <li class="walk__step">
+              <div class="walk__text"><p><strong>Hold GLO and press white key 3,</strong> then <strong>hold HOME and turn SELECT to SYNTH.</strong></p></div>
+              <figure class="walk__fig">
+                <img class="walk__panel" src="img/steps/song-4a.svg" width="960" height="540" alt="On the panel: GLO held with white key 3, then HOME held with SELECT turned" loading="lazy">
+                <div class="walk__screen screen"><img class="pixelated" src="img/synth.png" width="480" height="480" alt="The screen: Home / Synth" loading="lazy"><span class="px">Home / Synth</span></div>
+              </figure>
+            </li>
+            <li class="walk__step">
+              <div class="walk__text"><p><strong>Press HOME through to the last page</strong> (the dots in the header show which page you're on) and turn <strong>KNOB 1 (CHRD)</strong> to MIN7. Now one key plays a whole chord. (The picture shows SYNTH's first page; CHRD is on its last.)</p></div>
+              <figure class="walk__fig">
+                <img class="walk__panel" src="img/steps/song-4b.svg" width="960" height="540" alt="On the panel: HOME pressed, KNOB 1 turned" loading="lazy">
+                <div class="walk__screen screen"><img class="pixelated" src="img/synth.png" width="480" height="480" alt="The screen: Home / Synth" loading="lazy"><span class="px">Home / Synth</span></div>
+              </figure>
+            </li>
+            <li class="walk__step">
+              <div class="walk__text"><p><strong>Press ENV</strong> for AMP. Turn <strong>KNOB 1 (ATK)</strong> and <strong>KNOB 4 (REL)</strong> up for a soft pad. The picture draws the envelope's shape.</p></div>
+              <figure class="walk__fig">
+                <img class="walk__panel" src="img/steps/song-4c.svg" width="960" height="540" alt="On the panel: ENV pressed, KNOB 1 and KNOB 4 turned" loading="lazy">
+                <div class="walk__screen screen"><img class="pixelated" src="img/synth_amp.png" width="480" height="480" alt="The screen: Env / Amp" loading="lazy"><span class="px">Env / Amp</span></div>
+              </figure>
+            </li>
+            <li class="walk__step">
+              <div class="walk__text"><p><strong>Press ARP and turn MODE all the way to HOLD.</strong> Press a key and let go: the chord keeps sounding, whole and sustained.</p></div>
+              <figure class="walk__fig">
+                <img class="walk__panel" src="img/steps/song-4d.svg" width="960" height="540" alt="On the panel: ARP pressed, KNOB 1 turned all the way, white key 1 pressed" loading="lazy">
+                <div class="walk__screen screen"><img class="pixelated" src="img/arp.png" width="480" height="480" alt="The screen: ARP page" loading="lazy"><span class="px">ARP page</span></div>
+              </figure>
+            </li>
+            <li class="walk__step">
+              <div class="walk__text"><p><strong>Press EDIT</strong> for GRAIN and turn <strong>KNOB 4 (WET)</strong> up. GRAIN starts scattering the chord into grains: each orange block is one.</p></div>
+              <figure class="walk__fig">
+                <img class="walk__panel" src="img/steps/song-4e.svg" width="960" height="540" alt="On the panel: EDIT pressed, KNOB 4 turned up" loading="lazy">
+                <div class="walk__screen screen"><img class="pixelated" src="img/grain_playing.png" width="480" height="480" alt="The screen: Edit / Grain" loading="lazy"><span class="px">Edit / Grain</span></div>
+              </figure>
+            </li>
+            <li class="walk__step">
+              <div class="walk__text"><p><strong>When it sounds right, hold REC and press the black 0 key.</strong> The last bars GRAIN heard become track 3's tape at once, looping in time. (What's kept is the chord before the grains. To keep the grains too, bounce with REC + PLAY instead.)</p></div>
+              <figure class="walk__fig">
+                <img class="walk__panel" src="img/steps/song-4f.svg" width="960" height="540" alt="On the panel: REC held, black key 0 pressed" loading="lazy">
+                <div class="walk__screen screen"><img class="pixelated" src="img/tape_playing.png" width="480" height="480" alt="The screen: Home / Tape, looping" loading="lazy"><span class="px">Home / Tape, looping</span></div>
+              </figure>
+            </li>
           </ol>
 
           <h3>5. Give it some space</h3>
-          <ol class="steps">
-            <li><strong>On track 2,</strong> press <strong>FX</strong> for COLOR and turn <strong>DRV</strong> up a little for some grit.</li>
-            <li><strong>Hold FX and press OCT+</strong> for CHRONOS. Turn up <strong>DLY</strong> for echoes and <strong>VERB</strong> to send it to the room.</li>
-            <li><strong>On track 3,</strong> hold EDIT and press OCT+ for <strong>RIPPLE</strong>, and turn its <strong>WET</strong> up. The chord now rings through four tuned strings.</li>
+          <ol class="walk">
+            <li class="walk__step">
+              <div class="walk__text"><p><strong>On track 2,</strong> press <strong>FX</strong> for COLOR and turn <strong>KNOB 1 (DRV)</strong> up a little for some grit. The sine on the page shows what the drive does to a wave.</p></div>
+              <figure class="walk__fig">
+                <img class="walk__panel" src="img/steps/song-5a.svg" width="960" height="540" alt="On the panel: FX pressed, KNOB 1 turned" loading="lazy">
+                <div class="walk__screen screen"><img class="pixelated" src="img/color.png" width="480" height="480" alt="The screen: FX / Color" loading="lazy"><span class="px">FX / Color</span></div>
+              </figure>
+            </li>
+            <li class="walk__step">
+              <div class="walk__text"><p><strong>Hold FX and press OCT+</strong> for CHRONOS. Turn <strong>KNOB 3 (DLY)</strong> up for echoes and <strong>KNOB 4 (VERB)</strong> to send it to the room. The stems on the page are the echoes.</p></div>
+              <figure class="walk__fig">
+                <img class="walk__panel" src="img/steps/song-5b.svg" width="960" height="540" alt="On the panel: FX held, OCT+ pressed, KNOB 3 and KNOB 4 turned" loading="lazy">
+                <div class="walk__screen screen"><img class="pixelated" src="img/space_long.png" width="480" height="480" alt="The screen: FX / Chronos" loading="lazy"><span class="px">FX / Chronos</span></div>
+              </figure>
+            </li>
+            <li class="walk__step">
+              <div class="walk__text"><p><strong>On track 3,</strong> hold <strong>EDIT</strong> and press <strong>OCT+</strong> for RIPPLE, and turn <strong>KNOB 4 (WET)</strong> up. The chord now rings through four tuned strings.</p></div>
+              <figure class="walk__fig">
+                <img class="walk__panel" src="img/steps/song-5c.svg" width="960" height="540" alt="On the panel: EDIT held, OCT+ pressed, KNOB 4 turned" loading="lazy">
+                <div class="walk__screen screen"><img class="pixelated" src="img/resonator_wet.png" width="480" height="480" alt="The screen: Edit / Ripple" loading="lazy"><span class="px">Edit / Ripple</span></div>
+              </figure>
+            </li>
           </ol>
 
           <h3>6. Two scenes, and a morph</h3>
-          <ol class="steps">
-            <li><strong>Tap GLO, then tap EDIT.</strong> You're on SCENES. The box at the top says P1, not a track: a scene is the whole project.</li>
-            <li><strong>Hold white key 1 and tap SAVE.</strong> Scene 1 is the sound as it is now, tempo and arpeggiators included.</li>
-            <li><strong>Now change things.</strong> Turn the tempo up with SELECT. Hold GLO and turn KNOB 1 to bring the drums down. Go to track 2's CHRONOS and push VERB right up, or turn GRAIN's WET up on the bass. Make it a different place.</li>
-            <li><strong>Back on SCENES, hold white key 2 and tap SAVE.</strong> That's scene 2.</li>
-            <li><strong>Turn KNOB 1</strong> slowly. Every knob drifts back toward scene 1, and you can stop halfway. Turn <strong>KNOB 2</strong> to drift to scene 2 again. The tempo jumps at the halfway point rather than gliding, so the tapes and echoes stay in time.</li>
-            <li><strong>Tap white key 1 or 2</strong> to jump, gliding there in a third of a second. On track 1 (it's still a DRUM track), the black keys <strong>OP5</strong> and <strong>OP6</strong> step between your scenes from any page.</li>
+          <ol class="walk">
+            <li class="walk__step">
+              <div class="walk__text"><p><strong>Tap GLO, then tap EDIT.</strong> You're on SCENES. The box at the top says P1, not a track: a scene is the whole project.</p></div>
+              <figure class="walk__fig">
+                <img class="walk__panel" src="img/steps/song-6a.svg" width="960" height="540" alt="On the panel: GLO then EDIT tapped" loading="lazy">
+                <div class="walk__screen screen"><img class="pixelated" src="img/mixer_scenes.png" width="480" height="480" alt="The screen: Glo / Scenes" loading="lazy"><span class="px">Glo / Scenes</span></div>
+              </figure>
+            </li>
+            <li class="walk__step">
+              <div class="walk__text"><p><strong>Hold white key 1 and tap SAVE.</strong> Scene 1 is the sound as it is now, tempo and arpeggiators included. Its box fills in.</p></div>
+              <figure class="walk__fig">
+                <img class="walk__panel" src="img/steps/song-6b.svg" width="960" height="540" alt="On the panel: White key 1 held, SAVE tapped" loading="lazy">
+                <div class="walk__screen screen"><img class="pixelated" src="img/mixer_scenes.png" width="480" height="480" alt="The screen: Glo / Scenes" loading="lazy"><span class="px">Glo / Scenes</span></div>
+              </figure>
+            </li>
+            <li class="walk__step">
+              <div class="walk__text"><p><strong>Now change things.</strong> Turn SELECT for a new tempo. Hold GLO and turn KNOB 1 to bring the drums down. Go to track 2's CHRONOS and push VERB up. Make it a different place.</p></div>
+              <figure class="walk__fig">
+                <img class="walk__panel" src="img/steps/song-6c.svg" width="960" height="540" alt="On the panel: SELECT turned, GLO held with KNOB 1 turned" loading="lazy">
+                <div class="walk__screen screen"><img class="pixelated" src="img/mixer_held.png" width="480" height="480" alt="The screen: Glo / Mixer" loading="lazy"><span class="px">Glo / Mixer</span></div>
+              </figure>
+            </li>
+            <li class="walk__step">
+              <div class="walk__text"><p><strong>Back on SCENES, hold white key 2 and tap SAVE.</strong> That's scene 2.</p></div>
+              <figure class="walk__fig">
+                <img class="walk__panel" src="img/steps/song-6d.svg" width="960" height="540" alt="On the panel: White key 2 held, SAVE tapped" loading="lazy">
+                <div class="walk__screen screen"><img class="pixelated" src="img/mixer_scenes.png" width="480" height="480" alt="The screen: Glo / Scenes" loading="lazy"><span class="px">Glo / Scenes</span></div>
+              </figure>
+            </li>
+            <li class="walk__step">
+              <div class="walk__text"><p><strong>Turn KNOB 2</strong> slowly toward scene 2, or KNOB 1 back toward scene 1. Everything drifts, and you can stop anywhere: the bar under the scene shows how far, here halfway. The tempo jumps at the halfway point rather than gliding, so tapes and echoes stay in time.</p></div>
+              <figure class="walk__fig">
+                <img class="walk__panel" src="img/steps/song-6e.svg" width="960" height="540" alt="On the panel: KNOB 2 turned halfway" loading="lazy">
+                <div class="walk__screen screen"><img class="pixelated" src="img/mixer_morph.png" width="480" height="480" alt="The screen: Glo / Scenes, morphing" loading="lazy"><span class="px">Glo / Scenes, morphing</span></div>
+              </figure>
+            </li>
+            <li class="walk__step">
+              <div class="walk__text"><p><strong>Tap white key 1 or 2</strong> to jump, gliding there in a third of a second. On track 1 (it's still a DRUM track), the black keys <strong>OP5</strong> and <strong>OP6</strong> step between your scenes from any page.</p></div>
+              <figure class="walk__fig">
+                <img class="walk__panel" src="img/steps/song-6f.svg" width="960" height="540" alt="On the panel: White key 1, OP5 and OP6 pressed" loading="lazy">
+                <div class="walk__screen screen"><img class="pixelated" src="img/mixer_scenes.png" width="480" height="480" alt="The screen: Glo / Scenes" loading="lazy"><span class="px">Glo / Scenes</span></div>
+              </figure>
+            </li>
           </ol>
           <p>Scenes leave what's playing alone: the tapes, the drum pattern and held notes carry on while the sound around them moves.</p>
 
           <h3>7. Keep it</h3>
-          <ol class="steps">
-            <li><strong>Tap SAVE.</strong> Everything goes into P1: the knobs, the scenes, and your tapes, each kept as a user reel named after it (P1T2, P1T3).</li>
+          <ol class="walk">
+            <li class="walk__step">
+              <div class="walk__text"><p><strong>Tap SAVE.</strong> Everything goes into your project: the knobs, the scenes, and your tapes, each kept as a user reel named after it (P1T2, P1T3). The &#10033; in the header goes away.</p></div>
+              <figure class="walk__fig">
+                <img class="walk__panel" src="img/steps/song-7a.svg" width="960" height="540" alt="On the panel: SAVE tapped" loading="lazy">
+                <div class="walk__screen screen"><img class="pixelated" src="img/mixer_scenes.png" width="480" height="480" alt="The screen: Glo / Scenes" loading="lazy"><span class="px">Glo / Scenes</span></div>
+              </figure>
+            </li>
           </ol>
           <p>From here, try a fourth track: POLY playing one of your own tapes across the keys, or RIPPLE's own arpeggio, RIPL ARP, on its last page. And scene 4 is still free.</p>
-          <div class="figure-row">
-            <figure class="screen"><img class="pixelated" src="img/project_new.png" width="480" height="480" alt="A new, blank project" loading="lazy"><figcaption class="px">A blank project</figcaption></figure>
-            <figure class="screen"><img class="pixelated" src="img/drum.png" width="480" height="480" alt="DRUM: the pattern page" loading="lazy"><figcaption class="px">The beat</figcaption></figure>
-            <figure class="screen"><img class="pixelated" src="img/mixer_morph.png" width="480" height="480" alt="SCENES: halfway to scene 2" loading="lazy"><figcaption class="px">The morph</figcaption></figure>
-          </div>
         </section>
 
         <section id="pages" aria-labelledby="h-pages">

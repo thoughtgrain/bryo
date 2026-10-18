@@ -97,6 +97,26 @@ the firmware's 240, so the dots stay square; a source's name is set big in the b
 screen uses for a page. On phones every band is screen first (at 65 %), then words. It replaced a grid of small
 source cards and two-column sections of different shapes, which read as a patchwork.
 
+## Step pictures in the docs
+
+Every step of the docs' "Your first song" guide shows two pictures: the panel with the controls to use lit, and the
+real screen that step gives. They come from `tools/steps.json` and `tools/gen_panel.py --steps`:
+
+- Each entry names a screen (a png in `img/`) and the marks: `"press"` (an orange outline), `"hold"` (an orange
+  fill, for "keep it down while you do the rest") or `["turn", degrees]` (the knob outlined and its pointer swung
+  that far from 12 o'clock, in orange). The generator writes `img/steps/<id>.svg`, the panel with that screen in its
+  own screen, and the docs put the same screen beside it, larger.
+- Every screen is a real render. Where a step's exact state has no render (the ARP page on LTCH or HOLD, SYNTH's
+  LEVEL page), the step shows the page it's on and says so in words, rather than a value it doesn't set.
+- `dials` is the same panel with all eight dials lit, for the docs' "The dials" reference.
+
+```sh
+python3 site/tools/gen_panel.py --steps site/tools/steps.json
+```
+
+The step SVGs are about 125 KB each before compression (mostly the lettering's paths), and GitHub Pages serves
+them gzipped; the docs load them lazily.
+
 ## The walkthrough ("Watch your hands")
 
 The homepage's section 02 plays the FM-1 for you. I wanted people to see the instrument's whole idea (hold a pad,

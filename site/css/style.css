@@ -1147,3 +1147,88 @@ tr:last-child td { border-bottom: 0; }
 @media (min-width: 900px) {
   .band__text { font-size: 1.125rem; }
 }
+
+/* ---------- step-by-step guides: the panel with the hands lit, and the screen it gives ---------- */
+
+.walk-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 28px;
+  margin: 24px 0 8px;
+  padding: 14px 16px;
+  border: 1px dashed var(--line);
+  font-size: 0.875rem;
+  color: var(--ink-soft);
+}
+.walk-legend__item { display: inline-flex; align-items: center; gap: 10px; }
+.walk-legend__swatch {
+  position: relative;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border: 3px solid var(--orange);
+}
+.walk-legend__swatch--hold { background: rgba(230, 159, 0, 0.35); }
+.walk-legend__swatch--turn i {
+  position: absolute;
+  left: 50%;
+  top: 2px;
+  width: 3px;
+  height: 7px;
+  margin-left: -1.5px;
+  background: var(--orange);
+  transform: rotate(35deg);
+  transform-origin: 50% 100%;
+}
+
+.walk { list-style: none; margin: 16px 0 32px; padding: 0; counter-reset: walk; }
+.walk__step {
+  counter-increment: walk;
+  padding: 20px 0 28px;
+  border-top: 1px solid var(--line);
+}
+.walk__text { position: relative; padding-left: 48px; }
+.walk__text::before {
+  content: counter(walk, decimal-leading-zero);
+  position: absolute;
+  left: 0;
+  top: 0.15em;
+  font-family: var(--font-pixel);
+  color: var(--orange);
+  font-size: 1.125rem;
+}
+.walk__text p { margin: 0 0 14px; }
+
+/* the panel and the screen side by side: the screen is the panel's height, so they line up */
+.walk__fig {
+  display: grid;
+  grid-template-columns: minmax(0, 960fr) minmax(0, 340fr);
+  gap: 12px;
+  align-items: start;
+  margin: 0;
+}
+.walk__panel { width: 100%; height: auto; border: 1px solid var(--line); }
+.walk__screen { position: relative; margin: 0; }
+.walk__screen img { width: 100%; display: block; }
+.walk__screen span {
+  display: block;
+  padding: 6px 8px;
+  border-top: 1px dashed var(--line);
+  font-size: 0.6875rem;
+  color: var(--ink-soft);
+}
+@media (max-width: 599px) {
+  /* phones: the panel across the column, the screen under it at 65 %, as everywhere on the site */
+  .walk__fig { grid-template-columns: minmax(0, 1fr); }
+  .walk__screen { width: 65%; margin-inline: auto; }
+  .walk__text { padding-left: 40px; }
+}
+
+/* the numbered screen and its key */
+.screen--marks { max-width: 360px; margin: 8px 0 16px; background: #fff; }
+.screen--marks img { width: 100%; }
+.screen--marks::before { display: none; }
+.doc .screen-key { margin: 0 0 20px; padding-left: 2.25em; }
+.screen-key li { margin-bottom: 0.35em; }
+/* a guide's steps run the full column: no list indent (the step number sits in the text's own gutter) */
+.doc ol.walk { padding-left: 0; }
