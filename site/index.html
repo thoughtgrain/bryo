@@ -50,11 +50,12 @@
           <li><a href="./#tour"><span>02</span>Watch your hands</a></li>
           <li><a href="./#chain"><span>03</span>The chain</a></li>
           <li><a href="./#sources"><span>04</span>Sources</a></li>
-          <li><a href="./#arps"><span>05</span>Arpeggiators</a></li>
-          <li><a href="./#scenes"><span>06</span>Scenes</a></li>
-          <li><a href="./#specs"><span>07</span>Specs</a></li>
-          <li><a href="./#get"><span>08</span>Get it</a></li>
-          <li><a href="./#thanks"><span>09</span>Thanks, Felucca</a></li>
+          <li><a href="./#mod"><span>05</span>Modulation</a></li>
+          <li><a href="./#arps"><span>06</span>Arpeggiators</a></li>
+          <li><a href="./#scenes"><span>07</span>Scenes</a></li>
+          <li><a href="./#specs"><span>08</span>Specs</a></li>
+          <li><a href="./#get"><span>09</span>Get it</a></li>
+          <li><a href="./#thanks"><span>10</span>Thanks, Felucca</a></li>
           <li><a href="docs.html"><span>//</span>Documentation</a></li>
           <li><a href="https://github.com/thoughtgrain/moss-and-air"><span>&gt;&gt;</span>GitHub</a></li>
         </ul>
@@ -232,117 +233,114 @@
       </div>
     </section>
 
-    <section class="section" id="sources" aria-labelledby="sources-title">
+    <section class="section band-group" id="sources" aria-labelledby="sources-title">
       <div class="wrap">
         <span class="section__num px"><span class="slash" aria-hidden="true">/</span> 04</span>
         <h2 class="section__title" id="sources-title">Four ways to make a sound</h2>
-        <div class="cards">
-          <article class="card">
-            <img class="pixelated" src="img/tape.png" width="480" height="480" alt="TAPE page" loading="lazy">
-            <div class="card__body">
-              <h3 class="px">Tape</h3>
-              <p>A loop in memory with sixteen slices on the keys. Move where it starts and ends, transpose it, lock it to the tempo, freeze a sliver of it, or let it warble like a worn cassette.</p>
-            </div>
-          </article>
-          <article class="card">
-            <img class="pixelated" src="img/synth_fm.png" width="480" height="480" alt="SYNTH as an FM synth" loading="lazy">
-            <div class="card__body">
-              <h3 class="px">Synth</h3>
-              <p>Three voices and nine waves: the classics, FM, PD (the Casio CZ's sweep), VOX and WT. A second envelope can open the filter, bite the drive or zap the pitch, and the filter sings on its own past RES 93. CHRD plays a whole chord from one key.</p>
-            </div>
-          </article>
-          <article class="card">
-            <img class="pixelated" src="img/poly_twin.png" width="480" height="480" alt="POLY with TWIN mixing two reels" loading="lazy">
-            <div class="card__body">
-              <h3 class="px">Poly</h3>
-              <p>Plays any reel, or the track's own tape, across the keys. LOOP holds a note as long as you like, and TWIN adds a second reel to blend, split across the keyboard, or take turns note by note.</p>
-            </div>
-          </article>
-          <article class="card">
-            <img class="pixelated" src="img/drum.png" width="480" height="480" alt="DRUM page" loading="lazy">
-            <div class="card__body">
-              <h3 class="px">Drum</h3>
-              <p>Sixteen drums, all synthesized, inspired by the CR-78. Ten patterns from one to four bars, and SEED plays them with small changes, the way a drummer would. TRAN adds a click to every hit.</p>
-            </div>
-          </article>
-        </div>
+        <p class="band-group__lede">Every track starts with one of these. Hold HOME and turn SELECT to switch; each keeps its own knobs.</p>
       </div>
+
+      <article class="band band--flip" aria-labelledby="src-tape">
+        <div class="wrap band__grid">
+          <figure class="screen band__media"><img class="pixelated" src="img/tape_frze.png" width="480" height="480" alt="TAPE's tools: FRZE on, the frozen window framed in orange" loading="lazy"><figcaption class="px">Home / Tape tools</figcaption></figure>
+          <div class="band__text">
+            <h3 class="band__title px" id="src-tape">Tape</h3>
+            <p class="lead">A loop in memory, with its sixteen slices on the white keys.</p>
+            <p>Move where it starts and ends, transpose it with PTCH, or lock it to a number of bars. FRZE holds a sliver of it, from a buzz to a phrase on repeat, and WOW and FLUT warble it like a worn cassette.</p>
+            <p>And any track can become a tape: hold REC and press PLAY, and it bounces itself to a loop.</p>
+          </div>
+        </div>
+      </article>
+
+      <article class="band" aria-labelledby="src-synth">
+        <div class="wrap band__grid">
+          <figure class="screen band__media"><img class="pixelated" src="img/synth_fm.png" width="480" height="480" alt="SYNTH as a two-operator FM synth" loading="lazy"><figcaption class="px">Home / FM Synth</figcaption></figure>
+          <div class="band__text">
+            <h3 class="band__title px" id="src-synth">Synth</h3>
+            <p class="lead">Three voices, nine waves, two envelopes and a filter that sings.</p>
+            <p>The classic shapes, plus FM for bells and electric pianos, PD for the Casio CZ's sweep, VOX for vowels, and WT, a wavetable that can be cut from any reel. A second envelope opens the filter, bites the drive or zaps the pitch, and past RES 93 the filter rings on its own.</p>
+            <p>CHRD plays a whole chord from one key, and TRAN puts a click at the start of every note.</p>
+          </div>
+        </div>
+      </article>
+
+      <article class="band band--flip" aria-labelledby="src-poly">
+        <div class="wrap band__grid">
+          <figure class="screen band__media"><img class="pixelated" src="img/poly_loop.png" width="480" height="480" alt="POLY LOOP: FWD, the loop LSTR to END marked" loading="lazy"><figcaption class="px">Home / Poly loop</figcaption></figure>
+          <div class="band__text">
+            <h3 class="band__title px" id="src-poly">Poly</h3>
+            <p class="lead">Any reel, or the track's own tape, played across the keys.</p>
+            <p>Up to four notes at once, each with its own envelope and filter. LOOP holds a note as long as you like, forwards or back and forth. TWIN adds a second reel to blend, split across the keyboard, or take turns note by note.</p>
+          </div>
+        </div>
+      </article>
+
+      <article class="band" aria-labelledby="src-drum">
+        <div class="wrap band__grid">
+          <figure class="screen band__media"><img class="pixelated" src="img/drum.png" width="480" height="480" alt="DRUM: the pattern page" loading="lazy"><figcaption class="px">Home / Drum</figcaption></figure>
+          <div class="band__text">
+            <h3 class="band__title px" id="src-drum">Drum</h3>
+            <p class="lead">Sixteen drums, all synthesized, inspired by the CR-78.</p>
+            <p>Ten patterns from one to four bars, or write your own steps. Turn SEED and it plays its own version of the pattern, with ghost notes and fills, the way a drummer would. TRAN adds a click on top of every hit.</p>
+          </div>
+        </div>
+      </article>
     </section>
 
-    <section class="section" aria-labelledby="mod-title">
-      <div class="wrap split">
-        <figure class="screen">
-          <img class="pixelated" src="img/mod1.png" width="480" height="480" alt="An LFO modulator page drawing its waveform" loading="lazy">
-          <figcaption class="px">LFO / M1</figcaption>
-        </figure>
-        <div class="prose">
+    <section class="section band band--flip" id="mod" aria-labelledby="mod-title">
+      <div class="wrap band__grid">
+        <figure class="screen band__media"><img class="pixelated" src="img/mod1.png" width="480" height="480" alt="An LFO modulator page drawing its waveform" loading="lazy"><figcaption class="px">LFO / M1</figcaption></figure>
+        <div class="band__text">
+          <span class="section__num px"><span class="slash" aria-hidden="true">/</span> 05</span>
           <h2 class="section__title" id="mod-title">Hold a pad. Turn a knob.</h2>
           <p class="lead">Each track has four modulators. They move knobs for you, so a sound keeps changing while your hands are busy.</p>
-          <p>Three of them live on the <strong>LFO</strong> pad, and each can be an LFO, an ADSR envelope or an envelope follower. The fourth, on <strong>SEQ</strong>, is a step sequencer.</p>
-          <p>To make a knob move, hold LFO or SEQ and turn that knob. How far you turn sets how far it moves, from &minus;100 to 100&nbsp;%. Each modulator can move up to twelve knobs, and while you hold its pad the screen counts them for you. A knob that's moving gets a purple mark, so you can see what's alive at a glance.</p>
-          <p>The envelope follower levels itself: a quiet pad pushes its knobs as far as a loud drum does. Point it at the kick and everything else can duck in time.</p>
+          <p>Three live on the <strong>LFO</strong> pad, and each can be an LFO, an ADSR envelope or an envelope follower. The fourth, on <strong>SEQ</strong>, is a step sequencer. Hold LFO or SEQ and turn any knob: how far you turn is how far it moves. A moving knob gets a purple mark.</p>
+          <p>The follower levels itself, so a quiet pad pushes as far as a loud drum. Point it at the kick and everything else ducks in time.</p>
         </div>
       </div>
     </section>
 
-    <section class="section" id="arps" aria-labelledby="arps-title">
-      <div class="wrap split">
-        <div>
-          <span class="section__num px"><span class="slash" aria-hidden="true">/</span> 05</span>
-          <h2 class="section__title" id="arps-title">Hold a chord, hear a pattern</h2>
-          <div class="figure-row figure-row--2">
-            <figure class="screen"><img class="pixelated" src="img/arp.png" width="480" height="480" alt="ARP page: two notes held, the one playing filled" loading="lazy"><figcaption class="px">ARP / KEY</figcaption></figure>
-            <figure class="screen"><img class="pixelated" src="img/arp_add.png" width="480" height="480" alt="ARP in ADD mode with four notes piled up" loading="lazy"><figcaption class="px">ARP / ADD</figcaption></figure>
-            <figure class="screen"><img class="pixelated" src="img/arp_drum.png" width="480" height="480" alt="ARP on a DRUM track walking three drums up and down" loading="lazy"><figcaption class="px">ARP / Drum</figcaption></figure>
-            <figure class="screen"><img class="pixelated" src="img/arp_res.png" width="480" height="480" alt="RIPL ARP: two notes held, the strings plucked in turn" loading="lazy"><figcaption class="px">RIPL ARP</figcaption></figure>
+    <section class="section band" id="arps" aria-labelledby="arps-title">
+      <div class="wrap band__grid">
+        <div class="band__media">
+          <figure class="screen"><img class="pixelated" src="img/arp_add.png" width="480" height="480" alt="ARP in ADD mode with four notes piled up" loading="lazy"><figcaption class="px">ARP / Add</figcaption></figure>
+          <div class="band__thumbs">
+            <figure class="screen"><img class="pixelated" src="img/arp.png" width="480" height="480" alt="ARP: two notes held, the one playing filled" loading="lazy"><figcaption class="px">Key</figcaption></figure>
+            <figure class="screen"><img class="pixelated" src="img/arp_fade.png" width="480" height="480" alt="ARP page 2: GATE SWNG GRND FADE" loading="lazy"><figcaption class="px">Fade</figcaption></figure>
+            <figure class="screen"><img class="pixelated" src="img/arp_res.png" width="480" height="480" alt="RIPL ARP plucking RIPPLE's strings" loading="lazy"><figcaption class="px">Ripl arp</figcaption></figure>
           </div>
         </div>
-        <div class="prose">
-          <p class="lead">Hold a few keys and the arpeggiator plays them one at a time, in time with the tempo.</p>
-          <p>Every track has one, and it does something a little different on each source. On SYNTH and POLY it plays notes. On TAPE it steps through the slices you hold. On DRUM it walks through the drums you hold: hold kick, snare and hat with UPDN and you get kick, snare, hat, snare, kick. With SYNTH's CHRD on, every step is a whole chord.</p>
-          <dl class="specs specs--compact">
-            <div><dt class="px">Mode</dt><dd><strong>KEY</strong> plays while you hold the keys. <strong>LTCH</strong> keeps the last chord going after you let go. <strong>ADD</strong> keeps every key you press, so a pattern grows one note at a time.</dd></div>
-            <div><dt class="px">Order</dt><dd>Up, down, up and down, random, or the order you pressed them.</dd></div>
-            <div><dt class="px">Range</dt><dd>One to three octaves (for notes; a slice or a drum has no octave).</dd></div>
-            <div><dt class="px">Rate</dt><dd>Quarter notes down to 32nds, with triplets.</dd></div>
-            <div><dt class="px">Page 2</dt><dd>GATE for short or long notes, SWNG to push every other step late, GRND to vary them at random, FADE to let them fade out.</dd></div>
-          </dl>
-          <p>While it plays, the keys light up with its notes, and the one sounding goes dark for its step. Press a lit key to take that note out. On page 2, <strong>FADE</strong> lets the pattern keep stepping after you let go and fade away, and <strong>GRND</strong> varies each note's length so it breathes. To clear everything, hold the black <strong>POLY</strong> key on the ARP page.</p>
-          <h3>A second one, for RIPPLE</h3>
-          <p>Press ARP a third time and you're on <strong>RIPL ARP</strong>. It plays RIPPLE, one note per step, whatever the track itself is playing. With RIPPLE's KEYS on PLCK each step plucks the strings; on TUNE each step retunes RIPPLE, so the track's own sound rings in the pattern. Turn RIPPLE's WET up to hear it. A latched pattern keeps going after you leave the page, so you can set it running and go shape something else.</p>
-          <p>Both follow the transport. STOP quiets them and keeps the notes, and PLAY starts them again from the top. Saving a project keeps the notes too.</p>
-        </div>
-      </div>
-    </section>
-
-    <section class="section" id="scenes" aria-labelledby="scenes-title">
-      <div class="wrap split">
-        <div>
+        <div class="band__text">
           <span class="section__num px"><span class="slash" aria-hidden="true">/</span> 06</span>
-          <h2 class="section__title" id="scenes-title">Four scenes to jump or drift between</h2>
-          <div class="figure-row figure-row--2">
-            <figure class="screen"><img class="pixelated" src="img/mixer_scenes.png" width="480" height="480" alt="SCENES: scenes 1 and 2 stored, 2 the current one" loading="lazy"><figcaption class="px">Glo / Scenes</figcaption></figure>
-            <figure class="screen"><img class="pixelated" src="img/mixer_morph.png" width="480" height="480" alt="SCENES: knob 2 halfway to scene 2" loading="lazy"><figcaption class="px">Morphing</figcaption></figure>
-          </div>
+          <h2 class="section__title" id="arps-title">Hold a chord, hear a pattern</h2>
+          <p class="lead">Hold a few keys and the arpeggiator plays them one at a time, in time with the tempo.</p>
+          <p>Every track has one. On SYNTH and POLY it plays notes, on TAPE it steps through slices, and on DRUM it walks the drums you hold. With SYNTH's CHRD on, every step is a whole chord.</p>
+          <p><strong>KEY</strong> plays while you hold, <strong>LTCH</strong> keeps the chord going, and <strong>ADD</strong> grows a pattern one key at a time. The keys light up with its notes; press a lit key to take that note out. On page 2, <strong>FADE</strong> lets it keep stepping and fade away after you let go.</p>
+          <p>Press ARP a third time for <strong>RIPL ARP</strong>, a second arpeggio that plays RIPPLE, whatever the track is doing.</p>
+          <a class="more-link px" href="docs.html#arps">Arpeggiators in the docs &gt;</a>
         </div>
-        <div class="prose">
+      </div>
+    </section>
+
+    <section class="section band band--flip" id="scenes" aria-labelledby="scenes-title">
+      <div class="wrap band__grid">
+        <div class="band__media">
+          <figure class="screen"><img class="pixelated" src="img/mixer_morph.png" width="480" height="480" alt="SCENES: knob 2 halfway to scene 2" loading="lazy"><figcaption class="px">Glo / Scenes</figcaption></figure>
+        </div>
+        <div class="band__text">
+          <span class="section__num px"><span class="slash" aria-hidden="true">/</span> 07</span>
+          <h2 class="section__title" id="scenes-title">Four scenes to drift between</h2>
           <p class="lead">A scene is a snapshot of how the whole project sounds. Each project has four.</p>
-          <p>A scene holds every track's source and every knob that shapes its sound, plus the track levels and the rooms. It leaves what's playing alone: the tapes, the patterns, the modulation, the arpeggios, the tempo and the key all carry on when you change scenes.</p>
-          <p>Tap GLO, then EDIT, and you're on <strong>SCENES</strong>. The white keys 1 to 4 are the four scenes, and each knob sits under its scene.</p>
-          <dl class="specs specs--compact">
-            <div><dt class="px">Store</dt><dd>Hold a scene's key and tap SAVE.</dd></div>
-            <div><dt class="px">Recall</dt><dd>Tap a scene's key. Everything glides there in about a third of a second.</dd></div>
-            <div><dt class="px">Morph</dt><dd>Turn a scene's knob. Each click moves the sound 5&nbsp;% of the way there, and you can stop anywhere, halfway between two sounds if you like.</dd></div>
-          </dl>
-          <p>If a track uses the same source in both scenes, its knobs morph smoothly. If the source changes, the track fades out, switches, and fades back in. Scenes are saved with the project, and the PROJECTS view shows how many each project has.</p>
-          <p>The factory project shows it off. It's one groove in A minor with three scenes: <strong>AMBIENT</strong>, a slow choir, drone and bowed bells; <strong>TECHNO</strong>, with the drums up and everything ducking on the kick; and <strong>GLITCH</strong>, crushed and stuttering. Turn KNOB 2, then KNOB 3, and drift from one to the next.</p>
+          <p>Tap GLO, then EDIT. Hold a scene's key and tap SAVE to store the sound. Tap the key to glide back in a third of a second, or turn its knob to morph there slowly and stop anywhere in between. Tapes, patterns, modulation and arpeggios keep playing the whole time.</p>
+          <p>The factory project is one groove with three scenes: <strong>AMBIENT</strong>, <strong>TECHNO</strong> and <strong>GLITCH</strong>. Turn KNOB 2, then KNOB 3, and drift from one to the next.</p>
+          <a class="more-link px" href="docs.html#mixer">Scenes in the docs &gt;</a>
         </div>
       </div>
     </section>
 
     <section class="section" id="specs" aria-labelledby="specs-title">
       <div class="wrap">
-        <span class="section__num px"><span class="slash" aria-hidden="true">/</span> 07</span>
+        <span class="section__num px"><span class="slash" aria-hidden="true">/</span> 08</span>
         <h2 class="section__title" id="specs-title">Specs</h2>
         <dl class="specs">
           <div><dt class="px">Hardware</dt><dd>M-VAVE FM-1 (JieLi AC79), bare metal</dd></div>
@@ -366,7 +364,7 @@
     <section class="section" id="get" aria-labelledby="get-title">
       <div class="wrap split">
         <div>
-          <span class="section__num px"><span class="slash" aria-hidden="true">/</span> 08</span>
+          <span class="section__num px"><span class="slash" aria-hidden="true">/</span> 09</span>
           <h2 class="section__title" id="get-title">Get it</h2>
         </div>
         <div class="prose">
@@ -383,7 +381,7 @@
     <section class="section thanks" id="thanks" aria-labelledby="thanks-title">
       <div class="wrap split">
         <div>
-          <span class="section__num px"><span class="slash" aria-hidden="true">/</span> 09</span>
+          <span class="section__num px"><span class="slash" aria-hidden="true">/</span> 10</span>
           <h2 class="section__title" id="thanks-title">Thank you, Felucca</h2>
         </div>
         <div class="prose">
