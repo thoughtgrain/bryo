@@ -110,9 +110,9 @@ static const char *const N_EDST[3] = {"CUT", "DRV", "PTCH"};
 /* the arpeggiator's knobs and names (ARP_P below; RIPPLE's own arpeggio uses them too) */
 enum { AR_MODE, AR_ORDR, AR_RNGE, AR_RATE, AR_GATE, AR_SWNG, AR_GRND, AR_FADE, NARP = 8 };   /* (GRND 2026-10-13: each
                                                                                        * step's gate, at random) */
-enum { ARM_OFF, ARM_KEY, ARM_LTCH, ARM_ADD };
+enum { ARM_OFF, ARM_KEY, ARM_LTCH, ARM_ADD, ARM_HOLD };   /* (HOLD 2026-10-18: the arpeggiator's own page only) */
 enum { ARO_UP, ARO_DOWN, ARO_UPDN, ARO_RND, ARO_PLAY };   /* (PK_DIR's order, then PLAY) */
-static const char *const N_ARM[4] = {"OFF", "KEY", "LTCH", "ADD"};
+static const char *const N_ARM[5] = {"OFF", "KEY", "LTCH", "ADD", "HOLD"};
 static const char *const N_ARO[5] = {"UP", "DOWN", "UPDN", "RND", "PLAY"};
 static const char *const N_ARATE[6] = {"1/4", "1/8", "8T", "1/16", "16T", "1/32"};
 static const char *const N_TSYNC[6] = {"OFF", "1BR", "2BR", "4BR", "8BR", "16BR"};   /* TAPE SYNC: the loop, in bars */
@@ -561,7 +561,7 @@ static const uint8_t SP_RMK[NPK] = {0, 0, 0, RM_SIZE + 1, 0, 0, 0, 0, RM_DEC + 1
  * key brings them back); at 0 KEY stops at once and LTCH and ADD hold for good. Not modulation targets (choices the
  * ISR acts on per step). */
 static const pdesc_t ARP_P[NPK] = {   /* (NPK long: pdesc_pages looks past the last page) */
-    {"MODE", 0, 3, ARM_OFF, F_ENUM, N_ARM, 1}, {"ORDR", 0, 4, ARO_UP, F_ENUM, N_ARO, 1}, {"RNGE", 1, 3, 1, F_NUM, 0, 1},
+    {"MODE", 0, 4, ARM_OFF, F_ENUM, N_ARM, 1}, {"ORDR", 0, 4, ARO_UP, F_ENUM, N_ARO, 1}, {"RNGE", 1, 3, 1, F_NUM, 0, 1},
     {"RATE", 0, 5, 3, F_ENUM, N_ARATE, 1},
     {"GATE", 10, 400, 50, F_PCT, 0, 1}, {"SWNG", 0, 100, 0, F_PCT, 0, 1}, {"GRND", 0, 100, 0, F_PCT, 0, 1},
     {"FADE", 0, 127, 0, F_TIME, 0, 1},   /* (2026-10-15: the notes go on this long after the keys are let go, fading;

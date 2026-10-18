@@ -210,7 +210,7 @@ told apart in these numbers):
 | 15 | everything on, all four tracks | 5,267 |
 | 29 | the busiest groove's devices all on, the transport stopped (what "nothing playing" costs) | 700 |
 | 30 | one track heard (dense grains, strings with RIPL ARP, a room), the other three muted | 2,335 |
-| 31 | the factory scene as it boots (AMBIENT at 80 BPM in its hall, 2026-10-17) | 3,001 |
+| 31 | the factory scene as it boots (AMBIENT at 80 BPM in its hall, its chords held, 2026-10-18) | 2,925 |
 | 32 | TEST, the project view's scene: every stage at work (GLITCH, at its scene tempo of 136 since 2026-10-17) | 2,896 |
 
 My target for a realistic four-track scene is 2,000. The first device reading (run 1, 2026-10-10: 25 %, in 5 % steps)
@@ -254,6 +254,10 @@ number.
   four), split by what each track's settings ask for when it runs short; what's left over is everyone's (since
   2026-10-11: a track alone has all 40, not just what RATE and SIZE ask). GRAIN 6's GRNS can hold a number for a
   track instead (1-40, taken from the AUTO tracks first, kept whatever the others do).
+- **2026-10-18: AMBIENT holds its chords.** A new arp MODE, HOLD, plays the latched chord whole and sustained, and
+  scenes now hold the arpeggiator's knobs, so AMBIENT's voice and bells HOLD while TECHNO and GLITCH still step. The
+  scene measures 2,925 (two looping bells, not four). Muted tracks forget their keys, so a held chord strikes again
+  at the unmute.
 - **2026-10-18: drum clicks.** A drum struck while its voice still rang faded the old sound through the new hit's
   coefficients (filter, pitch, level): a jump of up to 28 % of the peak on every accented repeat and stolen voice.
   The new hit's coefficients now wait for the fade.

@@ -408,6 +408,9 @@ static void HOT_CODE pol_block(uint32_t t, uint32_t keys, const int32_t *rec, in
                                                          * start from silence */
         for (j = 0; j < POL_NV; j++)
             s->v[j].stage = 0, s->v[j].amp = 0, s->v[j].env = 0;
+        s->keys = 0;                                    /* (2026-10-18: and the keys forgotten, so keys still held at
+                                                         * waking strike again: an arpeggiator's HOLD chord, a key held
+                                                         * through the mute) */
         return;
     }
     for (k = 0; on && (vw.len || (tw >= TW_ALT && vwb.len)) && k < NKEYBIT; k++)   /* new keys, lowest first

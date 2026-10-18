@@ -3370,6 +3370,40 @@ coefficients when the fade is done, just before the strike. Test (`test_drum_ste
 while it rings; the fading block against the unstruck run's ramped down: off by 28 % of the kick's peak before, 1.2 %
 now. Runs 26, 27, 28 and 32 (the ones with drums) have new fingerprints; the rest held.
 
+### HOLD, scenes holding the arpeggiator, AMBIENT without steps (2026-10-18)
+
+"The ambient still has too many sounds moving quickly. I think having arps on ambient is too much. Should be smooth
+evolving sounds that don't rapidly repeat. Can we modulate the arp?" Two pieces were missing. A scene couldn't change
+the arpeggiator (its knobs weren't scene state), so AMBIENT had TECHNO's arpeggios; and an arpeggiator turned off
+plays nothing, since the scene's notes are the arpeggiators' latched chords.
+
+**HOLD** (`ARM_HOLD`, MODE's fifth value, on the ARP pad's page; RIPL ARP stops at ADD): the notes captured as LTCH
+captures them, but no steps: `arp_run` returns them all at once over the chord's lowest note (`*nbase`), so a note
+that stays keeps its bit and its voice and only a changed note strikes. LTCH and HOLD switch into each other keeping
+the chord latched. On TAPE and DRUM it's the slices or drums held together. FADE works on it as on LTCH.
+
+**Scenes hold the arpeggiator's knobs** (`scene_t.arp`): MODE ORDR RNGE RATE switch at the midpoint, GATE SWNG
+GRND FADE morph; not its notes. In a project they're more scene entries (`PJ_SC_ARP`, format still 13); a scene from
+an older file reads with the arpeggiator as the file has it, so a recall leaves it alone. The factory's lists set
+them with `TPS_ARPK` over the groove's base (`TPS_ARP`), reset for each scene.
+
+**AMBIENT**: the voice and the bells HOLD. The voice is one MIN7 chord (CHRD on the held chord's root), M4 moving
+it a bar at a time (Am Am Dm Em) with GLID smoothing it: struck once in eight bars, its root through three notes.
+The bells hold two voices (VOIC 2) whose tails ping-pong over the sample's last 45 % (LOOP PING, LSTR 55 %: no seam)
+into a shimmer. Four looping bells cost 280 instructions a sample; with two the scene measures 2,925 against 3,001.
+Morphing to TECHNO, the chords start stepping at the midpoint.
+
+**A fix it needed:** a muted track's SYNTH or POLY dropped its voices but remembered its keys, so a chord still held
+at the unmute (a HOLD chord, or a key held through the mute) never struck again. Asleep, they forget the keys now.
+
+**Modulating the arp:** a scene morph now moves it. An LFO on its knobs isn't built: they're choices the ISR reads
+per step (`tp[t].arp`, not a modulated array), and RATE, GATE and SWNG as targets would need a modulated copy of the
+array in the low pool, which is nearly full; it's possible for GATE, SWNG and GRND if wanted.
+
+Tests (`test_arp_hold`, the factory test): HOLD sounds the chord whole and never steps, a new chord after letting
+go, HOLD to LTCH; TAPE's slices together; a scene morph switching MODE at the midpoint and morphing GATE; the save and
+load; AMBIENT's voice struck once in eight bars as its root moves; the unmute striking the held chord again.
+
 ## USB record mode (2026-10-08)
 
 Recording from the computer is a mode of its own, not a source a track plays through: you go in, record, put the

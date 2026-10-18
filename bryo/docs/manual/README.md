@@ -140,15 +140,15 @@ bright. Let go without pressing a key and the pad turns its page as usual.
 **You'll hear:** the factory scene. It's one groove in A minor with three **scenes** of it, and it starts on the
 first, **AMBIENT**:
 - **Track 1:** a four-on-the-floor drum bar, silent here (its level is down in this scene).
-- **Track 2:** a choir: **VOX**, each note of its arpeggio a minor-seventh chord with a slow attack and the longest
-  release, gliding from note to note, so the notes smear into a soft pad that moves with the chords (Am, Dm, Em).
+- **Track 2:** a choir: **VOX** holding a minor-seventh chord (its arpeggiator on **HOLD**, no steps), with a slow
+  attack and the longest release, gliding as the chord moves a bar at a time (Am, Dm, Em).
 - **Track 3:** a drone (**DRON**) through a wash of half-second grains, its highs shelved down, and four resonators
   that ring out while a slow **FLOW** walks the sound through them.
-- **Track 4:** bells (**BELL**) arpeggiated up and down, bowed rather than struck: each swells in and fades out slowly,
-  its echoes smeared into a dark wash.
+- **Track 4:** two bells (**BELL**) held, bowed rather than struck, their tails looping back and forth into a long
+  shimmer, their echoes smeared into a dark wash.
 
-Everything in this scene swells into existence and fades out gradually, at a slow 80 BPM: slow attacks, the longest
-releases, no noise, darker filters, and nothing percussive (the drums are silent here, since their kick would duck the
+Everything in this scene swells into existence and fades out gradually, at a slow 80 BPM: held chords instead of
+arpeggios, slow attacks, the longest releases, no noise, darker filters, and nothing percussive (the drums are silent here, since their kick would duck the
 other tracks). All three tracks sit deep in the big room: a whole hall, long, dark and slowly moving, with a pre-delay
 so the sound lands before the room blooms behind it.
 
@@ -157,7 +157,7 @@ come up and everything else ducks on the kick (each track has a FOLLOW of track 
 bass, track 3 a high-passed pump, track 4 short stabs. **KNOB 3** morphs on into **GLITCH**: crushed drums stuttering
 through grains, track 2 a resonant phase-distortion saw, track 3 stuttering through the 12-band bank, track 4 picking
 its bell or a drum loop at random for every note. Tap white keys 1-3 to jump between them instead. Scene 4 is free for
-your own ([3.9](#39-scenes-four-sounds-to-jump-or-morph-between)). Each scene has its own tempo too: AMBIENT 80, TECHNO 128, GLITCH 136.
+your own ([3.9](#39-scenes-four-sounds-to-jump-or-morph-between)). Each scene has its own tempo too: AMBIENT 80, TECHNO 128, GLITCH 136. On the way to TECHNO the held chords start stepping again at the halfway point: scenes hold the arpeggiator too.
 
 > If you've saved a project, it comes back at power-on instead. To hear the factory scene again, see
 > [9.4](#94-back-to-the-factory-scene).
@@ -374,9 +374,10 @@ Bryo thins out grains and strings to keep the sound clean.
 
 A project has four **scenes**. Each one is a snapshot of how the project sounds: every track's source (TAPE,
 SYNTH, POLY or DRUM), every knob of its sound (the source's, GRAIN, RIPPLE, COLOR, CHRONOS, the channel strip), the
-track levels, the rooms and the **tempo**. A scene doesn't hold what's playing: the tapes and reels, the drum
-patterns, the steps, the modulation, the mutes, the arpeggios and the key all stay as they are when you change
-scenes.
+track levels, the rooms, the **tempo** and the **arpeggiator's settings** (MODE, ORDR, RNGE, RATE switch at the
+midpoint; GATE, SWNG, GRND, FADE morph). A scene doesn't hold what's playing: the tapes and reels, the drum patterns,
+the steps, the modulation, the mutes, the notes the arpeggiators hold and the key all stay as they are when you change
+scenes. So one scene can hold a chord still (HOLD) while another steps through it.
 
 The tempo is taken when you store the scene and changes at the midpoint of a recall or a morph, the way a choice
 does: it doesn't glide, since a gliding tempo would drag every synced tape and delay out of tune on the way. So a
@@ -754,7 +755,7 @@ The knobs:
 
 | Knob | Does |
 | --- | --- |
-| **MODE** | **OFF**; **KEY** plays while you hold keys; **LTCH** keeps playing the last chord after you let go (press a new chord to replace it); **ADD** keeps every key you press, so you can pile up an endless pattern |
+| **MODE** | **OFF**; **KEY** plays while you hold keys; **LTCH** keeps playing the last chord after you let go (press a new chord to replace it); **ADD** keeps every key you press, so you can pile up an endless pattern; **HOLD** keeps the chord as LTCH does but plays it whole and sustained, no steps: a pad that's struck once and again only where the chord changes |
 | **ORDR** | **UP**, **DOWN**, **UPDN** (up and back down), **RND** (random), **PLAY** (the order you pressed them) |
 | **RNGE** | 1, 2 or 3 octaves: the notes, then the same an octave up, and so on (on TAPE and DRUM there's no octave of a slice or a drum, so it stays at 1) |
 | **RATE** | how long each step is: 1/4, 1/8, 8T, 1/16, 16T, 1/32 (T is a triplet) |

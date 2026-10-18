@@ -630,6 +630,8 @@ static void syn_block(uint32_t t, uint32_t keys, const int32_t *rec, int32_t *ou
                                                          * start from silence */
         for (j = 0; j < SYN_NV; j++)
             s->v[j].stage = 0, s->v[j].amp = 0, s->v[j].env = 0;
+        s->keys = s->keys_was = 0;                      /* (2026-10-18: and the keys forgotten, so keys still held at
+                                                         * waking strike again, a CHRD chord too) */
         return;
     }
     for (k = 0; on && k < NKEYBIT; k++)                      /* new keys, lowest first */

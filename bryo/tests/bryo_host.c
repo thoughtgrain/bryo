@@ -11059,6 +11059,79 @@ static void test_arp_long(void)
     tp[0].arp[AR_GATE] = 50;
     render(4, 0);
 }
+/* the arpeggiator's HOLD, and scenes holding the arpeggiator (2026-10-18) */
+static void test_arp_hold(void)
+{
+    uint32_t b, strikes = 0, was = 0, c3 = note_bit_of_white(0), e3 = note_bit_of_white(4), g3 = note_bit_of_white(7);
+    uint32_t a3 = note_bit_of_white(9);
+    char m[200];
+    power_on();
+    tp[0].src = SRC_SYNTH;
+    tp[0].syn[SY_SUS] = 100;
+    sys.bpm = 120;
+    tp[0].arp[AR_MODE] = ARM_HOLD;
+    check("ARP MODE has HOLD (its own page; RIPL ARP's stops at ADD)", ARP_P[AR_MODE].max == ARM_HOLD &&
+          !strcmp(N_ARM[ARM_HOLD], "HOLD") && DEV_P[DEV_RESO][RP_AMODE].max == ARM_ADD);
+    fm1_in.notes = c3 | e3 | g3;
+    render(4, 0);
+    fm1_in.notes = 0;
+    was = syn[0].keys;
+    for (b = 0; b < 1400u; b++) {                        /* (two seconds of a 1/16 RATE: it would step 30 times) */
+        render(1, 0);
+        strikes += (syn[0].keys & ~was) != 0u;
+        was = syn[0].keys;
+    }
+    snprintf(m, sizeof m, "HOLD: the chord let go sounds whole (C3 E3 G3 at once over C3), held, struck once, no steps "
+             "(%u strikes after the first)", strikes);
+    check(m, syn[0].keys == 0x91u && key_base[0] == 48u && !strikes && syn_sounding(0) == 3u);
+    fm1_in.notes = a3;                                   /* a new chord after letting go: A3 alone */
+    render(2, 0);
+    fm1_in.notes = 0;
+    render(2, 0);
+    check("..a key after letting go: a new chord (A3), as LTCH", arp_rt[0].n == 1u && syn[0].keys == 1u &&
+          key_base[0] == 57u);
+    tp[0].arp[AR_MODE] = ARM_LTCH;
+    render(400, 0);
+    check("..HOLD to LTCH: the same chord, stepping now", arp_rt[0].n == 1u && arp_rt[0].latched);
+    tp[0].arp[AR_MODE] = ARM_OFF;
+    render(4, 0);
+    tp[0].src = SRC_TAPE;                                /* TAPE: the slices held, all of them */
+    tp[0].arp[AR_MODE] = ARM_HOLD;
+    render(2, 0);
+    fm1_in.notes = c3 | e3;
+    render(4, 0);
+    {
+        uint32_t ks = 0;
+        fm1_in.notes = 0;
+        render(1, 0);
+        ks = arp_block(0, 0, 0, CTL, &b);
+        check("..on TAPE: the slices held (1 and 5) together", ks == ((1u << 0) | (1u << 4)));
+    }
+    tp[0].arp[AR_MODE] = ARM_OFF;
+    render(4, 0);
+    /* scenes hold the arpeggiator: MODE switches at the midpoint, GATE morphs */
+    power_on();
+    pj_wipe();
+    pj_new(0);
+    tp[0].arp[AR_MODE] = ARM_LTCH;
+    tp[0].arp[AR_GATE] = 20;
+    scn_store(0);
+    tp[0].arp[AR_MODE] = ARM_HOLD;
+    tp[0].arp[AR_GATE] = 80;
+    scn_store(1);
+    scn_take(&scn_from);
+    scn_mix(&scn_from, &scn[0], SCN_FULL / 4);
+    check("a scene holds the arpeggiator: a quarter of the way to LTCH, GATE 20: MODE still HOLD, GATE 65",
+          tp[0].arp[AR_MODE] == ARM_HOLD && tp[0].arp[AR_GATE] == 65);
+    scn_mix(&scn_from, &scn[0], SCN_FULL * 3 / 4);
+    check("..three quarters: MODE LTCH (switched at the midpoint), GATE 35", tp[0].arp[AR_MODE] == ARM_LTCH &&
+          tp[0].arp[AR_GATE] == 35);
+    {
+        scene_t s1 = scn[0], s2 = scn[1];
+        check("..saved and loaded, the scenes' arpeggiators with them", pj_save(0) == 0 && (scn_clear(), pj_load(0) == 0)
+              && !memcmp(&scn[0], &s1, sizeof s1) && !memcmp(&scn[1], &s2, sizeof s2));
+    }
+}
 static void test_arp_sources(void)
 {
     uint8_t seq[32];
@@ -11459,10 +11532,11 @@ static void test_factory_scene(void)
     pj_wipe();
     pj_boot();
     check("nothing saved: the factory scene: T1 DRUM (one bar), T2 SYNTH (VOX), T3 TAPE on DRON, T4 POLY on BELL (TWIN's "
-          "B on BEAT), two arpeggiated; scenes 1-3 AMBIENT TECHNO GLITCH, 4 empty, AMBIENT playing (T1 silent)",
+          "B on BEAT), two arpeggiators holding their chords (HOLD); scenes 1-3 AMBIENT TECHNO GLITCH, 4 empty, AMBIENT "
+          "playing (T1 silent)",
           tp[0].src == SRC_DRUM && tp[0].drm[DM_LEN] == 1 && tp[1].src == SRC_SYNTH && tp[1].syn[SY_WAVE] == SY_VOX &&
           tp[2].src == SRC_TAPE && tp[2].dev[DEV_SRC][TK_REEL] == 3 && tp[3].src == SRC_POLY && tp[3].pol[PL_REEL] == 2 &&
-          tp[3].pol[PL_RLB] == 1 && tp[1].arp[AR_MODE] == ARM_LTCH && tp[3].arp[AR_MODE] == ARM_LTCH && scn[0].used &&
+          tp[3].pol[PL_RLB] == 1 && tp[1].arp[AR_MODE] == ARM_HOLD && tp[3].arp[AR_MODE] == ARM_HOLD && scn[0].used &&
           scn[1].used && scn[2].used && !scn[3].used && scn_cur == 1u && track[0].level == 0u && !pj_changed() &&
           pj_cur == 0u);
     check("..each scene its tempo: AMBIENT 80 (playing), TECHNO 128, GLITCH 136", scn[0].bpm == 80u &&
@@ -11475,22 +11549,25 @@ static void test_factory_scene(void)
         chain_block(out, CTL);
         for (i = 0; i < 2u * CTL; i++)
             pk = out[i] > pk ? out[i] : -out[i] > pk ? -out[i] : pk;
-        if (arp_rt[1].on && !was2) {                     /* each of T2's roots as it sounds: in A minor? */
-            int32_t tr = TPD(1, MA_SYN)[SY_TUNE], pc = (((int32_t)arp_rt[1].cur + tr) % 12 + 12) % 12;
-            inkey &= pc == 9 || pc == 11 || pc == 0 || pc == 2 || pc == 4 || pc == 5 || pc == 7;
-            n2 = distinct_add(an2, n2, (int32_t)arp_rt[1].cur + tr);
+        if (syn[1].keys & ~was2)                         /* AMBIENT holds: T2's strikes (a chord at PLAY, no steps),
+                                                          * its root in A minor as the chord moves */
             steps2++;
+        was2 = syn[1].keys;
+        if (b % 512u == 0u && syn[1].keys) {
+            int32_t tr = TPD(1, MA_SYN)[SY_TUNE], pc = (((int32_t)key_base[1] + tr) % 12 + 12) % 12;
+            inkey &= pc == 9 || pc == 11 || pc == 0 || pc == 2 || pc == 4 || pc == 5 || pc == 7;
+            n2 = distinct_add(an2, n2, (int32_t)key_base[1] + tr);
         }
-        was2 = arp_rt[1].on;
         if (b % 64u == 0u) {
             ntu = distinct_add(tu, ntu, TPD(1, MA_SYN)[SY_TUNE]);
             nrp = distinct_add(rp, nrp, TPD(2, DEV_RESO)[RP_PTCH]);
         }
     }
-    snprintf(m, sizeof m, "..AMBIENT, eight bars: T2's arpeggio %u steps over %u notes and %u chords, T3's strings %u "
-             "roots; peak %d", steps2, n2, ntu, nrp, pk);
-    check(m, steps2 >= 100u && n2 >= 8u && ntu == 3u && nrp >= 4u && pk < 32767 && peak_of(track_rt[0].last, CTL) == 0);
-    check("..every root T2's arpeggio plays is in A minor (Am Dm Em)", inkey);
+    snprintf(m, sizeof m, "..AMBIENT, eight bars: T2 holds its chord (struck %u time(s), its root through %u notes "
+             "as M4 moves it over %u chords, gliding), T3's strings %u roots; peak %d", steps2, n2, ntu, nrp, pk);
+    check(m, steps2 == 1u && n2 == 3u && ntu == 3u && nrp >= 4u && pk < 32767 && peak_of(track_rt[0].last, CTL) == 0 &&
+          syn_sounding(1) >= 2u && pol[3].v[0].stage);
+    check("..every root T2's chord takes is in A minor (Am Dm Em)", inkey);
     base3 = tp[2].dev[DEV_SRC][TK_LVL];
     for (b = 0; b < 1378u; b++) {                        /* (T1 silent: T3's level as it is) */
         chain_block(out, CTL);
@@ -11702,6 +11779,7 @@ int main(int argc, char **argv)
     test_drum_steal();
     test_arp_fade();
     test_arp_long();
+    test_arp_hold();
     test_arp_sources();
     test_factory_scene();
     test_ambient_hall();

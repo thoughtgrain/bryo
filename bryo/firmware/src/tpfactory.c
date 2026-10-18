@@ -259,7 +259,9 @@ static const int8_t TPS_ARP[NTRK][7] = {
 static const uint8_t TPS_ARPN[NTRK][5] = {{0}, {45, 48, 52, 55}, {0}, {57, 60, 62, 64, 67}};   /* Am7 low; A pent. */
 static const uint8_t TPS_ARPC[NTRK] = {0, 4, 0, 5};
 
-/* a scene's knobs: track, array, knob, value (the arrays as tpf_set_t's, TPF_S slots aside) */
+/* a scene's knobs: track, array, knob, value (the arrays as tpf_set_t's, TPF_S slots aside; TPS_ARPK: the
+ * arpeggiator's, AR_*) */
+#define TPS_ARPK 0xF0u
 typedef struct {
     uint8_t t, a, k;
     int16_t v;
@@ -271,11 +273,14 @@ static const tps_k_t TPS_AMB[] = {   /* 2026-10-15: every sound swells and fades
                                       * tempo), no noise, the voice gliding, darker filters and the drone's highs
                                       * shelved (COLOR's TILT would have cost 400 instr/sample), every track deep in a
                                       * long dark hall, the bells' echoes smeared to a wash, the drone's resonators
-                                      * walked slowly by FLOW */
+                                      * walked slowly by FLOW. 2026-10-18, "too many sounds moving quickly; arps on
+                                      * ambient is too much": the voice and the bells HOLD their chords (no steps):
+                                      * the voice one MIN7 chord gliding where M4 moves it a bar at a time, the bells
+                                      * a held cluster whose tail ping-pongs into a long shimmer */
     {1, MA_SYN, SY_WAVE, SY_VOX}, {1, MA_SYN, SY_DTUN, 80}, {1, MA_SYN, SY_MIX, 45}, {1, MA_SYN, SY_IENV, 30},
     {1, MA_SYN, SY_ATK, 105}, {1, MA_SYN, SY_DEC, 100}, {1, MA_SYN, SY_SUS, 100}, {1, MA_SYN, SY_REL, 127},
     {1, MA_SYN, SY_CUT, 78}, {1, MA_SYN, SY_ENV, 0}, {1, MA_SYN, SY_GLID, 45},
-    {1, MA_SYN, SY_CHRD, 7}, {1, MA_SYN, SY_TUNE, 12}, {1, MA_SYN, SY_LVL, 4},
+    {1, MA_SYN, SY_CHRD, 7}, {1, MA_SYN, SY_TUNE, 12}, {1, MA_SYN, SY_LVL, 4}, {1, TPS_ARPK, AR_MODE, ARM_HOLD},
     {1, DEV_SPACE, SP_VERB, 90}, {1, DEV_SPACE, SP_ROOM, 1},   /* (everything in room B: room A rests) */
     {2, DEV_GRAIN, GP_WET, 70}, {2, DEV_GRAIN, GP_SIZE, 500}, {2, DEV_GRAIN, GP_RATE, 10}, {2, DEV_GRAIN, GP_SPRY, 80},
     {2, DEV_GRAIN, GP_SPRD, 100}, {2, DEV_GRAIN, GP_SCAL, 3}, {2, DEV_GRAIN, GP_PRND, 12}, {2, DEV_GRAIN, GP_REV, 50},
@@ -286,7 +291,9 @@ static const tps_k_t TPS_AMB[] = {   /* 2026-10-15: every sound swells and fades
     {2, DEV_SPACE, SP_VERB, 95}, {2, DEV_SPACE, SP_ROOM, 1},
     {3, MA_POL, PL_ATK, 80}, {3, MA_POL, PL_DEC, 100}, {3, MA_POL, PL_SUS, 100},   /* the bells bowed, not struck */
     {3, MA_POL, PL_CUT, 55}, {3, MA_POL, PL_ENV, 30},                             /* (the filter opens with the swell) */
-    {3, MA_POL, PL_REL, 127},
+    {3, MA_POL, PL_REL, 127}, {3, TPS_ARPK, AR_MODE, ARM_HOLD},
+    {3, MA_POL, PL_LOOP, 2}, {3, MA_POL, PL_LSTR, 5500},   /* (PING over the tail: a seamless sustain) */
+    {3, MA_POL, PL_VOIC, 2},                             /* (two held bells: four looping cost 280 instr/sample) */
     {3, DEV_SPACE, SP_VERB, 90}, {3, DEV_SPACE, SP_ROOM, 1},
     {3, DEV_SPACE, SP_DLY, 30}, {3, DEV_SPACE, SP_TIME, 370}, {3, DEV_SPACE, SP_FDBK, 60},   /* echoes smeared to a */
     {3, DEV_SPACE, SP_DIFF, 85}, {3, DEV_SPACE, SP_TONE, -50}, {3, DEV_SPACE, SP_AGE, 25}};  /* .. dark wash */
@@ -333,7 +340,7 @@ static const struct {
     int8_t room[NROOM][6];           /* each room's SIZE DEC TYPE MOD TONE PRE */
     uint8_t bpm;                     /* its tempo (2026-10-17: scenes hold one) */
 } TPS_SC[TPS_NSC] = {
-    {TPS_AMB, (uint8_t)(sizeof TPS_AMB / sizeof TPS_AMB[0]), {0, 92, 88, 88},
+    {TPS_AMB, (uint8_t)(sizeof TPS_AMB / sizeof TPS_AMB[0]), {0, 92, 88, 74},
      {{50, 40, 0, 0, 0, 20}, {100, 95, 2, 75, -40, 80}}, 80},   /* (room B: the whole hall, long, dark, slowly moving) */
     {TPS_TEC, (uint8_t)(sizeof TPS_TEC / sizeof TPS_TEC[0]), {100, 106, 100, 102},
      {{35, 30, 1, 0, 0, 20}, {60, 45, 0, 0, 0, 20}}, 128},
@@ -365,10 +372,19 @@ static void tps_sound(uint32_t n)
         }
         track[t].level = TPS_SC[n].lvl[t];
     }
+    for (t = 0; t < NTRK; t++)                           /* (the arpeggiators as the groove has them) */
+        for (k = 0; k < NARP; k++)
+            tp[t].arp[k] = k >= 7u || TPS_ARP[t][0] == ARM_OFF ? ARP_P[k].def : TPS_ARP[t][k];
     for (i = 0; i < TPS_SC[n].n; i++) {
         const tps_k_t *e = &TPS_SC[n].k[i];
         const pdesc_t *ds = 0;
-        int16_t *v = tpf_arr(e->t, e->a, &ds);
+        int16_t *v;
+        if (e->a == TPS_ARPK) {                          /* (the arpeggiator's knob) */
+            if (e->t < NTRK && e->k < NARP && !pdesc_empty(&ARP_P[e->k]))
+                tp[e->t].arp[e->k] = (int16_t)clamp(e->v, ARP_P[e->k].min, ARP_P[e->k].max);
+            continue;
+        }
+        v = tpf_arr(e->t, e->a, &ds);
         if (v && ds && e->k < NPK && !pdesc_empty(&ds[e->k]))
             v[e->k] = (int16_t)clamp(e->v, ds[e->k].min, ds[e->k].max);
     }

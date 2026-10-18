@@ -8,7 +8,10 @@
  * stored, switched at the midpoint of a morph or a recall's glide like any choice (a tempo gliding would retime
  * the arpeggios and bend every synced tape as it went). A scene read from a project saved before holds none (bpm
  * 0) and leaves the tempo alone. Not the tapes and reels, the patterns, steps, modulation depths, mutes, arpeggios
- * or the key: a scene is how it sounds and how fast, the playing stays the playing.
+ * or the key: a scene is how it sounds and how fast, the playing stays the playing. Since 2026-10-18 it holds the
+ * arpeggiator's knobs too (not its notes): AMBIENT holds its chords where TECHNO steps through them; MODE ORDR RNGE
+ * RATE switch at the midpoint, GATE SWNG GRND FADE morph. A scene read from a project saved before holds the
+ * arpeggiator as it was when read, so a recall leaves it as it is.
  *
  * Between two scenes, track by track: the same source, and its knobs morph (every value on the way; a choice that
  * can't be halfway, a form, ROUT, a filter's TYPE, switches at the midpoint, each softened as when it's turned by
@@ -40,6 +43,7 @@ typedef struct {
     int16_t v[NTRK][MOD_NTGT];       /* every knob, by mod.c's numbering (scn_kind 0: not kept, 0) */
     int16_t rm[NROOM][NRM];          /* the rooms' */
     uint16_t bpm;                    /* the tempo (0: none held, the tempo left as it is) */
+    int16_t arp[NTRK][NARP];         /* the arpeggiators' knobs (arp.c AR_*) */
 } scene_t;
 static scene_t scn[NSCN];
 static scene_t scn_from;             /* the morph's (or the glide's) start */
@@ -108,6 +112,8 @@ static void scn_take(scene_t *s)
     for (t = 0; t < NTRK; t++) {
         s->src[t] = tp[t].src;
         s->lvl[t] = track[t].level;
+        for (k = 0; k < NARP; k++)
+            s->arp[t][k] = tp[t].arp[k];
         for (g = 0; g < MOD_NTGT; g++)
             s->v[t][g] = scn_kind(g) ? *scn_knob(t, g) : 0;
     }
@@ -123,6 +129,11 @@ static void scn_mix(const scene_t *a, const scene_t *b, int32_t pos)
     uint32_t t, g, i, k;
     int half = pos >= SCN_FULL / 2;
     for (t = 0; t < NTRK; t++) {
+        for (k = 0; k < NARP; k++) {                     /* the arpeggiator: its choices at the midpoint, the rest
+                                                          * on the way */
+            int32_t x = a->arp[t][k], y = b->arp[t][k];
+            tp[t].arp[k] = (int16_t)(k <= AR_RATE || x == y ? (half ? y : x) : x + ((y - x) * pos) / SCN_FULL);
+        }
         if (a->src[t] != b->src[t]) {                    /* another source: out, switched whole, in */
             const scene_t *w = half ? b : a;
             int32_t f = half ? pos - SCN_FULL / 2 : SCN_FULL / 2 - pos;

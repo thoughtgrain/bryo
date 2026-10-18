@@ -28,6 +28,10 @@
  * strikes it a block later (the source sees a press); a note more than 31 semitones over the base, or the base
  * moving (the notes changed), ends the overlap and plays that step as before. TAPE and DRUM stop at 100 % (one
  * slice, one drum at a time). With one voice (VOIC 1) the overlap is a legato. At 100 % and under, as it was.
+ * HOLD (2026-10-18, "smooth evolving sounds that don't rapidly repeat"): the notes held as LTCH holds them, but no
+ *   steps: they sound together, a sustained chord, struck when it starts and again only where it changes (the mask
+ *   is taken over the chord's lowest note, so a note that stays keeps its bit and its voice). A pad from a latched
+ *   chord, following the transport as LTCH does
  * RNGE spreads them over 1 to 3 octaves (the notes, then the notes an octave up, ...), ORDR walks that UP, DOWN,
  * UPDN (up and back down, the top and bottom once), PLAY (the order pressed, then again an octave up) or RND.
  *
@@ -215,7 +219,7 @@ static uint32_t HOT_CODE arp_mask(arp_rt_t *r, uint32_t *nbase);
 static uint32_t HOT_CODE arp_run(arp_rt_t *r, const int16_t *a, int on, uint32_t keys, uint32_t base, uint32_t n,
                         uint32_t *nbase, uint32_t salt)
 {
-    uint32_t mode = (uint32_t)clamp(a[AR_MODE], 0, 3), press = keys & ~r->held, k;
+    uint32_t mode = (uint32_t)clamp(a[AR_MODE], 0, 4), press = keys & ~r->held, k;
     int32_t fade = clamp(a[AR_FADE], 0, 127);
     if (!r->rng)
         r->rng = 0x9E3779B9u ^ (salt * 0x85EBCA6Bu);
@@ -224,7 +228,8 @@ static uint32_t HOT_CODE arp_run(arp_rt_t *r, const int16_t *a, int on, uint32_t
             r->n = 0;                                    /* (turned on, off, or back to KEY: from the keys as they
                                                           * are) */
         arp_fade_reset(r);
-        r->latched = 0;
+        if (!((mode == ARM_LTCH || mode == ARM_HOLD) && (r->mode == ARM_LTCH || r->mode == ARM_HOLD)))
+            r->latched = 0;                              /* (LTCH and HOLD to each other: the chord stays latched) */
     }
     r->mode = (uint8_t)mode;
     if (sys.playing != r->playing) {                     /* PLAY: notes held without keys start over; STOP: they wait */
@@ -284,7 +289,7 @@ static uint32_t HOT_CODE arp_run(arp_rt_t *r, const int16_t *a, int on, uint32_t
     for (k = 0; k < NKEYBIT; k++)                        /* the keys pressed join, lowest first */
         if ((press >> k) & 1u && base + k <= 127u)
             arp_add(r, base + k);
-    if ((mode == ARM_LTCH || r->fading) && !keys && r->held)
+    if ((mode == ARM_LTCH || mode == ARM_HOLD || r->fading) && !keys && r->held)
         r->latched = 1;
     if (keys & ~r->held) {                               /* (a key: the notes play now, transport or not, at full) */
         r->waiting = 0;
@@ -314,6 +319,19 @@ static uint32_t HOT_CODE arp_run(arp_rt_t *r, const int16_t *a, int on, uint32_t
         r->nt = r->lng = r->defer = 0;
         *nbase = r->cur;
         return 0;
+    }
+    if (mode == ARM_HOLD) {                              /* HOLD: every note at once, over the lowest (no steps) */
+        uint32_t lo = 127, m = 0;
+        for (k = 0; k < r->n; k++)
+            lo = r->note[k] < lo ? r->note[k] : lo;
+        for (k = 0; k < r->n; k++)
+            if (r->note[k] - lo < 32u)
+                m |= 1u << (r->note[k] - lo);
+        r->on = 0;
+        r->nt = r->lng = r->defer = 0;
+        r->cur = (uint8_t)lo;
+        *nbase = lo;
+        return m;
     }
     if (r->len)                                          /* (len 0: nothing played yet, the first note starts now) */
         r->phase += (int32_t)n;
@@ -412,7 +430,7 @@ static uint32_t HOT_CODE arp_block(uint32_t t, uint32_t keys, uint32_t base, uin
         r->waiting = !sys.playing;
         r->len = 0;
         r->held = keys;
-        r->mode = (uint8_t)clamp(tp[t].arp[AR_MODE], 0, 3);   /* (as the mode: arp_run's turned-on clear passes them) */
+        r->mode = (uint8_t)clamp(tp[t].arp[AR_MODE], 0, 4);   /* (as the mode: arp_run's turned-on clear passes them) */
         arp_seed_req[t] = 0;
     }
     notes = tp[t].src == SRC_SYNTH || tp[t].src == SRC_POLY;
@@ -440,5 +458,7 @@ static uint32_t HOT_CODE arp_block(uint32_t t, uint32_t keys, uint32_t base, uin
     a[AR_RNGE] = 1;
     a[AR_GATE] = a[AR_GATE] < 100 ? a[AR_GATE] : 100;   /* (one slice or drum at a time: no overlap) */
     out = arp_run(r, a, 1, keys & 0xFFFFu, 0u, n, &nb, t);
+    if (a[AR_MODE] == ARM_HOLD)                          /* (HOLD: the slices or drums held, all of them) */
+        return (out << (nb & 15u)) & 0xFFFFu;
     return out ? 1u << (nb & 15u) : 0u;                  /* (a step: that slice's or drum's key) */
 }

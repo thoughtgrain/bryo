@@ -381,7 +381,8 @@ static const int16_t *pj_dev_out(const track_params_t *P, uint32_t s)
 #define PJ_SC_SRC (PJ_SC_ROOM + NROOM * NRM)
 #define PJ_SC_BPM (PJ_SC_SRC + NTRK)       /* (2026-10-17: the scene's tempo, written whenever it holds one; a file
                                             * from before has none, and older Bryos skip the id) */
-#define PJ_SC_N (PJ_SC_BPM + 1u)
+#define PJ_SC_ARP (PJ_SC_BPM + 1u)         /* (2026-10-18: track t's arpeggiator knob k, PJ_SC_ARP + t x NARP + k) */
+#define PJ_SC_N (PJ_SC_ARP + NTRK * NARP)
 static uint8_t scn_lost;
 static uint32_t pj_ver;              /* the version of the project being read */             /* the scenes the last save couldn't hold, a bit each */
 /* scene s's value at id (and its live counterpart in *now) */
@@ -404,8 +405,12 @@ static int32_t pj_sc_val(const scene_t *s, uint32_t id, int32_t *now)
         *now = tp[id - PJ_SC_SRC].src;
         return s->src[id - PJ_SC_SRC];
     }
-    *now = s->bpm ? -1 : 0;                              /* (held: always written, a load can't tell it otherwise) */
-    return s->bpm;
+    if (id == PJ_SC_BPM) {
+        *now = s->bpm ? -1 : 0;                          /* (held: always written, a load can't tell it otherwise) */
+        return s->bpm;
+    }
+    *now = tp[(id - PJ_SC_ARP) / NARP].arp[(id - PJ_SC_ARP) % NARP];
+    return s->arp[(id - PJ_SC_ARP) / NARP][(id - PJ_SC_ARP) % NARP];
 }
 static void pj_write_scenes(void)
 {
@@ -462,6 +467,10 @@ static void pj_read_scenes(void)
                 S->src[id - PJ_SC_SRC] = (uint8_t)(v >= 0 && v < (int32_t)NSRC ? v : SRC_TAPE);
             } else if (id == PJ_SC_BPM) {
                 S->bpm = (uint16_t)(v ? clamp(v, 40, 240) : 0);
+            } else if (id < PJ_SC_N) {
+                uint32_t k = (id - PJ_SC_ARP) % NARP;
+                S->arp[(id - PJ_SC_ARP) / NARP][k] = (int16_t)(pdesc_empty(&ARP_P[k]) ? 0 : clamp(v, ARP_P[k].min,
+                                                                                                    ARP_P[k].max));
             }
         }
     }
