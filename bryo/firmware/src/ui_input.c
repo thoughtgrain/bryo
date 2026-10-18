@@ -1039,6 +1039,61 @@ static void lfo_pick(uint32_t k)
     ui_message(m);
 }
 
+/* the black key k is down (its note's bit) */
+static int black_down(uint32_t k)
+{
+    uint32_t n;
+    for (n = 0; n < 27u && KEY_BLACK[n] != k; n++)
+        ;
+    return n < 27u && ((fm1_in.notes >> n) & 1u);
+}
+
+/* PIT tapped (2026-10-18): the tempo from the taps, the average of the last four intervals; a gap over 2 s starts
+ * again */
+static void tap_tempo(void)
+{
+    uint32_t dt = fm1_ms - ui.tap_t, i, sum = 0;
+    char m[24] = "TAP: ";
+    if (ui.tap_t && dt < 100u)                          /* (faster than 600 BPM: a bounce, not a tap) */
+        return;
+    if (!ui.tap_t || dt > 2000u) {                      /* (the first tap) */
+        ui.tap_t = fm1_ms | 1u;
+        ui.tap_n = 0;
+        ui_message("TAP AGAIN: TEMPO");
+        return;
+    }
+    ui.tap_t = fm1_ms | 1u;
+    for (i = 3; i > 0; i--)
+        ui.tap_iv[i] = ui.tap_iv[i - 1u];
+    ui.tap_iv[0] = (uint16_t)dt;
+    ui.tap_n = (uint8_t)(ui.tap_n < 4u ? ui.tap_n + 1u : 4u);
+    for (i = 0; i < ui.tap_n; i++)
+        sum += ui.tap_iv[i];
+    sys.bpm = (uint16_t)clamp((int32_t)((60000u * ui.tap_n + sum / 2u) / sum), 40, 240);
+    fmt_int(m + 5, sys.bpm);
+    str_cpy(m + str_len(m), " BPM", 5);
+    ui_message(m);
+}
+
+/* OP5 or OP6 on a track that isn't TAPE (2026-10-18): the previous or next stored scene, recalled with its glide */
+static void scene_step(int up)
+{
+    uint32_t i, n = scn_cur ? scn_cur - 1u : (up ? NSCN - 1u : 0u);
+    char m[24] = "SCENE 1";
+    for (i = 0; i < NSCN; i++) {
+        n = (n + (up ? 1u : NSCN - 1u)) % NSCN;
+        if (scn[n].used)
+            break;
+    }
+    if (i == NSCN) {
+        ui_message("NO SCENES: GLO, EDIT, KEY + SAVE");
+        return;
+    }
+    scn_recall(n);
+    m[6] = (char)('1' + n);
+    ui_message(m);
+}
+
 static void on_black(uint32_t k)
 {
     int16_t *tk = tp[sys.sel].dev[DEV_SRC];
@@ -1053,10 +1108,17 @@ static void on_black(uint32_t k)
         track[k].mute = (uint8_t)!track[k].mute;
     } else if (k == BK_OP5 || k == BK_OP6) {           /* the focused track's tape: reverse, half speed (another
                                                          * source: said, not flipped out of sight) */
-        if (tp[sys.sel].src != SRC_TAPE)
-            ui_message(k == BK_OP5 ? "REVERSE: TAPE TRACKS ONLY" : "HALF SPEED: TAPE TRACKS ONLY");
+        if (tp[sys.sel].src != SRC_TAPE)                /* (another source: the scenes, back and on) */
+            scene_step(k == BK_OP6);
         else
             tk[k == BK_OP5 ? TK_REV : TK_HALF] = (int16_t)!tk[k == BK_OP5 ? TK_REV : TK_HALF];
+    } else if (k == BK_PIT || k == BK_GLO) {           /* PIT: tapped, the tempo; held, the tempo leans back 4 %
+                                                         * while it's held. GLO held: forward. To line up by ear */
+        ui.nudge = (uint8_t)(k == BK_PIT ? 1u : 2u);
+        ui.nudge_on = 0;
+        ui.nudge_t0 = fm1_ms;
+        if (k == BK_PIT)
+            tap_tempo();
     } else if (k == BK_ZERO && ui.rec_held && ((fm1_in.buttons >> panel.btn[B_REC]) & 1u)) {
         freeze_to_tape();                               /* REC held + 0: the bars GRAIN holds, to tape */
     } else if (k == BK_ZERO) {                          /* GRAIN's freeze: held, while it's held (the ISR reads
@@ -1086,6 +1148,21 @@ static void on_black(uint32_t k)
 static void hold_keys(void)
 {
     uint32_t hold = HOLD_MS[settings_hold % 4u], k;     /* (POLY: half a second, PRD 2.3) */
+    if (ui.nudge) {                                     /* PIT or GLO held: the tempo leans while it's down */
+        if (!black_down(ui.nudge == 1u ? BK_PIT : BK_GLO)) {
+            if (ui.nudge_on && sys.bpm == ui.nudge_bpm)
+                sys.bpm = ui.nudge_base;                /* (let go: back, unless SELECT moved it meanwhile) */
+            ui.nudge = 0;
+            ui.nudge_on = 0;
+        } else if (!ui.nudge_on && (ui.nudge == 2u || (uint32_t)(fm1_ms - ui.nudge_t0) >= hold)) {
+            ui.nudge_on = 1;
+            ui.nudge_base = sys.bpm;
+            ui.nudge_bpm = (uint16_t)clamp((int32_t)sys.bpm * (ui.nudge == 2u ? 104 : 96) / 100, 40, 240);
+            sys.bpm = ui.nudge_bpm;
+            ui.tap_n = 0;                               /* (a hold isn't a tap) */
+            ui.tap_t = 0;
+        }
+    }
     if (ui.poly_held) {
         for (k = 0; k < 27u && KEY_BLACK[k] != BK_POLY; k++)
             ;
@@ -1750,7 +1827,8 @@ static void ui_input(void)
     if (ui.pj_ask && (uint32_t)(fm1_ms - ui.pj_ask_t) >= 3000u)   /* (a second press that didn't come) */
         ui.pj_ask = PJ_ASK_NONE;
     if ((d = panel_enc(EN_ALGO)) != 0) {               /* ALGORITHM: the routing view (REC IN); turned on it, the
-                                                         * focused track's */
+                                                         * focused track (2026-10-18: KNOB 1-4 set each track's
+                                                         * REC IN, so ALGORITHM picks which one REC arms) */
         if (ui.view != VIEW_ROUTE) {
             ui.view = VIEW_ROUTE;
             ui.chan = 0;
@@ -1758,9 +1836,7 @@ static void ui_input(void)
             ui.glo_latched = 0;
             ui.last = 0xFF;
         } else {
-            tp[sys.sel].recin = (uint8_t)clamp((int32_t)tp[sys.sel].recin + d, 0, (int32_t)NRIN - 1);
-            ui.hot = sys.sel;
-            ui.hot_t = 33;
+            sys.sel = (uint8_t)clamp((int32_t)sys.sel + d, 0, (int32_t)sys.ntrk - 1);
             ui.last = sys.sel;
         }
     }

@@ -101,6 +101,14 @@ static struct {
                                       * and the hint shown */
     uint32_t rec_t0;
     uint32_t zero_t0;
+    uint8_t nudge;                   /* PIT or GLO (the black keys) down, 2026-10-18: 1 PIT, 2 GLO; the tempo it leans
+                                      * on while held is ui.nudge_on (0: not yet, PIT waits HOLD so a tap is a tap) */
+    uint8_t nudge_on;
+    uint16_t nudge_base, nudge_bpm;  /* .. the tempo before, and the one it set (a turn of SELECT meanwhile wins) */
+    uint32_t nudge_t0;
+    uint32_t tap_t;                  /* PIT's taps: the last one's time, the intervals so far (up to 4) */
+    uint16_t tap_iv[4];
+    uint8_t tap_n;
     uint8_t chan;                    /* the mixer's pages past the levels: CHAN_STRIP the selected track's channel strip,
                                       * CHAN_MASTER the master compressor, CHAN_KEY the key and scale (EDIT tapped
                                       * steps through them) */

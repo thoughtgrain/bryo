@@ -175,6 +175,11 @@ your own ([3.9](#39-scenes-four-sounds-to-jump-or-morph-between)). Each scene ha
 1. Turn **SELECT**. It works on every page.
 2. The number in the header changes (40 to 240 BPM).
 
+Or **tap it in**: tap the black key **PIT** in time, at least twice; the tempo is the average of your last four taps
+(a pause over two seconds starts again). To line up with another machine by ear, **hold PIT** and the tempo leans
+back 4 % while you hold it, **hold GLO** (the black key) and it leans forward 4 %; let go and it's back where it was.
+(With the black keys playing notes, hold the GLO button for these, as for every black-key shortcut.)
+
 The tapes keep their own speed (that's SPD, in [2.3](#23-speed-and-backwards)). The tempo drives everything that
 keeps time: the drum machine, the modulators, and how many bars GRAIN holds. You'll hear it once you get there.
 
@@ -244,6 +249,9 @@ up, +7 a fifth. SPD and PTCH multiply, so set SPD at 100 % and play PTCH like a 
 
 - Black key **OP5**: the track's tape backwards, on or off.
 - Black key **OP6**: half speed, on or off.
+
+On a SYNTH, POLY or DRUM track there's no tape to flip, so OP5 and OP6 step through your scenes instead: OP6 the
+next stored one, OP5 the one before, gliding there as a scene's key does ([3.9](#39-scenes-four-sounds-to-jump-or-morph-between)).
 
 REV is also on TAPE's page 3. Half speed is the same as PTCH −12, so it lives on OP6 only.
 
@@ -399,7 +407,8 @@ track, as it does on MASTER and KEY, which are the project's too; only CHANNEL i
 1-4 are scenes 1-4 (they don't play notes there) and each knob sits under its scene:
 
 - **Store:** hold a scene's white key and tap **SAVE**. The sound as it is goes into that scene.
-- **Recall:** tap a scene's white key. Everything glides there in about a third of a second.
+- **Recall:** tap a scene's white key. Everything glides there in about a third of a second. From anywhere, on a
+  track that isn't TAPE, the black keys **OP5** and **OP6** step to the stored scene before or after.
 - **Morph:** turn a scene's **knob**. Each detent moves 5 % of the way from where the sound was toward that scene,
   nothing held, and you can stop anywhere, so you can sit halfway between two sounds. Turn another scene's knob to
   morph from there toward that one; turn back to go back.
@@ -509,7 +518,8 @@ last. (It only works while nothing has been recorded over it.)
    - **AUTO**: a TAPE track records the others; a SYNTH or POLY track records itself.
    - **OTHR**: the other tracks' mix.
    - **T1 to T4**: one track. Its own number shows as **SELF**: it records itself (resampling).
-3. The lines show where each track's recording comes from. Press **HOME** to leave.
+3. The lines show where each track's recording comes from. Turn **ALGORITHM** again to pick the track (so REC arms
+   it from here). Press **HOME** to leave.
 
 <img src="img/route.png" width="240" alt="REC IN, every track AUTO"> <img src="img/route_chain.png" width="240" alt="REC IN with a chain">
 
@@ -1369,7 +1379,9 @@ M-VAVE's updater puts the stock firmware back. Bryo's projects and tapes can't b
 | **GLO** held + SELECT | how many tracks are on |
 | **GLO** tapped, then **EDIT** | SCENES, CHANNEL, MASTER; EDIT held + OCT+: KEY, SETUP (OCT-: back) |
 | **OP1-OP4** | mute tracks |
-| **OP5 / OP6** | the tape backwards / half speed |
+| **OP5 / OP6** | the tape backwards / half speed (TAPE); the scene before / after (other sources) |
+| **PIT** tapped / held | tap the tempo / lean it back 4 % while held |
+| **GLO** (black key) held | lean the tempo forward 4 % while held |
 | **HOME** | the source's pages |
 | **HOME** held + SELECT | change the source |
 | **EDIT** held + SELECT | RIPPLE's form (RIPPLE, COMB, RESO, 12-BAND) |

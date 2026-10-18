@@ -7147,10 +7147,14 @@ static void test_controls_more(void)
     ui_input();
     check("ALGORITHM turned: the routing view (REC IN), nothing changed yet", ui.view == VIEW_ROUTE &&
           tp[sys.sel].recin == RIN_AUTO);
-    host_enc[panel.enc[EN_ALGO]] = 2;
-    ui_input();
-    check("..turned again: the focused track's REC IN (AUTO -> OTHR -> its own: SELF)", tp[sys.sel].recin == 2 &&
-          !strcmp(N_RIN[sys.sel][tp[sys.sel].recin], "SELF"));
+    {
+        uint32_t was = sys.sel;
+        host_enc[panel.enc[EN_ALGO]] = 2;
+        ui_input();
+        check("..turned again: the focused track, two on (KNOB 1-4 are the REC INs; REC arms the one picked)",
+              sys.sel == was + 2u && tp[was].recin == RIN_AUTO && ui.view == VIEW_ROUTE);
+        sys.sel = (uint8_t)was;
+    }
     turn(2, 3);
     check("..KNOB 3: track 3's REC IN (T2)", tp[2].recin == 3 && !strcmp(N_RIN[2][3], "T2"));
     turn(2, 40);
@@ -8150,11 +8154,56 @@ static void test_mod(void)
         uint32_t o5 = black_note(BK_OP5);
         tp[0].src = SRC_DRUM;
         key_edge(o5);
-        check("OP5 on a DRUM track: the tape's REV untouched, a message says why",
-              tp[0].dev[DEV_SRC][TK_REV] == 0 && !strcmp(ui.msg, "REVERSE: TAPE TRACKS ONLY"));
+        check("OP5 on a DRUM track, no scenes stored: the tape's REV untouched, a message says how to store one",
+              tp[0].dev[DEV_SRC][TK_REV] == 0 && !strncmp(ui.msg, "NO SCENES", 9));
+        scn_store(0);
+        scn_store(2);
+        scn_cur = 1;
+        key_edge(black_note(BK_OP6));
+        check("..scenes 1 and 3 stored, on scene 1: OP6 recalls the next stored one, 3 (gliding)", scm.on == 1u &&
+              scm.to == 2u && scn_cur == 3u && !strcmp(ui.msg, "SCENE 3"));
+        key_edge(black_note(BK_OP6));
+        check("..OP6 again: round to scene 1", scm.to == 0u && scn_cur == 1u);
+        key_edge(o5);
+        check("..OP5: back, past the empty ones, to 3", scm.to == 2u && scn_cur == 3u);
+        scm.on = 0;
         tp[0].src = SRC_TAPE;
         key_edge(o5);
         check("..on a TAPE track: REV on", tp[0].dev[DEV_SRC][TK_REV] == 1);
+    }
+
+    /* PIT: tapped, the tempo; held, a lean back 4 %; GLO held, forward (2026-10-18) */
+    power_on();
+    {
+        uint32_t pit = black_note(BK_PIT), glo = black_note(BK_GLO), i;
+        sys.bpm = 120;
+        fm1_ms = 10000;
+        for (i = 0; i < 5u; i++) {                       /* five taps 600 ms apart: 100 BPM */
+            fm1_in.notes = 1u << pit;
+            key_edge(pit);
+            fm1_in.notes = 0;
+            ui_input();
+            fm1_ms += 600;
+        }
+        check("PIT tapped five times, 600 ms apart: 100 BPM", sys.bpm == 100u && !strcmp(ui.msg, "TAP: 100 BPM"));
+        fm1_ms += 5000;
+        fm1_in.notes = 1u << pit;
+        key_edge(pit);
+        fm1_ms += 400;
+        ui_input();
+        check("..PIT held: the tempo leans back 4 % while it's held (100 -> 96)", sys.bpm == 96u);
+        fm1_in.notes = 0;
+        ui_input();
+        check("..let go: back to 100", sys.bpm == 100u);
+        fm1_in.notes = 1u << glo;
+        key_edge(glo);
+        ui_input();
+        check("GLO held: forward 4 % at once (100 -> 104)", sys.bpm == 104u);
+        host_enc[panel.enc[EN_SELECT]] = 6;
+        ui_input();
+        fm1_in.notes = 0;
+        ui_input();
+        check("..SELECT turned meanwhile: its tempo stays at the let-go (110)", sys.bpm == 110u);
     }
 
     /* the pages' layout: every knob once; a source's LVL on KNOB 4 of its last page, ROUT left of it (or KNOB 4);

@@ -3446,6 +3446,40 @@ gave 16 KiB, `.hot` is 72 KiB at 0x01C62000 with SYNTH's block and voice in it, 
 through `HOT_TABLE` (`.data`). Main RAM 87.3 of 96 KB, the pool 257.7 of 264 KiB, `.hot` about 61.5 of 72 KiB (i386
 measure, scaled). Every audio fingerprint unchanged.
 
+### The controls, pruned (2026-10-18)
+
+"Can you assess controls and see if anything is repetitive or doesn't add to workflows." I went through every row
+of `controls.tsv` and checked the doubtful ones in `ui_input.c`. What came of it:
+
+- **Dead keys.** PIT and GLO (the black keys) had been "planned" global pitch since the PRD and did nothing. PIT is
+  a tap tempo now (`tap_tempo`: the average of the last four intervals, a gap over 2 s starts again, under 100 ms a
+  bounce) and, held past HOLD, leans the tempo back 4 % until it's let go; GLO held leans it forward at once
+  (`hold_keys`, `ui.nudge`). Bryo reads no MIDI clock, so lining up with another machine is by ear, and that's what
+  a lean is for. The let-go puts the tempo back unless SELECT moved it meanwhile. OP5 and OP6 only worked on TAPE;
+  on another source they step to the stored scene before or after (`scene_step`, the recall's glide).
+- **Names.** Three controls said freeze: TAPE's FRZE (a repeat of where the head was), 0, and REC + 0. TAPE's is
+  RPT now (`TK_RPT`; the stored knob is the same).
+- **Rounds too long.** EDIT went through eleven pages (GRAIN's six, RIPPLE's five), FX through eight. A tap now goes
+  round the device shown, a tap from elsewhere comes back to the one that pad was last on (`ui.pair_dev`), and the
+  pad held + OCT- or OCT+ is its first or second device (`pad_pair`). The mixer's EDIT went through six pages, two
+  of them set-and-forget: the round is LEVELS SCENES CHANNEL MASTER, and EDIT held + OCT+ opens KEY and SETUP (OCT-
+  back), the same gesture.
+- **Two homes for one thing.** RIPPLE's own arpeggio was the ARP pad's page 3; its knobs were RIPPLE's already
+  (12-15), so they're every form's last page now (`rarp_page()`): the keys go to its arpeggio there
+  (`keys_rarp`, set before `keys_reso`), POLY held clears its notes, the picture is the arpeggio's. Changing the form
+  on it stays on it (the forms have six or seven pages).
+- **Idle controls.** The project view's white keys played the track underneath; they point at a slot by its
+  number now (`pj_key`), lit dim where something's saved. ALGORITHM in REC IN set the focused track's REC IN,
+  which KNOB 1-4 already did; it picks the focused track (so REC arms it from there).
+
+What I didn't do: fold COLOR 3 into COLOR 2. I'd counted COLOR as eight knobs; it's ten (CMOD and LVL on page 3),
+and LVL has a job I'd missed: on a SEND route it trims the +6 dB the dry adds to itself. The project view's knobs
+still do nothing; its strip has no room to show a value.
+
+Tests: the page rounds and the pad + OCT gestures, RIPL ARP on RIPPLE's last page in every form, the mixer's two
+rounds, the project view's keys and LEDs (`test_pj_keys`), OP5 OP6 through the scenes, the tap tempo, both leans,
+ALGORITHM in REC IN. Every screen golden that moved was looked at; the audio fingerprints are unchanged.
+
 ## USB record mode (2026-10-08)
 
 Recording from the computer is a mode of its own, not a source a track plays through: you go in, record, put the

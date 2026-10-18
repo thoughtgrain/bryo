@@ -58,10 +58,10 @@ page	BLACK_OP1	press	mute / unmute track 1 (with SETUP's KEYS on NOTE no black k
 page	BLACK_OP2	press	mute / unmute track 2	now	-	PRD 2.3
 page	BLACK_OP3	press	mute / unmute track 3	now	-	PRD 2.3
 page	BLACK_OP4	press	mute / unmute track 4	now	-	PRD 2.3
-page	BLACK_OP5	press	the focused track's tape: reverse on / off (TAPE 2's REV) (a TAPE track; on another source a message says so and the tape is left alone)	now	-	PRD 2.3
-page	BLACK_OP6	press	the focused track's tape: half speed on / off (TAPE 2's HALF) (a TAPE track; on another source a message says so and the tape is left alone)	now	-	PRD 2.3
-page	BLACK_PIT	press	global pitch shift down (unmuted tracks)	planned	3	PRD 2.3
-page	BLACK_GLO	press	global pitch shift up (unmuted tracks)	planned	3	PRD 2.3
+page	BLACK_OP5	press	the focused track's tape: reverse on / off (TAPE 2's REV) on a TAPE track; on SYNTH, POLY or DRUM (2026-10-18): the stored scene before, recalled with its glide (no scene stored: a message says how)	now	-	PRD 2.3
+page	BLACK_OP6	press	the focused track's tape: half speed on / off (TAPE 2's HALF) on a TAPE track; on SYNTH, POLY or DRUM (2026-10-18): the next stored scene, recalled with its glide	now	-	PRD 2.3
+page	BLACK_PIT	press	tapped: the tempo from the taps (the average of the last four intervals; a gap over 2 s starts again). Held past HOLD: the tempo 4 % slower while held, back at the let-go (unless SELECT moved it meanwhile), to line up by ear (2026-10-18; the PRD's global pitch down before)	now	-	change
+page	BLACK_GLO	hold	held: the tempo 4 % faster while held, back at the let-go (2026-10-18; the PRD's global pitch up before)	now	-	change
 page	BLACK_MONO	hold	held 0.5 s: clear the focused track's modulation (every depth of its four slots; the slots' own knobs stay; a slot's pad held too: only that slot's on the page shown, see slot-held); SAVE held undoes	now	-	PRD 2.3
 page	BLACK_POLY	hold	held 0.5 s: clear the focused track's tape (a reel: the track goes back to its own tape, cleared); SAVE held undoes	now	-	PRD 2.3
 page	BLACK_ZERO	hold	momentary global granular freeze while held: every GRAIN buffer stops recording and its grains loop the held bars (SCAN TAPE: the cursor stops); FROZEN on the GRAIN page	now	-	PRD 2.3
@@ -99,7 +99,7 @@ glo-held	WHITE_1-4	press	focus track 1..4 (the white keys don't play while GLO i
 glo-held	ENC_K1-4	turn	the four track levels; letting go of GLO returns to the page	now	-	change
 glo-held	ENC_SELECT	turn	TRACKS 1-4: the tracks in use; the ones above it park (silent, not rendered, their tapes taken first when memory runs short). A pad held + SELECT picks that pad's thing, as HOME + SELECT (the source) and a slot + SELECT (its engine); plain SELECT stays the tempo on every view	now	-	change
 glo-held	BTN_GLO	release	back to the page if something was done or it was held past HOLD; else the mixer stays up	now	-	change
-glo-held	BLACK_OP1	press	(and every black key) KEYS NOTE (the black keys are notes): held GLO makes them the shortcuts again: OP1-4 mute (their LEDs lit while GLO is held), OP5 OP6 the tape's REV HALF, MONO and POLY held clear, 0 freezes (as a note it doesn't)	now	-	change
+glo-held	BLACK_OP1	press	(and every black key) KEYS NOTE (the black keys are notes): held GLO makes them the shortcuts again: OP1-4 mute (their LEDs lit while GLO is held), OP5 OP6 the tape's REV HALF (other sources: the scenes before and after), PIT the tap tempo and lean back, GLO the lean forward, MONO and POLY held clear, 0 freezes (as a note it doesn't)	now	-	change
 glo-held	BTN_OCTUP	press	SETUP's KEYS flipped: the black keys as the shortcuts, or as notes (the 27 keys a keyboard from F on SYNTH and POLY)	now	-	change
 slot-held	ENC_K1-4	hold-turn	the depth (-100..100 %) from this slot to that knob on the page shown: a device, the source (each source its own depths), the channel strip. The strip shows the slot's depths while it's held; a modulated knob gets a mark. Not the reel choices; at most 12 depths from one slot and 32 a track (the footer counts the held slot's: DEPTH 7/12); a 13th says so, and the slot's pad + MONO clears its depths on the page. Turned back to 0 it catches there (gone): a turn that keeps going stays at 0 until the knob rests 250 ms, then goes on into the other sign. Let go: the page stays	now	-	PRD 4.2
 slot-held	BLACK_MONO	hold	held 0.5 s with the pad: clear that slot's depths on the page shown (other slots', other pages' stay); the pad let go first calls it off. SAVE held undoes	now	-	change
@@ -127,7 +127,7 @@ project-view	WHITE_1-16	press	point at a slot by its number (2026-10-18; PRESETS
 project-view	BTN_SAVE	tap	save into the slot pointed at; over another project, asked first: SAVE again within 3 s. On the PRESETS page: the focused track saved as the preset pointed at (over another, asked the same way); a factory one can't be saved over (FACTORY: SAVE INTO A..H). On FACTORY: it says to save into P1..P6	now	-	PRD 2.1
 project-view	BLACK_POLY	hold	held 0.5 s: delete the project pointed at (the user reels it saved stay); on the PRESETS page, the preset (a factory one stays); on the REELS page, the reel pointed at (from any slot a long one covers; a track playing it goes silent); FACTORY stays	now	-	change
 project-view	ENC_K1-4	turn	nothing (the view has no knobs; its slots are on the white keys)	now	-	change
-routing-view	ENC_ALGORITHM	turn	the focused track's REC IN (AUTO OTHR T1-T4; its own number: SELF)	now	-	change
+routing-view	ENC_ALGORITHM	turn	the focused track, so REC arms it from here (2026-10-18; it set the focused track's REC IN, which KNOB 1-4 already do)	now	-	change
 routing-view	ENC_K1-4	turn	track 1..4's REC IN: AUTO (as before: the others on TAPE, its own source on SYNTH or POLY), OTHR (the others' mix), T1-T4 (one track; its own: SELF)	now	-	change
 routing-view	BTN_HOME	press	leave REC IN for the source (any page pad does the same for its page; GLO for the mixer)	now	-	change
 page:arp	ENC_K1-4	turn	MODE (OFF KEY LTCH ADD HOLD: the latched chord whole and sustained, no steps), ORDR (UP DOWN UPDN RND PLAY), RNGE (1-3 octaves), RATE (1/4 1/8 8T 1/16 16T 1/32); page 2: GATE (10-400 %: past 100 the notes ring into the next steps, overlapping; TAPE and DRUM stop at 100), SWNG, GRND, FADE (let every key go and the notes go on this long, fading; 0: KEY stops at once, LTCH and ADD hold); page 3, RIPL ARP (RIPPLE's last page since 2026-10-18): RIPPLE's MODE ORDR RNGE RATE (stored in RIPPLE's knobs 12-15)	now	-	change

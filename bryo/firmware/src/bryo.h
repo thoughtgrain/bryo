@@ -69,8 +69,9 @@ static track_ctl_t track[NTRK];
 /* --------------------------------------------------------------- keys --- */
 /* The 27 keys, F3..G5 (hal/fm1_input.h fm1_in.notes bit 0..26), as Bryo reads them: 16 white keys numbered
  * left to right 0..15 (slices, steps, notes) and 11 black keys numbered 0..10, the global macros of PRD 2.3 in
- * the PRD's order: OP1..OP4 (mutes), OP5 (reverse), OP6 (half speed), PIT, GLO (pitch down, up), MONO, POLY,
- * 0 (freeze). 0xFF: not that colour. */
+ * the PRD's order: OP1..OP4 (mutes), OP5 (reverse; other sources: the scene before), OP6 (half speed; the scene
+ * after), PIT (tap tempo, held: lean back), GLO (held: lean forward; the PRD's pitch down and up until 2026-10-18),
+ * MONO, POLY, 0 (freeze). 0xFF: not that colour. */
 #define KEY_NONE 0xFFu
 static const uint8_t KEY_WHITE[27] = {0, 0xFF, 1, 0xFF, 2, 0xFF, 3, 4, 0xFF, 5, 0xFF, 6, 7, 0xFF, 8, 0xFF, 9, 0xFF, 10,
                                       11, 0xFF, 12, 0xFF, 13, 14, 0xFF, 15};

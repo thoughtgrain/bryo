@@ -254,6 +254,11 @@ number.
   four), split by what each track's settings ask for when it runs short; what's left over is everyone's (since
   2026-10-11: a track alone has all 40, not just what RATE and SIZE ask). GRAIN 6's GRNS can hold a number for a
   track instead (1-40, taken from the AUTO tracks first, kept whatever the others do).
+- **2026-10-18: the controls, pruned.** From a pass over every row of controls.tsv: TAPE's FRZE is RPT (freeze is
+  GRAIN's word); EDIT and FX go round the device shown, held + OCT- / OCT+ switches it; RIPL ARP is RIPPLE's last
+  page; the mixer's round is LEVELS SCENES CHANNEL MASTER, its settings (KEY SETUP) on EDIT held + OCT+; the
+  project view's keys pick slots; OP5 OP6 step through the scenes on a track without a tape; PIT taps the tempo and,
+  held, leans it back 4 %, GLO held leans it forward; ALGORITHM in REC IN picks the track. No row is "planned" now.
 - **2026-10-18: SYNTH and the audio's tables run from RAM.** `.hot` was nearly full and SYNTH's voice still ran
   from flash. The grain slots moved from the pool to main RAM, the pool gave 16 KiB, `.hot` is 72 KiB with SYNTH in
   it, and the 8.8 KB of tables the audio path reads live in RAM (`HOT_TABLE`). Same sound, bit for bit; the gain
