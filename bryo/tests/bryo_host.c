@@ -450,7 +450,9 @@ static void test_input(void)
     press(B_EDIT);
     press(B_EDIT);
     press(B_EDIT);
-    check("..EDIT again past RIPPLE's five pages: RIPPLE's first", ui.dev == DEV_RESO && ui.page == 0u);
+    press(B_EDIT);
+    check("..EDIT again past RIPPLE's six pages (RIPL ARP its last): RIPPLE's first", ui.dev == DEV_RESO &&
+          ui.page == 0u);
     press(B_FX);
     check("FX: COLOR", ui.dev == DEV_COLOR);
     press(B_EDIT);
@@ -511,7 +513,8 @@ static void test_input(void)
     hold(B_EDIT);
     press(B_OCTUP);
     let_go(B_EDIT);
-    check("..EDIT held + OCT+: RIPPLE, opening with what rings and its mix (DEC TONE ROUT WET; COMB: FDBK; RESO, 12-BAND: RING TILT)",
+    check("..EDIT held + OCT+: RIPPLE, opening with what rings and its mix (DEC TONE ROUT WET; COMB: FDBK; RESO, "
+          "12-BAND: RING TILT)",
           ui.dev == DEV_RESO && ui.page == 0u && pdesc_at(RS_STR_P, 0u) == RP_DEC && pdesc_at(RS_STR_P, 1u) == RP_TONE &&
           pdesc_at(RS_STR_P, 2u) == RP_ROUT && pdesc_at(RS_STR_P, 3u) == RP_WET &&
           !strcmp(RS_FORM_P[0][RP_DEC].label, "FDBK") && !strcmp(RS_FORM_P[1][RP_DEC].label, "RING") &&
@@ -530,8 +533,8 @@ static void test_input(void)
     press(B_EDIT);
     check("..again: RIPPLE's page 3, the pitch (PTCH SCAL; the strings: KEYS PLVL)", ui.dev == DEV_RESO && ui.page == 2u &&
           pdesc_at(RS_STR_P, 8u) == RP_PTCH && pdesc_at(RS_STR_P, 9u) == RP_SCAL && pdesc_at(RS_STR_P, 10u) == RP_KEYS &&
-          pdesc_at(RS_FORM_P[2], 8u) == RP_PTCH && pdesc_pages(RS_STR_P) == 5u && pdesc_pages(RS_FORM_P[0]) == 5u &&
-          pdesc_pages(RS_FORM_P[1]) == 6u && pdesc_pages(RS_FORM_P[2]) == 6u);
+          pdesc_at(RS_FORM_P[2], 8u) == RP_PTCH && pdesc_pages(RS_STR_P) == 6u && pdesc_pages(RS_FORM_P[0]) == 6u &&
+          pdesc_pages(RS_FORM_P[1]) == 7u && pdesc_pages(RS_FORM_P[2]) == 7u);
     press(B_EDIT);
     check("..again: RIPPLE's page 4, the filter in front (CUT RES TYPE)",
           ui.dev == DEV_RESO && ui.page == 3u && pdesc_at(RS_STR_P, 12u) == RP_CUT && pdesc_at(RS_STR_P, 14u) == RP_SLOP &&
@@ -544,6 +547,8 @@ static void test_input(void)
           !strcmp(DEV_P[DEV_RESO][RP_EVEN].label, "EVEN") && !strcmp(DEV_P[DEV_RESO][RP_POL].label, "POL") &&
           !strcmp(DEV_P[DEV_RESO][RP_FOCS].label, "FOCS") && DEV_P[DEV_RESO][RP_WDTH].def == 100 &&
           !strcmp(RS_STR_P[RP_PLVL].label, "PLVL") && RS_STR_P[RP_PLVL].def == 100);
+    press(B_EDIT);
+    check("..again: RIPPLE's page 6, RIPL ARP (its own arpeggio)", ui.dev == DEV_RESO && ui.page == 5u && rarp_page());
     press(B_EDIT);
     check("..again: back to RIPPLE's page 1", ui.dev == DEV_RESO && ui.page == 0u);
     hold(B_EDIT);
@@ -558,7 +563,8 @@ static void test_input(void)
     press(B_OCTUP);
     let_go(B_FX);
     press(B_FX);
-    check("FX held + OCT-: COLOR, COLOR 2, COLOR 3; FX held + OCT+: SPACE, SPACE 2", ui.dev == DEV_SPACE && ui.page == 1u);
+    check("FX held + OCT-: COLOR, COLOR 2, COLOR 3; FX held + OCT+: SPACE, SPACE 2",
+          ui.dev == DEV_SPACE && ui.page == 1u);
     press(B_LFO);
     press(B_LFO);
     check("a slot pad again: the slot's page 2", ui.kind == FOCUS_SLOT && ui.slot == 0u && ui.page == 1u);
@@ -567,11 +573,12 @@ static void test_input(void)
     press(B_ARP);
     check("..again: its page 2", ui.kind == FOCUS_ARP && ui.page == 1u);
     press(B_ARP);
-    check("..again: page 3, RIPL ARP (RIPPLE's arpeggio: its MODE is RIPPLE's knob 12)", ui.kind == FOCUS_ARP &&
-          ui.page == 2u && ({ int16_t *vp; const pdesc_t *d = ui_page(0, &vp); vp == &tp[0].dev[DEV_RESO][RP_AMODE] &&
+    check("..and round to the first (two pages: RIPL ARP is RIPPLE's last page since 2026-10-18)",
+          ui.kind == FOCUS_ARP && ui.page == 0u && pdesc_pages(ARP_P) == 2u);
+    focus_dev(DEV_RESO, pdesc_pages(dev_p(0, DEV_RESO)) - 1u);
+    check("..RIPPLE's last page: RIPL ARP (RIPPLE's arpeggio: its MODE is RIPPLE's knob 12)", rarp_page() &&
+          ({ int16_t *vp; const pdesc_t *d = ui_page(0, &vp); vp == &tp[0].dev[DEV_RESO][RP_AMODE] &&
           !strcmp(d->label, "MODE"); }));
-    press(B_ARP);
-    check("..and round to the first", ui.kind == FOCUS_ARP && ui.page == 0u);
     hold(B_LFO);                                         /* LFO held + OP3: the LFO pad shows M3 */
     key_edge(black_note(BK_OP3));
     let_go(B_LFO);
@@ -1022,7 +1029,8 @@ static void screens_in(const char *pal)
             render(200, 0);
             shot(pal, SHOT[m]);
             ok &= tp[0].dev[DEV_RESO][RP_MODE] == (int16_t)m && ui.dev == DEV_RESO && ui.page == 1u &&
-                  !strcmp(dev_name(0, DEV_RESO), RS_FORM_NAME[m]) && pdesc_pages(dev_p(0, DEV_RESO)) == (m >= RM_RESO ? 6u : 5u);
+                  !strcmp(dev_name(0, DEV_RESO), RS_FORM_NAME[m]) &&
+                  pdesc_pages(dev_p(0, DEV_RESO)) == (m >= RM_RESO ? 7u : 6u);
         }
         ok &= !strcmp(dev_p(0, DEV_RESO)[RP_TONE].label, "TILT") && !strcmp(dev_p(0, DEV_RESO)[RP_DEC].label, "RING");
         hold(B_EDIT);
@@ -8122,11 +8130,10 @@ static void test_mod(void)
             {POL_P, 0, "LVL"},
             {DRM_P, 0, "LVL"},
             {DEV_P[DEV_COLOR], 0, "LVL", 0, "ROUT", "WET"}, {DEV_P[DEV_GRAIN], 0, 0, 0, "ROUT", "WET"},
-            {RS_STR_P, 0, 0, 0xF000u, "ROUT", "WET"},   /* (12-15: RIPL ARP, the ARP pad's page 3; 16, the
-                                                                 * form: EDIT held + SELECT, and page 5 since
-                                                                 * 2026-10-14) */
-            {RS_FORM_P[0], 0, 0, 0xF000u, "ROUT", "WET"}, {RS_FORM_P[1], 0, 0, 0xF000u, "ROUT", "WET"},
-            {RS_FORM_P[2], 0, 0, 0xF000u, "ROUT", "WET"},
+            {RS_STR_P, 0, 0, 0, "ROUT", "WET"},   /* (12-15: RIPL ARP, RIPPLE's last page since 2026-10-18; 16,
+                                                   * the form: EDIT held + SELECT, and page 5 since 2026-10-14) */
+            {RS_FORM_P[0], 0, 0, 0, "ROUT", "WET"}, {RS_FORM_P[1], 0, 0, 0, "ROUT", "WET"},
+            {RS_FORM_P[2], 0, 0, 0, "ROUT", "WET"},
             {ME_P[ME_WAVE], "AMT", "OFS"}, {ME_P[ME_ADSR], "AMT", "OFS"}, {ME_P[ME_SEQ], "AMT", "OFS"},
             {ME_P[ME_FOLLOW], "AMT", "OFS"}, {DEV_P[DEV_SPACE], 0, 0, 0, "DLY", "VERB"}};
         uint32_t i, k, ok = 1, rule = 1;
@@ -9653,7 +9660,7 @@ static void test_page_keys(void)
     let_go(B_ARP);
     check("ARP held + key 2: the arpeggiator's page 2", ui.kind == FOCUS_ARP && ui.page == 1u);
     press(B_ARP);
-    check("..ARP tapped: its next page (on the let-go)", ui.kind == FOCUS_ARP && ui.page == 2u);
+    check("..ARP tapped: its next page (on the let-go), round to the first", ui.kind == FOCUS_ARP && ui.page == 0u);
     hold(B_ENV);
     ui_leds();
     led_on(fm1_led, 14u + note_of_white(0));
@@ -11227,13 +11234,15 @@ static void test_arp_sources(void)
     tp[0].arp[AR_MODE] = ARM_OFF;
 
     {                                                    /* RIPL ARP's page shows RIPPLE's knobs 12-15 */
-        uint32_t k, same = pdesc_pages(ARP_P) == 3u;
-        for (k = 0; k < 4u; k++) {
-            const pdesc_t *a = &ARP_P[ARP_RES + k], *d = &DEV_P[DEV_RESO][RP_AMODE + k];
-            same &= !strcmp(a->label, d->label) && a->min == d->min && a->max == d->max && a->def == d->def &&
-                    a->fmt == d->fmt;
+        uint32_t f, k, same = 1;
+        for (f = 0; f < 4u; f++) {
+            const pdesc_t *p = f ? RS_FORM_P[f - 1u] : RS_STR_P;
+            uint32_t last = pdesc_pages(p) - 1u;
+            for (k = 0; k < 4u; k++)
+                same &= pdesc_at(p, 4u * last + k) == RP_AMODE + k && !strcmp(p[RP_AMODE + k].label,
+                                                                             DEV_P[DEV_RESO][RP_AMODE + k].label);
         }
-        check("RIPL ARP (the ARP pad's page 3) describes RIPPLE's knobs 12-15 as they're stored", same);
+        check("RIPL ARP is every RIPPLE form's last page, RIPPLE's knobs 12-15 (MODE ORDR RNGE RATE)", same);
     }
     power_on();                                          /* RIPPLE's arpeggio on a TAPE track */
     sys.bpm = 120;
@@ -11241,11 +11250,11 @@ static void test_arp_sources(void)
     tp[0].dev[DEV_SRC][TK_LEN] = 2500;                     /* (slices: a key would start one, but not here) */
     tp[0].dev[DEV_RESO][RP_WET] = 100;
     tp[0].dev[DEV_RESO][RP_AMODE] = ARM_KEY;
-    hold(B_ARP);                                         /* ARP held + key 3: RIPL ARP */
-    key_edge(note_of_white(2));
-    let_go(B_ARP);
-    check("ARP held + key 3: RIPL ARP, RIPPLE's arpeggio; the keys its", ui.kind == FOCUS_ARP && ui.page == 2u &&
-          sys.keys_rarp && !sys.keys_reso);
+    hold(B_EDIT);                                        /* EDIT held + key 12 (GRAIN's six, RIPPLE's six): RIPL ARP */
+    key_edge(note_of_white(11));
+    let_go(B_EDIT);
+    check("EDIT held + key 12: RIPL ARP, RIPPLE's last page, its arpeggio; the keys its", rarp_page() &&
+          ui.dev == DEV_RESO && ui.page == 5u && sys.keys_rarp && !sys.keys_reso);
     fm1_in.notes = w1 | w5;
     for (b = 0; b < 172u * 5u; b++) {
         render(1, 0);
@@ -11258,11 +11267,11 @@ static void test_arp_sources(void)
     }
     check("..KEY, two keys held: the strings plucked at C3 and E3 in turn", roots == 3u && reso_arp[0].n == 2u);
     shot("BRYO", "arp_res");
-    hold(B_SCL);                                         /* (SCL + the ARP pad: RIPL ARP to its defaults: off) */
-    press(B_ARP);
+    hold(B_SCL);                                         /* (SCL + EDIT: RIPL ARP to its defaults: off) */
+    press(B_EDIT);
     let_go(B_SCL);
-    check("..SCL held + ARP on RIPL ARP: its knobs to their defaults (MODE OFF), the track's ARP left alone",
-          tp[0].dev[DEV_RESO][RP_AMODE] == ARM_OFF && tp[0].dev[DEV_RESO][RP_ARAT] == 3 && ui.page == 2u);
+    check("..SCL held + EDIT on RIPL ARP: its knobs to their defaults (MODE OFF), the track's ARP left alone",
+          tp[0].dev[DEV_RESO][RP_AMODE] == ARM_OFF && tp[0].dev[DEV_RESO][RP_ARAT] == 3 && rarp_page());
     tp[0].dev[DEV_RESO][RP_AMODE] = ARM_KEY;
     check("..the tape stays quiet (the keys are the strings' on this page)", !ran && arp_rt[0].n == 0u);
     fm1_in.notes = 0;
@@ -11281,9 +11290,9 @@ static void test_arp_sources(void)
         roots |= reso[0].root16 == 48 * 16 ? 1u : reso[0].root16 == 60 * 16 ? 2u : 0u;
     }
     check("..LTCH, RNGE 2, off its page: C3 and C4 go on plucking", roots == 3u && reso_arp[0].n == 1u);
-    hold(B_ARP);
-    key_edge(note_of_white(2));
-    let_go(B_ARP);
+    hold(B_EDIT);
+    key_edge(note_of_white(11));
+    let_go(B_EDIT);
     fm1_in.notes = 1u << black_note(BK_POLY);
     key_edge(black_note(BK_POLY));
     fm1_ms += 600;

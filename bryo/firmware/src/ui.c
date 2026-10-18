@@ -154,6 +154,13 @@ static void ui_init(void)
 }
 
 /* the four values the knobs edit right now, and their descriptors */
+/* the page shown is RIPPLE's last, RIPL ARP: its own arpeggio (the ARP pad's page 3 until 2026-10-18) */
+static int rarp_page(void)
+{
+    return ui.view == VIEW_PAGE && ui.kind == FOCUS_DEV && ui.dev == DEV_RESO &&
+           ui.page + 1u == pdesc_pages(dev_p(sys.sel, DEV_RESO));
+}
+
 static const pdesc_t *ui_page(uint32_t k, int16_t **vp)
 {
     track_params_t *p = &tp[sys.sel];
@@ -205,13 +212,8 @@ static const pdesc_t *ui_page(uint32_t k, int16_t **vp)
         *vp = &p->dins[(ui.drm_inst - 1u) & 15u][k];
         return &DRI_P[k];
     }
-    if (ui.kind == FOCUS_ARP) {                        /* the arpeggiator; page 3, RIPL ARP: RIPPLE's arpeggio */
+    if (ui.kind == FOCUS_ARP) {                        /* the arpeggiator */
         k += 4u * ui.page;
-        if (k >= ARP_RES) {
-            k = k < ARP_RES + 4u ? k : ARP_RES;
-            *vp = &p->dev[DEV_RESO][RP_AMODE + (k - ARP_RES)];
-            return &ARP_P[k];
-        }
         *vp = &p->arp[k % NARP];
         return &ARP_P[k % NARP];
     }
@@ -285,7 +287,7 @@ static void draw_head(void)
     else if (ui.view == VIEW_ROUTE)
         str_cpy(ti, "REC IN", sizeof ti);
     else
-        str_cpy(ti, slot ? ME_NAME[tp[sys.sel].engine[ui.slot]] : arp ? (ui.page == 2u ? "RIPL ARP" : "ARP")
+        str_cpy(ti, slot ? ME_NAME[tp[sys.sel].engine[ui.slot]] : arp ? "ARP" : rarp_page() ? "RIPL ARP"
                 : dev_name(sys.sel, ui.dev), sizeof ti);
     if (slot) {                                         /* (a slot shows as its number: M1 M2 M3, the SEQ M4) */
         box[0] = 'M';
@@ -702,7 +704,7 @@ static void draw_foot(void)
         str_cpy(a + str_len(a), "/12", 4);
         str_cpy(a + str_len(a), ui.slot_btn == B_LFO ? " OP:M1-3" : ui.slot_held == SLOT_SEQ ? "" : " SEL:ENG", 9);
     }                                                 /* (19 letters at most: DRUM's "T2 BAR 1/2" takes the right) */
-    else if (ui.view == VIEW_PAGE && ui.kind == FOCUS_ARP && ui.page == 2u)   /* RIPL ARP: the keys the strings' */
+    else if (rarp_page())                             /* RIPL ARP: the keys the strings' */
         str_cpy(a, tp[sys.sel].dev[DEV_RESO][RP_AMODE] >= ARM_LTCH ? "POLY HELD: CLEAR"
                    : tp[sys.sel].dev[DEV_RESO][RP_AMODE] == ARM_OFF ? "MODE: OFF"
                    : tp[sys.sel].dev[DEV_RESO][RP_KEYS] == RK_TUNE ? "KEYS: ITS TUNE" : "KEYS: PLUCKS", sizeof a);

@@ -130,9 +130,9 @@ static const char *const N_TSYNC[6] = {"OFF", "1BR", "2BR", "4BR", "8BR", "16BR"
          * (an offset on TONE for the burst: - a soft mallet, + a pick), STRM, the strings strummed STRM ms apart,    \
          * VARY, each pluck a little different */                                                                   \
         P_ROUT, {"PICK", -100, 100, 0, F_BIPCT}, {"STRM", 0, 100, 0, F_MS}, {"VARY", 0, 100, 0, F_PCT},             \
-        /* its own arpeggio, RIPL ARP (stored here, 12-15, shown on the ARP pad's page 3, not on RIPPLE's): the       \
-         * keys on that page into it, a step at each note (KEYS: a pluck, or a retune). As the ARP pad's knobs,       \
-         * with no GATE (a pluck rings by DEC) */                                                                   \
+        /* its own arpeggio, RIPL ARP (stored here, 12-15; RIPPLE's last page since 2026-10-18, the ARP pad's page 3 \
+         * before): the keys on that page into it, a step at each note (KEYS: a pluck, or a retune). As the ARP     \
+         * pad's knobs, with no GATE (a pluck rings by DEC) */                                                       \
         {"MODE", 0, 3, ARM_OFF, F_ENUM, N_ARM, 1}, {"ORDR", 0, 4, ARO_UP, F_ENUM, N_ARO, 1},                        \
         {"RNGE", 1, 3, 1, F_NUM, 0, 1}, {"RATE", 0, 5, 3, F_ENUM, N_ARATE, 1},                                      \
         /* 16: MODE, the form (EDIT held + SELECT, not on a page); DRV, a Polivoks-like saturation of what's fed     \
@@ -564,13 +564,9 @@ static const pdesc_t ARP_P[NPK] = {   /* (NPK long: pdesc_pages looks past the l
     {"MODE", 0, 4, ARM_OFF, F_ENUM, N_ARM, 1}, {"ORDR", 0, 4, ARO_UP, F_ENUM, N_ARO, 1}, {"RNGE", 1, 3, 1, F_NUM, 0, 1},
     {"RATE", 0, 5, 3, F_ENUM, N_ARATE, 1},
     {"GATE", 10, 400, 50, F_PCT, 0, 1}, {"SWNG", 0, 100, 0, F_PCT, 0, 1}, {"GRND", 0, 100, 0, F_PCT, 0, 1},
-    {"FADE", 0, 127, 0, F_TIME, 0, 1},   /* (2026-10-15: the notes go on this long after the keys are let go, fading;
-                                          * 0: KEY stops at once, LTCH and ADD hold) */
-    /* page 3, RIPL ARP: RIPPLE's own arpeggio (stored in RIPPLE's knobs, 12-15, not in tp.arp: ui.c's
-     * ui_page points there). The same knobs as page 1, the same ranges as RIPPLE's descriptors */
-    {"MODE", 0, 3, ARM_OFF, F_ENUM, N_ARM, 1}, {"ORDR", 0, 4, ARO_UP, F_ENUM, N_ARO, 1}, {"RNGE", 1, 3, 1, F_NUM, 0, 1},
-    {"RATE", 0, 5, 3, F_ENUM, N_ARATE, 1}};
-#define ARP_RES 8u                   /* ARP_P's index of RIPL ARP's first knob (page 3) */
+    {"FADE", 0, 127, 0, F_TIME, 0, 1}};   /* (2026-10-15: the notes go on this long after the keys are let go, fading;
+                                           * 0: KEY stops at once, LTCH and ADD hold). RIPPLE's own arpeggio, RIPL
+                                           * ARP, was this pad's page 3; since 2026-10-18 it's RIPPLE's last page */
 
 /* SETUP, the mixer's last page (EDIT tapped six times): how the panel behaves, for the instrument, not a project
  * (settings.c keeps them). KEYS: the black keys as the shortcuts (SHRT: mutes, reverse, clears, freeze) or as notes
@@ -667,16 +663,17 @@ static const playout_t PLAYOUT[] = {
     /* (2026-10-15, "I don't know if pitch makes sense on the first page ... page 2 even more controls to modify the
      * specific filter type": page 1 the form's ring and brightness with ROUT WET, page 2 more of the form's own, the
      * pitch and chord on page 3, then the filter in front, the keys, the form. 12-15, RIPL ARP, past the pages) */
-    {RS_STR_P, 5, {1, 2, 8, 3, 21, 18, 17, 9, 0, 7, 19, 20, 4, 5, 6, 10, 16, 11, 22, 23, 12, 13, 14, 15}},
+    /* (2026-10-18: RIPL ARP, 12-15, is each form's last page: what RIPPLE does over time sits with RIPPLE) */
+    {RS_STR_P, 6, {1, 2, 8, 3, 21, 18, 17, 9, 0, 7, 19, 20, 4, 5, 6, 10, 16, 11, 22, 23, 12, 13, 14, 15}},
                                                     /* RIPPLE: DEC TONE ROUT WET, SPRD RIPL DRV PICK, PTCH SCAL KEYS PLVL,
-                                                     * CUT RES TYPE STRM, MODE VARY */
-    {RS_FORM_P[0], 5, {1, 2, 8, 3, 23, 21, 18, 17, 0, 7, 19, 20, 4, 5, 6, 9, 16, 10, 11, 26, 12, 13, 14, 15}},
+                                                     * CUT RES TYPE STRM, MODE VARY, RIPL ARP (MODE ORDR RNGE RATE) */
+    {RS_FORM_P[0], 6, {1, 2, 8, 3, 23, 21, 18, 17, 0, 7, 19, 20, 4, 5, 6, 9, 16, 10, 11, 26, 12, 13, 14, 15}},
                                                     /* COMB: FDBK TONE ROUT WET, POL SPRD RIPL DRV, PTCH SCAL KEYS PLVL,
                                                      * CUT RES TYPE PICK, MODE STRM VARY FLOW */
-    {RS_FORM_P[1], 6, {1, 2, 8, 3, 24, 25, 26, 21, 0, 7, 17, 18, 4, 5, 6, 16, 19, 20, 9, 10, 11, 22, 23, 27, 12, 13,
+    {RS_FORM_P[1], 7, {1, 2, 8, 3, 24, 25, 26, 21, 0, 7, 17, 18, 4, 5, 6, 16, 19, 20, 9, 10, 11, 22, 23, 27, 12, 13,
                        14, 15}},                    /* RESO: RING TILT ROUT WET, FOCS WDTH FLOW SPRD, PTCH SCAL DRV RIPL,
                                                      * CUT RES TYPE MODE, KEYS PLVL PICK STRM, VARY EVEN */
-    {RS_FORM_P[2], 6, {1, 2, 8, 3, 24, 25, 26, 21, 0, 7, 17, 18, 4, 5, 6, 16, 19, 20, 9, 10, 11, 22, 23, 27, 12, 13,
+    {RS_FORM_P[2], 7, {1, 2, 8, 3, 24, 25, 26, 21, 0, 7, 17, 18, 4, 5, 6, 16, 19, 20, 9, 10, 11, 22, 23, 27, 12, 13,
                        14, 15}},                    /* 12-BAND: the same */
     {DEV_P[DEV_COLOR], 3, {0, 1, 9, 7, 2, 3, 4, 5, 6, 10, 11, 8}},              /* COLOR: DRV CRSH ROUT WET, NOIS TILT
                                                                                  * NDEC NTON, CMOD . . LVL */

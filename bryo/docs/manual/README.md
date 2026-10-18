@@ -90,7 +90,7 @@ come back to the one you used last. To switch effect, hold the pad and press OCT
 | FX | COLOR 1-3 or CHRONOS 1-5: **hold FX and press OCT+** for CHRONOS, **OCT-** for COLOR |
 | ENV | the source's shaping pages: SYNTH's and POLY's AMP and FILTER, TAPE's slice envelope, DRUM's KIT and KIT 2 |
 | LFO, SEQ | a modulator's pages (LFO: M1, M2 or M3; SEQ: M4) |
-| ARP | the arpeggiator: 2 pages, then RIPL ARP (RIPPLE's own arpeggio) |
+| ARP | the arpeggiator: 2 pages (RIPPLE's own arpeggio, RIPL ARP, is RIPPLE's last page) |
 | GLO | the mixer (EDIT then steps CHANNEL, MASTER, KEY, SETUP) |
 
 KNOB 1 to 4 always change the four values you see. There's nothing hidden.
@@ -790,8 +790,9 @@ goes dark for its step, so you can see the pattern walk and find the key to take
 
 <img src="img/arp_add.png" width="240" alt="ARP in ADD mode, four notes piled up"> <img src="img/arp_drum.png" width="240" alt="ARP on a DRUM track: three drums, up and down">
 
-**RIPL ARP (the ARP pad's third page): an arpeggio for the strings.** Press ARP three times (or hold ARP and press
-white key 3). It's RIPPLE's own arpeggio, separate from the track's: each step plucks RIPPLE's four strings at
+**RIPL ARP (RIPPLE's last page): an arpeggio for the strings.** On RIPPLE (EDIT held + OCT+), press EDIT until the
+header says RIPL ARP, its last page (or hold EDIT and press white key 12; 13 on RESO and 12-BAND). Until 2026-10-18
+it was the ARP pad's third page; it moved so that everything RIPPLE does over time sits with RIPPLE. It's RIPPLE's own arpeggio, separate from the track's: each step plucks RIPPLE's four strings at
 that note (or, with RIPPLE's KEYS on TUNE, retunes it to that note), whatever the track plays. **MODE** turns it on (OFF, KEY, LTCH, ADD); **ORDR**, **RNGE** and **RATE** work
 as above. With MODE on, the white keys on this page play the strings' pattern and the track itself stays quiet; with
 MODE off they play the track as on the other ARP pages. A latched or piled-up pattern keeps plucking when you leave
@@ -1001,7 +1002,7 @@ forms. Each track has its own.
 8. **RIPPLE 5**: **MODE**, the form as a knob (the same as EDIT held + SELECT), and **VARY**: each pluck comes out a
    little different, in level and brightness. On COMB, STRM is here too. RESO and 12-BAND have a page 5 of the keys
    (**KEYS PLVL PICK STRM**) and a page 6 with VARY.
-9. To play a pattern on it, use **RIPL ARP**, the ARP pad's third page ([5.8](#58-arp-the-arpeggiator)).
+9. To play a pattern on it, use **RIPL ARP**, RIPPLE's last page ([5.8](#58-arp-the-arpeggiator)).
 
 The picture shows it: while a string rings, the curve waves round its node in orange, as high as the string is
 loud and as tight as it is high, and the waves drift along with RIPL. On 12-BAND each band's meter lights orange
@@ -1376,7 +1377,7 @@ M-VAVE's updater puts the stock firmware back. Bryo's projects and tapes can't b
 | **LFO SEQ** held + a knob | how much that modulator moves the knob |
 | **LFO** held + OP1 / OP2 / OP3 | which modulator LFO is: M1, M2, M3 |
 | **LFO** held + SELECT | the modulator's engine (LFO, ADSR, SEQ, FOLLOW) |
-| **ARP** | the arpeggiator (notes on SYNTH and POLY, slices on TAPE, drums on DRUM); its page 3, RIPL ARP, plays RIPPLE's strings |
+| **ARP** | the arpeggiator (notes on SYNTH and POLY, slices on TAPE, drums on DRUM); RIPPLE's strings have their own, RIPL ARP, on RIPPLE's last page |
 | **GLO** held + OCT+ | black keys: shortcuts or notes |
 | **GLO** tapped, **EDIT** ×5 | SETUP: keys, knob speed, hold time, LEDs |
 | **REC** | record onto the track |

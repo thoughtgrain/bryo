@@ -1756,7 +1756,7 @@ static void viz_seq(const int16_t *v, uint32_t f)
 static void viz_arp(const int16_t *v, uint32_t f)
 {
     int16_t ra[NARP] = {0};
-    int res = ui.page == 2u;                                           /* RIPL ARP: RIPPLE's, its knobs (12-15) as
+    int res = rarp_page();                                             /* RIPL ARP: RIPPLE's, its knobs (12-15) as
                                                                         * an AR_* array, as reso_arp_block builds */
     const arp_rt_t *r = res ? &reso_arp[sys.sel] : &arp_rt[sys.sel];
     uint8_t s[ARP_MAXN];
@@ -1804,8 +1804,8 @@ static void viz_arp(const int16_t *v, uint32_t f)
                 px_frame(x, y, bw, floor - y + 1, px_ink, bw > 2 ? 1 : 2);
         }
     }
-    if (res && f >= ARP_RES && f < ARP_RES + 4u) {
-        vz_ktag(118, DLBL - 1, &ARP_P[f], v[f - ARP_RES]);
+    if (res && f >= RP_AMODE && f <= RP_ARAT) {
+        vz_ktag(118, DLBL - 1, &dev_p(sys.sel, DEV_RESO)[f], v[f - RP_AMODE]);
     } else if (!res && f < NARP && !pdesc_empty(&ARP_P[f])) {
         vz_ktag(118, DLBL - 1, &ARP_P[f], v[f]);
     } else {
@@ -2795,9 +2795,9 @@ static uint32_t viz_sig(void)
             h = (h ^ (uint32_t)(tp[t].recin + tp[t].src * 16u)) * 16777619u;
         return h + sys.rec * 977u + sys.ntrk * 5381u + 0x55u;
     }
-    if (ui.kind == FOCUS_ARP) {                                        /* the arpeggiator: its knobs, its notes, the
+    if (ui.kind == FOCUS_ARP || rarp_page()) {                         /* the arpeggiator: its knobs, its notes, the
                                                                         * step sounding (RIPL ARP: RIPPLE's) */
-        const arp_rt_t *r = ui.page == 2u ? &reso_arp[sys.sel] : &arp_rt[sys.sel];
+        const arp_rt_t *r = ui.kind == FOCUS_ARP ? &arp_rt[sys.sel] : &reso_arp[sys.sel];
         for (k = 0; k < NARP; k++)
             h = (h ^ (uint32_t)(tp[sys.sel].arp[k] + 32768)) * 16777619u;
         for (k = 0; k < 4u; k++)
@@ -2903,7 +2903,7 @@ static void draw_viz(void)
     } else if (ui.view == VIEW_ROUTE) {
         viz_route(ui.last < 4u ? ui.last : 0xFFu);
     } else {
-        if (ui.kind == FOCUS_ARP) {
+        if (ui.kind == FOCUS_ARP || rarp_page()) {      /* (RIPL ARP, RIPPLE's last page: its arpeggio) */
             viz_arp(v, f);
         } else if (ui.kind == FOCUS_SLOT) {
             switch (tp[sys.sel].engine[ui.slot]) {

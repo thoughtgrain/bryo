@@ -1032,8 +1032,9 @@ static void on_black(uint32_t k)
                                                          * pattern) */
         ui.poly_held = 1;
         ui.poly_t0 = fm1_ms;
-        ui_message(ui.view == VIEW_PROJECT ? "KEEP HOLDING POLY TO DELETE IT" : ui.view == VIEW_PAGE && ui.kind == FOCUS_ARP
-                   ? (ui.page == 2u ? "KEEP HOLDING POLY TO CLEAR RIPL ARP" : "KEEP HOLDING POLY TO CLEAR THE NOTES") : tp[sys.sel].src == SRC_DRUM ?
+        ui_message(ui.view == VIEW_PROJECT ? "KEEP HOLDING POLY TO DELETE IT" : rarp_page()
+                   ? "KEEP HOLDING POLY TO CLEAR RIPL ARP" : ui.view == VIEW_PAGE && ui.kind == FOCUS_ARP
+                   ? "KEEP HOLDING POLY TO CLEAR THE NOTES" : tp[sys.sel].src == SRC_DRUM ?
                    "KEEP HOLDING POLY TO CLEAR THE PATTERN" : "KEEP HOLDING POLY TO CLEAR THE TAPE");
     }
 }
@@ -1083,10 +1084,11 @@ static void hold_keys(void)
             str_cpy(m + 2, !pj_sum[ui.pj_sel].used ? " IS EMPTY" : pj_delete(ui.pj_sel) == 0 ? " DELETED (ITS REELS STAY)"
                                                                                            : " NOT DELETED: FLASH", 28);
             ui_message(m);
-        } else if ((uint32_t)(fm1_ms - ui.poly_t0) >= 500u && ui.view == VIEW_PAGE && ui.kind == FOCUS_ARP) {
+        } else if ((uint32_t)(fm1_ms - ui.poly_t0) >= 500u && ui.view == VIEW_PAGE &&
+                   (ui.kind == FOCUS_ARP || rarp_page())) {
             ui.poly_held = 0;                           /* the arpeggiator's notes (a latched or piled-up pattern;
-                                                         * RIPL ARP's on its page) */
-            if (ui.page == 2u) {
+                                                         * RIPL ARP's on its page, RIPPLE's last) */
+            if (rarp_page()) {
                 RING_PUBLISH();
                 reso_arp_clear_req[sys.sel] = 1;
                 ui_message("RIPL ARP NOTES CLEARED");
@@ -1561,8 +1563,8 @@ static void ui_input(void)
                                                                 * the track, on a SEQ page the steps, on DRUM's STEP
                                                                 * (HITS, ACC) the bar's steps: they don't play */
     sys.keys_grain = (uint8_t)(ui.view == VIEW_PAGE && ui.kind == FOCUS_DEV && ui.dev == DEV_GRAIN);
-    sys.keys_reso = (uint8_t)(ui.view == VIEW_PAGE && ui.kind == FOCUS_DEV && ui.dev == DEV_RESO);
-    sys.keys_rarp = (uint8_t)(ui.view == VIEW_PAGE && ui.kind == FOCUS_ARP && ui.page == 2u);
+    sys.keys_rarp = (uint8_t)rarp_page();        /* (RIPPLE's last page, RIPL ARP: the keys its arpeggio's) */
+    sys.keys_reso = (uint8_t)(ui.view == VIEW_PAGE && ui.kind == FOCUS_DEV && ui.dev == DEV_RESO && !sys.keys_rarp);
     mod_show = (uint8_t)(seq_page() || (ui.view == VIEW_PAGE && ui.kind == FOCUS_SLOT &&
                                         tp[sys.sel].engine[ui.slot] == ME_FOLLOW)
                          ? 1u + sys.sel * NSLOT + ui.slot % NSLOT : 0u);   /* (a SEQ's keys show its step; a FOLLOW's
@@ -1648,9 +1650,15 @@ static void ui_input(void)
              * RM_*), shown on its first page (from RIPPLE's own pages: the page stays, every form's are alike);
              * the knobs are the same ones in every form, each form its own labels and picture */
             int16_t *m = &tp[sys.sel].dev[DEV_RESO][RP_MODE];
+            int ra = rarp_page();
+            uint32_t np;
             *m = (int16_t)(((int32_t)*m + d % (int32_t)NRMODE + (int32_t)NRMODE) % (int32_t)NRMODE);
+            np = pdesc_pages(dev_p(sys.sel, DEV_RESO));  /* (the forms have 6 or 7 pages, RIPL ARP the last: on
+                                                         * it, it stays; past another's last sound page, that one) */
             if (ui.kind != FOCUS_DEV || ui.dev != DEV_RESO)
                 focus_dev(DEV_RESO, 0);
+            else if (ra || ui.page + 1u >= np)
+                ui.page = (uint8_t)(np - (ra ? 1u : 2u));
             ui.last = 0xFF;
             ui.pg_used = 1;
         } else if (ui.home_held && ((fm1_in.buttons >> panel.btn[B_HOME]) & 1u)) {
