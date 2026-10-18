@@ -161,7 +161,7 @@ Why:
 | CHRONOS rooms | 10 chunks a room (two: A and B), while a track sends to it | the room (a comb a chunk, the allpasses in a fifth) and the pre-delay's line (5 chunks; 3 at 8 bits); see "The shared rooms, as built" |
 | COLOR | 0 | 64 B of state a track |
 | Screen canvas | 5,460 (main RAM) | 2 bits a dot (1.6 KB) and two 4-row line buffers (3.8 KB); see "The screen as dots" |
-| GRAIN | 9,728 pool + 2,900 main RAM | 32 grain slots × 304 B (a 128-sample decoded window each), and each track's buffer bookkeeping; the buffers themselves are shared memory |
+| GRAIN | 2,900 main RAM (+ the slots: 13 KB of main RAM since 2026-10-18) | 32 grain slots × 304 B (a 128-sample decoded window each), and each track's buffer bookkeeping; the buffers themselves are shared memory |
 | USB record mode | 12,288 pool + 900 main RAM | the monitor's ring (1,024 stereo frames, 23 ms) and the take's (4,096 mono samples, 186 ms); the take itself is shared memory |
 | SYNTH | 576 | 4 tracks × 3 voices of oscillator and filter state (.bss) |
 | POLY | 8,288 | 4 tracks × 4 voices × a 256-sample block reader (pool), plus 448 B of voice state (.bss) |
@@ -3436,6 +3436,15 @@ PRND 12).
 Tests: the factory test's eight bars now see the voice glide through more than eight pitches between its three roots,
 the strings on one root, the bells on one tuning, and the stepping modulators' AMT at 0; `test_arp_hold`'s scene morph
 moves M3's AMT three quarters of the way from 100 to 0 (25) and saves and loads it.
+
+### SYNTH and the audio's tables in RAM (2026-10-18)
+
+The details are in `docs/performance-plan.md` ("SYNTH's voice and the audio's tables in RAM"). In short: `.hot` was
+nearly full (about 53 of 56 KiB by the i386 measure scaled to the last device reading), SYNTH's voice still ran from
+flash, and the tables the RAM code reads were in flash too. The pool's grain slots (13 KB) moved to main RAM, the pool
+gave 16 KiB, `.hot` is 72 KiB at 0x01C62000 with SYNTH's block and voice in it, and 22 tables (8.8 KB) are in RAM
+through `HOT_TABLE` (`.data`). Main RAM 87.3 of 96 KB, the pool 257.7 of 264 KiB, `.hot` about 61.5 of 72 KiB (i386
+measure, scaled). Every audio fingerprint unchanged.
 
 ## USB record mode (2026-10-08)
 

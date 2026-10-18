@@ -215,12 +215,12 @@ static void wt_poll(void)
 
 /* key bit k of track t as a pitch, 1/16 semitone, before TUNE (added as the voice plays, so a modulated TUNE
  * moves a held note too: mod.c). The bit's note is key_base's (bryo.h), held to the project's scale (key_snap) */
-static int32_t syn_note16(uint32_t t, uint32_t k)
+static int32_t HOT_CODE syn_note16(uint32_t t, uint32_t k)
 {
     return key_snap(clamp((int32_t)key_base[t] + (int32_t)k, 0, 127)) * 16;
 }
 
-static void syn_start(uint32_t t, uint32_t k, uint32_t nv)
+static void HOT_CODE syn_start(uint32_t t, uint32_t k, uint32_t nv)
 {
     syn_t *s = &syn[t];
     syn_voice_t *v = &s->v[0];
@@ -301,7 +301,7 @@ static inline __attribute__((always_inline)) int32_t syn_pd(uint32_t ph, int32_t
 }
 
 /* CHRD: voice j onto note16 (a chord's tone): from silence a clean start, sounding a retune (legato, gliding by GLID) */
-static void syn_chord_voice(uint32_t t, uint32_t j, uint32_t k, int32_t note16, int legato)
+static void HOT_CODE syn_chord_voice(uint32_t t, uint32_t j, uint32_t k, int32_t note16, int legato)
 {
     syn_t *s = &syn[t];
     syn_voice_t *v = &s->v[j];
@@ -336,7 +336,7 @@ static void syn_chord_voice(uint32_t t, uint32_t j, uint32_t k, int32_t note16, 
 #define SY_FLT(x) (fs ? tsvf_sat(&flt, (x), &ic1, &ic2, ft) : ft ? tsvf_mode(&flt, (x), &ic1, &ic2, ft) \
                       : tsvf_lp(&flt, (x), &ic1, &ic2))
 /* one block of one voice, added into out */
-static void syn_voice(uint32_t t, syn_voice_t *v, int32_t *out, uint32_t n)
+static void HOT_CODE syn_voice(uint32_t t, syn_voice_t *v, int32_t *out, uint32_t n)
 {
     const int16_t *p = TPD(t, MA_SYN);
     tsvf_t flt;
@@ -586,7 +586,7 @@ static void syn_voice(uint32_t t, syn_voice_t *v, int32_t *out, uint32_t n)
 
 /* audio ISR: one block of track t's synth into out; keys: the keys held (bit k: key_base + k); rec: unused (the
  * synth records nothing; REC prints it onto the tape, chain.c) */
-static void syn_block(uint32_t t, uint32_t keys, const int32_t *rec, int32_t *out, uint32_t n)
+static void HOT_CODE syn_block(uint32_t t, uint32_t keys, const int32_t *rec, int32_t *out, uint32_t n)
 {
     syn_t *s = &syn[t];
     uint32_t on = keys & ~s->keys, off = s->keys & ~keys, nv = (uint32_t)clamp(TPD(t, MA_SYN)[SY_VOIC], 1, SYN_NV), j, k;

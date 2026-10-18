@@ -210,3 +210,32 @@ From playing it, 20 s of sound shared by the four tracks is enough, so the memor
 main RAM's 24 chunks are gone (its .data+.bss from 89.9 KB to 38.9 of 96: about 57 KB free for features) and the pool
 gave 11 more, so `.hot` is 56 KiB at 0x01C66000 (39.7 used), with 16 KB of pool headroom. Run 15 (every device on all
 four tracks) sounds a little different: with less memory one of its lines gets less.
+
+**SYNTH's voice and the audio's tables in RAM (2026-10-18).** Since the 56 KiB area, everything new went into
+`.hot` as written (RIPPLE FLOW, the p-locks, SPRD on the channel strip and COLOR, TWIN, the drums' pending
+coefficients, HOLD), and SYNTH was never moved at all: `syn_block` and `syn_voice`, the biggest per-sample routine
+there is, ran from flash on every scene with a SYNTH track (T2 in all three factory scenes), half the size of the
+cache and fighting the screen's code for it. And the constant tables the RAM code reads (the sine, the pitch, the
+envelopes' and filters' curves, ADPCM's steps, RIPPLE's partials, the drum kit) were still in flash: per-block reads
+miss the cache the same way per-block code did.
+
+I can't build for the pi32v2 here, so I measured the way the old numbers were: the unity build preprocessed, its
+inline assembly taken out, `clang --target=i386 -Os`, `size -A`. At `f4a6bc9` that measure read `.hot` 64.5 KB where
+the device's build printed 39.7 KiB (0.63 of it); today it read 84.2 KB, about 53 KiB on the device: nearly full.
+
+- `.hot` grows to 72 KiB at 0x01C62000; the pool gives the 16 KiB (`app.ld`, `build.py`'s POOL_LEN and HOT_LEN).
+  The reach still holds with room: a call only goes to code, which is the start of `.text` (its constants come
+  after), so `.hot` could start well below this and still reach all of it. A wrong guess fails the link, not the boot.
+- The pool's grain slots (`gslot`, 13 KB) move to main RAM's `.bss`, which had about 30 KB spare. They were in the
+  pool only because main RAM was full of sound chunks when GRAIN was built.
+- `syn_block`, `syn_voice`, `syn_start`, `syn_chord_voice`, `syn_note16` are `HOT_CODE`: 13.5 KB on the i386 measure,
+  about 8.5 KiB on the device, and nothing they call is left in flash (their helpers were inlined already).
+- `HOT_TABLE` (defined in the generated `felucca_tables.h`, `tools/gen_tables.py`'s `HOT` set) puts a constant table
+  in `.data`, main RAM, copied there at startup like any initialised data: 22 tables, 8.8 KB, every table of 64 bytes
+  or more the RAM code reads (found from `.hot`'s relocations on a `-fdata-sections` build). `REELS` stays in flash:
+  it holds pointers, and in a section with the others it could conflict on an older compiler.
+
+After it, on the i386 measure: main RAM .data+.bss 87.3 of 96 KB, the pool 257.7 of 264 KiB (12.6 KB headroom, the
+build wants 8), `.hot` 97.7 KB (about 61.5 of 72 KiB on the device). Every audio fingerprint is unchanged: it's
+the same code in another place. What it buys can only be read on the FM-1: TEST's CPU, SRC's line most of all, and
+the factory scene's. If the theory holds, SRC drops a few points where a SYNTH track plays.

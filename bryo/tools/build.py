@@ -244,7 +244,7 @@ def build_app():
 # numbers that fall in the ROM's window but are arithmetic, not addresses: -32767 * 100 (grain.c gr_body's
 # BODY * 32767 / 100, folded by the compiler into an add)
 NOT_ROM = {(-32767 * 100) & 0xFFFFFFFF}
-POOL_LEN, HOT_LEN = 0x46000, 0xE000                # app.ld's POOL and HOT
+POOL_LEN, HOT_LEN = 0x42000, 0x12000                # app.ld's POOL and HOT
 
 
 def check(img, syms, dis, rt):

@@ -46,7 +46,7 @@ enum { RK_PLCK, RK_TUNE };
  * first four are what sounds: MAJ root third fifth octave, DOM7 root third fifth seventh (no octave: the seventh's
  * rub is the point), 5TH root fifth octave twelfth (a power chord), OCT four octaves (one note, four registers). */
 #define RS_PARTS 24u
-static const int16_t RS_PART16[13][RS_PARTS] = {
+static const int16_t RS_PART16[13][RS_PARTS] HOT_TABLE = {
     {0, 192, 304, 384, 446, 496, 539, 576, 609, 638, 664, 688, 710, 731, 750, 768, 785, 801, 816, 830, 843, 856, 869,
      880},                                                                   /* HARM */
     {0, 64, 112, 192, 256, 304, 384, 448, 496, 576},                         /* MAJ */
@@ -209,7 +209,7 @@ static int32_t rs_gain(uint32_t p, uint32_t t60)
 
 /* DEC 0..100 as a ring time, ms */
 /* TONE's damping, 32767 * (15 + 85 * TONE / 100) / 100 (the same arithmetic: two divides a block spared) */
-static const int16_t RS_TONE_A[101] = {
+static const int16_t RS_TONE_A[101] HOT_TABLE = {
     4915, 4915, 5242, 5570, 5898, 6225, 6553, 6553, 6881, 7208, 7536, 7864, 8191, 8519, 8519, 8847, 9174, 9502, 9830,
     10157, 10485, 10485, 10813, 11140, 11468, 11796, 12123, 12123, 12451, 12779, 13106, 13434, 13762, 14089, 14089,
     14417, 14745, 15072, 15400, 15728, 16055, 16055, 16383, 16711, 17038, 17366, 17694, 17694, 18021, 18349, 18677,

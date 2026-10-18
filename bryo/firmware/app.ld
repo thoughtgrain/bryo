@@ -7,11 +7,13 @@
  * last 256 B, the boot probe crt0 writes at 0x01C07F00, stay out of it.)
  * The rest of RAMTEXT holds .lowpool: zero-initialised buffers moved out of the pool (2026-10-12), so the pool
  * could give its top to .hot (56 KiB since 2026-10-13).
- * RAM  : .data/.bss (96 KiB)
+ * RAM  : .data/.bss (96 KiB); .data holds the constant tables the audio path reads (HOT_TABLE, felucca_tables.h)
  * POOL : big zero-initialised buffers (FX lines, canvases), section .pool
- * HOT  : code run from RAM that calls flash code and is called from it (.hot): the audio's once-a-block work,
- *        refetched from flash every block through the cache. High in RAM on purpose: a call reaches 4 MiB either
- *        way (fm1_flash.h), and from here the whole of .text is in reach both ways; RAMTEXT, 0x01C00000, isn't
+ * HOT  : code run from RAM that calls flash code and is called from it (.hot): the audio path, which from flash
+ *        missed the cache every block. High in RAM on purpose: a call reaches 4 MiB either way (fm1_flash.h) and
+ *        calls only go to code, the start of .text (its constants come after); from here all of it is in reach both
+ *        ways; RAMTEXT, 0x01C00000, isn't. 72 KiB since 2026-10-18 (SYNTH's voice moved in): the pool gave 16 KiB,
+ *        its grain slots moved to main RAM
  * STACKS with 256-byte guard bands; NOINIT survives resets and UBOOT entry.
  * 0x01C7FD50.. is reserved: boot_info, boot-state mailbox, vector table. */
 MEMORY
@@ -19,8 +21,8 @@ MEMORY
     XIP    (rx)  : ORIGIN = 0x02000120, LENGTH = 0x8DFBC
     RAMTEXT (rwx): ORIGIN = 0x01C00000, LENGTH = 0x7F00
     RAM    (rwx) : ORIGIN = 0x01C08000, LENGTH = 96K
-    POOL   (rw)  : ORIGIN = 0x01C20000, LENGTH = 0x46000
-    HOT    (rwx) : ORIGIN = 0x01C66000, LENGTH = 0xE000
+    POOL   (rw)  : ORIGIN = 0x01C20000, LENGTH = 0x42000
+    HOT    (rwx) : ORIGIN = 0x01C62000, LENGTH = 0x12000
     NOINIT (rw)  : ORIGIN = 0x01C7C000, LENGTH = 0x3D50
 }
 SECTIONS

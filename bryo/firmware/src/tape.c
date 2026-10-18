@@ -52,7 +52,12 @@ enum { TK_STRT, TK_LEN, TK_SPD, TK_DUB, TK_FADE, TK_REV, TK_HALF, TK_GAIN, TK_RE
        TK_DEC, TK_SUS, TK_REL, TK_PTCH, TK_FRZE, TK_FLEN, TK_WOW, TK_FLUT };
 /* PTCH (2026-10-13): the speed in semitones on top of SPD, 2^(s/12) Q16 for s -24..24 (so a tape plays in tune with
  * the keys: SPD's percent never landed on a note) */
-static const int32_t TAPE_SEMI_Q16[49] = {16384, 17358, 18390, 19484, 20643, 21870, 23170, 24548, 26008, 27554, 29193, 30929, 32768, 34716, 36781, 38968, 41285, 43740, 46341, 49097, 52016, 55109, 58386, 61858, 65536, 69433, 73562, 77936, 82570, 87480, 92682, 98193, 104032, 110218, 116772, 123715, 131072, 138866, 147123, 155872, 165140, 174960, 185364, 196386, 208064, 220436, 233544, 247431, 262144};
+static const int32_t TAPE_SEMI_Q16[49] HOT_TABLE = {
+    16384, 17358, 18390, 19484, 20643, 21870, 23170, 24548, 26008, 27554, 29193, 30929,
+    32768, 34716, 36781, 38968, 41285, 43740, 46341, 49097, 52016, 55109, 58386, 61858,
+    65536, 69433, 73562, 77936, 82570, 87480, 92682, 98193, 104032, 110218, 116772, 123715,
+    131072, 138866, 147123, 155872, 165140, 174960, 185364, 196386, 208064, 220436, 233544, 247431,
+    262144};
 
 typedef struct {                     /* a reel in flash (bryo_reels.h REELS_INIT) */
     const char *name;
@@ -151,7 +156,7 @@ static struct {
 static inline __attribute__((always_inline)) int32_t db_q10(int32_t db) { return DB_Q10[clamp(db, -24, 24) + 24]; }
 
 /* ------------------------------------------------------------- codec --- */
-static const int16_t IMA_STEP[89] = {
+static const int16_t IMA_STEP[89] HOT_TABLE = {
     7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 19, 21, 23, 25, 28, 31, 34, 37, 41, 45, 50, 55, 60, 66, 73, 80, 88, 97,
     107, 118, 130, 143, 157, 173, 190, 209, 230, 253, 279, 307, 337, 371, 408, 449, 494, 544, 598, 658, 724, 796,
     876, 963, 1060, 1166, 1282, 1411, 1552, 1707, 1878, 2066, 2272, 2499, 2749, 3024, 3327, 3660, 4026, 4428, 4871,
@@ -160,7 +165,7 @@ static const int16_t IMA_STEP[89] = {
 static const int8_t IMA_IDX[8] = {-1, -1, -1, -1, 2, 4, 6, 8};
 /* the index after a nibble: clamp(idx + IMA_IDX[code & 7], 0, 88), looked up instead of added and clamped (the
  * decoder is the scene's biggest single cost: a nibble for every sample every voice and grain reads) */
-static const uint8_t IMA_NXT[89][8] = {
+static const uint8_t IMA_NXT[89][8] HOT_TABLE = {
     {0, 0, 0, 0, 2, 4, 6, 8}, {0, 0, 0, 0, 3, 5, 7, 9}, {1, 1, 1, 1, 4, 6, 8, 10}, {2, 2, 2, 2, 5, 7, 9, 11},
     {3, 3, 3, 3, 6, 8, 10, 12}, {4, 4, 4, 4, 7, 9, 11, 13}, {5, 5, 5, 5, 8, 10, 12, 14}, {6, 6, 6, 6, 9, 11, 13, 15},
     {7, 7, 7, 7, 10, 12, 14, 16}, {8, 8, 8, 8, 11, 13, 15, 17}, {9, 9, 9, 9, 12, 14, 16, 18},

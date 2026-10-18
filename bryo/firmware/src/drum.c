@@ -17,7 +17,7 @@ enum {
 /* code, TONE: p16 ratio mix2 bend bend_ms body_ms tone_lv,
  *       NOISE: filt cut q16 mset mp16 metal rise10 hit_ms hit_lv bursts gap10 late tail_ms tail_lv,
  *       drive gain chokes */
-static const dk_patch_t DRM_KIT[DRM_NINST] = {
+static const dk_patch_t DRM_KIT[DRM_NINST] HOT_TABLE = {
     /* bass drum: a 58 Hz sine that drops 4.5 semitones over its first 15 ms (the thump), a 2nd harmonic for the
      * small speaker, a 200 ms body, a click of low noise at the strike, driven a little (2026-10-14: it was a 110 ms
      * body with a 2.5-semitone drop over 6 ms and a faint thud, "very soft, needs more body") */

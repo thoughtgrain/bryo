@@ -156,7 +156,7 @@ static int32_t sp_sync_q8(int32_t time)
 /* ------------------------------------------------- 8-bit companding --- */
 /* sign, a 3-bit segment, a 4-bit step inside it: 16 steps of 16 below 256, then each segment twice the last up to
  * 32,767 (A-law's shape). The segment of |x| >> 8: */
-static const uint8_t SP_SEG[128] = {
+static const uint8_t SP_SEG[128] HOT_TABLE = {
     0, 1, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
     6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
     7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,

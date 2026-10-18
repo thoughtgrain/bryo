@@ -604,7 +604,7 @@ static struct {
 #define MOD_BEAT_DEN 2646000u        /* 60 x 44100: bpm x CTL x 65536 / this = beats Q16 a block */
 
 /* the tempo's divisions (LFO SYNC BPM: RATE picks one; faster to the right), beats Q16 */
-static const uint32_t MOD_DIV[16] = {64u << 16, 32u << 16, 16u << 16, 12u << 16, 8u << 16, 6u << 16, 4u << 16,
+static const uint32_t MOD_DIV[16] HOT_TABLE = {64u << 16, 32u << 16, 16u << 16, 12u << 16, 8u << 16, 6u << 16, 4u << 16,
                                      3u << 16, 2u << 16, 3u << 15, 1u << 16, 3u << 14, 1u << 15, 21845u, 1u << 14,
                                      1u << 13};
 /* .. each MOD_DIV entry's shift where it's a power of two (0xFF: the triplets and 1/3: a divide), so the LFO's

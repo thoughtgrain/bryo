@@ -99,8 +99,8 @@ One core, no RTOS. Three contexts, and the rules between them are most of the ar
 **Memory.** Sound lives in one pool of 108 chunks (20.1 s of tape-format sound: `mem.c`) handed out by use: tapes as
 long as what's on them, GRAIN's live buffers, RIPPLE's strings and CHRONOS's lines while they're on. Nothing is
 set aside per track. When it runs short: a cleared tape's chunks first, then a parked track's tape, then the end of
-the longest tape. Main RAM holds 85.1 of 96 KiB (.bss; 50.7 of it sound on purpose, the rest of the 96 the stack's), the pool 329.6 of 336 KiB (2026-10-11, 40 grain slots and NPK 24, the last two by arithmetic: 384 and 416 B more, and the canvas's 1,620; 32-bit
-build: the firmware preprocessed, its inline assembly taken out, compiled `-m32 -Os`, `size -A`).
+the longest tape. Main RAM holds 87.3 of 96 KB (.data+.bss: the grain slots and the audio's constant tables among it; the stacks have their own RAM), the pool 257.7 of 264 KiB, the code in RAM (`.hot`) about 61.5 of 72 KiB (2026-10-18; 32-bit
+build: the firmware preprocessed, its inline assembly taken out, compiled `-m32 -Os`, `size -A`; `.hot` scaled by 0.63, its ratio to the device build at `f4a6bc9`).
 
 **Parameters.** `param.c` holds every knob as an integer in its own range (`tp[t]`), with a descriptor (name,
 range, format) per knob. Up to 24 knobs a device or engine, in pages of four (20 until GRAIN's GRNS, 2026-10-11). The main loop writes them; the ISR
@@ -254,6 +254,10 @@ number.
   four), split by what each track's settings ask for when it runs short; what's left over is everyone's (since
   2026-10-11: a track alone has all 40, not just what RATE and SIZE ask). GRAIN 6's GRNS can hold a number for a
   track instead (1-40, taken from the AUTO tracks first, kept whatever the others do).
+- **2026-10-18: SYNTH and the audio's tables run from RAM.** `.hot` was nearly full and SYNTH's voice still ran
+  from flash. The grain slots moved from the pool to main RAM, the pool gave 16 KiB, `.hot` is 72 KiB with SYNTH in
+  it, and the 8.8 KB of tables the audio path reads live in RAM (`HOT_TABLE`). Same sound, bit for bit; the gain
+  is the FM-1's to show.
 - **2026-10-18: AMBIENT only smooth.** Scenes hold each modulator's AMT now (only AMT: the modulator and its depths
   stay the groove's), so AMBIENT turns the stepping ones to 0: the strings and bells no longer retune a bar at a time,
   the random LFOs rest. SYNTH's GLID also glides a modulated TUNE (an octave in GLID's time, Q14), so the voice's chord

@@ -62,7 +62,7 @@ static int32_t reso_root16(uint32_t t);
 enum { SCAN_TAPE, SCAN_STR, SCAN_POS, SCAN_DLY };
 
 /* sin^2 (pi/2 i/128), Q15: a window's rising ramp */
-static const int16_t GR_RAMP[129] = {
+static const int16_t GR_RAMP[129] HOT_TABLE = {
     0, 5, 20, 44, 79, 123, 177, 241, 315, 398, 491, 593, 705, 827, 958, 1098,
     1247, 1406, 1573, 1749, 1935, 2128, 2331, 2542, 2761, 2989, 3224, 3468, 3719, 3978, 4244, 4518,
     4799, 5086, 5381, 5682, 5990, 6304, 6624, 6950, 7281, 7618, 7961, 8308, 8660, 9017, 9379, 9744,
@@ -74,9 +74,10 @@ static const int16_t GR_RAMP[129] = {
     32767,
 };
 /* 1 / sqrt(n), Q15: a grain's level when n grains are expected to overlap */
-static const int16_t GR_NORM[33] = {32767, 32767, 23170, 18918, 16384, 14654, 13377, 12385, 11585, 10922, 10362, 9880,
-                                     9459, 9088, 8757, 8460, 8192, 7947, 7723, 7517, 7327, 7151, 6986, 6833, 6689,
-                                     6554, 6426, 6306, 6193, 6085, 5983, 5885, 5793};   /* 1 / sqrt n, Q15 */
+static const int16_t GR_NORM[33] HOT_TABLE = {
+    32767, 32767, 23170, 18918, 16384, 14654, 13377, 12385, 11585, 10922, 10362, 9880,
+    9459, 9088, 8757, 8460, 8192, 7947, 7723, 7517, 7327, 7151, 6986, 6833, 6689,
+    6554, 6426, 6306, 6193, 6085, 5983, 5885, 5793};   /* 1 / sqrt n, Q15 */
 /* the pool, by how many tracks have GRAIN on */
 static const uint8_t GR_POOL[NTRK + 1u] = {40, 40, 30, 18, 18};   /* (2026-10-11: were 32 24 16 16, before the
                                                                   * grains rendered at half rate) */
@@ -160,7 +161,7 @@ typedef struct {
     uint8_t hq;                      /* 1: they're 0 (nothing to carry into the next block) */
 } grain_trk_t;
 
-static grain_t gslot[GR_SLOTS] __attribute__((section(".pool")));
+static grain_t gslot[GR_SLOTS];      /* (main RAM since 2026-10-18: the pool's 13 KB went to the code in RAM, app.ld) */
 static uint32_t gr_used[2];          /* a bit per slot sounding (GR_SLOTS past 32: two words) */
 static uint32_t gr_trk[NTRK][2];     /* the same bits by track: a track walks its own slots, not all 40 (kept in
                                       * step with gr_used by gr_tset and gr_tclr: a slot is set with its track) */
