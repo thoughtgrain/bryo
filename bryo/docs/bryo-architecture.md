@@ -3344,6 +3344,19 @@ notes). Run 31 measures 3,001 against 2,998 before. Its fingerprint is rewritten
 (`test_ambient_hall`): the hall's settings, the sends, no noise, the glide, 80 BPM, and a tail still sounding 2 to 3 s
 after STOP (11.6 dB under the playing; the voices' 10 s releases set most of that, so it doesn't separate the halls).
 
+### TWIN's spike on MIX (2026-10-18)
+
+"Twin caused CPU to go to 90 % when any mix occurs." TWIN MIX and XFD read both reels for every voice, so they allow
+two voices, each borrowing a spare voice's block reader (`pol_rd[t][j + 2]`) for reel B. Voices 3 and 4 were handed
+their own reader as B's: harmless while they were idle, but turning MIX on with more than two notes sounding left
+them releasing while reading A and B through the same reader, decoding a fresh ADPCM block on every sample. Measured
+on the host: 39,790 instructions a sample against 769, for as long as they rang (a long REL: seconds). Now voices
+past the two get no B reader; `pol_voice` sees that (`kill`), reads A only and fades them out over the block, so
+they're gone at once without a jump. The two-reel path also got the single reel's fast read (`tape_run` on both
+heads: no call, bounds check or block lookup a sample), so steady MIX with two voices is 724 against 759 for plain
+POLY with four (it was about 880). Every fingerprint held. Test: MIX turned on with four notes sounding, voices 3 and
+4 silent within the block, the largest sample step 308.
+
 ## USB record mode (2026-10-08)
 
 Recording from the computer is a mode of its own, not a source a track plays through: you go in, record, put the

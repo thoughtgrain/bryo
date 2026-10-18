@@ -4291,6 +4291,29 @@ static void test_twin(void)
     focus_dev(DEV_SRC, 4);
     ui.msg_t = 0;
     shot("BRYO", "poly_twin");
+    {   /* 2026-10-18 ("TWIN caused CPU to go to 90 % when any mix occurs"): MIX turned on with four notes sounding.
+         * Voices 3 and 4 had no reader of their own for B (theirs is lent to voices 1 and 2), so they read both reels
+         * through one and decoded a block a sample, for as long as they rang: 50 times the load. Now they fade out
+         * over the block MIX comes on in, without a jump */
+        static int32_t blk[4 * CTL];
+        int32_t jump = 0;
+        uint32_t k, left;
+        p[PL_TWIN] = TW_OFF;
+        p[PL_REL] = 100;
+        fm1_in.notes = note_bit_of_white(0) | note_bit_of_white(2) | note_bit_of_white(4) | note_bit_of_white(6);
+        render(200, 0);
+        p[PL_TWIN] = TW_MIX;
+        render(4, blk);
+        for (k = 1; k < 4u * CTL; k++)
+            jump = abs(blk[k] - blk[k - 1]) > jump ? abs(blk[k] - blk[k - 1]) : jump;
+        left = (pol[0].v[2].stage != 0) + (pol[0].v[3].stage != 0);
+        snprintf(b, sizeof b, "MIX on with four notes sounding: voices 3 and 4 out within the block (%u left), no jump "
+                 "(largest step %d)", left, jump);
+        check(b, !left && jump < 12000);
+        fm1_in.notes = 0;
+        render(100, 0);
+        p[PL_REL] = 45;
+    }
     p[PL_TWIN] = TW_OFF;
     for (j = 1; j < NTRK; j++)
         track[j].mute = 0;

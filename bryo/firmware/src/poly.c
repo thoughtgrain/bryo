@@ -181,6 +181,11 @@ static void HOT_CODE pol_voice(uint32_t t, pol_voice_t *v, tape_rd_t *rd, const 
 {
     const int16_t *p = TPD(t, MA_POL);
     uint32_t i, mode = (uint32_t)clamp(p[PL_TYPE], 0, 2);
+    int kill = (tw == TW_MIX || tw == TW_XFD) && !rdb;      /* (2026-10-18: a voice past the two that TWIN's two reels
+                                                             * allow, still sounding when they came on: its reader is
+                                                             * B's for another voice, so it fades out this block
+                                                             * instead of reading both reels through one reader, which
+                                                             * decoded a block every sample: 50 times the load) */
     int fs = p[PL_RES] > TSVF_SAT_RES;                  /* (RES high: the filter's soft limit, tsvf_sat) */
     uint32_t ety = (uint32_t)clamp(p[PL_ETYP], 0, 2);   /* (ETYP: both envelopes') */
     int32_t a0 = v->amp, a1, e15, pos = v->pos, ic1 = v->ic1, ic2 = v->ic2, c8;
@@ -200,6 +205,8 @@ static void HOT_CODE pol_voice(uint32_t t, pol_voice_t *v, tape_rd_t *rd, const 
     env_step(&v->e2, &v->st2, p[PL_ATK2], p[PL_DEC2], p[PL_SUS2], p[PL_REL2], ety);
     e15 = v->env >> 9;
     a1 = e15;
+    if (kill)                                               /* (two reels and no reader for B: out over this block) */
+        a1 = 0;
     pol_tune(t, v);                                         /* (TUNE as it is now) */
     {
         uint32_t lpm = (uint32_t)clamp(tp[t].pol[PL_LOOP], 0, LP_PING), le = pol_end(t, vw->len), ls;
@@ -207,7 +214,7 @@ static void HOT_CODE pol_voice(uint32_t t, pol_voice_t *v, tape_rd_t *rd, const 
         if (lpm && le > ls + 64u) {                         /* LOOP: the head kept in LSTR..END, sample by sample */
             int32_t lo = (int32_t)(ls << 12), hi = (int32_t)(le << 12), span = hi - lo, xf = p[PL_LXF] * 22, da;
             int32_t los = 0, his = 0, span2 = 0, pos2 = v->pos2, y;
-            int two = tw == TW_MIX || tw == TW_XFD, filt;
+            int two = (tw == TW_MIX || tw == TW_XFD) && !kill, filt;
             int32_t gb = 0, ga = 32767;
             if (xf > (int32_t)((le - ls) / 2u))
                 xf = (int32_t)((le - ls) / 2u);
@@ -280,6 +287,8 @@ static void HOT_CODE pol_voice(uint32_t t, pol_voice_t *v, tape_rd_t *rd, const 
     v->tlp = tlp;
             v->ic2 = ic2;
             v->amp = a1;
+            if (kill)
+                v->stage = 0, v->env = 0;
             return;
         }
     }
@@ -296,19 +305,39 @@ static void HOT_CODE pol_voice(uint32_t t, pol_voice_t *v, tape_rd_t *rd, const 
     }
     c8 = mod_fine8(t, FN_PCUT, p[PL_CUT]);                  /* (CUT finer than its semitones when modulated: mod.c) */
     pol_filter(t, v, c8 + (p[PL_ENV] ? p[PL_ENV] * 96 * (v->e2 >> 16) / 100 : 0));   /* (ENV 0: no divide) */
-    if (tw == TW_MIX || tw == TW_XFD) {                     /* TWIN, both reels: B at its own head, the balance */
+    if (kill)
+        a1 = 0;
+    if ((tw == TW_MIX || tw == TW_XFD) && !kill) {          /* TWIN, both reels: B at its own head, the balance */
         int32_t bl = tw == TW_MIX ? p[PL_BLND] : clamp(((int32_t)v->note - 60) * 4 + p[PL_BLND], 0, 100);
-        int32_t gb = bl * 32767 / 100, ga = 32767 - gb, pos2 = v->pos2, y;
+        int32_t gb = bl * 32767 / 100, ga = 32767 - gb, pos2 = v->pos2, y, ba, bb;
         int filt = mode || c8 < 127 << 8 || p[PL_RES] || p[PL_ENV], da = a1 - a0;
         pol_tune_b(t, v);
-        for (i = 0; i < n; i++) {
-            int32_t x = mulq15(tape_read(vw, rd, pos), ga) + mulq15(tape_read(vwb, rdb, pos2), gb);
-            pos += v->inc;
-            pos2 += v->inc2;
-            if (tr)
+        ba = tape_run(vw, rd, pos, v->inc, n);
+        bb = ba >= 0 ? tape_run(vwb, rdb, pos2, v->inc2, n) : -1;
+        if (bb >= 0) {                                      /* (both heads' runs inside one decoded block each: read
+                                                             * straight from them, as the single reel does) */
+            for (i = 0; i < n; i++) {
+                int32_t o = (pos >> 12) - ba, o2 = (pos2 >> 12) - bb, a = rd->s[o], b = rd->s[o + 1];
+                int32_t a2 = rdb->s[o2], b2 = rdb->s[o2 + 1];
+                int32_t x = mulq15(a + (((b - a) * (pos & 4095)) >> 12), ga) +
+                            mulq15(a2 + (((b2 - a2) * (pos2 & 4095)) >> 12), gb);
+                pos += v->inc;
+                pos2 += v->inc2;
+                if (tr)
                     x += click_step(&tr, &trng, &tlp, tg);
                 y = filt ? PL_FLT(x >> 1) << 1 : x;
-            out[i] += mulq15(y, a0 + ((da * (int32_t)i) >> CTL_LOG2));
+                out[i] += mulq15(y, a0 + ((da * (int32_t)i) >> CTL_LOG2));
+            }
+        } else {
+            for (i = 0; i < n; i++) {
+                int32_t x = mulq15(tape_read(vw, rd, pos), ga) + mulq15(tape_read(vwb, rdb, pos2), gb);
+                pos += v->inc;
+                pos2 += v->inc2;
+                if (tr)
+                    x += click_step(&tr, &trng, &tlp, tg);
+                y = filt ? PL_FLT(x >> 1) << 1 : x;
+                out[i] += mulq15(y, a0 + ((da * (int32_t)i) >> CTL_LOG2));
+            }
         }
         v->pos2 = pos2;
     } else {
@@ -343,6 +372,8 @@ static void HOT_CODE pol_voice(uint32_t t, pol_voice_t *v, tape_rd_t *rd, const 
     v->tlp = tlp;
     v->ic2 = ic2;
     v->amp = a1;
+    if (kill)
+        v->stage = 0, v->env = 0;
 }
 
 /* audio ISR: one block of track t's POLY into out; keys: the keys held (bit k: key_base + k); rec: unused (REC prints POLY onto the
@@ -394,5 +425,5 @@ static void HOT_CODE pol_block(uint32_t t, uint32_t keys, const int32_t *rec, in
     for (j = 0; j < POL_NV; j++)
         if (s->v[j].stage || s->v[j].amp)
             pol_voice(t, &s->v[j], &pol_rd[t][j], s->v[j].b && tw >= TW_ALT ? &vwb : &vw, out, n, &vwb,
-                      &pol_rd[t][j < 2u ? j + 2u : j], tw);
+                      j < 2u ? &pol_rd[t][j + 2u] : 0, tw);   /* (B's reader: the spare voices', so 2 voices) */
 }

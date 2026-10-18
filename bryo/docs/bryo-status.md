@@ -254,6 +254,9 @@ number.
   four), split by what each track's settings ask for when it runs short; what's left over is everyone's (since
   2026-10-11: a track alone has all 40, not just what RATE and SIZE ask). GRAIN 6's GRNS can hold a number for a
   track instead (1-40, taken from the AUTO tracks first, kept whatever the others do).
+- **2026-10-18: TWIN's spike fixed.** MIX or XFD turned on with more than two notes sounding left voices 3 and 4
+  reading both reels through one block reader: a block decoded every sample, 50 times the load while they rang. They
+  fade out over the block now, and both reels use the fast block read (MIX is cheaper than plain POLY with four).
 - **2026-10-17: AMBIENT, smooth and deep.** 80 BPM (its own scene tempo), no noise, darker and gliding, the drone
   walked by FLOW, the bells' echoes smeared, every track deep in a whole, long, dark hall with a pre-delay. The same
   load as before (COLOR's TILT was tried and cost 412 instr/sample; filters and the room's tone do it free).
