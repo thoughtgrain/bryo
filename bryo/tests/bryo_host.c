@@ -11115,9 +11115,11 @@ static void test_arp_hold(void)
     pj_new(0);
     tp[0].arp[AR_MODE] = ARM_LTCH;
     tp[0].arp[AR_GATE] = 20;
+    *scn_amt(0, 3) = 0;
     scn_store(0);
     tp[0].arp[AR_MODE] = ARM_HOLD;
     tp[0].arp[AR_GATE] = 80;
+    *scn_amt(0, 3) = 100;
     scn_store(1);
     scn_take(&scn_from);
     scn_mix(&scn_from, &scn[0], SCN_FULL / 4);
@@ -11127,8 +11129,17 @@ static void test_arp_hold(void)
     check("..three quarters: MODE LTCH (switched at the midpoint), GATE 35", tp[0].arp[AR_MODE] == ARM_LTCH &&
           tp[0].arp[AR_GATE] == 35);
     {
+        uint32_t e, k, ok = 1;
+        for (e = 0; e < NME; e++)
+            for (k = 0; k < NPK; k++)
+                ok &= !strcmp(ME_P[e][k].label ? ME_P[e][k].label : "", "AMT") == (k == SCN_AMTK[e]);
+        check("..and each modulator's AMT (M3's 100 to 0, three quarters of the way: 25); SCN_AMTK is AMT in every "
+              "engine", tp[0].mod[3][SCN_AMTK[tp[0].engine[3]]] == 25 && ok);
+    }
+    {
         scene_t s1 = scn[0], s2 = scn[1];
-        check("..saved and loaded, the scenes' arpeggiators with them", pj_save(0) == 0 && (scn_clear(), pj_load(0) == 0)
+        check("..saved and loaded, the scenes' arpeggiators and AMTs with them",
+              pj_save(0) == 0 && (scn_clear(), pj_load(0) == 0)
               && !memcmp(&scn[0], &s1, sizeof s1) && !memcmp(&scn[1], &s2, sizeof s2));
     }
 }
@@ -11525,8 +11536,8 @@ static void test_ambient_hall(void)
 }
 static void test_factory_scene(void)
 {
-    int32_t an2[64], tu[64], rp[64], pk = 0, base3, min3 = 1 << 20, base3t, pk1 = 0;
-    uint32_t n2 = 0, ntu = 0, nrp = 0, b, i, inkey = 1, steps2 = 0, was2 = 0;
+    int32_t an2[64], tu[64], rp[64], t4[64], tg[64], pk = 0, base3, min3 = 1 << 20, base3t, pk1 = 0;
+    uint32_t n2 = 0, ntu = 0, nrp = 0, nt4 = 0, ntg = 0, b, i, inkey = 1, steps2 = 0, was2 = 0;
     char m[220];
     power_on();
     pj_wipe();
@@ -11561,12 +11572,20 @@ static void test_factory_scene(void)
         if (b % 64u == 0u) {
             ntu = distinct_add(tu, ntu, TPD(1, MA_SYN)[SY_TUNE]);
             nrp = distinct_add(rp, nrp, TPD(2, DEV_RESO)[RP_PTCH]);
+            nt4 = distinct_add(t4, nt4, TPD(3, MA_POL)[PL_TUNE]);
+            if (syn[1].v[0].stage && ntg < 64u)
+                ntg = distinct_add(tg, ntg, syn[1].v[0].tgq >> 14);
         }
     }
     snprintf(m, sizeof m, "..AMBIENT, eight bars: T2 holds its chord (struck %u time(s), its root through %u notes "
-             "as M4 moves it over %u chords, gliding), T3's strings %u roots; peak %d", steps2, n2, ntu, nrp, pk);
-    check(m, steps2 == 1u && n2 == 3u && ntu == 3u && nrp >= 4u && pk < 32767 && peak_of(track_rt[0].last, CTL) == 0 &&
-          syn_sounding(1) >= 2u && pol[3].v[0].stage);
+             "as M4 moves it over %u chords, gliding through %u pitches); still: T3's strings on %u root, T4's bells "
+             "%u tuning; peak %d", steps2, n2, ntu, ntg, nrp, nt4, pk);
+    check(m, steps2 == 1u && n2 == 3u && ntu == 3u && ntg > 8u && nrp == 1u && nt4 == 1u && pk < 32767 &&
+          peak_of(track_rt[0].last, CTL) == 0 && syn_sounding(1) >= 2u && pol[3].v[0].stage);
+    check("..AMBIENT: nothing steps (the SEQ's and random LFO's AMT 0 but T2's chord, GLID gliding it; the grains "
+          "on the drone's own pitch)", tp[1].mod[3][8] == 0 && tp[2].mod[2][9] == 0 && tp[2].mod[3][8] == 0 &&
+          tp[3].mod[2][9] == 0 && tp[3].mod[3][8] == 0 && tp[1].mod[2][9] == 100 && tp[1].syn[SY_GLID] > 0 &&
+          tp[2].dev[DEV_GRAIN][GP_PRND] == 0);
     check("..every root T2's chord takes is in A minor (Am Dm Em)", inkey);
     base3 = tp[2].dev[DEV_SRC][TK_LVL];
     for (b = 0; b < 1378u; b++) {                        /* (T1 silent: T3's level as it is) */

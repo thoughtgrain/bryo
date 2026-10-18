@@ -3404,6 +3404,39 @@ Tests (`test_arp_hold`, the factory test): HOLD sounds the chord whole and never
 go, HOLD to LTCH; TAPE's slices together; a scene morph switching MODE at the midpoint and morphing GATE; the save and
 load; AMBIENT's voice struck once in eight bars as its root moves; the unmute striking the held chord again.
 
+### AMBIENT only smooth: scenes hold modulator AMT, TUNE glides (2026-10-18)
+
+"Don't forget that the ambient scene should only really have smooth evolving sounds." After HOLD, four things in
+AMBIENT still stepped, all from the groove's modulation, which every scene shared: M4's SEQ retuned the strings
+(RESONATOR PTCH) and the bells (POLY TUNE) a bar at a time, M3's random LFO stepped T2's and T4's cutoffs and T3's
+grain SIZE, the voice's chord jumped to each new root (GLID only glides between keys, and its rate is GLID's time
+for 64 semitones, so a 5-semitone move at GLID 45 took 2 ms), and the grains picked a random scale note each
+(PRND 12), sparse enough (RATE 10) to be heard as separate events.
+
+**Scenes hold each modulator's AMT** (`scene_t.amt[NTRK][NSLOT]`): taken from the slot's current engine
+(`SCN_AMTK[engine]`, AMT's place in `ME_P`: LFO 8, ADSR 10, SEQ 9, FOLLOW 5; a test checks it against the labels),
+morphing like any knob. Only AMT: a modulator's other knobs and its depths stay the groove's, so one scene can
+silence a modulator (or bring it in slowly over a morph) without the groove forgetting what it does. `mod_place`
+reads AMT every block, so no rebuild. In a project they're more scene entries (`PJ_SC_AMT` after `PJ_SC_ARP`, format
+still 13; read clamped 0..100); an older file's scenes read with AMT as the project has it. The factory's lists set
+it with `TPS_AMTK` (k the slot), every slot reset to 100 for each scene.
+
+**SYNTH's TUNE glides with GLID** (`syn_voice_t.tgq`): a voice keeps TUNE as it has it, 1/16 semitone in Q14, and
+with GLID above 0 moves toward the modulated TUNE at an octave in GLID's time (`ENV_LIN[GLID] x 3 / 16` a block:
+ENV_LIN's full scale, 1 << 24, is 192 sixteenths here). The Q14 matters: the key glide's `ENV_LIN >> 14` truncates
+to 1 above GLID 85 or so, which would cap the slowest TUNE glide at a fraction of a second. A new voice takes TUNE as
+it is (`tgo`); GLID 0 is the jump as before, so every other sound is bit-identical (the fingerprints moved only for
+run 31).
+
+**AMBIENT**: AMT 0 on T2's M3, T3's M4 and M3, T4's M4 and M3; T2's M4 (the chord) stays at 100 with GLID 118, about
+2 s for Am to Dm. The grains: PRND 0 (the drone's own pitch), RATE 20 (4 grains a second of 500 ms: two at once, a
+continuous cloud). Run 31 by callgrind: 2,998 a sample (RATE 10: 2,940; 28: 3,108; the old 2,925 had RATE 10 and
+PRND 12).
+
+Tests: the factory test's eight bars now see the voice glide through more than eight pitches between its three roots,
+the strings on one root, the bells on one tuning, and the stepping modulators' AMT at 0; `test_arp_hold`'s scene morph
+moves M3's AMT three quarters of the way from 100 to 0 (25) and saves and loads it.
+
 ## USB record mode (2026-10-08)
 
 Recording from the computer is a mode of its own, not a source a track plays through: you go in, record, put the

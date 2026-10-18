@@ -57,6 +57,10 @@ typedef struct {
     int32_t e2;                  /* .. its level, Q24 */
     uint32_t age2;               /* .. the note it started on (a new age: a new note, it starts again) */
     uint32_t phs;                /* SUB's phase */
+    int32_t tgq;                 /* TUNE as the voice has it, 1/16 semitone Q14: with GLID, a modulated TUNE (a SEQ's
+                                  * chord moves) glides there, an octave in GLID's time, instead of jumping
+                                  * (2026-10-18) */
+    uint8_t tgo;                 /* .. set since the voice started (0: take TUNE as it is) */
 } syn_voice_t;
 
 typedef struct {
@@ -262,6 +266,7 @@ static void syn_start(uint32_t t, uint32_t k, uint32_t nv)
     v->stage = 1;
     v->age = ++s->age;
     v->to16 = note;
+    v->tgo = 0;
     v->p16 = glide && s->last16 ? s->last16 : note;
     s->last16 = note;
     v->tr = TPD(t, MA_SYN)[SY_TRAN] > 0 ? CLICK_N : 0u;   /* (TRAN: a click at every start, legato aside) */
@@ -323,6 +328,8 @@ static void syn_chord_voice(uint32_t t, uint32_t j, uint32_t k, int32_t note16, 
     v->age = ++s->age;
     v->p16 = glide && v->p16 ? v->p16 : note16;
     v->to16 = note16;
+    if (!v->stage || !glide)
+        v->tgo = 0;
 }
 
 /* the voice's filter on x: TYPE's output (LP the plain one), through tsvf_sat when RES is high (fs) */
@@ -360,13 +367,23 @@ static void syn_voice(uint32_t t, syn_voice_t *v, int32_t *out, uint32_t n)
             st = 1;
         v->p16 += d > st ? st : d < -st ? -st : d;
     }
+    {                                                       /* TUNE: as it is, or with GLID gliding there */
+        int32_t tu = mod_pitch16(t, FN_SYN, p[SY_TUNE]);
+        if (!p[SY_GLID] || !v->tgo) {
+            v->tgq = tu * 16384;
+            v->tgo = 1;
+        } else if (v->tgq != tu * 16384) {               /* (ENV_LIN's full scale, 1 << 24, is 192 sixteenths here) */
+            int32_t st = (int32_t)(ENV_LIN[p[SY_GLID] & 127] * 3u >> 4), d = tu * 16384 - v->tgq;
+            v->tgq += d > st ? st : d < -st ? -st : d;
+        }
+    }
     e15 = v->env >> 9;
     e2 = v->e2 >> 9;                                        /* (ENV 2, Q15: IENV's, and ENV's at DEST) */
     a1 = e15;
     if (dst == 1u)                                          /* DEST DRV: the drive's envelope */
         drv = clamp(drv + ed * (e2 >> 7) / 256, 0, 100);
     dg = (100 + 2 * drv) * 4096 / 100;
-    pp = clamp(v->p16 + mod_pitch16(t, FN_SYN, p[SY_TUNE]) + (dst == 2u ? ed * 384 * (e2 >> 7) / 25600 : 0), 0, 2047);
+    pp = clamp(v->p16 + (v->tgq >> 14) + (dst == 2u ? ed * 384 * (e2 >> 7) / 25600 : 0), 0, 2047);
                                                             /* (DEST PTCH: ENV 100 at its top, +24 semitones) */   /* (TUNE as it is now, to 1/16 semitone
                                                                            * when it's modulated: mod.c) */
     inc1 = p[SY_FINE] ? cents_inc(pp, p[SY_FINE], 0) : pitch_inc((uint32_t)pp);   /* (FINE: cents, exactly) */

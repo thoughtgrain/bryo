@@ -164,7 +164,7 @@ under the address and undefined-behaviour sanitizers).
 | 22 | 1,750 | 47 % | | |
 | 29 | 810 | 22 % (was 46 %) | | |
 | 30 | 2,652 | 71 % (was 85 %) | | |
-| 31 | 3,226 (the factory scene, AMBIENT after 2026-10-15: bowed bells, longer grains and tails; 3,200 before it, measured as in the note of 2026-10-11 below; 2,998 by callgrind on 2026-10-17, after that day's changes) | 75 % (was 81 %) | | |
+| 31 | 3,226 (the factory scene, AMBIENT after 2026-10-15: bowed bells, longer grains and tails; 3,200 before it, measured as in the note of 2026-10-11 below; 2,998 by callgrind on 2026-10-17, after that day's changes; 2,925 then 2,998 on 2026-10-18, held chords, then nothing stepping) | 75 % (was 81 %) | | |
 
 Measured again on 2026-10-17 (GATE 400, scene tempo, freeze to tape, p-locks, SPRD on the channel and COLOR):
 by callgrind, run 1 1,020, 15 5,267, 24 1,987, 25 2,806, 31 2,998, 32 2,896 (TEST now plays GLITCH at its 136

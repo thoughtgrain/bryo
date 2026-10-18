@@ -262,6 +262,7 @@ static const uint8_t TPS_ARPC[NTRK] = {0, 4, 0, 5};
 /* a scene's knobs: track, array, knob, value (the arrays as tpf_set_t's, TPF_S slots aside; TPS_ARPK: the
  * arpeggiator's, AR_*) */
 #define TPS_ARPK 0xF0u
+#define TPS_AMTK 0xF1u               /* (a modulator's AMT, k the slot: 0 M1, 1 M2, 2 M4 SEQ, 3 M3 LFO; 100 if unsaid) */
 typedef struct {
     uint8_t t, a, k;
     int16_t v;
@@ -276,14 +277,17 @@ static const tps_k_t TPS_AMB[] = {   /* 2026-10-15: every sound swells and fades
                                       * walked slowly by FLOW. 2026-10-18, "too many sounds moving quickly; arps on
                                       * ambient is too much": the voice and the bells HOLD their chords (no steps):
                                       * the voice one MIN7 chord gliding where M4 moves it a bar at a time, the bells
-                                      * a held cluster whose tail ping-pongs into a long shimmer */
+                                      * a held cluster whose tail ping-pongs into a long shimmer. Later that day, "only
+                                      * smooth evolving sounds": the stepping modulators' AMT 0 (the strings' and
+                                      * bells' SEQ, the random LFOs), GLID 118 taking the voice's chord moves over 2 s,
+                                      * the grains a continuous cloud on the drone's pitch (RATE 20: two at once) */
     {1, MA_SYN, SY_WAVE, SY_VOX}, {1, MA_SYN, SY_DTUN, 80}, {1, MA_SYN, SY_MIX, 45}, {1, MA_SYN, SY_IENV, 30},
     {1, MA_SYN, SY_ATK, 105}, {1, MA_SYN, SY_DEC, 100}, {1, MA_SYN, SY_SUS, 100}, {1, MA_SYN, SY_REL, 127},
-    {1, MA_SYN, SY_CUT, 78}, {1, MA_SYN, SY_ENV, 0}, {1, MA_SYN, SY_GLID, 45},
+    {1, MA_SYN, SY_CUT, 78}, {1, MA_SYN, SY_ENV, 0}, {1, MA_SYN, SY_GLID, 118},
     {1, MA_SYN, SY_CHRD, 7}, {1, MA_SYN, SY_TUNE, 12}, {1, MA_SYN, SY_LVL, 4}, {1, TPS_ARPK, AR_MODE, ARM_HOLD},
     {1, DEV_SPACE, SP_VERB, 90}, {1, DEV_SPACE, SP_ROOM, 1},   /* (everything in room B: room A rests) */
-    {2, DEV_GRAIN, GP_WET, 70}, {2, DEV_GRAIN, GP_SIZE, 500}, {2, DEV_GRAIN, GP_RATE, 10}, {2, DEV_GRAIN, GP_SPRY, 80},
-    {2, DEV_GRAIN, GP_SPRD, 100}, {2, DEV_GRAIN, GP_SCAL, 3}, {2, DEV_GRAIN, GP_PRND, 12}, {2, DEV_GRAIN, GP_REV, 50},
+    {2, DEV_GRAIN, GP_WET, 70}, {2, DEV_GRAIN, GP_SIZE, 500}, {2, DEV_GRAIN, GP_RATE, 20}, {2, DEV_GRAIN, GP_SPRY, 80},
+    {2, DEV_GRAIN, GP_SPRD, 100}, {2, DEV_GRAIN, GP_SCAL, 3}, {2, DEV_GRAIN, GP_REV, 50},
     {2, DEV_RESO, RP_WET, 35}, {2, DEV_RESO, RP_PTCH, 45}, {2, DEV_RESO, RP_DEC, 100}, {2, DEV_RESO, RP_TONE, 30},
     {2, DEV_RESO, RP_SCAL, 2}, {2, DEV_RESO, RP_MODE, RM_RESO}, {2, DEV_RESO, RP_WDTH, 55},
     {2, DEV_RESO, RP_FLOW, 8},                           /* (a round trip through the bands every 15 s or so) */
@@ -296,7 +300,9 @@ static const tps_k_t TPS_AMB[] = {   /* 2026-10-15: every sound swells and fades
     {3, MA_POL, PL_VOIC, 2},                             /* (two held bells: four looping cost 280 instr/sample) */
     {3, DEV_SPACE, SP_VERB, 90}, {3, DEV_SPACE, SP_ROOM, 1},
     {3, DEV_SPACE, SP_DLY, 30}, {3, DEV_SPACE, SP_TIME, 370}, {3, DEV_SPACE, SP_FDBK, 60},   /* echoes smeared to a */
-    {3, DEV_SPACE, SP_DIFF, 85}, {3, DEV_SPACE, SP_TONE, -50}, {3, DEV_SPACE, SP_AGE, 25}};  /* .. dark wash */
+    {3, DEV_SPACE, SP_DIFF, 85}, {3, DEV_SPACE, SP_TONE, -50}, {3, DEV_SPACE, SP_AGE, 25},   /* .. dark wash */
+    {1, TPS_AMTK, 3, 0}, {2, TPS_AMTK, 2, 0}, {2, TPS_AMTK, 3, 0},   /* (the stepping modulators still: only T2's */
+    {3, TPS_AMTK, 2, 0}, {3, TPS_AMTK, 3, 0}};                       /* .. chord moves, GLID gliding it there) */
 static const tps_k_t TPS_TEC[] = {
     {0, MA_DRM, DM_DECY, -30}, {0, MA_DRM, DM_TONE, 20}, {0, MA_DRM, DM_DRV, 10}, {0, MA_DRM, DM_ACNT, 70},
     {0, MA_DRM, DM_TRAN, 40}, {0, MA_DRM, DM_LVL, -3}, {0, MA_CH, CH_LOW, 3}, {0, DEV_SPACE, SP_VERB, 10},
@@ -375,6 +381,9 @@ static void tps_sound(uint32_t n)
     for (t = 0; t < NTRK; t++)                           /* (the arpeggiators as the groove has them) */
         for (k = 0; k < NARP; k++)
             tp[t].arp[k] = k >= 7u || TPS_ARP[t][0] == ARM_OFF ? ARP_P[k].def : TPS_ARP[t][k];
+    for (t = 0; t < NTRK; t++)                           /* (the modulators at full AMT) */
+        for (k = 0; k < NSLOT; k++)
+            *scn_amt(t, k) = 100;
     for (i = 0; i < TPS_SC[n].n; i++) {
         const tps_k_t *e = &TPS_SC[n].k[i];
         const pdesc_t *ds = 0;
@@ -382,6 +391,11 @@ static void tps_sound(uint32_t n)
         if (e->a == TPS_ARPK) {                          /* (the arpeggiator's knob) */
             if (e->t < NTRK && e->k < NARP && !pdesc_empty(&ARP_P[e->k]))
                 tp[e->t].arp[e->k] = (int16_t)clamp(e->v, ARP_P[e->k].min, ARP_P[e->k].max);
+            continue;
+        }
+        if (e->a == TPS_AMTK) {                          /* (a modulator's AMT) */
+            if (e->t < NTRK && e->k < NSLOT)
+                *scn_amt(e->t, e->k) = (int16_t)clamp(e->v, 0, 100);
             continue;
         }
         v = tpf_arr(e->t, e->a, &ds);

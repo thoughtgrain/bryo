@@ -44,7 +44,16 @@ typedef struct {
     int16_t rm[NROOM][NRM];          /* the rooms' */
     uint16_t bpm;                    /* the tempo (0: none held, the tempo left as it is) */
     int16_t arp[NTRK][NARP];         /* the arpeggiators' knobs (arp.c AR_*) */
+    int16_t amt[NTRK][NSLOT];        /* each modulator's AMT (2026-10-18: a scene says how much it moves; the rest
+                                      * of a modulator's knobs and its depths stay the groove's) */
 } scene_t;
+/* AMT's place in each modulator engine's knobs (param.c ME_P: LFO ADSR SEQ FOLLOW) */
+static const uint8_t SCN_AMTK[NME] = {8, 10, 9, 5};
+/* slot s's AMT knob on track t */
+static int16_t *scn_amt(uint32_t t, uint32_t s)
+{
+    return &tp[t].mod[s][SCN_AMTK[tp[t].engine[s] < NME ? tp[t].engine[s] : 0]];
+}
 static scene_t scn[NSCN];
 static scene_t scn_from;             /* the morph's (or the glide's) start */
 static uint32_t scn_ver;             /* bumped at each store or clear (the project's fingerprint: project.c) */
@@ -114,6 +123,8 @@ static void scn_take(scene_t *s)
         s->lvl[t] = track[t].level;
         for (k = 0; k < NARP; k++)
             s->arp[t][k] = tp[t].arp[k];
+        for (k = 0; k < NSLOT; k++)
+            s->amt[t][k] = *scn_amt(t, k);
         for (g = 0; g < MOD_NTGT; g++)
             s->v[t][g] = scn_kind(g) ? *scn_knob(t, g) : 0;
     }
@@ -133,6 +144,10 @@ static void scn_mix(const scene_t *a, const scene_t *b, int32_t pos)
                                                           * on the way */
             int32_t x = a->arp[t][k], y = b->arp[t][k];
             tp[t].arp[k] = (int16_t)(k <= AR_RATE || x == y ? (half ? y : x) : x + ((y - x) * pos) / SCN_FULL);
+        }
+        for (k = 0; k < NSLOT; k++) {                    /* the modulators' AMT, on the way */
+            int32_t x = a->amt[t][k], y = b->amt[t][k];
+            *scn_amt(t, k) = (int16_t)(x + ((y - x) * pos + (y > x ? SCN_FULL / 2 : -SCN_FULL / 2)) / SCN_FULL);
         }
         if (a->src[t] != b->src[t]) {                    /* another source: out, switched whole, in */
             const scene_t *w = half ? b : a;

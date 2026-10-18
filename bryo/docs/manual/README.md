@@ -141,14 +141,16 @@ bright. Let go without pressing a key and the pad turns its page as usual.
 first, **AMBIENT**:
 - **Track 1:** a four-on-the-floor drum bar, silent here (its level is down in this scene).
 - **Track 2:** a choir: **VOX** holding a minor-seventh chord (its arpeggiator on **HOLD**, no steps), with a slow
-  attack and the longest release, gliding as the chord moves a bar at a time (Am, Dm, Em).
-- **Track 3:** a drone (**DRON**) through a wash of half-second grains, its highs shelved down, and four resonators
-  that ring out while a slow **FLOW** walks the sound through them.
+  attack and the longest release. The chord moves a bar at a time (Am, Dm, Em), and **GLID** bends it there over
+  about two seconds instead of jumping.
+- **Track 3:** a drone (**DRON**) through a continuous cloud of half-second grains on its own pitch, its highs
+  shelved down, and four resonators that ring out while a slow **FLOW** walks the sound through them.
 - **Track 4:** two bells (**BELL**) held, bowed rather than struck, their tails looping back and forth into a long
   shimmer, their echoes smeared into a dark wash.
 
 Everything in this scene swells into existence and fades out gradually, at a slow 80 BPM: held chords instead of
-arpeggios, slow attacks, the longest releases, no noise, darker filters, and nothing percussive (the drums are silent here, since their kick would duck the
+arpeggios, slow attacks, the longest releases, no noise, darker filters, nothing that steps (the scene turns the
+stepping modulators' **AMT** to 0, all but the chord's glide), and nothing percussive (the drums are silent here, since their kick would duck the
 other tracks). All three tracks sit deep in the big room: a whole hall, long, dark and slowly moving, with a pre-delay
 so the sound lands before the room blooms behind it.
 
@@ -374,9 +376,10 @@ Bryo thins out grains and strings to keep the sound clean.
 
 A project has four **scenes**. Each one is a snapshot of how the project sounds: every track's source (TAPE,
 SYNTH, POLY or DRUM), every knob of its sound (the source's, GRAIN, RIPPLE, COLOR, CHRONOS, the channel strip), the
-track levels, the rooms, the **tempo** and the **arpeggiator's settings** (MODE, ORDR, RNGE, RATE switch at the
-midpoint; GATE, SWNG, GRND, FADE morph). A scene doesn't hold what's playing: the tapes and reels, the drum patterns,
-the steps, the modulation, the mutes, the notes the arpeggiators hold and the key all stay as they are when you change
+track levels, the rooms, the **tempo**, the **arpeggiator's settings** (MODE, ORDR, RNGE, RATE switch at the
+midpoint; GATE, SWNG, GRND, FADE morph) and each modulator's **AMT** (morphing: a scene can quiet a modulator or bring
+it in). A scene doesn't hold what's playing: the tapes and reels, the drum patterns, the steps, the rest of the
+modulation (the modulators' other knobs and their depths), the mutes, the notes the arpeggiators hold and the key all stay as they are when you change
 scenes. So one scene can hold a chord still (HOLD) while another steps through it.
 
 The tempo is taken when you store the scene and changes at the midpoint of a recall or a morph, the way a choice
