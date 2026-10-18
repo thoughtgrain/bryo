@@ -438,19 +438,36 @@ static void test_input(void)
     press(B_EDIT);
     check("..again: GRAIN 6 (GRNS)", ui.dev == DEV_GRAIN && ui.page == 5u && !strcmp(dev_p(0, DEV_GRAIN)[pdesc_at(dev_p(0, DEV_GRAIN), 20u)].label, "GRNS"));
     press(B_EDIT);
-    check("EDIT again, past GRAIN's pages 2 to 6: RIPPLE", ui.dev == DEV_RESO);
+    check("EDIT again, past GRAIN's last page: GRAIN's first (a tap stays in the device shown, 2026-10-18)",
+          ui.dev == DEV_GRAIN && ui.page == 0u);
+    hold(B_EDIT);
+    press(B_OCTUP);
+    let_go(B_EDIT);
+    check("EDIT held + OCT+: RIPPLE, its first page; the let-go turns no page, the octave stays",
+          ui.dev == DEV_RESO && ui.page == 0u && track[0].octave == 3u);
     press(B_EDIT);
     press(B_EDIT);
     press(B_EDIT);
     press(B_EDIT);
     press(B_EDIT);
-    check("EDIT again, past RIPPLE's pages 2 to 5: GRAIN", ui.dev == DEV_GRAIN && ui.page == 0u);
+    check("..EDIT again past RIPPLE's five pages: RIPPLE's first", ui.dev == DEV_RESO && ui.page == 0u);
     press(B_FX);
     check("FX: COLOR", ui.dev == DEV_COLOR);
+    press(B_EDIT);
+    check("..EDIT from there: RIPPLE again (the device it was last on)", ui.dev == DEV_RESO && ui.page == 0u);
+    hold(B_EDIT);
+    press(B_OCTDN);
+    let_go(B_EDIT);
+    check("..EDIT held + OCT-: GRAIN", ui.dev == DEV_GRAIN && ui.page == 0u && track[0].octave == 3u);
     press(B_FX);
     press(B_FX);
     press(B_FX);
-    check("FX again, past COLOR's pages 2 and 3: SPACE", ui.dev == DEV_SPACE && ui.page == 0u);
+    press(B_FX);
+    check("FX again, past COLOR's pages 2 and 3: COLOR's first", ui.dev == DEV_COLOR && ui.page == 0u);
+    hold(B_FX);
+    press(B_OCTUP);
+    let_go(B_FX);
+    check("FX held + OCT+: CHRONOS", ui.dev == DEV_SPACE && ui.page == 0u);
     press(B_ENV);
     check("ENV: the source's envelope (TAPE's page 2: ATK DEC SUS REL), ENV lit as its pad",
           ui.kind == FOCUS_DEV && ui.dev == DEV_SRC && ui.page == 1u && focus_btn() == B_ENV);
@@ -491,8 +508,10 @@ static void test_input(void)
     check("..again: GRAIN's page 5 (BODY: a floor under the grains)", ui.dev == DEV_GRAIN && ui.page == 4u);
     press(B_EDIT);
     check("..again: GRAIN's page 6 (GRNS)", ui.dev == DEV_GRAIN && ui.page == 5u);
-    press(B_EDIT);
-    check("..again: RIPPLE, opening with what rings and its mix (DEC TONE ROUT WET; COMB: FDBK; RESO, 12-BAND: RING TILT)",
+    hold(B_EDIT);
+    press(B_OCTUP);
+    let_go(B_EDIT);
+    check("..EDIT held + OCT+: RIPPLE, opening with what rings and its mix (DEC TONE ROUT WET; COMB: FDBK; RESO, 12-BAND: RING TILT)",
           ui.dev == DEV_RESO && ui.page == 0u && pdesc_at(RS_STR_P, 0u) == RP_DEC && pdesc_at(RS_STR_P, 1u) == RP_TONE &&
           pdesc_at(RS_STR_P, 2u) == RP_ROUT && pdesc_at(RS_STR_P, 3u) == RP_WET &&
           !strcmp(RS_FORM_P[0][RP_DEC].label, "FDBK") && !strcmp(RS_FORM_P[1][RP_DEC].label, "RING") &&
@@ -526,13 +545,20 @@ static void test_input(void)
           !strcmp(DEV_P[DEV_RESO][RP_FOCS].label, "FOCS") && DEV_P[DEV_RESO][RP_WDTH].def == 100 &&
           !strcmp(RS_STR_P[RP_PLVL].label, "PLVL") && RS_STR_P[RP_PLVL].def == 100);
     press(B_EDIT);
-    check("..again: back to GRAIN, page 1", ui.dev == DEV_GRAIN && ui.page == 0u);
+    check("..again: back to RIPPLE's page 1", ui.dev == DEV_RESO && ui.page == 0u);
+    hold(B_EDIT);
+    press(B_OCTDN);
+    let_go(B_EDIT);
+    hold(B_FX);
+    press(B_OCTDN);
+    let_go(B_FX);
     press(B_FX);
     press(B_FX);
+    hold(B_FX);
+    press(B_OCTUP);
+    let_go(B_FX);
     press(B_FX);
-    press(B_FX);
-    press(B_FX);
-    check("FX: COLOR, COLOR 2, COLOR 3, SPACE, SPACE 2", ui.dev == DEV_SPACE && ui.page == 1u);
+    check("FX held + OCT-: COLOR, COLOR 2, COLOR 3; FX held + OCT+: SPACE, SPACE 2", ui.dev == DEV_SPACE && ui.page == 1u);
     press(B_LFO);
     press(B_LFO);
     check("a slot pad again: the slot's page 2", ui.kind == FOCUS_SLOT && ui.slot == 0u && ui.page == 1u);
@@ -685,7 +711,8 @@ static void test_input(void)
     tap(B_EDIT);
     check("..tapped again: the levels", !ui.chan && !ui.chan_latched && ui.view == VIEW_MIXER);
     press(B_FX);
-    check("a page pad closes the mixer", ui.view == VIEW_PAGE && ui.dev == DEV_COLOR && !ui.glo_latched);
+    check("a page pad closes the mixer (FX: the device it was last on)", ui.view == VIEW_PAGE &&
+          ui.dev == ui.pair_dev[1] && (ui.dev == DEV_COLOR || ui.dev == DEV_SPACE) && !ui.glo_latched);
     press(B_HOME);
 
     host_enc[panel.enc[EN_SELECT]] = 5;
@@ -1036,7 +1063,9 @@ static void screens_in(const char *pal)
     turn(0, 2);
     turn(3, -6);
     shot(pal, "color3");
-    press(B_FX);
+    hold(B_FX);                                          /* CHRONOS: FX held + OCT+ */
+    press(B_OCTUP);
+    let_go(B_FX);
     shot(pal, "space");
     turn(1, 40);                                         /* FDBK 70; its sends, DLY 50 and VERB 30 (KNOB 3-4) */
     turn(2, 50);
@@ -1173,7 +1202,7 @@ static void screens_in(const char *pal)
     shot(pal, "mod3_steps");
     fm1_in.notes &= ~(note_bit_of_white(1) | note_bit_of_white(2));
     ui_input();
-    press(B_FX);                                         /* COLOR, LFO's pad held: DRV +40 %, CRSH -25 % */
+    focus_dev(DEV_COLOR, 0);                             /* COLOR, LFO's pad held: DRV +40 %, CRSH -25 % */
     hold(B_LFO);
     turn(0, 40);
     turn(1, -25);
@@ -8185,12 +8214,9 @@ static void test_mod(void)
     press(B_OCTUP);
     check("OCT+ on a DRUM page: the bar STEP shows", tp[0].drm[DM_BAR] == 2 && track[0].octave == 3u);
     press(B_EDIT);
-    press(B_EDIT);
-    press(B_EDIT);
-    press(B_EDIT);
-    press(B_EDIT);
-    press(B_EDIT);
-    press(B_EDIT);                                       /* RIPPLE (past GRAIN's six) */
+    hold(B_EDIT);
+    press(B_OCTUP);                                      /* RIPPLE (EDIT held + OCT+) */
+    let_go(B_EDIT);
     press(B_OCTUP);
     check("..on the track's RIPPLE page: the octave", ui.dev == DEV_RESO && track[0].octave == 4u &&
                                                          tp[0].drm[DM_BAR] == 2);

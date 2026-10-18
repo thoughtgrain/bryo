@@ -276,21 +276,31 @@ static void focus_dev(uint32_t d, uint32_t page)
     ui.dev = (uint8_t)d;
     ui.page = (uint8_t)page;
     ui.last = 0xFF;
+    if (d >= DEV_GRAIN && d <= DEV_SPACE)                /* (the pad's device, for its next tap from elsewhere) */
+        ui.pair_dev[d >= DEV_COLOR] = (uint8_t)d;
 }
 
-/* a pad that holds devices a and b (b == a: one device): pressed again, the next page, then the next device,
- * round; from elsewhere, a's first page */
+/* a pad that holds devices a and b (EDIT: GRAIN RIPPLE, FX: COLOR CHRONOS): pressed again, the next page of the
+ * device shown, round (2026-10-18: GRAIN's eleven pages and RIPPLE's were one round); from elsewhere, the first
+ * page of the one it was last on. The other device: the pad held + OCT- (a) or OCT+ (b), pad_pair */
 static void pad_devices(uint32_t a, uint32_t b)
 {
     uint32_t d = ui.dev;
     if (ui.view != VIEW_PAGE || ui.kind != FOCUS_DEV || (d != a && d != b)) {
-        focus_dev(a, 0);
+        d = ui.pair_dev[a >= DEV_COLOR];
+        focus_dev(d == b ? b : a, 0);
         return;
     }
-    if (ui.page + 1u < pdesc_pages(dev_p(sys.sel, d)))
-        focus_dev(d, ui.page + 1u);
-    else
-        focus_dev(d == a ? b : a, 0);
+    focus_dev(d, ui.page + 1u < pdesc_pages(dev_p(sys.sel, d)) ? ui.page + 1u : 0u);
+}
+/* EDIT or FX held + OCT- or OCT+ (up): its first device or its second, on its first page; 0: not that */
+static int pad_pair(int up)
+{
+    if (!pad_down() || (ui.pg_pad != B_EDIT && ui.pg_pad != B_FX))
+        return 0;
+    focus_dev(ui.pg_pad == B_EDIT ? (up ? DEV_RESO : DEV_GRAIN) : (up ? DEV_SPACE : DEV_COLOR), 0);
+    ui.pg_used = 1;
+    return 1;
 }
 
 static void focus_slot(uint32_t s)
@@ -933,7 +943,8 @@ static void on_button(uint32_t b)
         break;
     case B_OCTDN:
     case B_OCTUP:
-        if (ui.glo_held && b == B_OCTUP) {              /* GLO held + OCT+: the black keys, shortcuts or notes */
+        if (pad_pair(b == B_OCTUP)) {                   /* EDIT or FX held + OCT-/OCT+: its first or second device */
+        } else if (ui.glo_held && b == B_OCTUP) {      /* GLO held + OCT+: the black keys, shortcuts or notes */
             keys_set(!sys.keys_notes);
             ui.glo_used = 1;
         } else if (ui.view == VIEW_PROJECT) {                  /* the project view: OCT+ loads, OCT- goes back */

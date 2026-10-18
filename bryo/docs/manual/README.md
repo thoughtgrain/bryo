@@ -80,12 +80,14 @@ Everything it says is also said by a shape or a word, so you never need to tell 
 ### 0.3 How pages work
 
 Every pad opens a page, and **pressing the same pad again goes to its next page**. Then it goes round to the first.
+EDIT and FX each hold two effects; pressing them again goes round the one you're on, and from another page they
+come back to the one you used last. To switch effect, hold the pad and press OCT+ (the second) or OCT- (the first).
 
 | Pad | Pages, in order |
 | --- | --- |
 | HOME | the source's pages (TAPE has 4; SYNTH 4; POLY 4; DRUM 3) |
-| EDIT | GRAIN 1-6, then RIPPLE 1-5 (RESO and 12-BAND: 1-6) |
-| FX | COLOR 1-3, then CHRONOS 1-4 |
+| EDIT | GRAIN 1-6 or RIPPLE 1-5 (RESO and 12-BAND: 1-6): **hold EDIT and press OCT+** for RIPPLE, **OCT-** for GRAIN |
+| FX | COLOR 1-3 or CHRONOS 1-5: **hold FX and press OCT+** for CHRONOS, **OCT-** for COLOR |
 | ENV | the source's shaping pages: SYNTH's and POLY's AMP and FILTER, TAPE's slice envelope, DRUM's KIT and KIT 2 |
 | LFO, SEQ | a modulator's pages (LFO: M1, M2 or M3; SEQ: M4) |
 | ARP | the arpeggiator: 2 pages, then RIPL ARP (RIPPLE's own arpeggio) |
@@ -793,7 +795,7 @@ white key 3). It's RIPPLE's own arpeggio, separate from the track's: each step p
 that note (or, with RIPPLE's KEYS on TUNE, retunes it to that note), whatever the track plays. **MODE** turns it on (OFF, KEY, LTCH, ADD); **ORDR**, **RNGE** and **RATE** work
 as above. With MODE on, the white keys on this page play the strings' pattern and the track itself stays quiet; with
 MODE off they play the track as on the other ARP pages. A latched or piled-up pattern keeps plucking when you leave
-the page, and **hold POLY** here to clear it. You'll want RIPPLE's **WET** up (EDIT seven times, KNOB 4) to hear it.
+the page, and **hold POLY** here to clear it. You'll want RIPPLE's **WET** up (EDIT held + OCT+, KNOB 4) to hear it.
 
 <img src="img/arp_res.png" width="240" alt="RIPL ARP: two notes held, the strings plucked in turn">
 
@@ -938,7 +940,7 @@ grain somewhere inside it.
 The track rings through something tuned: four strings like a sitar's sympathetic strings, or one of three other
 forms. Each track has its own.
 
-1. Press **EDIT seven times** for **RIPPLE**.
+1. **Hold EDIT and press OCT+** for **RIPPLE** (OCT- takes you back to GRAIN).
 2. Turn **KNOB 4 (WET)** up (KNOB 3 is ROUT, see 6.8).
 3. Page 1 is what rings and its mix: **DEC** how long it rings (FDBK on COMB, RING on RESO and 12-BAND), **TONE**
    how bright (TILT on RESO and 12-BAND, which takes the upper bands down), then **ROUT** and **WET**.
@@ -1021,7 +1023,7 @@ as it rings.
 
 ### 6.7 CHRONOS: echoes and a room
 
-1. Press **FX four times**: **CHRONOS**. **TIME** is the echo's time, **FDBK** how many echoes; turn up **DLY** (the
+1. **Hold FX and press OCT+**: **CHRONOS**. **TIME** is the echo's time, **FDBK** how many echoes; turn up **DLY** (the
    echoes) and **VERB** (how much goes to the room), its two sends. VERB follows the track's level: turn the track
    down or mute it and its share of the room goes with it.
 2. Press **FX** again for **CHRONOS 2**, how the echoes sit:
@@ -1367,8 +1369,8 @@ M-VAVE's updater puts the stock firmware back. Bryo's projects and tapes can't b
 | **HOME** | the source's pages |
 | **HOME** held + SELECT | change the source |
 | **EDIT** held + SELECT | RIPPLE's form (RIPPLE, COMB, RESO, 12-BAND) |
-| **EDIT** | GRAIN, then RIPPLE |
-| **FX** | COLOR, then CHRONOS |
+| **EDIT** | GRAIN's or RIPPLE's pages, round; held + OCT- / OCT+: GRAIN / RIPPLE |
+| **FX** | COLOR's or CHRONOS's pages, round; held + OCT- / OCT+: COLOR / CHRONOS |
 | **ENV** | the source's shaping pages (envelope, filter, kit) |
 | **LFO SEQ** tapped | that modulator's pages (LFO: M1-M3, SEQ: M4) |
 | **LFO SEQ** held + a knob | how much that modulator moves the knob |

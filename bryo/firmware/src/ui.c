@@ -69,6 +69,8 @@ static struct {
     uint8_t pg_pad, pg_used;         /* a page's pad down (HOME EDIT FX ENV LFO SEQ ARP; NB: none): the white keys
                                       * show and pick its pages (ui_input.c pad_page); used: a key was, so the let-go
                                       * doesn't turn the page */
+    uint8_t pair_dev[2];             /* the device EDIT (0: GRAIN or RIPPLE) and FX (1: COLOR or CHRONOS) were last on:
+                                      * a tap from elsewhere comes back to it (2026-10-18) */
     uint8_t unsaved;                 /* the header's mark: changes since the last save or load (ui_input, 4 times a s) */
     uint32_t unsaved_t;
     uint8_t scl_held, scl_used;      /* SCL down (a knob turned: its default; the page's pad: the page's defaults), and
@@ -145,6 +147,8 @@ static void ui_init(void)
     ui.last = 0xFF;
     ui.slot_held = SLOT_NONE;
     ui.pg_pad = NB;
+    ui.pair_dev[0] = DEV_GRAIN;
+    ui.pair_dev[1] = DEV_COLOR;
     ui.mono_slot = SLOT_NONE;
     ui.force = 1;
 }
