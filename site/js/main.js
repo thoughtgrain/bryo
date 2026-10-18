@@ -136,8 +136,8 @@
           say: "Press EDIT. GRAIN, the first effect in the line." },
         { press: ["FX"], screen: "color", label: "FX / Color", alt: "COLOR's first page",
           say: "Press FX. COLOR, where the drive and the crush live." },
-        { press: ["FX", "FX", "FX"], screen: "space", label: "FX / Chronos", alt: "CHRONOS: TIME FDBK DLY VERB",
-          say: "Press FX three more times to step through to CHRONOS, the echoes and rooms." },
+        { hold: ["FX"], press: ["OCTUP"], screen: "space", label: "FX / Chronos", alt: "CHRONOS: TIME FDBK DLY VERB",
+          say: "Hold FX and press OCT+ to switch to CHRONOS, the echoes and rooms. EDIT and FX each hold two effects, and OCT+ and OCT- switch between them." },
         { press: ["GLO"], screen: "mixer", label: "Glo / Mixer", alt: "The mixer: four track levels",
           say: "Tap GLO. The mixer shows all four tracks at once." },
         { press: ["ARP"], screen: "arp", label: "ARP", alt: "The arpeggiator's page",
@@ -150,8 +150,8 @@
         { press: ["HOME"], screen: "tape", label: "Home / Tape", alt: "TAPE's first page: STRT LEN SPD PTCH",
           say: "Press HOME for TAPE. KNOB 4, PTCH, moves the loop in semitones, so you can play it like a transpose." },
         { press: ["HOME", "HOME"], turn: { K1: 90 }, screen: "tape_frze", label: "Home / Tape tools",
-          alt: "TAPE's tools: FRZE on, the frozen window framed in orange",
-          say: "Press HOME twice more for TAPE's tools and turn KNOB 1 (FRZE) on. The head keeps looping the bit it was in, framed in orange. WOW and FLUT warble it like an old tape." },
+          alt: "TAPE's tools: RPT on, the repeating window framed in orange",
+          say: "Press HOME twice more for TAPE's tools and turn KNOB 1 (RPT) on. The head keeps repeating the bit it was in, framed in orange. WOW and FLUT warble it like an old tape." },
         { hold: ["REC"], press: ["PLAY"], screen: "tape_playing", label: "Home / Tape", alt: "TAPE playing",
           say: "On any track, hold REC and press PLAY to bounce it: a synth line, a drum pattern or a cloud of grains goes straight onto the tape as a loop." }
       ]
@@ -179,7 +179,9 @@
         { turn: { K2: 135 }, screen: "mixer_scenes", label: "Glo / Scenes", alt: "SCENES: scene 2 reached",
           say: "Keep turning. Now it's all the way there, and scene 2 is filled in." },
         { hold: ["W2"], press: ["SAVE"], screen: "mixer_scenes", label: "Glo / Scenes", alt: "SCENES",
-          say: "Hold white key 2 and tap SAVE to store the sound as it is now. Tap a scene's key to glide back any time." }
+          say: "Hold white key 2 and tap SAVE to store the sound as it is now, tempo included. Tap a scene's key to glide back any time." },
+        { press: ["OP5", "OP6"], screen: "mixer_scenes", label: "Glo / Scenes", alt: "SCENES",
+          say: "From any page, on a SYNTH, POLY or DRUM track, the black keys OP5 and OP6 step to the scene before or after." }
       ]
     },
     arp: {
@@ -193,8 +195,9 @@
         { press: ["ARP"], turn: { K4: 45 }, screen: "arp_fade", label: "ARP / Page 2",
           alt: "ARP page 2: GATE SWNG GRND FADE, FADE at 331 ms",
           say: "Press ARP again for page 2 and turn KNOB 4 (FADE) up. Now when you let go, the notes keep stepping and fade away instead of stopping." },
-        { press: ["ARP"], screen: "arp_res", label: "RIPL ARP", alt: "RIPL ARP plucking RIPPLE's strings",
-          say: "Press ARP once more for RIPL ARP, a second arpeggio that plays RIPPLE." }
+        { hold: ["EDIT"], press: ["OCTUP", "EDIT", "EDIT"], screen: "arp_res", label: "RIPL ARP",
+          alt: "RIPL ARP plucking RIPPLE's strings",
+          say: "RIPPLE has an arpeggio of its own. Hold EDIT and press OCT+ for RIPPLE, then press EDIT through to its last page, RIPL ARP." }
       ]
     }
   };

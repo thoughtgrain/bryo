@@ -9,7 +9,7 @@ wireframe like the site (outlines only, dashed where something is a guide or not
 is the screen's (firmware/src/ui_px.c: px_page sky blue for the page pads, px_mod reddish purple for the modulator
 pads, as the screen colours their pages), and the screen shows a real render (bryo/docs/manual/img/tape.png, embedded
 so the SVG works on its own in an <img>). The labels follow docs/controls.tsv: a control marked "planned" there is
-drawn dim and says so. Run it again when a control's job changes.
+drawn dim and says so (none is, since 2026-10-18). Run it again when a control's job changes.
 
 Every control is a group, <g id="ctl-NAME" class="ctl">, its outline the rect with class "hit", and a knob's
 pointer a rect with class "ptr" whose transform-origin is the knob's centre. The screen's <image> is
@@ -144,8 +144,8 @@ def main():
     # the keys
     out.append(f'<rect x="40" y="262" width="880" height="232" fill="none" stroke="{EDGE}" stroke-width="1.5" stroke-dasharray="4 4"/>')
     black = ((104, "OP1", "MUTE/T1", LIVE), (154, "OP2", "MUTE/T2", LIVE), (204, "OP3", "MUTE/T3", LIVE),
-             (304, "OP4", "MUTE/T4", LIVE), (354, "OP5", "REV", LIVE), (454, "OP6", "HALF/SPEED", LIVE),
-             (504, "PIT", "-", DIM), (554, "GLO", "-", DIM), (654, "MONO", "CLEAR/MOD", NOTE),
+             (304, "OP4", "MUTE/T4", LIVE), (354, "OP5", "REV/SCN-", LIVE), (454, "OP6", "HALF/SCN+", LIVE),
+             (504, "PIT", "TAP/TEMPO", LIVE), (554, "GLO", "NUDGE/+4%", LIVE), (654, "MONO", "CLEAR/MOD", NOTE),
              (704, "POLY", "CLEAR/TAPE", NOTE), (804, "0", "FREEZE", LIVE))
     for x, n, j, c in black:
         dim = c == DIM
@@ -164,7 +164,7 @@ def main():
                          + text(str(k + 1), x + (step - 7) / 2, 456, 2, INK, bold=True)))
 
     out.append(text("WHITE KEYS: SLICES (TAPE) / NOTES (SYNTH POLY) / THE KIT (DRUM)", W / 2, 506, 1.5, SOFT))
-    out.append(text("GLO HELD + WHITE 1-4: PICK THE TRACK.  PIT AND GLO (BLACK): PLANNED", W / 2, 522, 1.5, DIM))
+    out.append(text("GLO HELD + WHITE 1-4: PICK THE TRACK.  OP5 OP6: SCENES OFF TAPE.  PIT HELD: -4%", W / 2, 522, 1.5, DIM))
     out.append("</svg>\n")
     OUT.write_text("".join(out))
     print(f"{OUT}: {OUT.stat().st_size // 1024} KB")
