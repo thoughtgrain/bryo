@@ -79,7 +79,7 @@ When the firmware's look changes, regenerate from the repository root:
 ```sh
 python3 site/tools/gen_px_webfont.py     # PX5 changed: fonts, wordmark, favicon
 python3 site/tools/gen_panel.py          # a control's job or a colour changed: the panel
-cp bryo/docs/manual/img/{arp,arp_add,arp_drum,arp_fade,arp_res,boot,color,crash,drum,follow_live,grain,grain_frozen,grain_playing,mixer,mixer_morph,mixer_scenes,mod1,poly_loop,poly_twin,projects_scenes,reso_live,ripple2,ripple_comb,ripple_flow,space,space2,space4,space_live,space_long,synth_env2,synth_fm,synth_shape,synth_wt,tape,tape_frze,tape_playing}.png site/img/
+cp bryo/docs/manual/img/{arp,arp_add,arp_drum,arp_fade,arp_long,arp_res,boot,color,crash,drum,follow_live,grain,grain_frozen,grain_playing,mixer,mixer_morph,mixer_scenes,mod1,plock,poly_loop,poly_twin,project_new,projects_scenes,reso_live,ripple2,ripple_comb,ripple_flow,space,space2,space4,space_live,space_long,synth_env2,synth_fm,synth_shape,synth_wt,tape,tape_frze,tape_playing}.png site/img/
 ```
 
 Both scripts need fontTools only for the fonts (`pip3 install fonttools`); the panel needs nothing beyond Python.
@@ -96,6 +96,26 @@ then Tape, Synth, Poly, Drum, Modulation, Arpeggiators, Scenes). The screens nev
 the firmware's 240, so the dots stay square; a source's name is set big in the bold pixel face, in the blue the
 screen uses for a page. On phones every band is screen first (at 65 %), then words. It replaced a grid of small
 source cards and two-column sections of different shapes, which read as a patchwork.
+
+## Step pictures in the docs
+
+Every step of the docs' "Your first song" guide shows two pictures: the panel with the controls to use lit, and the
+real screen that step gives. They come from `tools/steps.json` and `tools/gen_panel.py --steps`:
+
+- Each entry names a screen (a png in `img/`) and the marks: `"press"` (an orange outline), `"hold"` (an orange
+  fill, for "keep it down while you do the rest") or `["turn", degrees]` (the knob outlined and its pointer swung
+  that far from 12 o'clock, in orange). The generator writes `img/steps/<id>.svg`, the panel with that screen in its
+  own screen, and the docs put the same screen beside it, larger.
+- Every screen is a real render. Where a step's exact state has no render (the ARP page on LTCH or HOLD, SYNTH's
+  LEVEL page), the step shows the page it's on and says so in words, rather than a value it doesn't set.
+- `dials` is the same panel with all eight dials lit, for the docs' "The dials" reference.
+
+```sh
+python3 site/tools/gen_panel.py --steps site/tools/steps.json
+```
+
+The step SVGs are about 125 KB each before compression (mostly the lettering's paths), and GitHub Pages serves
+them gzipped; the docs load them lazily.
 
 ## The walkthrough ("Watch your hands")
 
