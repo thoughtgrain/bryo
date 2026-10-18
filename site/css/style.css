@@ -969,13 +969,15 @@ tr:last-child td { border-bottom: 0; }
   }
 }
 
-/* ---------- the walkthrough: the panel, its screen and the steps ---------- */
+/* ---------- the walkthrough: the panel, its screen and one caption ----------
+ * Everything you need to follow a step sits in one view: the panel (what the hands do), the screen (what Bryo
+ * shows) and a single caption bar (what to do, where you are, and the buttons). Desktop: panel and screen side by
+ * side, the caption under both. Phone: panel, caption, screen, so the step's words sit right under its hands. */
 
 .tour { margin-top: 40px; }
 
 .tour__routines {
   display: flex;
-  flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 24px;
 }
@@ -987,17 +989,20 @@ tr:last-child td { border-bottom: 0; }
 
 .tour__stage {
   display: grid;
-  gap: 24px;
+  grid-template-areas: "panel" "caption" "screen";
+  gap: 16px;
 }
-@media (min-width: 1000px) {
-  .tour__stage { grid-template-columns: minmax(0, 1fr) 300px; align-items: start; gap: 40px; }
+@media (min-width: 720px) {
+  .tour__stage {
+    grid-template-columns: minmax(0, 1fr) clamp(220px, 26vw, 330px);
+    grid-template-areas: "panel screen" "caption caption";
+    align-items: center;
+    gap: 24px 32px;
+  }
 }
 
-.tour__panel {
-  position: relative;
-  padding: 8px;
-  border: 1px solid var(--line);
-}
+/* the drawing has its own frame, so no second border here */
+.tour__panel { grid-area: panel; }
 .tour__panel svg,
 .tour__panel img { display: block; width: 100%; height: auto; }
 
@@ -1007,8 +1012,7 @@ tr:last-child td { border-bottom: 0; }
   transform-box: view-box;
   transition: transform 900ms cubic-bezier(0.3, 0.7, 0.3, 1), fill 120ms linear;
 }
-.tour__panel .no-anim .ptr,
-.tour__panel.no-anim .ptr { transition: none; }
+.tour__panel .no-anim .ptr { transition: none; }
 /* pressed: a flash of orange, the screen's colour for something happening now */
 .tour__panel .ctl.is-press .hit { stroke: var(--orange); stroke-width: 4; }
 /* held: stays lit, with a faint fill so it reads differently from a press */
@@ -1017,63 +1021,63 @@ tr:last-child td { border-bottom: 0; }
 .tour__panel .ctl.is-turn .hit { stroke: var(--orange); stroke-width: 3; }
 .tour__panel .ctl.is-turn .ptr { fill: var(--orange); }
 
-.tour__side { display: grid; gap: 20px; align-content: start; }
+.tour__screen { grid-area: screen; width: 100%; }
 
-.tour__screen { width: 100%; }
-
-.tour__steps {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  counter-reset: tour;
-  border-top: 1px solid var(--line);
-}
-.tour__steps li {
-  counter-increment: tour;
-  border-bottom: 1px solid var(--line);
-}
-.tour__steps button {
+.tour__caption {
+  grid-area: caption;
   display: grid;
-  grid-template-columns: 2.25em 1fr;
-  gap: 4px;
-  width: 100%;
-  padding: 12px 12px 12px 0;
-  border: 0;
-  border-left: 3px solid transparent;
-  background: none;
-  color: var(--ink-soft);
-  font: inherit;
-  font-size: 0.875rem;
-  line-height: 1.5;
-  text-align: left;
-  cursor: pointer;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  padding: 16px 0 0;
+  border-top: 1px solid var(--line-strong);
 }
-.tour__steps button::before {
-  content: counter(tour, decimal-leading-zero);
-  padding-left: 10px;
+@media (min-width: 720px) {
+  .tour__caption {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "progress progress" "say controls";
+    align-items: center;
+    gap: 14px 32px;
+  }
+  .tour__progress { grid-area: progress; }
+  .tour__say { grid-area: say; }
+  .tour__controls { grid-area: controls; }
+}
+
+.tour__progress { display: flex; flex-wrap: wrap; gap: 6px; }
+.tour__dot {
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  background: none;
+  color: var(--ink-faint);
   font-family: var(--font-pixel);
   font-size: 0.75rem;
-  line-height: 1.9;
-  color: var(--ink-faint);
+  line-height: 1;
+  cursor: pointer;
 }
-.tour__steps button:hover { color: var(--ink); }
-.tour__steps li[aria-current="step"] button {
+.tour__dot:hover { color: var(--ink); border-color: var(--ink-soft); }
+.tour__dot[aria-current="step"] { color: var(--orange); border-color: var(--orange); }
+
+/* the step's words: fixed to three lines' height so the buttons don't jump as the text changes */
+.tour__say {
+  margin: 0;
+  min-height: calc(3 * 1.55em);
   color: var(--ink);
-  border-left-color: var(--orange);
+  font-size: 1rem;
+  line-height: 1.55;
 }
-.tour__steps li[aria-current="step"] button::before { color: var(--orange); }
-.tour__steps button:focus-visible { outline-offset: -3px; }
 
 .tour__controls { display: flex; gap: 8px; }
 .tour__controls .btn { min-width: 48px; }
-.tour__controls [data-tour-play] { flex: 1; }
+.tour__controls [data-tour-play] { min-width: 112px; }
 
 @media (max-width: 719px) {
   .tour__screen { width: 65%; margin-inline: auto; }
-  .tour__panel { padding: 4px; }
+  .tour__controls [data-tour-play] { flex: 1; }
+  .tour__say { min-height: calc(4 * 1.55em); font-size: 0.9375rem; }
+  /* five routines in one row that scrolls sideways, rather than a ragged 3 + 2 */
+  .tour__routines { overflow-x: auto; scrollbar-width: thin; padding-bottom: 4px; }
+  .tour__routine { flex: 0 0 auto; padding: 10px 14px; font-size: 0.75rem; }
 }
-@media (max-width: 479px) {
-  /* the five routines in an even grid (three, then two), so the buttons line up */
-  .tour__routines { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
-  .tour__routine { padding: 10px 4px; font-size: 0.75rem; }
-}
+
