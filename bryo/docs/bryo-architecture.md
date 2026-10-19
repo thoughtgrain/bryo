@@ -3682,6 +3682,44 @@ track losing its voices before the louder one; the quietest voice choked over a 
 off the quieter track only; RIPPLE and the delay resting on a whisper (+-40) on a track at -46 dB, and waking on it
 at 0 dB and MASTER full. The shedding tests now set the floor to its top first.
 
+### Silence shares one chunk (2026-10-19)
+
+The memory half of the same ask, with "silence only, never quiet sound" as the rule.
+
+**How.** A chunk whose 2,112 bytes are all 0 decodes to exactly 0 (zero nibbles from a zero state: `mem_alloc`
+already relied on that for a fresh chunk). So such a chunk can be any chunk of zeros: `mem_zero`, one `const` chunk
+in flash, and a list entry `MEM_ZC` (0xFE) means "that one". `mem_at` returns it for any index past the pool (a
+compare; no measurable cost), `mem_free`/`mem_give` already ignored such an index. `mem_hollow(e)` checks a chunk
+(a word compare over 528 words), sets the entry to `MEM_ZC` (first), then frees the chunk: a reader between the two
+reads either, the same zeros. `mem_sweep` (tape.c, the main loop, every pass) looks at four chunks a pass round the
+four tapes, skipping a tape that anything can write: REC armed, growing, or a block of it staged in the ISR.
+
+**Writing.** Only REC writes a tape, so `tape_prepare` calls `tape_solid` before it sets `rec_ok`: every `MEM_ZC`
+entry gets a real chunk again (silent from `mem_alloc`), taken the way recording takes memory (`tape_alloc`, free
+first, then the end of the longest tape, never this one). No memory: REC says so (-1), as for a new take with none.
+`tape_commit` checks the entry anyway and drops a block that would go into the shared chunk, so nothing can write
+flash even if that rule is ever broken. `tape_steal` counts the memory a tape holds, not its length, and a dropped
+end that was shared silence frees nothing, so it drops on until a real chunk comes free. `ur_free_after` (the USB
+take's room) counts held memory too.
+
+**Not GRAIN's buffers.** I built that first: a buffer of silence handing back all but the chunks round its write
+head, and the main loop keeping the next three real (372 ms, as a growing tape keeps two). The tests passed. The
+checkpoint's run 15 (every device on, the memory full) didn't: 76 blocks of sound dropped, because a buffer records
+all the time and wants its silence back within a lap of its bars, and with the memory full whatever had taken it
+couldn't give it back. That breaks the rule, so buffers keep their memory. A tape wants its silence back only when REC
+is armed, which is where taking memory already happened.
+
+**What it gives.** It depends on the takes: the factory reels play from flash and hold no RAM, so the checkpoint
+runs give back nothing and sound bit for bit as before (every fingerprint unchanged). It's a bounce or a take with
+digital silence in it (an internal source between notes, a take started before the sound) that gets smaller. Under
+the stress test, 281 chunks were given back in 10 s of WAVs and USB takes being placed while the audio interrupt and
+TIMER5 cut into the main loop, and the books balanced (they now also check that an armed tape lists no shared silence
+and that the shared chunk is still all zeros).
+
+Tests (`test_shared_silence`): a tape's two silent chunks given back, the list six long, memory two less, every
+sample the same; what sounds kept; REC armed making it whole before a block is written, and the sweep leaving it
+alone while armed; stealing past a shared end freeing a real chunk; a GRAIN buffer recording silence keeping all 11.
+
 ## USB record mode (2026-10-08)
 
 Recording from the computer is a mode of its own, not a source a track plays through: you go in, record, put the

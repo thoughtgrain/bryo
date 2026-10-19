@@ -464,8 +464,11 @@ static void tape_commit(uint32_t t)
     if (!rt->wstaged)
         return;
     rt->wstaged = 0;
-    if (tape_ctl[t].empty || b / MEM_CB >= tape_ctl[t].nch || rt->wgen != tape_ctl[t].gen)
-        return;                                        /* cleared meanwhile, its chunk taken, another tape: drop it */
+    if (tape_ctl[t].empty || b / MEM_CB >= tape_ctl[t].nch || rt->wgen != tape_ctl[t].gen ||
+        tape_ctl[t].map[b / MEM_CB] >= MEM_NC)
+        return;                                        /* cleared meanwhile, its chunk taken, another tape, or the
+                                                        * shared silence (mem.c; never so while REC is armed:
+                                                        * tape_solid): drop it */
     c = tape_chunk(t, b);
     ima_fit(rt->stage, &c->pred[b % MEM_CB], &c->idx[b % MEM_CB]);
     ima_enc(rt->stage, c->pred[b % MEM_CB], c->idx[b % MEM_CB], c->data[b % MEM_CB], TAPE_BLK);
@@ -856,22 +859,34 @@ static void tape_init(void)
     }
 }
 
-/* track t's tape gives up its last chunk (the list shortened first, then the chunk freed: mem.c) */
-static void tape_drop_chunk(uint32_t t)
+/* track t's tape gives up its last chunk (the list shortened first, then the chunk freed: mem.c). Returns 1 when
+ * memory came free (0: none there, or it was the shared silence) */
+static int tape_drop_chunk(uint32_t t)
 {
     tape_ctl_t *c = &tape_ctl[t];
-    uint32_t n = c->nch;
+    uint32_t n = c->nch, k;
     if (!n)
-        return;
+        return 0;
+    k = c->map[n - 1u];
     if (c->nblk > (n - 1u) * MEM_CB) {
         c->nblk = (uint16_t)((n - 1u) * MEM_CB);
         c->trim = 0;
     }
     c->nch = (uint8_t)(n - 1u);
-    mem_free(c->map[n - 1u]);
+    mem_free(k);
     if (tape_undo.valid && tape_undo.trk == t)       /* (a cleared take that lost a chunk can't come back) */
         tape_undo.valid = 0;
     tape_ver[t]++;
+    return k < MEM_NC;
+}
+
+/* the chunks of memory track t's tape holds (its silence, shared, holds none: mem.c) */
+static uint32_t tape_held(uint32_t t)
+{
+    uint32_t k, n = 0;
+    for (k = 0; k < tape_ctl[t].nch; k++)
+        n += tape_ctl[t].map[k] < MEM_NC;
+    return n;
 }
 
 /* every chunk of track t's tape back to the pool */
@@ -887,8 +902,9 @@ static void tape_free(uint32_t t)
 static int tape_parked(uint32_t t) { return sys.ntrk && t >= sys.ntrk; }
 
 /* Nothing free: take a chunk off the end of a tape, in this order, never from track except or a tape that's
- * growing: a cleared tape, a parked track's tape (the longest), then, when `active` allows, the longest tape of all.
- * Returns 1 when a chunk came free. */
+ * growing: a cleared tape, a parked track's tape (the longest), then, when `active` allows, the longest tape of all
+ * (longest in the memory it holds: its silence is shared already, mem.c). Its end's shared silence goes with it on
+ * the way to a chunk of memory. Returns 1 when a chunk came free. */
 static int tape_steal(uint32_t except, int active)
 {
     uint32_t t, best = NTRK, bn = 0, pass;
@@ -897,20 +913,23 @@ static int tape_steal(uint32_t except, int active)
             break;
         for (t = 0; t < NTRK; t++) {
             tape_ctl_t *c = &tape_ctl[t];
+            uint32_t h;
             if (t == except || c->grow || !c->nch)
                 continue;
             if (pass == 0u && !c->empty)
                 continue;
             if (pass == 1u && !tape_parked(t))
                 continue;
-            if (c->nch > bn) {
-                bn = c->nch;
+            h = tape_held(t);
+            if (h > bn) {
+                bn = h;
                 best = t;
             }
         }
         if (best < NTRK) {
-            tape_drop_chunk(best);
-            return 1;
+            while (tape_ctl[best].nch)
+                if (tape_drop_chunk(best))
+                    return 1;
         }
     }
     return 0;
@@ -938,6 +957,49 @@ static uint32_t tape_reserve(uint32_t t, uint32_t nch, int active)
         c->nch++;
     }
     return c->nch;
+}
+
+/* main loop: track t's tape holds real chunks all through again, where its silence was shared (mem.c): REC is
+ * about to write over it. Silent chunks from the pool (stealing as tape_steal allows, never from t), each one
+ * taking its place in the list: readers hear the same silence either way. Returns 0 when there's no memory for
+ * all of it (what's done stays done: it's still silence) */
+static int tape_solid(uint32_t t)
+{
+    tape_ctl_t *c = &tape_ctl[t];
+    uint32_t k;
+    for (k = 0; k < c->nch; k++)
+        if (c->map[k] >= MEM_NC) {
+            int32_t m = tape_alloc(MEM_TAPE + t, t, 1);
+            if (m < 0)
+                return 0;
+            c->map[k] = (uint8_t)m;
+        }
+    return 1;
+}
+
+/* main loop, every pass: a tape's silence given back (mem.c mem_hollow), a few chunks a pass (MEM_SWEEP: each looked
+ * at is 2,112 bytes read), round the four tapes, each while nothing can write it (REC not armed, not growing, no
+ * block of it staged). Only tapes: a GRAIN buffer records all the time, so its silence would be wanted back within
+ * seconds, and with the memory full there was nothing to take it back from (the checkpoint's run 15: 76 blocks of
+ * sound lost into the shared silence, 2026-10-19). A tape wants it back only when REC is armed (tape_solid) */
+#define MEM_SWEEP 4u
+static void mem_sweep(void)
+{
+    static uint32_t cur;                                /* track << 8 | entry: where the last pass left off */
+    uint32_t looked = 0, steps;
+    for (steps = 0; looked < MEM_SWEEP && steps < NTRK + MEM_SWEEP; steps++) {
+        uint32_t t = (cur >> 8) & (NTRK - 1u), k = cur & 255u;
+        tape_ctl_t *c = &tape_ctl[t];
+        if (k >= (c->rec_ok || c->grow || tape_rt[t].wstaged || ((sys.rec >> t) & 1u) ? 0u : c->nch)) {
+            cur = ((t + 1u) & (NTRK - 1u)) << 8;        /* (this tape done, or not to be looked at: the next) */
+            continue;
+        }
+        cur++;
+        if (c->map[k] < MEM_NC) {
+            looked++;
+            mem_hollow(&c->map[k]);
+        }
+    }
 }
 
 /* REC armed on track t: make its RAM tape ready to be written. A reel is copied in (REEL turns to TAPE), taking the
@@ -990,6 +1052,8 @@ static int tape_prepare(uint32_t t)
     }
     if (tape_undo.valid && tape_undo.trk == t)         /* the cleared take is gone now */
         tape_undo.valid = 0;
+    if (!tape_solid(t))                                 /* (its shared silence real again, to be written over) */
+        return -1;
     RING_PUBLISH();
     c->rec_ok = 1;
     tape_ver[t]++;

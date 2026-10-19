@@ -416,6 +416,7 @@ static void chain_poll(void)
     drm_poll();
     grain_poll();
     gfx_poll();
+    mem_sweep();                                        /* (silence given back: mem.c, grain.c) */
     reso_poll();
     wt_poll();                                          /* (SYNTH WT: its tables' memory, synth.c) */
     space_poll();

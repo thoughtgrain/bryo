@@ -26,6 +26,8 @@
                                       * 24 more in main RAM: 152, 150, 143 in all) */
 #define MEM_NC MEM_NC_POOL           /* 108: 20.1 s of tape-format sound in all */
 #define MEM_FREE 0xFFu               /* owner: nobody */
+#define MEM_ZC 0xFEu                 /* in a list, for a chunk: the shared silent one (mem_zero: no memory of its own;
+                                      * 2026-10-19, mem_hollow) */
 /* owners: a track's tape (MEM_TAPE + t), its GRAIN buffer (MEM_GRAIN + t), a WAV arriving over USB (MEM_IMPORT),
  * its RIPPLE's strings (MEM_RESO + t), its SPACE's delay (MEM_SPACE + t), the shared rooms A and B (MEM_ROOM + r) */
 /* (SPARE: kept ready for a WAV, vdisk.c) */
@@ -42,8 +44,20 @@ typedef struct {
 
 static mem_chunk_t mem_pool[MEM_NC_POOL] __attribute__((section(".pool")));
 static uint8_t mem_owner[MEM_NC];
+/* Silence shares one chunk (2026-10-19, "the quietest sounds just drop completely when cpu and ram gets overloaded":
+ * of that, the memory: silence only, never quiet sound). A chunk of a tape or a GRAIN buffer that holds nothing but
+ * silence (every byte 0: zero nibbles from a zero state decode to exactly 0) is given back to the pool, and its place
+ * in the list says MEM_ZC: this one, all zeros, in flash. Readers read it as any chunk and hear the same silence;
+ * nothing ever writes it (tape_commit checks), and before a tape is written the main loop puts real chunks there
+ * again (tape_solid, when REC is armed). Who looks, and when: mem_sweep (tape.c), a few chunks a pass. Tapes only:
+ * a GRAIN buffer records all the time and would want its silence back within seconds (tape.c says why) */
+static const mem_chunk_t mem_zero = {{{0}}, {0}, {0}, {0}};
+static uint32_t mem_hollowed;                        /* chunks given back for their silence, ever (the tests) */
 
-static inline __attribute__((always_inline)) mem_chunk_t *mem_at(uint32_t c) { return &mem_pool[c]; }
+static inline __attribute__((always_inline)) mem_chunk_t *mem_at(uint32_t c)
+{
+    return c < MEM_NC_POOL ? &mem_pool[c] : (mem_chunk_t *)(void *)(uintptr_t)&mem_zero;
+}
 
 static void mem_init(void)
 {
@@ -77,6 +91,34 @@ static void mem_give(uint32_t c, uint32_t o)
 {
     if (c < MEM_NC && mem_owner[c] != MEM_FREE)
         mem_owner[c] = (uint8_t)o;
+}
+
+/* main loop: chunk c holds only silence (every byte 0) */
+static int mem_silent(uint32_t c)
+{
+    const uint32_t *w = (const uint32_t *)(const void *)mem_at(c);
+    uint32_t i;
+    if (c >= MEM_NC)
+        return 0;
+    for (i = 0; i < sizeof(mem_chunk_t) / 4u; i++)
+        if (w[i])
+            return 0;
+    return 1;
+}
+
+/* main loop: list entry e's chunk back to the pool if it holds only silence, the entry saying MEM_ZC from then on
+ * (first, then the chunk freed: a reader between the two reads either, the same silence). The list's owner must not
+ * be writing there (mem_sweep's call). Returns 1 when a chunk came free */
+static int mem_hollow(uint8_t *e)
+{
+    uint32_t c = *e;
+    if (!mem_silent(c))
+        return 0;
+    *e = (uint8_t)MEM_ZC;
+    RING_PUBLISH();
+    mem_free(c);
+    mem_hollowed++;
+    return 1;
 }
 
 /* chunks owner o holds (MEM_FREE: the free ones) */

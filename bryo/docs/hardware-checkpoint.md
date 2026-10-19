@@ -88,8 +88,9 @@ third of the reels.
 1. `tools/get_toolchain.sh` once, if `~/.jieli/toolchain` isn't there, and the AC79 SDK in `~/fw-AC79_AIoT_SDK`
    (BUILDING.md has the details).
 2. `./build.sh`. Its last lines print the image size, the RAM, the pool and the hot code. Note them: since
-   2026-10-18 I expect RAM .data+.bss at about 89 KB of 98,304 B, the pool at about 258 KB of 270,336 B and the hot
-   code at about 65.8 KB of 73,728 B (after WARBLE and VINYL; 61.5 before) (my estimate from a 32-bit build; the device's number is the one to trust). The
+   2026-10-19 I expect RAM .data+.bss at about 89 KB of 98,304 B, the pool at about 258 KB of 270,336 B and the hot
+   code at about 67.3 KB of 73,728 B (after the hearing floor and the shared silence; 65.8 before, 61.5 before WARBLE
+   and VINYL) (my estimate from a 32-bit build; the device's number is the one to trust). The
    build refuses if the pool's 8 KB of headroom is gone, and the link fails if `.hot` doesn't fit.
 3. Install `build/bryo.fwsc` from the web installer, as always. The update loader is untouched, so going back to
    stock works the same way it did.

@@ -261,3 +261,10 @@ track at -6 dB, MASTER at -6) tails end 12 dB sooner under their peaks. On the f
 it out by working the floors out only when an input moves (the first version cost up to 26) and by measuring an
 input's level only when the floor is over 0 for it, on every fourth or second sample. Under load the floor rises
 before anything is capped, so the first thing shed is what can't be heard.
+
+**Silence shares one chunk (2026-10-19).** The memory side: a RAM tape's all-zero chunks point at one const chunk in
+flash and go back to the pool (bryo-architecture.md, "Silence shares one chunk"). `mem_at` gained a compare; the
+checkpoint runs can't tell (5,288 to 5,284 on run 15, 3,069 to 3,052 on run 23: noise and inlining). `.hot` grew
+about 2.4 KB on the i386 measure for both changes together (about 1.5 KiB on the device: 67.3 of 72); `.bss` 136 B;
+the shared chunk is in `.rodata`, flash, so it costs no RAM. GRAIN's buffers stay out of it: lending their silence
+lost sound when the memory was full.

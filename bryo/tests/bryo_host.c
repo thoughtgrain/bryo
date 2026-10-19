@@ -2450,6 +2450,13 @@ static uint32_t buf_sum(uint32_t t)                      /* a fingerprint of a b
             h = h * 31u + mem_at(gbuf[t].map[c])->data[b][7] + mem_at(gbuf[t].map[c])->peak[b];
     return h;
 }
+static uint32_t buf_real(uint32_t t)                    /* a buffer's chunks of memory (its silence shared: none) */
+{
+    uint32_t c, n = 0;
+    for (c = 0; c < gbuf[t].nch; c++)
+        n += gbuf[t].map[c] < MEM_NC;
+    return n;
+}
 static uint32_t buf_loud(uint32_t t, uint32_t from, uint32_t to)   /* blocks of buffer t in [from, to) above a whisper */
 {
     tape_view_t v;
@@ -12212,6 +12219,95 @@ static uint32_t hf_release(uint32_t level)           /* a SYNTH note's release o
         render(1, 0);
     return b;
 }
+/* silence shares one chunk (mem.c, 2026-10-19): a tape's or a GRAIN buffer's chunks of nothing but silence go back
+ * to the pool, what reads them hears the same, and what writes them gets a real chunk back first */
+static uint32_t ss_sum(uint32_t t)                       /* a fingerprint of everything track t's tape plays */
+{
+    tape_view_t v;
+    int16_t x[TAPE_BLK];
+    uint32_t b, i, h = 0;
+    tape_view(t, &v);
+    for (b = 0; b < v.len / TAPE_BLK; b++) {
+        ima_dec(tv_data(&v, b), tv_pred(&v, b), tv_idx(&v, b), x, TAPE_BLK);
+        for (i = 0; i < TAPE_BLK; i++)
+            h = h * 31u + (uint16_t)x[i];
+    }
+    return h;
+}
+static uint32_t ss_zero_clean(void)                      /* the shared chunk still all zeros */
+{
+    const uint8_t *z = (const uint8_t *)&mem_zero;
+    uint32_t i;
+    for (i = 0; i < sizeof mem_zero; i++)
+        if (z[i])
+            return 0;
+    return 1;
+}
+static void test_shared_silence(void)
+{
+    char m[200];
+    uint32_t k, b, f0, h0, n, hz;
+    power_on();
+    tp[0].dev[DEV_SRC][TK_REEL] = 0;                     /* (track 1 plays its RAM tape) */
+    fill_tape(0, 6);
+    for (k = 0; k < 6u; k++) {                           /* chunks 2 and 3 silence; the rest sound */
+        mem_chunk_t *c = mem_at(tape_ctl[0].map[k]);
+        memset(c, 0, sizeof *c);
+        if (k != 2u && k != 3u)
+            for (b = 0; b < MEM_CB; b++) {
+                memset(c->data[b], 0x31, sizeof c->data[b]);
+                c->idx[b] = 20;
+                c->peak[b] = 90;
+            }
+    }
+    tape_ctl[0].nblk = 6u * MEM_CB;
+    tape_ctl[0].empty = 0;
+    h0 = ss_sum(0);
+    f0 = mem_count(MEM_FREE);
+    hz = mem_hollowed;
+    for (k = 0; k < 40u; k++)
+        mem_sweep();
+    snprintf(m, sizeof m, "a tape's two chunks of silence go back to the pool (%u held of 6, %u more free), the list "
+             "still six long", mem_count(MEM_TAPE), mem_count(MEM_FREE) - f0);
+    check(m, tape_ctl[0].map[2] == MEM_ZC && tape_ctl[0].map[3] == MEM_ZC && tape_ctl[0].nch == 6u &&
+             mem_count(MEM_TAPE) == 4u && mem_count(MEM_FREE) == f0 + 2u && mem_hollowed == hz + 2u);
+    check("..it plays the same, every sample", ss_sum(0) == h0);
+    check("..what sounds is never given back", tape_ctl[0].map[0] < MEM_NC && tape_ctl[0].map[5] < MEM_NC);
+    check("..REC armed: the silence is real chunks again before anything is written", tape_prepare(0) == 1 &&
+          tape_ctl[0].map[2] < MEM_NC && tape_ctl[0].map[3] < MEM_NC && mem_count(MEM_TAPE) == 6u && ss_sum(0) == h0);
+    for (k = 0; k < 40u; k++)
+        mem_sweep();
+    check("..and while it's armed the sweep leaves it alone", mem_count(MEM_TAPE) == 6u);
+    tape_unprepare(0);
+    for (k = 0; k < 40u; k++)
+        mem_sweep();
+    {                                                    /* the end silent: stealing frees memory, not a share */
+        mem_chunk_t *c = mem_at(tape_ctl[0].map[5]);
+        memset(c, 0, sizeof *c);
+        for (k = 0; k < 40u; k++)
+            mem_sweep();
+        f0 = mem_count(MEM_FREE);
+        n = tape_ctl[0].nch;
+        check("..its last chunk silent and shared, stealing from it frees a chunk of memory (past the shared one)",
+              tape_ctl[0].map[5] == MEM_ZC && tape_steal(NTRK, 1) && mem_count(MEM_FREE) == f0 + 1u &&
+              tape_ctl[0].nch == n - 2u);
+    }
+
+    /* a GRAIN buffer records all the time: its silence is kept, not lent (it would want it back within seconds) */
+    power_on();
+    tp[0].src = SRC_SYNTH;                               /* (live: the buffer records, nothing played: silence) */
+    for (k = 1; k < NTRK; k++)
+        track[k].mute = 1;
+    tp[0].dev[DEV_GRAIN][GP_WET] = 60;
+    sys.playing = 1;
+    hz = mem_hollowed;
+    render_poll(1378u * 3u);
+    check("a GRAIN buffer recording silence keeps every chunk (11 of 11), the shared chunk never written",
+          gbuf[0].nch == 11u && buf_real(0) == 11u && mem_count(MEM_GRAIN) == 11u && mem_hollowed == hz &&
+          ss_zero_clean());
+    power_on();
+}
+
 static void test_hearing_floor(void)
 {
     char m[200];
@@ -12471,6 +12567,7 @@ int main(int argc, char **argv)
     test_ambient_hall();
     test_drum_shed();
     test_hearing_floor();
+    test_shared_silence();
     test_input();
     test_settings();
     palette_set(UI_GREY_INDEX);                          /* (the screens are one ink now, whatever the palette) */

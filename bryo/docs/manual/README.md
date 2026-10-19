@@ -339,6 +339,14 @@ The four tracks share one memory (about 20 seconds of sound in all). You can swi
 1. **Hold GLO** and turn **SELECT**: TRACKS 4, 3, 2 or 1.
 2. The tracks above the number go silent and **OFF**, and their memory is free for the others.
 
+Silence on a tape costs nothing. When a recorded take has stretches of pure digital silence (a bounce of a synth
+between its notes, a take that started before the sound did), Bryo gives that memory back as soon as the tape isn't
+being recorded, and plays the silence just the same. The number over each fader is still the tape's full length; the
+memory ribbon under the faders shows what it really holds. Arm REC on that track and the silence gets real memory
+again before anything is written, taken the way recording always takes it (free memory first, then the end of the
+longest tape); if there's none at all, REC says there's no memory, as it would for a new take. GRAIN's live buffer
+keeps its memory even when it's silent: it records all the time, so it would need it back within seconds.
+
 <img src="img/mixer_tracks3.png" width="240" alt="TRACKS 3: track 4 off">
 
 ### 3.6 KEY: the project's key and scale

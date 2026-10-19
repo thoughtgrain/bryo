@@ -616,11 +616,16 @@ static uint32_t books(void)
                        c_ < MEM_NC ? mem_owner[c_] : 999u);                                        \
         }                                                                                          \
     } while (0)
-    for (t = 0; t < NTRK; t++) {
+    for (t = 0; t < NTRK; t++) {                         /* (a tape's or a buffer's silence may be the shared chunk,
+                                                          * mem.c: no memory, nobody's; never on a tape REC can write) */
         for (k = 0; k < tape_ctl[t].nch; k++)
-            SEE(tape_ctl[t].map[k], MEM_TAPE + t, "a tape");
+            if (tape_ctl[t].map[k] != MEM_ZC)
+                SEE(tape_ctl[t].map[k], MEM_TAPE + t, "a tape");
+            else if (tape_ctl[t].rec_ok && bad++ < 8)
+                printf("checkpoint: track %u's tape, armed, lists the shared silence (chunk %u)\n", t, k);
         for (k = 0; k < gbuf[t].nch; k++)
-            SEE(gbuf[t].map[k], MEM_GRAIN + t, "a GRAIN buffer");
+            if (gbuf[t].map[k] != MEM_ZC)
+                SEE(gbuf[t].map[k], MEM_GRAIN + t, "a GRAIN buffer");
         for (k = 0; k < reso[t].nch; k++)
             SEE(reso[t].map[k], MEM_RESO + t, "a string");
         for (k = 0; k < space[t].dly.nch; k++)
@@ -658,6 +663,11 @@ static uint32_t books(void)
     for (c = 0; c < MEM_NC; c++)
         if (mem_owner[c] != MEM_FREE && !seen[c] && bad++ < 8)
             printf("checkpoint: chunk %u owned (%u) but nobody lists it: lost\n", c, mem_owner[c]);
+    for (c = 0; c < sizeof mem_zero; c++)                /* (the shared silence: nothing ever writes it) */
+        if (((const uint8_t *)&mem_zero)[c] && bad++ < 8) {
+            printf("checkpoint: the shared silent chunk was written (byte %u)\n", c);
+            break;
+        }
 #undef SEE
     st_block(0);
     return bad;

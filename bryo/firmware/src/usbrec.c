@@ -266,7 +266,7 @@ static uint32_t ur_free_after(void)
 {
     uint32_t n = mem_count(MEM_FREE) + ur.nch - ur_keep_chunks();
     if (ur.dest >= 0)
-        n += tape_ctl[(uint32_t)ur.dest].nch;
+        n += tape_held((uint32_t)ur.dest);              /* (its memory: its shared silence holds none, mem.c) */
     return n;
 }
 

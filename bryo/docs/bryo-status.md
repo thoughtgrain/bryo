@@ -99,7 +99,7 @@ One core, no RTOS. Three contexts, and the rules between them are most of the ar
 **Memory.** Sound lives in one pool of 108 chunks (20.1 s of tape-format sound: `mem.c`) handed out by use: tapes as
 long as what's on them, GRAIN's live buffers, RIPPLE's strings and CHRONOS's lines while they're on. Nothing is
 set aside per track. When it runs short: a cleared tape's chunks first, then a parked track's tape, then the end of
-the longest tape. Main RAM holds 89.1 of 96 KB (.data+.bss: the grain slots and the audio's constant tables among it; the stacks have their own RAM), the pool 257.7 of 264 KiB, the code in RAM (`.hot`) about 65.8 of 72 KiB (2026-10-18, after WARBLE and VINYL; 32-bit
+the longest tape. Main RAM holds 89.2 of 96 KB (.data+.bss: the grain slots and the audio's constant tables among it; the stacks have their own RAM), the pool 257.7 of 264 KiB, the code in RAM (`.hot`) about 67.3 of 72 KiB (2026-10-19, after the hearing floor and the shared silence; 32-bit
 build: the firmware preprocessed, its inline assembly taken out, compiled `-m32 -Os`, `size -A`; `.hot` scaled by 0.63, its ratio to the device build at `f4a6bc9`).
 
 **Parameters.** `param.c` holds every knob as an integer in its own range (`tp[t]`), with a descriptor (name,
@@ -205,12 +205,12 @@ bookkeeping, and runs 31, 33 and 34, the AMBIENT scene's long releases, about 20
 | 19 | a realistic four-track groove | 1,791 |
 | 24 | the groove, modulated the way I'd play it | 1,999 (91 of it the modulators) |
 | 21 | the groove's busiest moment | 2,671 |
-| 23 | GRAIN at its densest on one track | 3,069 |
+| 23 | GRAIN at its densest on one track | 3,052 |
 | 25 | every slot on every track, 128 depths | 2,817 (434 of it the modulators) |
 | 26 | DRUM busy alone (FUNK, VARY 100, FILL 100, long decays), the others plain reels | 1,377 |
 | 27 | the groove with a DRUM track in place of its drum reel | 2,010 |
 | 28 | four DRUM tracks at once, every voice (20) | 2,441 |
-| 15 | everything on, all four tracks | 5,288 |
+| 15 | everything on, all four tracks | 5,284 |
 | 29 | the busiest groove's devices all on, the transport stopped (what "nothing playing" costs) | 714 |
 | 30 | one track heard (dense grains, strings with RIPL ARP, a room), the other three muted | 2,350 |
 | 31 | the factory scene as it boots (AMBIENT at 80 BPM in its hall, its chords held, nothing stepping, 2026-10-18) | 2,796 |
@@ -259,6 +259,10 @@ number.
   four), split by what each track's settings ask for when it runs short; what's left over is everyone's (since
   2026-10-11: a track alone has all 40, not just what RATE and SIZE ask). GRAIN 6's GRNS can hold a number for a
   track instead (1-40, taken from the AUTO tracks first, kept whatever the others do).
+- **2026-10-19: silence shares one chunk.** A RAM tape's chunks of pure digital silence go back to the pool while
+  nothing can write the tape, its list pointing at one shared all-zero chunk in flash; it plays the same, bit for
+  bit. Arming REC gives it real chunks again first. GRAIN's buffers keep theirs: they record all the time, and lending
+  their silence lost sound with the memory full (tried, measured, taken out).
 - **2026-10-19: the hearing floor.** What's under -72 dBFS at the output, after the track's level, the master
   compressor and MASTER, is dropped wherever it is: voices' and drums' tails end there, RIPPLE and CHRONOS rest under
   it, grains aren't started on it (`hear.c`). Under load the floor rises first, 6 dB a step to -48 dBFS, so the
