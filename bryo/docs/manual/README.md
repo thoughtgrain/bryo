@@ -401,6 +401,10 @@ Bryo starts dropping what you can't hear, to keep the sound clean:
    and DRUM's voices are thinned, starting with whichever track is quietest in the mix. A kit over its limit loses
    its quietest voice.
 
+None of it is cut: a tail fades out in a few milliseconds, a string that goes is damped over 12 ms, and a grain
+cloud only ever thins (each track keeps about half its grains at the most), so what you hear is a little less, not a
+gap or a click.
+
 "Quiet" means quiet as you hear it, after the track's level, the master compressor and MASTER. Turn a track down and
 its tails end sooner, because they go under the line sooner. While anything is armed to record, MASTER doesn't
 count, and neither does an armed track's own level: what's recorded is kept in full.

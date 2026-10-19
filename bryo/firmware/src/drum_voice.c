@@ -278,10 +278,12 @@ static inline __attribute__((always_inline)) void dk_noise_loop(const dk_coef_t 
 }
 
 /* its end (q, Q30: DK_QUIET as it always was; the hearing floor's, dk_qend, sooner on a track turned down or under
- * load): a part under it stops, a voice with both under it is done */
+ * load): a part under it fades out fast (KB_FADE, a 3 ms time constant: it was cut, a click on every tail the floor
+ * took) down to DK_QUIET, where it stops as it always did; a voice with both there is done */
 static void HOT_CODE dk_run(const dk_coef_t *c, dk_voice_t *v, int32_t *out, uint32_t n, int32_t q)
 {
     static const uint32_t KB_CHOKE = 40265u;             /* dk_kslow(1500): a 1.5 ms release */
+    static const uint32_t KB_FADE = 51447u;              /* dk_kslow(3000): under the floor, out in about 6 ms */
     uint32_t i, j;
     int32_t ab, db, at, dt, m[CTL], y[CTL];
     int tone, noise, fade = 0;
@@ -301,10 +303,19 @@ static void HOT_CODE dk_run(const dk_coef_t *c, dk_voice_t *v, int32_t *out, uin
     }
     if (v->choke)
         v->left = 0;
-    tone = c->g1 && v->qbody > q;
-    noise = c->filt != DK_OFF && (v->qtail > q || v->ehit > 4 || v->left || !v->tail_on);
-    dk_ramp(&v->qbody, v->choke ? KB_CHOKE : c->kb_body, &ab, &db);
-    dk_ramp(&v->qtail, v->choke ? KB_CHOKE : c->kb_tail, &at, &dt);
+    tone = c->g1 && v->qbody > DK_QUIET;
+    noise = c->filt != DK_OFF && (v->qtail > DK_QUIET || v->ehit > 4 || v->left || !v->tail_on);
+    {                                                    /* (the decays: a choke's, or under the floor the faster of
+                                                          * the part's own and KB_FADE; at the floor's base q is
+                                                          * DK_QUIET, under which nothing sounds: as it was) */
+        uint32_t kb = c->kb_body, kt = c->kb_tail;
+        if (v->qbody <= q && kb > KB_FADE)
+            kb = KB_FADE;
+        if (v->qtail <= q && v->tail_on && !v->left && kt > KB_FADE)
+            kt = KB_FADE;
+        dk_ramp(&v->qbody, v->choke ? KB_CHOKE : kb, &ab, &db);
+        dk_ramp(&v->qtail, v->choke ? KB_CHOKE : kt, &at, &dt);
+    }
     if (tone)
         dk_tone_loop(c, v, y, n, ab, db);
     else
@@ -350,7 +361,7 @@ static void HOT_CODE dk_run(const dk_coef_t *c, dk_voice_t *v, int32_t *out, uin
             y[i] = (y[i] * (int32_t)(n - 1u - i)) >> CTL_LOG2;
     for (i = 0; i < n; i++)                              /* (into the kit's mix: no pass of its own in drm_block) */
         out[i] += soft_knee((clamp(y[i], -65535, 65535) * (c->out >> 1)) >> 11, 16384);   /* (out up to ~42000) */
-    v->live = !fade && (v->qbody > q || v->qtail > q || v->ehit > 4 || v->left || !v->tail_on);
+    v->live = !fade && (v->qbody > DK_QUIET || v->qtail > DK_QUIET || v->ehit > 4 || v->left || !v->tail_on);
 }
 
 /* a voice's end (Q30) under a floor f (Q15, hear.c): its envelopes' full scale comes out at about c->out / 4096 of

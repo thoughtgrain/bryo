@@ -3667,6 +3667,31 @@ bookkeeping: `chain_hear`, the floors' caches, RIPPLE's and the rooms' input lev
 sample only when the floor is over 0 for them). Under load the gain is the point: before, the first shed thinned
 grains you could hear; now it ends what you can't.
 
+**Without disrupting playback** (the follow-up: "ideally in a way that doesn't overly disrupt playback"). I measured
+every drop for a click: the sharpest corner (|second difference|) where the sound goes, against the sound's own just
+before, with the floor at its top. SYNTH's and POLY's voices were already fine (their last block ramps to 0: corner
+2 against 5). Two weren't: a DRUM part under the floor stopped dead at the block's end (97 against 4), and a RIPPLE
+string over a lowered cap simply stopped being rendered, mid-ring (375 against 15; that one was there before today).
+And the grain cut let the quietest track lose its whole cloud before anyone else gave a grain: no click, but a layer
+vanishing is a bigger change than it needed to be.
+
+- DRUM (`dk_run`): a part under the floor decays at the faster of its own rate and `KB_FADE` (a 3 ms time constant,
+  `dk_kslow(3000)`), down to `DK_QUIET`, where it stops as it always did. At the floor's base the floor is
+  `DK_QUIET`, so nothing changes there. Corner 5 against 4.
+- RIPPLE (`rs_fade`): when the cap drops, the strings over it go on for `RS_FADE` (16 blocks, 12 ms) into a scratch
+  block that's ramped down into the mix (the inner loops untouched: their `acc` points at it), then their lines and
+  states are cleared, so when the cap comes back they start from silence instead of jumping in with what rang when
+  they went. Corner 8 against 15.
+- GRAIN (`gr_plan_into`): each track, quietest first, gives at most about half its grains (rounded up, so the cut
+  stays the budget). The pool never goes under half, so the halves always cover the cut: a cloud thins, never goes.
+- The delay's and rooms' rest under the floor measured clean as they were (corner 0 against 7).
+
+Every fingerprint but the four DRUM runs' is unchanged, and those moved 0.00 dB by loudness. The cost is the few
+milliseconds the tails now live: 3 to 11 a sample on the DRUM runs, 22 on the factory scene (still 180 under where it
+was before the floor). Tests: a DRUM tail the floor takes, and RIPPLE shed from four strings to two, each corner no
+sharper than three times the sound's own; the pool cut to half leaving every track grains and the quietest about
+half of its own.
+
 **The audit.** One row flagged after this: SYNTH VOIC, an LFO switching the voice count. It isn't from the floor:
 the old code flags it too at three of four warm-up lengths (350, 450, 500 blocks; it passed at 400 by chance), and
 the new voice timing moved the phrase onto a flagging alignment. VOIC lets the voices over it go at a block edge,

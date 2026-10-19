@@ -207,14 +207,14 @@ bookkeeping, and runs 31, 33 and 34, the AMBIENT scene's long releases, about 20
 | 21 | the groove's busiest moment | 2,671 |
 | 23 | GRAIN at its densest on one track | 3,052 |
 | 25 | every slot on every track, 128 depths | 2,817 (434 of it the modulators) |
-| 26 | DRUM busy alone (FUNK, VARY 100, FILL 100, long decays), the others plain reels | 1,377 |
-| 27 | the groove with a DRUM track in place of its drum reel | 2,010 |
-| 28 | four DRUM tracks at once, every voice (20) | 2,441 |
-| 15 | everything on, all four tracks | 5,284 |
+| 26 | DRUM busy alone (FUNK, VARY 100, FILL 100, long decays), the others plain reels | 1,380 |
+| 27 | the groove with a DRUM track in place of its drum reel | 2,014 |
+| 28 | four DRUM tracks at once, every voice (20) | 2,450 |
+| 15 | everything on, all four tracks | 5,290 |
 | 29 | the busiest groove's devices all on, the transport stopped (what "nothing playing" costs) | 714 |
 | 30 | one track heard (dense grains, strings with RIPL ARP, a room), the other three muted | 2,350 |
-| 31 | the factory scene as it boots (AMBIENT at 80 BPM in its hall, its chords held, nothing stepping, 2026-10-18) | 2,796 |
-| 32 | TEST, the project view's scene: every stage at work (GLITCH, at its scene tempo of 136 since 2026-10-17) | 2,894 |
+| 31 | the factory scene as it boots (AMBIENT at 80 BPM in its hall, its chords held, nothing stepping, 2026-10-18) | 2,818 |
+| 32 | TEST, the project view's scene: every stage at work (GLITCH, at its scene tempo of 136 since 2026-10-17) | 2,905 |
 | 33 | the factory scene, T3 on VINYL over the whole sound (GLCH 60: a glitch most turns), T2 on WARBLE (SWEL 50) (2026-10-18) | 3,126 |
 | 34 | the factory scene, T3's grains through WARBLE (APPL GRNS) (2026-10-18) | 2,891 |
 
@@ -259,6 +259,11 @@ number.
   four), split by what each track's settings ask for when it runs short; what's left over is everyone's (since
   2026-10-11: a track alone has all 40, not just what RATE and SIZE ask). GRAIN 6's GRNS can hold a number for a
   track instead (1-40, taken from the AUTO tracks first, kept whatever the others do).
+- **2026-10-19: dropping without disrupting.** What the floor and the caps take now goes gently: a DRUM tail
+  under the floor fades out in about 6 ms (it was cut: a click every time), a shed RIPPLE string fades over 12 ms
+  and comes back from silence (it was cut mid-ring, a click 25 times the strings' own sharpest corner), and the
+  grain pool's cut takes about half of each track's grains at most, the quietest track first, so a cloud thins and
+  never vanishes. Measured: every drop now corners no sharper than the sound did before it.
 - **2026-10-19: silence shares one chunk.** A RAM tape's chunks of pure digital silence go back to the pool while
   nothing can write the tape, its list pointing at one shared all-zero chunk in flash; it plays the same, bit for
   bit. Arming REC gives it real chunks again first. GRAIN's buffers keep theirs: they record all the time, and lending

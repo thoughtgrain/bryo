@@ -105,6 +105,8 @@ typedef struct {
     uint32_t rph;                    /* RIPL's phase (string k a quarter turn on from string k - 1) */
     uint32_t fph;                    /* FLOW's phase (Q32: up the spectrum over the first half, back down the rest) */
     int32_t rc[RS_N];                /* RIPL: each string's pitch offset this block, cents */
+    uint8_t ncap;                    /* the strings the cap let sound last block (a drop: shedding, rs_fade) */
+    uint8_t fn, fl;                  /* .. shed: the strings still sounding while they fade, the blocks left */
     uint8_t mode_seen;               /* MODE last block: a change clears the lines (what rang in the old one would
                                       * be read wrong by the new) */
 } reso_t;
@@ -333,6 +335,23 @@ static uint32_t HOT_CODE reso_arp_block(uint32_t t, uint32_t keys, uint32_t base
     return arp_run(&reso_arp[t], a, p[RP_AMODE] != ARM_OFF, keys, base, n, note, t + 4u) & 1u;
 }
 
+#define RS_FADE 16u                  /* a shed string fades over 16 blocks (12 ms), then rests */
+/* audio ISR: a fading string's block (rs_fb0 zeroed it, its loop added into it) into the mix, at the fade's place:
+ * fl blocks of RS_FADE left, ramped down across the block */
+static inline __attribute__((always_inline)) int32_t *rs_fb0(int32_t *fb, uint32_t n)
+{
+    uint32_t i;
+    for (i = 0; i < n; i++)
+        fb[i] = 0;
+    return fb;
+}
+static void rs_fade(int32_t *to, const int32_t *fb, uint32_t fl, uint32_t n)
+{
+    int32_t g = (int32_t)fl * (32767 / RS_FADE), dg = (32767 / RS_FADE) >> CTL_LOG2, i;
+    for (i = 0; i < (int32_t)n; i++, g -= dg)
+        to[i] += ((fb[i] >> 2) * (g >> 1)) >> 12;       /* (DRV takes a string past 2^17: 2^16 x 2^14) */
+}
+
 /* audio ISR: track t's RIPPLE on its stereo block, in place. keys: the white keys on the RIPPLE page (0
  * otherwise); pluck: they pluck (a TAPE track) or only retune (a SYNTH or POLY track, the keys playing the source) */
 static uint8_t reso_arp_on[NTRK];   /* ISR: the arpeggio's note sounding last block (a new step: a pluck) */
@@ -350,7 +369,8 @@ static void HOT_CODE reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t key
     int32_t wet1 = clamp(p[RP_WET], 0, 100), wet0 = R->wet, e[CTL], acc_e[CTL], acc_o[CTL], heard = 0;
     int32_t a = RS_TONE_A[clamp(p[RP_TONE], 0, 100)], sc = clamp(p[RP_SCAL], 0, RS_SCALES), root16;
     uint32_t k, i, press = keys & ~R->keys, nstr = R->nch < reso_cap[t] ? R->nch : reso_cap[t];
-    uint32_t t60 = rs_t60(p[RP_DEC]);
+    uint32_t t60 = rs_t60(p[RP_DEC]), nrun;
+    int32_t fb[CTL];                                    /* (a string fading out: its share, then into the mix) */
     int32_t mode = rs_mode(R), drv = clamp(p[RP_DRV], 0, 100), ripl = clamp(p[RP_RIPL], 0, 100), ig = 16384;
     int32_t fpos = rs_flow(R, clamp(p[RP_FLOW], 0, 100), mode);   /* FLOW: where across the spectrum (-1: still) */
     int32_t comb = mode == RM_COMB, gq = 256 + ((drv * 1311) >> 8);   /* (DRV's gain, 1 + DRV / 50: to 3 x) */
@@ -360,8 +380,20 @@ static void HOT_CODE reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t key
                                                          * for the strings to ring it up) doesn't wake them, and
                                                          * they rest once they've rung down under fl / 4 (2 at the
                                                          * floor's base: as it was) */
-    if (mode == RM_BANK)
+    if (nstr < R->ncap && R->nch > nstr && !R->fl) {   /* shed (2026-10-19): the strings over the cap fade out
+                                                         * over RS_FADE blocks, damped as a hand on them would be,
+                                                         * then rest from silence (cut, a ringing string clicked) */
+        R->fn = R->ncap;
+        R->fl = RS_FADE;
+    }
+    if (nstr >= R->fn)                                  /* (back under the cap, or none: no fade) */
+        R->fl = 0;
+    R->ncap = (uint8_t)nstr;
+    nrun = R->fl ? (R->fn < R->nch ? R->fn : R->nch) : nstr;
+    if (mode == RM_BANK) {
         nstr *= 3u;                                     /* (BANK: its bands, three a string's chunk) */
+        nrun *= 3u;
+    }
     if (drv)
         ig = (int32_t)((1u << 22) / (uint32_t)gq);      /* (1 / gq, Q14) */
     if (mode != R->mode_seen) {                         /* MODE changed: the lines and the states cleared */
@@ -462,7 +494,7 @@ static void HOT_CODE reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t key
                                                          * long: nothing left to ring, so none of their work (2026-10-11:
                                                          * half the CPU with nothing playing). A pluck or sound in
                                                          * wakes them, carrying on from their lines as they are */
-        nstr = 0;
+        nstr = nrun = 0;
     {   /* each string's cents off its partial: RIPL, a slow triangle of up to +-50 cents at 100, 0.2 Hz + RIPL / 100
          * Hz, a quarter turn a string, so the drift runs across the strings like a wave (the lines follow sample by
          * sample, the moving loop); and SPRD, on the strings and combs, a detune across them, -50 .. +50 cents from
@@ -494,7 +526,7 @@ static void HOT_CODE reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t key
             if ((rt | i) * (rt | i) <= (uint32_t)dq)
                 rt |= i;
         sq = 12 * (int32_t)rt;
-        for (k = 0; k < nstr; k++) {
+        for (k = 0; k < nrun; k++) {
             int32_t part = rs_part16(sc, k), rc = R->rc[mode == RM_BANK ? k / 3u : k];
             int32_t n16 = root16 + part + ((part * sprd) >> 8);   /* (SPRD: the spacing stretched, up to -40 % or +40 %
                                                                    * from the root: an inharmonic set) */
@@ -510,7 +542,7 @@ static void HOT_CODE reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t key
             }
             uint32_t inc, burst = R->burst[k];
             int32_t th, th2, eps, eq, sh = 14, s1 = R->bs1[k], s2 = R->bs2[k], by = R->by[k], last = 0, gain, blv;
-            int32_t *acc = k & 1u ? acc_o : acc_e;
+            int32_t *acc = k >= nstr ? rs_fb0(fb, n) : k & 1u ? acc_o : acc_e;
             if (tilt <= 0 || n16 > RS_BANK_TOP) {        /* (tilted away, or past the top: silent) */
                 R->bs1[k] = R->bs2[k] = R->lp[k] = 0;
                 R->burst[k] = 0;
@@ -564,6 +596,8 @@ static void HOT_CODE reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t key
             R->by[k] = by;
             R->burst[k] = burst;
             R->lp[k] = last;
+            if (k >= nstr)
+                rs_fade(k & 1u ? acc_o : acc_e, fb, R->fl, n);
             {                                           /* (its level for the screen, as a string's) */
                 uint32_t lv = (uint32_t)(last < 0 ? -last : last), l0 = R->lvl[k];
                 l0 -= (l0 + 7u) >> 3;                   /* (to 0: l0 >> 3 alone stalled under 8) */
@@ -578,12 +612,13 @@ static void HOT_CODE reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t key
     uint32_t comp = ((uint32_t)(32768 - a) << 8) / (uint32_t)a;   /* (the same for every string: once a block) */
     int settle = !heard;                                 /* (silence in: the moving loop rounds toward 0 as the
                                                           * settling one does; RIPL keeps the delay moving) */
-    for (k = 0; k < nstr; k++) {                         /* each string: read a period back, damp, ring, write */
+    for (k = 0; k < nrun; k++) {                         /* each string: read a period back, damp, ring, write */
         int16_t *d = rs_line(R, k);
         int32_t n16 = root16 + rs_part16(sc, k);
         uint32_t pq8 = (R->rc[k] ? rs_period_q8c(n16, R->rc[k]) : rs_period_q8(n16)) >> comb;
         uint32_t dq8 = pq8 > comp + 512u ? pq8 - comp : 512u, di = dq8 >> 8, df = dq8 & 255u, w = R->w;
-        int32_t g = rs_gain(pq8 >> 8, t60), lp = R->lp[k], *acc = k & 1u ? acc_o : acc_e, g3 = (g * ig) >> 14;
+        int32_t g = rs_gain(pq8 >> 8, t60), lp = R->lp[k], g3 = (g * ig) >> 14;
+        int32_t *acc = k >= nstr ? rs_fb0(fb, n) : k & 1u ? acc_o : acc_e;
         uint32_t rd = w >= di ? w - di : w + RS_LEN - di, d0 = R->dq[k] ? R->dq[k] : dq8;
         int32_t dd = (int32_t)dq8 - (int32_t)d0;
         g3 = (g3 * 10923) >> 15;                        /* (over 3: the cubic's) */
@@ -665,6 +700,8 @@ static void HOT_CODE reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t key
             }
         }
         R->lp[k] = lp;
+        if (k >= nstr)
+            rs_fade(k & 1u ? acc_o : acc_e, fb, R->fl, n);
         {                                               /* (its level for the screen: a block's last sample, held) */
             uint32_t a = (uint32_t)(lp < 0 ? -lp : lp), l0 = R->lvl[k];
             l0 -= (l0 + 7u) >> 3;                   /* (to 0: l0 >> 3 alone stalled under 8) */
@@ -680,6 +717,16 @@ static void HOT_CODE reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t key
             acc_o[i] = (acc_o[i] * mk) >> 14;
         }
     }
+    }
+    if (R->fl && (!nrun || !--R->fl)) {                 /* the fade done (or resting): the shed strings from silence,
+                                                         * their lines and states cleared, so coming back they start
+                                                         * clean, not on what rang when they went */
+        uint32_t s0 = R->ncap, s1 = R->fn < R->nch ? R->fn : R->nch;
+        for (k = s0; k < s1; k++)
+            memset(rs_line(R, k), 0, RS_LEN * 2u);
+        for (k = mode == RM_BANK ? s0 * 3u : s0; k < RS_NB; k++)
+            R->lp[k] = R->bs1[k] = R->bs2[k] = 0, R->burst[k] = 0;
+        R->fl = 0;
     }
     if (nstr) {
         R->w += n;                                       /* (w < RS_LEN, n a block: one wrap at most) */

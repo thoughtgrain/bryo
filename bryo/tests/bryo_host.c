@@ -12308,6 +12308,17 @@ static void test_shared_silence(void)
     power_on();
 }
 
+/* the sharpest corner (|second difference|) in blocks [b0, b1) of x, CTL samples a block */
+static int32_t hf_corner(const int32_t *x, uint32_t b0, uint32_t b1)
+{
+    uint32_t i;
+    int32_t m = 0;
+    for (i = b0 * CTL + 2u; i < b1 * CTL; i++) {
+        int32_t d = abs(x[i] - 2 * x[i - 1] + x[i - 2]);
+        m = d > m ? d : m;
+    }
+    return m;
+}
 static void test_hearing_floor(void)
 {
     char m[200];
@@ -12447,6 +12458,74 @@ static void test_hearing_floor(void)
                  (uint32_t)sh1[0] + sh1[1] <= GR_POOL[2] * (GR_CAP - 2u) / GR_CAP);
     }
     caps_full();
+
+    /* what the floor drops goes without a click (2026-10-19, "in a way that doesn't overly disrupt playback"): the
+     * sharpest corner where it goes, against the sound's own just before */
+    {
+        static int32_t x[CTL * 3000u];
+        int32_t c0, c1;
+        uint32_t end = 0;
+        power_on();
+        track[1].mute = track[2].mute = track[3].mute = 1;
+        tp[0].src = SRC_DRUM;
+        drm_strike(0, tp[0].drm, 0, 0, 0);
+        for (b = 0; b < 3000u; b++) {
+            hear_step = HEAR_STEPS;
+            render(1, x + b * CTL);
+            for (j = 0, t = 0; j < DRM_NV; j++)
+                t |= drm_rt[0].v[j].live;
+            if (b > 2u && !t && !end)
+                end = b;
+        }
+        c0 = hf_corner(x, end > 200u ? end - 200u : 1u, end - 1u);
+        c1 = hf_corner(x, end - 1u, end + 3u);
+        snprintf(m, sizeof m, "..a DRUM tail the floor (-48) takes fades out: its sharpest corner there %d, the "
+                 "sound's own %d", c1, c0);
+        check(m, end && c1 <= 3 * c0 + 4);
+        power_on();
+        track[1].mute = track[2].mute = track[3].mute = 1;
+        tp[0].src = SRC_SYNTH;
+        tp[0].dev[DEV_RESO][RP_WET] = 80;
+        tp[0].dev[DEV_RESO][RP_DEC] = 90;
+        sys.keys_live = 1;
+        sys.sel = 0;
+        render_poll(10);
+        fm1_in.notes = note_bit_of_white(0) | note_bit_of_white(4);
+        render(300, 0);
+        fm1_in.notes = 0;
+        render(400, x);
+        reso_cap[0] = 2u;                                /* (shed: two strings go) */
+        render(40, x + 400u * CTL);
+        c0 = hf_corner(x, 200u, 400u);
+        c1 = hf_corner(x, 400u, 440u);
+        snprintf(m, sizeof m, "..RIPPLE's strings shed 4 -> 2 fade out over 12 ms: the sharpest corner %d, the "
+                 "strings' own %d", c1, c0);
+        check(m, c1 <= 3 * c0 + 4 && reso[0].fl == 0u);
+        caps_full();
+    }
+    {                                                    /* the grains: a quiet track's cloud thins, never vanishes */
+        uint8_t sh[NTRK];
+        power_on();
+        for (t = 0; t < 4u; t++) {
+            tp[t].dev[DEV_GRAIN][GP_WET] = 80;
+            tp[t].dev[DEV_GRAIN][GP_SCAN] = SCAN_TAPE;
+            hear_pk[t] = 1000 * ((int32_t)t + 1);
+        }
+        sys.playing = 1;
+        render_poll(4);
+        for (t = 0; t < 4u; t++)
+            hear_pk[t] = 1000 * ((int32_t)t + 1);
+        gr_plan_into(sh);
+        {
+            uint8_t s0 = sh[0];
+            grain_cap = 4u;                              /* (the deepest cut: half the pool) */
+            gr_plan_into(sh);
+            snprintf(m, sizeof m, "..the grain pool cut to half: the quietest track keeps about half its grains "
+                     "(%u -> %u), every track some", s0, sh[0]);
+            check(m, s0 && sh[0] >= s0 / 2u && sh[1] && sh[2] && sh[3]);
+        }
+        caps_full();
+    }
 
     /* RIPPLE and SPACE rest on what's too quiet to hear */
     power_on();

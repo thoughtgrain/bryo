@@ -268,3 +268,9 @@ checkpoint runs can't tell (5,288 to 5,284 on run 15, 3,069 to 3,052 on run 23: 
 about 2.4 KB on the i386 measure for both changes together (about 1.5 KiB on the device: 67.3 of 72); `.bss` 136 B;
 the shared chunk is in `.rodata`, flash, so it costs no RAM. GRAIN's buffers stay out of it: lending their silence
 lost sound when the memory was full.
+
+**Shedding without clicks (2026-10-19).** The follow-up to the hearing floor: what it drops must go gently. A DRUM
+part under the floor now fades at a 3 ms time constant instead of stopping, and a RIPPLE string over a lowered cap
+fades over 12 ms before it rests; both measured clean against the sound's own sharpest corner. The voices live a few
+milliseconds longer: 3 to 11 a sample on the DRUM runs, 22 on the factory scene (2,818, against 2,998 before the
+floor). A grain cut takes at most about half of any track's grains.

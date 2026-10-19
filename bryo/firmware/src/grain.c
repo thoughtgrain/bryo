@@ -345,10 +345,12 @@ static void HOT_CODE gr_plan_into(uint8_t *share)
                 share[t] = (uint8_t)(share[t] + left / nauto + (i++ < left % nauto));
     }
     if (grain_cap < GR_CAP) {                           /* shed (chain_shed): the pool cut to grain_cap / GR_CAP of
-                                                         * itself, the grains of the quietest track as heard going
-                                                         * first (hear.c hear_quietest), all of them before the
-                                                         * next quietest gives any (2026-10-19: every share was cut
-                                                         * alike) */
+                                                         * itself, the quietest track as heard giving first (hear.c
+                                                         * hear_quietest), each about half its grains at most (rounded
+                                                         * up: the cut is the budget), so a cloud
+                                                         * thins and never vanishes (2026-10-19: every share was cut
+                                                         * alike). The pool never goes under half, so halves always
+                                                         * cover the cut */
         uint32_t keep = GR_POOL[on] * grain_cap / GR_CAP, sum = 0, mask = 0;
         for (t = 0; t < NTRK; t++) {
             sum += share[t];
@@ -356,7 +358,7 @@ static void HOT_CODE gr_plan_into(uint8_t *share)
         }
         while (sum > keep && mask) {
             int32_t q = hear_quietest(mask);
-            uint32_t take = sum - keep < share[q] ? sum - keep : share[q];
+            uint32_t half = (share[q] + 1u) / 2u, take = sum - keep < half ? sum - keep : half;
             share[q] = (uint8_t)(share[q] - take);
             sum -= take;
             mask &= ~(1u << q);
