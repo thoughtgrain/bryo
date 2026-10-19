@@ -309,10 +309,12 @@ static void HOT_CODE dk_run(const dk_coef_t *c, dk_voice_t *v, int32_t *out, uin
                                                           * the part's own and KB_FADE; at the floor's base q is
                                                           * DK_QUIET, under which nothing sounds: as it was) */
         uint32_t kb = c->kb_body, kt = c->kb_tail;
-        if (v->qbody <= q && kb > KB_FADE)
-            kb = KB_FADE;
-        if (v->qtail <= q && v->tail_on && !v->left && kt > KB_FADE)
-            kt = KB_FADE;
+        if (q > DK_QUIET) {                             /* (only where the floor ends it sooner than it would) */
+            if (v->qbody <= q && kb > KB_FADE)
+                kb = KB_FADE;
+            if (v->qtail <= q && v->tail_on && !v->left && kt > KB_FADE)
+                kt = KB_FADE;
+        }
         dk_ramp(&v->qbody, v->choke ? KB_CHOKE : kb, &ab, &db);
         dk_ramp(&v->qtail, v->choke ? KB_CHOKE : kt, &at, &dt);
     }

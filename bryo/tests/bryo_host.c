@@ -12203,10 +12203,12 @@ static void test_drum_shed(void)
 }
 
 /* the hearing floor (hear.c, 2026-10-19): what's too quiet to hear is dropped, the floor rising under load */
-static uint32_t hf_release(uint32_t level)           /* a SYNTH note's release on track 1 at level: blocks to silence */
+static uint32_t hf_release(uint32_t level, uint32_t load)   /* a SYNTH note's release on track 1 at level, the CPU at
+                                                         * load %: blocks to silence */
 {
     uint32_t b;
     power_on();
+    sys.load_pk = load;
     track[1].mute = track[2].mute = track[3].mute = 1;
     tp[0].src = SRC_SYNTH;
     tp[0].syn[SY_REL] = 90;
@@ -12328,6 +12330,7 @@ static void test_hearing_floor(void)
     double want, got;
     static int32_t l[CTL], r[CTL];
     power_on();
+    sys.load_pk = 65;                                    /* (strained: the floor as heard) */
     sys.master_q12 = MASTER_FULL;
     track[0].level = 112;                                /* (0 dB) */
     render(1, 0);
@@ -12354,16 +12357,39 @@ static void test_hearing_floor(void)
 
     /* a release ends where it goes under the floor: sooner on a track turned down, as much sooner as its decay takes
      * to fall that much further */
-    full = hf_release(112);
+    full = hf_release(112, 0);
+    quiet = hf_release(72, 0);
+    snprintf(m, sizeof m, "calm (no strain on the CPU): nothing is cut: SYNTH's release at -20 dB as long as at 0 dB "
+             "(%u, %u blocks), the floor at its base inside the track (%d)", quiet, full, hear_fl[0]);
+    check(m, quiet == full && hear_fl[0] == HEAR_BASE);
+    {                                                    /* (on at 60 %, off under 50: no flicker in between) */
+        int32_t on, held, off;
+        track[0].level = 72;
+        sys.load_pk = 62;
+        render(1, 0);
+        on = hear_fl[0];
+        sys.load_pk = 55;
+        render(1, 0);
+        held = hear_fl[0];
+        sys.load_pk = 45;
+        render(1, 0);
+        off = hear_fl[0];
+        snprintf(m, sizeof m, "..the floor as heard from 60 %% (%d), still at 55 %% (%d), off under 50 (%d)", on, held,
+                 off);
+        check(m, on > HEAR_BASE && held == on && off == HEAR_BASE);
+        sys.load_pk = 0;
+    }
+    full = hf_release(112, 65);
     f0 = hear_fl[0];
-    quiet = hf_release(72);
+    quiet = hf_release(72, 65);
     f1 = hear_fl[0];
     want = log((double)(1 << 24) / hear_end24(f1)) / log((double)(1 << 24) / hear_end24(f0));
     got = (double)quiet / full;
-    snprintf(m, sizeof m, "SYNTH's release, track at 0 dB: %u blocks to silence; at -20 dB: %u (%.2f of it, the "
-             "floor's %.2f)", full, quiet, got, want);
+    snprintf(m, sizeof m, "..under strain (65 %%): SYNTH's release, track at 0 dB: %u blocks to silence; at -20 dB: %u"
+             " (%.2f of it, the floor's %.2f)", full, quiet, got, want);
     check(m, quiet < full && got > want - 0.06 && got < want + 0.06);
     power_on();
+    sys.load_pk = 65;                                    /* (strained: the floor as heard) */
     sys.master_q12 = MASTER_FULL;
     render(1, 0);
     check("..at MASTER full and 0 dB the end is where it always was (1 << 12, -72 dB)",
@@ -12371,6 +12397,7 @@ static void test_hearing_floor(void)
 
     /* under load: the floor first, 6 dB a time, to -48 dBFS; then the caps; back in the other order */
     power_on();
+    sys.load_pk = 65;                                    /* (strained: the floor as heard) */
     for (b = 0; b < HEAR_STEPS; b++)
         chain_shed();
     check("overload: the floor rises first, four 6 dB steps (-48 dBFS), the caps untouched",
@@ -12398,6 +12425,7 @@ static void test_hearing_floor(void)
           "3 blocks at 70 % for 93 %, a rush; the last block isn't looked at",
           !shed_rushing(20, 1, 4) && shed_rushing(24, 1, 4) && shed_rushing(70, 3, 4) && !shed_rushing(99, 4, 4));
     power_on();
+    sys.load_pk = 65;                                    /* (strained: the floor as heard) */
     chain_shed_n(4u, 1);
     check("..a rush: four steps at once (the floor to its top, -48 dBFS), the fades short for two halves",
           hear_step == HEAR_STEPS && shed_rush == 8u);
@@ -12406,6 +12434,7 @@ static void test_hearing_floor(void)
 
     /* past the floor's top, the caps take from the quietest track first */
     power_on();
+    sys.load_pk = 65;                                    /* (strained: the floor as heard) */
     tp[0].src = tp[1].src = SRC_DRUM;
     track[0].level = 112;
     track[1].level = 80;                                 /* (track 2 16 dB under track 1) */
@@ -12432,6 +12461,7 @@ static void test_hearing_floor(void)
 
     /* a track over its cap: its quietest voice is choked, not the last */
     power_on();
+    sys.load_pk = 65;                                    /* (strained: the floor as heard) */
     tp[0].src = SRC_DRUM;
     for (j = 0; j < DRM_NV; j++)                         /* five instruments, one of them a ghost note */
         drm_strike(0, tp[0].drm, j == 0 ? 0u : 11u + j, 0, j == 2u);
@@ -12455,6 +12485,7 @@ static void test_hearing_floor(void)
 
     /* the grains: the pool's cut from the quieter track's share first */
     power_on();
+    sys.load_pk = 65;                                    /* (strained: the floor as heard) */
     hear_pk[0] = 20000;
     hear_pk[1] = 2000;
     {
@@ -12485,6 +12516,7 @@ static void test_hearing_floor(void)
         int32_t c0, c1;
         uint32_t end = 0;
         power_on();
+    sys.load_pk = 65;                                    /* (strained: the floor as heard) */
         track[1].mute = track[2].mute = track[3].mute = 1;
         tp[0].src = SRC_DRUM;
         drm_strike(0, tp[0].drm, 0, 0, 0);
@@ -12502,6 +12534,7 @@ static void test_hearing_floor(void)
                  "sound's own %d", c1, c0);
         check(m, end && c1 <= 3 * c0 + 4);
         power_on();
+    sys.load_pk = 65;                                    /* (strained: the floor as heard) */
         track[1].mute = track[2].mute = track[3].mute = 1;
         tp[0].src = SRC_SYNTH;
         tp[0].dev[DEV_RESO][RP_WET] = 80;
@@ -12543,6 +12576,7 @@ static void test_hearing_floor(void)
     {                                                    /* the grains: a quiet track's cloud thins, never vanishes */
         uint8_t sh[NTRK];
         power_on();
+    sys.load_pk = 65;                                    /* (strained: the floor as heard) */
         for (t = 0; t < 4u; t++) {
             tp[t].dev[DEV_GRAIN][GP_WET] = 80;
             tp[t].dev[DEV_GRAIN][GP_SCAN] = SCAN_TAPE;
@@ -12566,6 +12600,7 @@ static void test_hearing_floor(void)
 
     /* RIPPLE and SPACE rest on what's too quiet to hear */
     power_on();
+    sys.load_pk = 65;                                    /* (strained: the floor as heard) */
     sys.master_q12 = MASTER_FULL;
     track[0].level = 20;                                 /* (-46 dB) */
     tp[0].dev[DEV_RESO][RP_WET] = 60;

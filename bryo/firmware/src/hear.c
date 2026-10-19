@@ -13,6 +13,12 @@
  * faint grains, a delay's last echoes. Only past that are the grains, strings and drum voices capped, as before. A
  * calm second with room takes it down a step (hear_recover).
  *
+ * Only under strain (2026-10-19, the follow-up: "we don't want to cut audio brute force when no strain on the cpu
+ * exists"): while the heaviest half of the last second stays under HEAR_ON (60 %), the floor sits at its base inside
+ * every track whatever its level and MASTER, which is exactly where every part always ended its sound: nothing is
+ * cut that wasn't before. From 60 % (off again under 50) it's the floor as heard; from 78 % it rises (chain.c's load
+ * guard).
+ *
  * The floor is worked out once a block (chain.c chain_hear) into each part's terms: hear_fl[t] inside track t
  * (where its sources and devices are, before its level), hear_rm for the rooms (after the tracks' levels). A track
  * being recorded is heard before its level (REC takes it there), and what other tracks record hears it before MASTER:
@@ -22,7 +28,11 @@
 #define HEAR_BASE 8                  /* the floor at the output, Q15: -72.2 dBFS */
 #define HEAR_STEPS 4u                /* under load it rises 6 dB a step: -66 -60 -54 -48 */
 #define HEAR_DEAF 32767              /* a floor: nothing of it is heard (its level, or MASTER, at 0) */
+#define HEAR_ON 60u                  /* the floor as heard only under strain: from the heaviest half of the last */
+#define HEAR_OFF 50u                 /* .. second at 60 % (sys.load_pk), off again under 50; calm, nothing is cut */
 static uint32_t hear_step;           /* the steps it's risen by now (chain_shed raises it, hear_recover lowers it) */
+static uint8_t hear_on;              /* ISR: under strain (chain_hear); 0, calm: every part ends where it always did,
+                                      * exactly (hear_src, hear_peak, drm_block's ends answer with the old values) */
 static uint32_t hear_calm;           /* blocks since the last rise */
 static int32_t hear_fl[NTRK] = {HEAR_BASE, HEAR_BASE, HEAR_BASE, HEAR_BASE};   /* track t's floor, Q15 amplitude */
 static int32_t hear_rm = HEAR_BASE;  /* the rooms' */
@@ -45,6 +55,8 @@ static int32_t hear_src(uint32_t t, int32_t lv)
 {
     static int32_t kf[NTRK], kl[NTRK], kr[NTRK];
     int32_t f = hear_fl[t];
+    if (!hear_on)                                       /* (calm: the base, 1 << 12 for a voice, as it always was) */
+        return HEAR_BASE;
     if (lv == 1024 || f >= HEAR_DEAF)
         return f;
     if (f != kf[t] || lv != kl[t]) {
@@ -68,6 +80,8 @@ static inline __attribute__((always_inline)) int32_t hear_end24(int32_t f)
 static uint32_t hear_peak(int32_t f, int32_t g)
 {
     uint32_t p;
+    if (!hear_on)                                       /* (calm: every peak but 0, as it was) */
+        return 1u;
     if (g <= 0 || f >= HEAR_DEAF)
         return 256u;                                    /* (no block is heard) */
     p = ((uint32_t)f << 7) / (uint32_t)g;               /* (f x 32768 / (g x 256): heard from peak p - 1 up, the

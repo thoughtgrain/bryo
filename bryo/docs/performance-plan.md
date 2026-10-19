@@ -280,3 +280,8 @@ could miss a deadline before it caught up. Now it starts at 78 %, takes two step
 half after every block, shedding four steps at once with short fades when the render is heading past 92 % of its time
 (bryo-architecture.md, "The load guard"). It costs a tick read and a divide a block. On the FM-1 the measure that
 matters is `audio_late` staying at 0 under check 35 while `load_rush` climbs.
+
+**The floor only under strain (2026-10-19).** Calm (under 60 % for the last second), nothing is cut: every part ends
+where it always did, bit for bit. The host measures no load, so its runs are calm now and read as before the floor
+plus 5 to 15 a sample of bookkeeping (run 31 3,010); pinned at 65 % they read as the floor intended (run 31 2,818).
+On the FM-1 the factory scene sits near 75 %, strained, so it keeps its saving there.

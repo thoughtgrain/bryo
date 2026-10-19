@@ -3719,6 +3719,17 @@ steps), the projection (20 % after a block heads for 80, nothing; 24 for 96, a r
 the last block not looked at), a rush taking the floor to its top at once, and RIPPLE shed in a rush fading over 4
 blocks without a click.
 
+**Only under strain** (the follow-up: "but based on cpu strain, we don't want to cut audio brute force when no strain
+on the cpu exists"). The steps and caps were load-driven already; the floor as heard wasn't: on an idle FM-1 a track
+turned down still had its tails ended sooner. Now `chain_hear` keeps the floor at its base inside every track,
+whatever its level and MASTER, unless the heaviest half of the last second (`sys.load_pk`) is at `HEAR_ON` (60 %) or
+more, off again under `HEAR_OFF` (50), or the floor has risen. And `hear_on` makes it exact: calm, `hear_src`
+answers the base (so a source's LVL under 0 dB no longer raises its voices' end), `hear_peak` answers 1 (every peak
+but 0), and DRUM's end is `DK_QUIET`, and its fade applies only where the floor is above that. With the host calm,
+every fingerprint came back to its value before the floor: calm is the old firmware, bit for bit. Under strain
+(the same runs with the load pinned at 65 %) the savings are what they were: the factory scene 3,010 to 2,818.
+Tests: calm, a release at -20 dB as long as at 0 dB and the floor at its base; on at 62 %, held at 55, off at 45.
+
 **The audit.** One row flagged after this: SYNTH VOIC, an LFO switching the voice count. It isn't from the floor:
 the old code flags it too at three of four warm-up lengths (350, 450, 500 blocks; it passed at 400 by chance), and
 the new voice timing moved the phrase onto a flagging alignment. VOIC lets the voices over it go at a block edge,

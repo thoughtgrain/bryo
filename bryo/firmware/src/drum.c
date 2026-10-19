@@ -691,11 +691,12 @@ static void HOT_CODE drm_block(uint32_t t, uint32_t keys, const int32_t *rec, in
             drm_pend[t] &= (uint8_t)~(1u << j);
         }
         if (r->v[j].live || r->v[j].trig) {
-            if (r->qf[j] != fl || r->qo[j] != r->c[j].out) {   /* (its end under the floor: a divide only when the
-                                                         * floor or the voice's level moved) */
-                r->qf[j] = fl;
+            if (r->qf[j] != fl + (int32_t)hear_on || r->qo[j] != r->c[j].out) {   /* (its end under the floor: a
+                                                         * divide only when the floor, calm or not, or the voice's
+                                                         * level moved) */
+                r->qf[j] = fl + (int32_t)hear_on;
                 r->qo[j] = r->c[j].out;
-                r->qe[j] = dk_qend(&r->c[j], fl);
+                r->qe[j] = hear_on ? dk_qend(&r->c[j], fl) : DK_QUIET;   /* (calm: where it always ended) */
             }
             dk_run(&r->c[j], &r->v[j], out, n, r->qe[j]);   /* (each voice adds itself into out) */
         }

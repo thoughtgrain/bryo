@@ -129,7 +129,23 @@ static inline __attribute__((always_inline)) void ld_mark(uint32_t k)
 static void HOT_CODE chain_hear(void)
 {
     static uint32_t key[NTRK + 1u] = {0xFFFFFFFFu};    /* (what it was worked out from: the same, nothing to do) */
+    static uint8_t strained;
     uint32_t t, rec = sys.rec, k;
+    strained = hear_step || sys.load_pk >= (strained ? HEAR_OFF : HEAR_ON);   /* (2026-10-19: "we don't want to cut
+                                                         * audio brute force when no strain on the cpu exists") */
+    hear_on = strained;
+    if (!strained) {                                    /* calm: every end and rest where it always was (the floor at
+                                                         * its base inside every track, whatever its level) */
+        if (key[NTRK] != 0xFFFFFFFEu) {
+            key[NTRK] = 0xFFFFFFFEu;
+            hear_rm = HEAR_BASE;
+            for (t = 0; t < NTRK; t++) {
+                hear_fl[t] = HEAR_BASE;
+                key[t] = 0xFFFFFFFFu;
+            }
+        }
+        return;
+    }
     int32_t thr = hear_thr(), mg = (int32_t)((uint32_t)(fx_usb_fixed ? MASTER_FULL : (int32_t)sys.master_q12) *
                                              (uint32_t)comp.g >> 12);
     k = (uint32_t)mg << 8 | hear_step << 4 | rec;      /* (mg under 2^24: the compressor's make-up at most ~3.6x) */

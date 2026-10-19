@@ -714,9 +714,10 @@ static __attribute__((noinline)) uint32_t gr_pfl_new(uint32_t t, grain_trk_t *G,
 {
     int32_t wq = PCT_Q15[clamp(p[GP_WET], 0, 100)];
     wq = wq > G->wetq ? wq : G->wetq;
-    if (wq != G->pfw || hear_fl[t] != G->pff) {
+    if (wq != G->pfw || (hear_fl[t] | (int32_t)hear_on << 30) != G->pff) {   /* (calm or not: hear_peak answers
+                                                         * differently at the same floor) */
         G->pfw = wq;
-        G->pff = hear_fl[t];
+        G->pff = hear_fl[t] | (int32_t)hear_on << 30;
         G->pf = (uint16_t)hear_peak(hear_fl[t], wq);
     }
     G->pfok = 1;

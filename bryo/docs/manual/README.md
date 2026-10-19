@@ -396,10 +396,11 @@ sounds go well before that: from about 78 %, sooner and harder the closer it get
 chord, a dense patch coming in) is heading for the limit, it acts in the middle of rendering, within 3 ms. What goes,
 in order:
 
-1. **The quietest sounds go first.** Bryo always stops working on anything under about -72 dBFS at the output (a
-   release tail, a delay's last echoes, a string ringing down, grains reading near-silence). When the CPU runs out,
-   it raises that line 6 dB at a time, up to -48 dBFS, so the faintest sounds anywhere in the mix drop before
-   anything you can clearly hear. A calm second gives a step back.
+1. **The quietest sounds go first.** Once the CPU is working hard (from about 60 %), Bryo stops working on anything
+   under about -72 dBFS at the output (a release tail, a delay's last echoes, a string ringing down, grains reading
+   near-silence). When it runs short, it raises that line 6 dB at a time, up to -48 dBFS, so the faintest sounds
+   anywhere in the mix drop before anything you can clearly hear. A calm second gives a step back. With the CPU
+   under that, nothing is dropped at all: every sound rings out as long as it ever did.
 2. **Then the quietest track gives up grains, strings and drum voices.** Past that, the grain pool, RIPPLE's strings
    and DRUM's voices are thinned, starting with whichever track is quietest in the mix. A kit over its limit loses
    its quietest voice.

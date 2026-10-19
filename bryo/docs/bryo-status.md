@@ -197,26 +197,28 @@ now modulates RIPL and DRV among its 128 depths; and the checkpoint harness rese
 and the shedding caps between runs, so every run is its own, which moved a few by a handful); then the day of 2026-10-14 (the bass drum's longer body, the resonators every sample, the
 cents loop, TRAN and BODY at 0; and the other session's CHRONOS and RIPPLE forms pulled in between: the two can't be
 told apart in these numbers); then the hearing floor (2026-10-19: tails too quiet to hear end, 4 to 16 a sample of
-bookkeeping, and runs 31, 33 and 34, the AMBIENT scene's long releases, about 200 less each):
+bookkeeping, and runs 31, 33 and 34, the AMBIENT scene's long releases, about 200 less each; then the floor only
+under strain, from 60 % (the host measures no load, so these runs are calm: as before the floor, plus the
+bookkeeping; "under strain" is the same run with the load pinned at 65 %):
 
 | Run | What | Cost |
 | --- | --- | ---: |
 | 1 | four reels, nothing on | 1,033 |
-| 19 | a realistic four-track groove | 1,791 |
-| 24 | the groove, modulated the way I'd play it | 1,999 (91 of it the modulators) |
+| 19 | a realistic four-track groove | 1,794 |
+| 24 | the groove, modulated the way I'd play it | 2,001 (91 of it the modulators) |
 | 21 | the groove's busiest moment | 2,671 |
-| 23 | GRAIN at its densest on one track | 3,052 |
-| 25 | every slot on every track, 128 depths | 2,817 (434 of it the modulators) |
-| 26 | DRUM busy alone (FUNK, VARY 100, FILL 100, long decays), the others plain reels | 1,380 |
-| 27 | the groove with a DRUM track in place of its drum reel | 2,014 |
-| 28 | four DRUM tracks at once, every voice (20) | 2,450 |
-| 15 | everything on, all four tracks | 5,290 |
-| 29 | the busiest groove's devices all on, the transport stopped (what "nothing playing" costs) | 714 |
-| 30 | one track heard (dense grains, strings with RIPL ARP, a room), the other three muted | 2,350 |
-| 31 | the factory scene as it boots (AMBIENT at 80 BPM in its hall, its chords held, nothing stepping, 2026-10-18) | 2,818 |
-| 32 | TEST, the project view's scene: every stage at work (GLITCH, at its scene tempo of 136 since 2026-10-17) | 2,905 |
-| 33 | the factory scene, T3 on VINYL over the whole sound (GLCH 60: a glitch most turns), T2 on WARBLE (SWEL 50) (2026-10-18) | 3,126 |
-| 34 | the factory scene, T3's grains through WARBLE (APPL GRNS) (2026-10-18) | 2,891 |
+| 23 | GRAIN at its densest on one track | 3,053 |
+| 25 | every slot on every track, 128 depths | 2,819 (434 of it the modulators) |
+| 26 | DRUM busy alone (FUNK, VARY 100, FILL 100, long decays), the others plain reels | 1,378 |
+| 27 | the groove with a DRUM track in place of its drum reel | 2,021 |
+| 28 | four DRUM tracks at once, every voice (20) | 2,448 |
+| 15 | everything on, all four tracks | 5,271 |
+| 29 | the busiest groove's devices all on, the transport stopped (what "nothing playing" costs) | 716 |
+| 30 | one track heard (dense grains, strings with RIPL ARP, a room), the other three muted | 2,344 |
+| 31 | the factory scene as it boots (AMBIENT at 80 BPM in its hall, its chords held, nothing stepping, 2026-10-18) | 3,010 (2,818 under strain) |
+| 32 | TEST, the project view's scene: every stage at work (GLITCH, at its scene tempo of 136 since 2026-10-17) | 2,914 |
+| 33 | the factory scene, T3 on VINYL over the whole sound (GLCH 60: a glitch most turns), T2 on WARBLE (SWEL 50) (2026-10-18) | 3,342 (3,149 under strain) |
+| 34 | the factory scene, T3's grains through WARBLE (APPL GRNS) (2026-10-18) | 3,105 (2,913 under strain) |
 
 My target for a realistic four-track scene is 2,000. The first device reading (run 1, 2026-10-10: 25 %, in 5 % steps)
 puts the ratio at about 37.6 host instructions a sample per percent, if the load scales with the host's count: the
@@ -259,6 +261,10 @@ number.
   four), split by what each track's settings ask for when it runs short; what's left over is everyone's (since
   2026-10-11: a track alone has all 40, not just what RATE and SIZE ask). GRAIN 6's GRNS can hold a number for a
   track instead (1-40, taken from the AUTO tracks first, kept whatever the others do).
+- **2026-10-19: nothing is cut without strain.** The hearing floor as heard only engages while the heaviest half of
+  the last second is at 60 % or more (off again under 50); calm, every voice, drum, string, echo and grain ends
+  exactly where it did before the floor existed (every fingerprint back to those values, the host being calm). The
+  load guard's steps were already load-driven, and the shared silence cuts nothing.
 - **2026-10-19: the load guard acts before a glitch.** Shedding starts at 78 % (two halves in a row), takes two
   steps at once over 88 %, and inside a half, if the render is heading past 92 % of its time, takes four steps there
   and then with short fades (RIPPLE's strings over 3 ms), so the work stops before the deadline: voices go, the audio
