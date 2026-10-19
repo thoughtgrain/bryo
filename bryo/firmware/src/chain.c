@@ -120,6 +120,50 @@ static inline __attribute__((always_inline)) void ld_mark(uint32_t k)
     ld_t = t1;
 }
 
+/* audio ISR, each block before the tracks: the hearing floor (hear.c) in each track's terms. Heard at the output:
+ * a track's level, then the master compressor's gain now (its make-up counts) and MASTER (USB LEVEL FIXED: USB takes
+ * the mix at full MASTER). With REC armed anywhere what's recorded is what counts: REC IN takes the tracks after
+ * their levels and before the compressor and MASTER, and an armed track's own source goes to its tape before its
+ * level */
+static void HOT_CODE chain_hear(void)
+{
+    static uint32_t key[NTRK + 1u] = {0xFFFFFFFFu};    /* (what it was worked out from: the same, nothing to do) */
+    uint32_t t, rec = sys.rec, k;
+    int32_t thr = hear_thr(), mg = (int32_t)((uint32_t)(fx_usb_fixed ? MASTER_FULL : (int32_t)sys.master_q12) *
+                                             (uint32_t)comp.g >> 12);
+    k = (uint32_t)mg << 8 | hear_step << 4 | rec;      /* (mg under 2^24: the compressor's make-up at most ~3.6x) */
+    if (k != key[NTRK]) {
+        key[NTRK] = k;
+        hear_rm = hear_through(thr, mg);
+        for (t = 0; t < NTRK; t++)
+            key[t] = 0xFFFFFFFFu;
+    }
+    if (rec)
+        mg = 4096;
+    for (t = 0; t < NTRK; t++) {
+        uint32_t lv = (rec >> t) & 1u ? 128u : track[t].level & 127u;   /* (128: an armed track, before its level) */
+        if (lv != key[t]) {
+            key[t] = lv;
+            hear_fl[t] = lv > 127u ? thr : hear_through(thr, (int32_t)((uint32_t)LEVEL_Q12[lv] * (uint32_t)mg >> 12));
+        }
+    }
+}
+
+/* audio ISR, each block: a step back down, a calm second after the floor last moved and after the caps under it
+ * are all back where they were (they go after it, and come back first), if there's room (chain_room) */
+static void HOT_CODE hear_recover(void)
+{
+    if (!hear_step)
+        return;
+    if (grain_cap != GR_CAP || !reso_full() || !drm_full())   /* (a cap still down: the second starts again) */
+        hear_calm = 0;
+    else if (++hear_calm >= 1378u) {                    /* (1378 blocks: a second) */
+        if (chain_room())
+            hear_step--;
+        hear_calm = 0;
+    }
+}
+
 /* audio ISR: one control block of the whole instrument, interleaved stereo Q15 into out. In the USB record mode
  * (usbrec.c) the computer's sound instead: the tracks fade out over one block as it opens, and come back once the
  * monitor has faded out as it closes. */
@@ -135,6 +179,7 @@ static void HOT_CODE chain_block(int32_t *out, uint32_t n)
         return;
     }
     ld_t = fm1_ticks();
+    chain_hear();
     for (t = 0; t < NTRK; t++) {                       /* what each track's source plays: its keys (the focused
                                                         * track's), through the arpeggiator (every source) */
         uint32_t src = tp[t].src, base = 12u * ((uint32_t)track[t].octave + 1u), in, nb;
@@ -194,6 +239,7 @@ static void HOT_CODE chain_block(int32_t *out, uint32_t n)
             for (i = 0; i < n; i++)
                 rt->last[i] = 0;
             rt->peak = pk - (pk >> 6);
+            hear_pk[t] = rt->peak;
             continue;
         }
         if (t == sel && white && sys.keys_grain && tp[t].src == SRC_TAPE) {   /* the GRAIN page: the keys move
@@ -295,6 +341,7 @@ static void HOT_CODE chain_block(int32_t *out, uint32_t n)
         }
         first = 0;
         rt->peak = pk - (pk >> 6);                    /* ~45 ms decay at one block per 0.73 ms */
+        hear_pk[t] = rt->peak;                          /* (the caps take from the quietest first: hear.c) */
         ld_mark(LD_SPC);                               /* (SPACE, the channel strip, the level and the sum) */
     }
     if (first)                                          /* (every track parked: silence) */
@@ -303,6 +350,7 @@ static void HOT_CODE chain_block(int32_t *out, uint32_t n)
     grain_recover();
     reso_recover();
     drm_recover();
+    hear_recover();
     space_rooms(l, r, n);                               /* the rooms A and B on what the tracks sent (space.c) */
     ld_mark(LD_ROOM);
     mix_comp(l, r, n);                                  /* the master compressor on the sum (mixer.c) */
@@ -326,17 +374,20 @@ static void HOT_CODE chain_block(int32_t *out, uint32_t n)
     }
 }
 
-/* audio ISR, the half after two overloaded halves: take load away. GRAIN's sounding cap goes first (grain.c), down
- * to half; then RIPPLE's strings (reso.c), down to two; then DRUM's voices (drum.c), down to two a track (the
- * voices above the cap fade out in 1.5 ms); the tape is never shed. */
+/* audio ISR, the half after two overloaded halves: take load away. The hearing floor goes first (hear.c), 6 dB a
+ * time to -48 dBFS: the quietest sounds anywhere drop. Then GRAIN's pool (grain.c), down to half; then RIPPLE's
+ * strings (reso.c), one at a time down to two a track; then DRUM's voices (drum.c), down to two a track (a
+ * voice over the cap fades out in 1.5 ms). Each cap takes from the quietest track as heard first, and a kit over
+ * its cap loses its quietest voice (2026-10-19). The tape is never shed. */
 static void chain_shed(void)
 {
     chain_shed_count++;
-    if (grain_cap > 4u)                                 /* grains first, then strings, then drum tails */
+    hear_calm = 0;
+    if (hear_step < HEAR_STEPS)                         /* the quiet first, then grains, strings, drum tails */
+        hear_step++;
+    else if (grain_cap > 4u)
         grain_shed();
-    else if (reso_cap > 2u)
-        reso_shed();
-    else
+    else if (!reso_shed())                              /* (none of the strings left to take: a drum voice) */
         drm_shed();
 }
 

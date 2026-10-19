@@ -420,7 +420,8 @@ static void HOT_CODE drm_step(uint32_t t, const int16_t *p, uint32_t v, uint32_t
 
 /* ------------------------------------------------------------------------ the player --- */
 #define DRM_NV 5u                    /* voices per track: a voice per instrument while it rings, the oldest taken */
-static uint32_t drm_cap = DRM_NV;    /* the voices a track may use now: chain_shed lowers it (down to 2) when the
+static uint32_t drm_cap[NTRK] = {DRM_NV, DRM_NV, DRM_NV, DRM_NV};   /* the voices each track may use now: chain_shed
+                                      * lowers one track's (the quietest's: drm_shed), down to 2, when the
                                       * audio runs out of time, a calm second raises it again (drm_recover) */
 static uint32_t drm_calm;
 /* a hit on a voice that still rings (2026-10-18, "clicks with drums"): the voice fades what it rings over one block
@@ -437,6 +438,7 @@ typedef struct {                     /* audio ISR only */
     dk_voice_t v[DRM_NV];
     uint32_t age[DRM_NV];
     uint8_t inst[DRM_NV];
+    int32_t qf[DRM_NV], qo[DRM_NV], qe[DRM_NV];   /* each voice's end (dk_qend), from this floor and level */
     uint8_t running;                 /* the transport was running last block */
     uint8_t skip_s;                  /* LIVE: a step written ahead of the playhead (it sounded at the press) */
     uint16_t skip;                   /* .. its instruments, not struck again when the step comes */
@@ -494,21 +496,50 @@ static uint32_t drm_scale(int32_t d)
     return s + s * (uint32_t)d / 50u;
 }
 
-/* audio ISR: the audio ran out of time again (chain_shed, after the grains and the strings): one voice fewer a
- * track, down to two; a calm second gives one back */
-static void drm_shed(void)
+/* audio ISR: the audio ran out of time again (chain_shed, after the grains and the strings): one voice fewer on the
+ * quietest DRUM track as heard (hear.c hear_quietest; 2026-10-19: every track's went at once), down to two, its
+ * quietest voice choked (drm_block). Returns 0 when there's none left to take. A calm second gives one back, to the
+ * loudest track short of its five */
+static int drm_shed(void)
 {
-    if (drm_cap > 2u)
-        drm_cap--;
+    uint32_t t, m = 0;
+    int32_t q;
     drm_calm = 0;
+    for (t = 0; t < NTRK; t++)
+        if (tp[t].src == SRC_DRUM && drm_cap[t] > 2u)
+            m |= 1u << t;
+    q = hear_quietest(m);
+    if (q < 0)
+        return 0;
+    drm_cap[q]--;
+    return 1;
 }
 static void HOT_CODE drm_recover(void)
 {
-    if (++drm_calm >= 1378u && drm_cap < DRM_NV) {     /* (a voice back, if there's room: chain_room) */
-        if (chain_room())
-            drm_cap++;
+    if (++drm_calm >= 1378u) {                          /* (a voice back, if there's room: chain_room) */
+        uint32_t t, m = 0;
+        for (t = 0; t < NTRK; t++)
+            m |= (drm_cap[t] < DRM_NV) << t;
+        if (m && chain_room())
+            drm_cap[hear_loudest(m)]++;
         drm_calm = 0;
     }
+}
+/* every track's five voices (nothing shed) */
+static int drm_full(void)
+{
+    uint32_t t;
+    for (t = 0; t < NTRK; t++)
+        if (drm_cap[t] < DRM_NV)
+            return 0;
+    return 1;
+}
+
+/* a voice's loudness as heard, near enough (its louder envelope, Q15, x its level): the quietest is choked first */
+static inline uint32_t drm_loud(const drm_rt_t *r, uint32_t j)
+{
+    int32_t q = r->v[j].qbody > r->v[j].qtail ? r->v[j].qbody : r->v[j].qtail;
+    return (uint32_t)(q >> 15) * (uint32_t)(r->c[j].out > 0 ? r->c[j].out : 0);   /* (2^15 x 2^14 at most) */
 }
 
 /* audio ISR: instrument i struck on track t (knobs p), accented, quiet (a ghost note) */
@@ -518,21 +549,25 @@ static void HOT_CODE drm_strike(uint32_t t, const int16_t *p, uint32_t i, uint32
     const int16_t *in = TPD(t, MA_DIN0 + i / 4u) + (i % 4u) * NDIN;   /* (its own knobs as modulated now: the hit
                                                                      * takes them as they are when it's struck) */
     dk_knobs_t k;
-    uint32_t j, best = 0, cap;
+    uint32_t j, best = 0, cap, live;
     for (j = 0; j < DRM_NV; j++)                        /* what this one chokes */
         if (r->v[j].live && ((DRM_KIT[i].chokes >> r->inst[j]) & 1u))
             dk_choke(&r->v[j]);
-    cap = drm_cap < DRM_NV ? drm_cap : DRM_NV;          /* (the voices allowed now: drm_cap) */
-    for (j = 0; j < cap && !(r->inst[j] == i && r->v[j].live); j++)   /* its own voice, still ringing */
+    cap = drm_cap[t] < DRM_NV ? drm_cap[t] : DRM_NV;    /* (the voices allowed now: drm_cap) */
+    for (j = 0, live = 0; j < DRM_NV; j++)              /* (sounding, not on their way out) */
+        live += (r->v[j].live || r->v[j].trig) && !r->v[j].choke;
+    for (j = 0; j < DRM_NV && !(r->inst[j] == i && r->v[j].live); j++)   /* its own voice, still ringing */
         ;
-    if (j == cap)
-        for (j = 0; j < cap && (r->v[j].live || r->v[j].trig); j++)   /* a quiet one */
+    if (j == DRM_NV && live < cap)
+        for (j = 0; j < DRM_NV && (r->v[j].live || r->v[j].trig); j++)   /* a quiet one */
             ;
-    if (j == cap)                                        /* the oldest */
-        for (j = 1; j < cap; j++)
-            if (r->age[j] - r->age[best] > 0x80000000u)
+    if (j == DRM_NV) {                                   /* the oldest (shed: of those still sounding) */
+        for (best = DRM_NV, j = 0; j < DRM_NV; j++)
+            if ((cap == DRM_NV || ((r->v[j].live || r->v[j].trig) && !r->v[j].choke)) &&
+                (best == DRM_NV || r->age[j] - r->age[best] > 0x80000000u))
                 best = j;
-    j = j == cap ? best : j;
+        j = best < DRM_NV ? best : 0u;
+    }
     k.tune = (int16_t)(clamp(p[DM_TUNE] + in[DIN_TUNE], -24, 24) * 16);
     k.dscale = (uint16_t)drm_scale(p[DM_DECY] + in[DIN_DECY]);
     k.bright = (int16_t)clamp((p[DM_TONE] + in[DIN_TONE]) * 127 / 100, -127, 127);
@@ -562,6 +597,7 @@ static void HOT_CODE drm_block(uint32_t t, uint32_t keys, const int32_t *rec, in
     const int16_t *p = TPD(t, MA_DRM);
     uint32_t press = keys & ~r->keys, j, i, len = (uint32_t)clamp(p[DM_LEN], 1, (int32_t)DRM_NBAR), pl = 16u * len;
     uint32_t mode = sys.drum_mode, a = drm_aud[t];
+    int32_t fl;
     (void)rec;
     r->keys = keys;
     if (a) {                                             /* HOME + a key: that instrument, heard */
@@ -632,15 +668,36 @@ static void HOT_CODE drm_block(uint32_t t, uint32_t keys, const int32_t *rec, in
             r->v[j].live = r->v[j].trig = 0;
         return;
     }
-    for (j = drm_cap; j < DRM_NV; j++)                  /* over the cap (shed): its tail ends in 1.5 ms, no click */
-        if (r->v[j].live && !r->v[j].choke)
-            dk_choke(&r->v[j]);
+    fl = hear_src(t, db_q10(p[DM_LVL]));                /* (the hearing floor, at the kit's LVL: hear.c) */
+    if (drm_cap[t] < DRM_NV) {                          /* over the cap (shed): the quietest voices' tails end in 1.5
+                                                         * ms, no click, until it holds (2026-10-19: the last ones
+                                                         * were, however loud) */
+        uint32_t live = 0, q, ql;
+        for (j = 0; j < DRM_NV; j++)
+            live += r->v[j].live && !r->v[j].choke;
+        while (live > drm_cap[t]) {
+            for (q = DRM_NV, ql = 0, j = 0; j < DRM_NV; j++)
+                if (r->v[j].live && !r->v[j].choke && (q == DRM_NV || drm_loud(r, j) < ql)) {
+                    q = j;
+                    ql = drm_loud(r, j);
+                }
+            dk_choke(&r->v[q]);
+            live--;
+        }
+    }
     for (j = 0; j < DRM_NV; j++) {
         if (((drm_pend[t] >> j) & 1u) && !r->v[j].live) {   /* (its fade done: the waiting hit's coefficients) */
             dk_setup(&r->c[j], &DRM_KIT[drm_pi[t][j] % DRM_NINST], &drm_pk[t][j]);
             drm_pend[t] &= (uint8_t)~(1u << j);
         }
-        if (r->v[j].live || r->v[j].trig)
-            dk_run(&r->c[j], &r->v[j], out, n);         /* (each voice adds itself into out) */
+        if (r->v[j].live || r->v[j].trig) {
+            if (r->qf[j] != fl || r->qo[j] != r->c[j].out) {   /* (its end under the floor: a divide only when the
+                                                         * floor or the voice's level moved) */
+                r->qf[j] = fl;
+                r->qo[j] = r->c[j].out;
+                r->qe[j] = dk_qend(&r->c[j], fl);
+            }
+            dk_run(&r->c[j], &r->v[j], out, n, r->qe[j]);   /* (each voice adds itself into out) */
+        }
     }
 }

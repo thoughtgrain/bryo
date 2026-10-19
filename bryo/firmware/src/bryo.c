@@ -74,6 +74,7 @@ static void ui_redraw(void);
 #include "mod.c"                 /* modulation: the slots' engines and depths, added per control block */
 #include "mem.c"                 /* the chunks every track's sound shares */
 #include "tape.c"                /* TAPE: the ADPCM looper, the factory reels */
+#include "hear.c"                /* the hearing floor: what's too quiet to hear is dropped */
 #include "synth.c"               /* SYNTH: a small subtractive voice */
 #include "poly.c"                /* POLY: a sound across the keys */
 #include "drum_voice.c"          /* the DRUM kit's voices: synthesized drums */

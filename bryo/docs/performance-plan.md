@@ -250,3 +250,14 @@ scene's sound) is 3,328 against the scene's 2,998, run 34 (WARBLE on T3's grains
 on the device (about 65.8 of 72), `.bss` 1.8 KB. The glitch reader costs nothing between glitches (it returns before
 its loop); during one it decodes GRAIN's ADPCM buffer, a grain's worth. If the FM-1 reads high on run 33, the line's
 interpolation and AGE's curve (which only runs while AGE or WEAR is above 0) are the places to look.
+
+**The hearing floor (2026-10-19).** Not a speed-up of any routine: work that made nothing anyone could hear,
+stopped. Every part already ended its own sound somewhere (a voice's envelope at -72 dB under its peak, a drum's at
+-60, the strings and the delay on exact silence), but always against the sound itself, never against what reaches
+the output. `hear.c` sets one floor, -72 dBFS at the output, and each part ends or rests under it in its own terms
+(bryo-architecture.md, "The hearing floor"). At MASTER full and 0 dB nothing changes; at the boot's defaults (a
+track at -6 dB, MASTER at -6) tails end 12 dB sooner under their peaks. On the factory scene that's 2,998 to 2,796,
+6.7 %, because AMBIENT is long releases in a hall. Elsewhere the bookkeeping costs 4 to 16 a sample; I took most of
+it out by working the floors out only when an input moves (the first version cost up to 26) and by measuring an
+input's level only when the floor is over 0 for it, on every fourth or second sample. Under load the floor rises
+before anything is capped, so the first thing shed is what can't be heard.

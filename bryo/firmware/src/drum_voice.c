@@ -277,7 +277,9 @@ static inline __attribute__((always_inline)) void dk_noise_loop(const dk_coef_t 
     v->rng = rng;
 }
 
-static void HOT_CODE dk_run(const dk_coef_t *c, dk_voice_t *v, int32_t *out, uint32_t n)
+/* its end (q, Q30: DK_QUIET as it always was; the hearing floor's, dk_qend, sooner on a track turned down or under
+ * load): a part under it stops, a voice with both under it is done */
+static void HOT_CODE dk_run(const dk_coef_t *c, dk_voice_t *v, int32_t *out, uint32_t n, int32_t q)
 {
     static const uint32_t KB_CHOKE = 40265u;             /* dk_kslow(1500): a 1.5 ms release */
     uint32_t i, j;
@@ -299,8 +301,8 @@ static void HOT_CODE dk_run(const dk_coef_t *c, dk_voice_t *v, int32_t *out, uin
     }
     if (v->choke)
         v->left = 0;
-    tone = c->g1 && v->qbody > DK_QUIET;
-    noise = c->filt != DK_OFF && (v->qtail > DK_QUIET || v->ehit > 4 || v->left || !v->tail_on);
+    tone = c->g1 && v->qbody > q;
+    noise = c->filt != DK_OFF && (v->qtail > q || v->ehit > 4 || v->left || !v->tail_on);
     dk_ramp(&v->qbody, v->choke ? KB_CHOKE : c->kb_body, &ab, &db);
     dk_ramp(&v->qtail, v->choke ? KB_CHOKE : c->kb_tail, &at, &dt);
     if (tone)
@@ -348,5 +350,16 @@ static void HOT_CODE dk_run(const dk_coef_t *c, dk_voice_t *v, int32_t *out, uin
             y[i] = (y[i] * (int32_t)(n - 1u - i)) >> CTL_LOG2;
     for (i = 0; i < n; i++)                              /* (into the kit's mix: no pass of its own in drm_block) */
         out[i] += soft_knee((clamp(y[i], -65535, 65535) * (c->out >> 1)) >> 11, 16384);   /* (out up to ~42000) */
-    v->live = !fade && (v->qbody > DK_QUIET || v->qtail > DK_QUIET || v->ehit > 4 || v->left || !v->tail_on);
+    v->live = !fade && (v->qbody > q || v->qtail > q || v->ehit > 4 || v->left || !v->tail_on);
+}
+
+/* a voice's end (Q30) under a floor f (Q15, hear.c): its envelopes' full scale comes out at about c->out / 4096 of
+ * full scale (dk_run's mix), so it's under f where the envelope is under f x 2^27 / out. Never later than DK_QUIET */
+static int32_t dk_qend(const dk_coef_t *c, int32_t f)
+{
+    uint32_t r;
+    if (c->out <= 0 || f >= HEAR_DEAF)
+        return 1 << 29;                                  /* (unheard: its tail out at once, still a 1.5 ms ramp) */
+    r = ((uint32_t)f << 12) / (uint32_t)c->out;
+    return r >= 1u << 14 ? 1 << 29 : (int32_t)(r << 15) > DK_QUIET ? (int32_t)(r << 15) : DK_QUIET;
 }

@@ -383,7 +383,19 @@ you turn it off.
 ### 3.8 The CPU meter
 
 On the mixer, bottom right: **CPU**, how hard Bryo is working, in 5 % steps. It turns bright at 85 %. Past that,
-Bryo thins out grains and strings to keep the sound clean.
+Bryo starts dropping what you can't hear, to keep the sound clean:
+
+1. **The quietest sounds go first.** Bryo always stops working on anything under about -72 dBFS at the output (a
+   release tail, a delay's last echoes, a string ringing down, grains reading near-silence). When the CPU runs out,
+   it raises that line 6 dB at a time, up to -48 dBFS, so the faintest sounds anywhere in the mix drop before
+   anything you can clearly hear. A calm second gives a step back.
+2. **Then the quietest track gives up grains, strings and drum voices.** Past that, the grain pool, RIPPLE's strings
+   and DRUM's voices are thinned, starting with whichever track is quietest in the mix. A kit over its limit loses
+   its quietest voice.
+
+"Quiet" means quiet as you hear it, after the track's level, the master compressor and MASTER. Turn a track down and
+its tails end sooner, because they go under the line sooner. While anything is armed to record, MASTER doesn't
+count, and neither does an armed track's own level: what's recorded is kept in full.
 
 ### 3.9 Scenes: four sounds to jump or morph between
 

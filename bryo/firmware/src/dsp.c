@@ -153,10 +153,13 @@ static inline __attribute__((always_inline)) int32_t tsvf_sat(const tsvf_t *c, i
 
 /* SYNTH's and POLY's envelopes, a step a block (as Felucca's): e Q24, st 0 silent, 1 attack, 2 decay (and sustain),
  * 3 release. ty, ETYP (2026-10-15): ET_ADSR, as it always was, bit for bit; ET_AD, the decay to silence whatever the
- * key (a release decays at DEC too), then done; ET_LOOP, while held, decay to 1/64 and attack again */
+ * key (a release decays at DEC too), then done; ET_LOOP, while held, decay to 1/64 and attack again. end: where a
+ * decay to silence or a release is done, Q24 (1 << 12, -72 dB, as it always was; the hearing floor's, hear.c
+ * hear_end24, for the voices' own envelopes: sooner on a track turned down, or under load). A held sustain never
+ * ends */
 enum { ET_ADSR, ET_AD, ET_LOOP };
 static inline __attribute__((always_inline)) void env_step(int32_t *e, uint8_t *st, int32_t atk, int32_t dec, int32_t sus,
-                                                           int32_t rel, uint32_t ty)
+                                                           int32_t rel, uint32_t ty, int32_t end)
 {
     switch (*st) {
     case 1:
@@ -174,14 +177,14 @@ static inline __attribute__((always_inline)) void env_step(int32_t *e, uint8_t *
         *e -= mulq16(*e, ENV_EXP[dec & 127]);
         if (ty == ET_LOOP && *e < 1 << 18) {
             *st = 1;
-        } else if (*e < 1 << 12) {
+        } else if (*e < end) {
             *e = 0;
             *st = 0;
         }
         break;
     case 3:
         *e -= mulq16(*e, ENV_EXP[(ty == ET_AD ? dec : rel) & 127]);
-        if (*e < 1 << 12) {
+        if (*e < end) {
             *e = 0;
             *st = 0;
         }

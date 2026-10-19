@@ -22,6 +22,11 @@ DEV = {'0': 'TAPE', '1': 'GRAIN', '2': 'RESO', '3': 'COLOR', '4': 'SPACE', '5': 
        '9': 'KIT', '10': 'KIT', '11': 'KIT', '12': 'KIT'}   # (DRUM's instruments, four to an array)
 
 
+# rows whose edge rise isn't a knob applied in steps, said why (printed, not counted)
+KNOWN = {'SYNTH VOIC': 'known: a switch; the voices over it let go at a block edge, as a key let go does, and the '
+                       'edge follows where the phrase lands (3 of 4 warm-ups flag it before 2026-10-19 too)'}
+
+
 def load(p):
     import wave
     w = wave.open(p)
@@ -90,7 +95,8 @@ def main():
             if np.sqrt((m ** 2).mean()) < 32.767:       # (-60 dBFS: nothing for the edge to measure)
                 flags.append('SILENT')
             elif em - eb > 1.0:
-                flags.append('STEPS')
+                name = DEV[a] + ' ' + r['label'] + (' held' if p == '1' else '')
+                flags.append('steps (%s)' % KNOWN[name] if name in KNOWN else 'STEPS')
             c = cg.get('mod_%s_%s' % (g, p), 0) - cg.get('base_%s_%s' % (g, p), 0) if cg else None
             flagged += 'STEPS' in flags
             print('%-15s %7.1f  %5.1f -> %5.1f  %5.1f -> %5.1f  %6.1f -> %6.1f  %6s  %s' % (

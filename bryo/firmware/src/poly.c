@@ -176,6 +176,7 @@ static void HOT_CODE pol_start(uint32_t t, uint32_t k, uint32_t nv, uint32_t len
 
 /* the voice's filter on x: TYPE's output, through tsvf_sat when RES is high (fs) */
 #define PL_FLT(x) (fs ? tsvf_sat(&v->flt, (x), &ic1, &ic2, mode) : tsvf_mode(&v->flt, (x), &ic1, &ic2, mode))
+static int32_t pol_eend = 1 << 12;   /* this block's voices' envelope end, Q24 (the hearing floor's: pol_block) */
 static void HOT_CODE pol_voice(uint32_t t, pol_voice_t *v, tape_rd_t *rd, const tape_view_t *vw, int32_t *out, uint32_t n,
                                const tape_view_t *vwb, tape_rd_t *rdb, uint32_t tw)
 {
@@ -191,7 +192,7 @@ static void HOT_CODE pol_voice(uint32_t t, pol_voice_t *v, tape_rd_t *rd, const 
     int32_t a0 = v->amp, a1, e15, pos = v->pos, ic1 = v->ic1, ic2 = v->ic2, c8;
     uint32_t tr = v->tr;                                    /* (TRAN's click: into x before the filter) */
     int32_t trng = v->trng, tlp = v->tlp, tg = clamp(p[PL_TRAN], 0, 100) * 327;
-    env_step(&v->env, &v->stage, p[PL_ATK], p[PL_DEC], p[PL_SUS], p[PL_REL], ety);   /* the envelope, a step
+    env_step(&v->env, &v->stage, p[PL_ATK], p[PL_DEC], p[PL_SUS], p[PL_REL], ety, pol_eend);   /* the envelope, a step
                                                                                         * a block (as SYNTH's) */
     if (!v->stage) {                                        /* ENV 2: with the note; done with the voice */
         v->st2 = 0;
@@ -202,7 +203,7 @@ static void HOT_CODE pol_voice(uint32_t t, pol_voice_t *v, tape_rd_t *rd, const 
     } else if (v->stage == 3u && v->st2 && v->st2 != 3u) {
         v->st2 = 3;
     }
-    env_step(&v->e2, &v->st2, p[PL_ATK2], p[PL_DEC2], p[PL_SUS2], p[PL_REL2], ety);
+    env_step(&v->e2, &v->st2, p[PL_ATK2], p[PL_DEC2], p[PL_SUS2], p[PL_REL2], ety, 1 << 12);
     e15 = v->env >> 9;
     a1 = e15;
     if (kill)                                               /* (two reels and no reader for B: out over this block) */
@@ -385,6 +386,7 @@ static void HOT_CODE pol_block(uint32_t t, uint32_t keys, const int32_t *rec, in
     tape_view_t vwb;
     uint32_t on = keys & ~s->keys, off = s->keys & ~keys, nv = (uint32_t)clamp(TPD(t, MA_POL)[PL_VOIC], 1, POL_NV), j, k;
     uint32_t tw = (uint32_t)clamp(tp[t].pol[PL_TWIN], 0, TW_RND);
+    pol_eend = hear_end24(hear_src(t, db_q10(TPD(t, MA_POL)[PL_LVL])));   /* (its voices' end: the hearing floor) */
     (void)rec;
     for (j = 0; j < n; j++)
         out[j] = 0;

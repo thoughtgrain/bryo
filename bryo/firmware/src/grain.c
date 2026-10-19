@@ -44,12 +44,14 @@
  * track keeps most of the pool, and only two dense tracks thin each other. A grain due while all a track's share
  * sounds is skipped (those sounding finish: a share that drops thins a cloud over one grain's length, no cut), and
  * its level counts only the grains it can sound, so a thinned cloud doesn't also get quieter. The audio ISR's
- * shedding (chain_shed) shrinks the pool, a quarter at a time down to half, and it comes back an eighth a second.
+ * shedding (chain_shed) shrinks the pool, a quarter at a time down to half, the quietest track's grains first, and
+ * it comes back an eighth a second. A grain whose read is too quiet to hear isn't started (gr_quiet, hear.c).
  *
  * Audio ISR, except grain_poll (the main loop: the buffers' memory). The main loop writes the knobs. */
 
 #define GR_SLOTS 40u                 /* grains in all (the most one track may sound: GR_POOL[1]) */
-#define GR_CAP 8u                    /* the pool's scale: x grain_cap / GR_CAP (shedding lowers grain_cap to 4) */
+#define GR_CAP 8u                    /* the pool's scale: x grain_cap / GR_CAP (shedding lowers grain_cap to 4; the
+                                      * cut comes from the quietest track first: gr_plan_into) */
 #define GR_WIN 128u                  /* a grain's decoded window, samples (a reverse refill re-decodes from its
                                       * block's start: the wider the window, the rarer) */
 #define GR_BUF_MAX (12u * TAPE_SR)   /* a buffer's most, tape samples (12 s) */
@@ -171,6 +173,9 @@ typedef struct {
     int32_t benv;                    /* .. TRI SIN: the gate, Q15: open while grains sound, closing after them */
     uint8_t bmode;                   /* .. the MODE it's sounding (a new one: down to 0 a block, then the new) */
     uint8_t hq;                      /* 1: they're 0 (nothing to carry into the next block) */
+    uint16_t pf;                     /* the least block peak heard this block (the hearing floor at WET: gr_quiet), */
+    int32_t pfw, pff;                /* .. from this WET (Q15) and floor (0, 0: not yet worked out) */
+    uint8_t pfok;                    /* .. worked out this block (grain_block clears it) */
 } grain_trk_t;
 
 static grain_t gslot[GR_SLOTS];      /* (main RAM since 2026-10-18: the pool's 13 KB went to the code in RAM, app.ld) */
@@ -330,7 +335,7 @@ static void HOT_CODE gr_plan_into(uint8_t *share)
             }
         }
     }
-    left = GR_POOL[on] * grain_cap / GR_CAP;
+    left = GR_POOL[on];                                 /* (the whole pool: shedding's cut comes after, below) */
     left = gr_split(share, held, ask, left);
     left = gr_split(share, aut, ask, left);
     if (nauto && left) {                                /* the AUTO tracks have what they ask, some left: theirs */
@@ -338,6 +343,24 @@ static void HOT_CODE gr_plan_into(uint8_t *share)
         for (t = 0; t < NTRK; t++)
             if ((aut >> t) & 1u)
                 share[t] = (uint8_t)(share[t] + left / nauto + (i++ < left % nauto));
+    }
+    if (grain_cap < GR_CAP) {                           /* shed (chain_shed): the pool cut to grain_cap / GR_CAP of
+                                                         * itself, the grains of the quietest track as heard going
+                                                         * first (hear.c hear_quietest), all of them before the
+                                                         * next quietest gives any (2026-10-19: every share was cut
+                                                         * alike) */
+        uint32_t keep = GR_POOL[on] * grain_cap / GR_CAP, sum = 0, mask = 0;
+        for (t = 0; t < NTRK; t++) {
+            sum += share[t];
+            mask |= (share[t] != 0) << t;
+        }
+        while (sum > keep && mask) {
+            int32_t q = hear_quietest(mask);
+            uint32_t take = sum - keep < share[q] ? sum - keep : share[q];
+            share[q] = (uint8_t)(share[q] - take);
+            sum -= take;
+            mask &= ~(1u << q);
+        }
     }
 }
 
@@ -677,11 +700,31 @@ static uint32_t gr_snext(const int16_t *p, uint32_t dv, uint32_t at, uint32_t se
 
 /* a new grain of track t around the cursor, in the window [ls, ls + ll) of what it reads */
 /* what grains read from lo to hi (samples, either end past the view's: round its loop of ll) is silent: every block's
- * stored peak 0 (under 128: about -48 dB). Not the block being written (busy: its peak is the old sound's), nor more
- * than GR_QUIET_MAX blocks (then it's not worth the looking): those count as sound. A grain there would cost its work
- * to make nothing */
+ * stored peak 0 (under 128: about -48 dB), or since 2026-10-19 under pf, too quiet to be heard (pf: the least peak
+ * heard, hear.c hear_peak; 1: every peak but 0). Not the block being written (busy: its peak is the old sound's),
+ * nor more than GR_QUIET_MAX blocks (then it's not worth the looking): those count as sound. A grain there would
+ * cost its work to make nothing */
 #define GR_QUIET_MAX 256
-static int HOT_CODE gr_quiet(const tape_view_t *v, int32_t lo, int32_t hi, int32_t ll, int32_t busy)
+/* the least block peak heard on track t this block (gr_quiet's pf): the hearing floor at WET (hear.c hear_peak), at
+ * the more of this block's WET and last block's, which the mix ramps from. Worked out where a grain looks, and only
+ * when the floor or WET moved */
+static __attribute__((noinline)) uint32_t gr_pfl_new(uint32_t t, grain_trk_t *G, const int16_t *p)
+{
+    int32_t wq = PCT_Q15[clamp(p[GP_WET], 0, 100)];
+    wq = wq > G->wetq ? wq : G->wetq;
+    if (wq != G->pfw || hear_fl[t] != G->pff) {
+        G->pfw = wq;
+        G->pff = hear_fl[t];
+        G->pf = (uint16_t)hear_peak(hear_fl[t], wq);
+    }
+    G->pfok = 1;
+    return G->pf;
+}
+static inline __attribute__((always_inline)) uint32_t gr_pfl(uint32_t t, grain_trk_t *G, const int16_t *p)
+{
+    return G->pfok ? G->pf : gr_pfl_new(t, G, p);      /* (once a block: grain_block clears pfok) */
+}
+static int HOT_CODE gr_quiet(const tape_view_t *v, int32_t lo, int32_t hi, int32_t ll, int32_t busy, uint32_t pf)
 {
     int32_t len = (int32_t)v->len, b, nb;
     if (!len || ll <= 0 || hi < lo)
@@ -695,7 +738,7 @@ static int HOT_CODE gr_quiet(const tape_view_t *v, int32_t lo, int32_t hi, int32
             at -= ll;
         while (at < 0)
             at += ll;
-        if (at / (int32_t)TAPE_BLK == busy || tv_peak(v, (uint32_t)at / TAPE_BLK))
+        if (at / (int32_t)TAPE_BLK == busy || tv_peak(v, (uint32_t)at / TAPE_BLK) >= pf)
             return 0;
     }
     return 1;
@@ -715,7 +758,8 @@ static void HOT_CODE gr_start(uint32_t t, grain_trk_t *G, const int16_t *p, int3
     at = ls + ((at - ls) % ll + ll) % ll;
     pan = gr_pitch(G, p);
     rate = gr_rate(pan);
-    if (gr_quiet(v, at, at + (int32_t)((uint32_t)rate * ((uint32_t)p[GP_SIZE] * 441u / 10u) >> 12) + 1, ll, busy))
+    if (gr_quiet(v, at, at + (int32_t)((uint32_t)rate * ((uint32_t)p[GP_SIZE] * 441u / 10u) >> 12) + 1, ll, busy,
+                 gr_pfl(t, G, p)))
         return;
     for (k = 0; k < GR_SLOTS && !g; k++)                /* any free slot (the shares keep the total in the pool) */
         if (!gr_on(k))
@@ -907,6 +951,7 @@ static void HOT_CODE grain_block(uint32_t t, const int32_t *dry, uint32_t keys, 
     if (!G->rng)
         G->rng = 0x2545F491 + (int32_t)t * 7919;
     grain_frozen = (uint8_t)frozen;
+    G->pfok = 0;
     {                                                   /* the dry share, centred: INS 1 - WET, SEND all of it */
         int32_t d1 = p[GP_ROUT] ? 32767 : PCT_Q15[100 - clamp(wet, 0, 100)], d0 = G->dset ? G->dsh : d1;
         G->dsh = d1;
@@ -1143,7 +1188,7 @@ static void HOT_CODE grain_block(uint32_t t, const int32_t *dry, uint32_t keys, 
                 if (b0 == b1 && b0 == g->qb && b0 != busy && p0 >= 0 && p1 < len)
                     q = g->qq;                          /* (still inside the block it last looked at: the same) */
                 else {
-                    q = gr_quiet(&v, p0 < p1 ? p0 : p1, (p0 < p1 ? p1 : p0) + 1, ll, busy);
+                    q = gr_quiet(&v, p0 < p1 ? p0 : p1, (p0 < p1 ? p1 : p0) + 1, ll, busy, gr_pfl(t, G, p));
                     g->qb = b0 == b1 && b0 != busy && p0 >= 0 && p1 < len ? b0 : -1;
                     g->qq = (uint8_t)q;
                 }

@@ -70,6 +70,7 @@ static void ui_redraw(void);
 #include "../firmware/src/mod.c"
 #include "../firmware/src/mem.c"
 #include "../firmware/src/tape.c"
+#include "../firmware/src/hear.c"
 #include "../firmware/src/synth.c"
 #include "../firmware/src/poly.c"
 #include "../firmware/src/drum_voice.c"
@@ -124,6 +125,17 @@ static void check(const char *what, int ok)
     fails += !ok;
 }
 
+/* every shedding cap back to full: the grains' pool, each track's strings and drum voices */
+static void caps_full(void)
+{
+    uint32_t t;
+    grain_cap = GR_CAP;
+    for (t = 0; t < NTRK; t++) {
+        reso_cap[t] = RS_N;
+        drm_cap[t] = DRM_NV;
+    }
+}
+
 static void power_on(void)
 {
     memset(&ui, 0, sizeof ui);
@@ -134,7 +146,7 @@ static void power_on(void)
     memset(&cap, 0, sizeof cap);
     memset(&capm, 0, sizeof capm);
     memset(reso, 0, sizeof reso);
-    reso_cap = RS_N;
+    caps_full();
     memset(color, 0, sizeof color);
     memset(space, 0, sizeof space);
     memset(&ur, 0, sizeof ur);
@@ -151,7 +163,6 @@ static void power_on(void)
     memset(&tape_undo, 0, sizeof tape_undo);
     memset(syn, 0, sizeof syn);
     memset(pol, 0, sizeof pol);
-    drm_cap = DRM_NV;                                    /* (DRUM's voices: none shed) */
     drm_calm = 0;
     memset(arp_rt, 0, sizeof arp_rt);                    /* (the arpeggiators, the keys' notes) */
     memset((void *)arp_clear_req, 0, sizeof arp_clear_req);
@@ -180,11 +191,10 @@ static void power_on(void)
     memset(lce, 0, sizeof lce);
     sb_lp1 = sb_lp2 = sb_lp3 = sb_lp4 = sb_env = sb_h1 = sb_h2 = sb_hl = 0;
     out_g = 32767;
-    reso_cap = RS_N;                                     /* (shedding's caps, back to full) */
+    caps_full();                                         /* (shedding's caps, back to full) */
     reso_calm = 0;
-    grain_cap = GR_CAP;
     grain_calm = 0;
-    drm_cap = DRM_NV;
+    hear_step = hear_calm = 0;                           /* (the hearing floor at its base) */
     chain_shed_count = 0;
     out_mute_req = 0;                                    /* (the output's fade: playing) */
     out_g = 32767;
@@ -3152,15 +3162,16 @@ static void test_grain_silence(void)
                                                           * that's quiet there was skipped) */
         tape_chunk(0, blk)->peak[blk % MEM_CB] = 0;
     check("gr_quiet: a stretch inside the silent blocks is silent; one touching sound isn't",
-          gr_quiet(&v, 16 * 256, 32 * 256 - 1, (int32_t)v.len, -1) && !gr_quiet(&v, 15 * 256, 20 * 256, (int32_t)v.len, -1) &&
-          !gr_quiet(&v, 30 * 256, 33 * 256, (int32_t)v.len, -1));
+          gr_quiet(&v, 16 * 256, 32 * 256 - 1, (int32_t)v.len, -1, 1u) &&
+          !gr_quiet(&v, 15 * 256, 20 * 256, (int32_t)v.len, -1, 1u) &&
+          !gr_quiet(&v, 30 * 256, 33 * 256, (int32_t)v.len, -1, 1u));
     check("..the block being written counts as sound (its peak is the old one's)",
-          !gr_quiet(&v, 16 * 256, 20 * 256, (int32_t)v.len, 18));
+          !gr_quiet(&v, 16 * 256, 20 * 256, (int32_t)v.len, 18, 1u));
     for (blk = 0; blk < 4u; blk++)                       /* round the loop: the end's last blocks and the start's */
         tape_chunk(0, blk)->peak[blk % MEM_CB] = 0, tape_chunk(0, nb - 1u - blk)->peak[(nb - 1u - blk) % MEM_CB] = 0;
     check("..past the end, round the loop: the start's blocks are the ones looked at",
-          gr_quiet(&v, (int32_t)(nb - 2u) * 256, (int32_t)(nb + 2u) * 256, (int32_t)v.len, -1) &&
-          !gr_quiet(&v, (int32_t)(nb - 2u) * 256, (int32_t)(nb + 6u) * 256, (int32_t)v.len, -1));
+          gr_quiet(&v, (int32_t)(nb - 2u) * 256, (int32_t)(nb + 2u) * 256, (int32_t)v.len, -1, 1u) &&
+          !gr_quiet(&v, (int32_t)(nb - 2u) * 256, (int32_t)(nb + 6u) * 256, (int32_t)v.len, -1, 1u));
     for (blk = 0; blk < 4u; blk++)
         tape_chunk(0, blk)->peak[blk % MEM_CB] = 100, tape_chunk(0, nb - 1u - blk)->peak[(nb - 1u - blk) % MEM_CB] = 100;
     {                                                    /* a 50 ms grain inside the silence: not started */
@@ -5086,12 +5097,12 @@ static void test_ripple_forms(void)
                                                           * the mix's soft knee, its bound 24,000 + 16,383 as the strings'
                                                           * always was) */
     }
-    reso_cap = 2u;                                       /* shed to two chunks: six bands */
+    reso_cap[0] = 2u;                                    /* shed to two chunks: six bands */
     RF_RUN(0u, 1, s);
     for (k = 6, i = 0; k < RS_NB; k++)
         i |= reso[0].lvl[k];
     check("..shed to two strings' worth: six bands, the top six quiet", i == 0 && reso[0].lvl[5] > 0);
-    reso_cap = RS_N;
+    reso_cap[0] = RS_N;
     p[RP_SCAL] = 12;                                     /* OCT over A3: the bands climb past C9, and stop there */
     RF_RUN(0u, 1, s);
     for (k = 0, i = 0; k < RS_NB; k++)
@@ -5480,14 +5491,17 @@ static void test_reso(void)
     tp[0].src = SRC_TAPE;
 
     {
-        uint32_t c0 = reso_cap;
-        grain_cap = 4;                                   /* (the grains already down to half) */
+        uint32_t c0 = reso_cap[0];
+        grain_cap = 4;                                   /* (the grains already down to half, the hearing floor at
+                                                          * its top) */
+        hear_step = HEAR_STEPS;
         chain_shed();
         check("shedding, the grains at half already: a string goes (4 -> 3), and a second later it's back",
-              reso_cap == c0 - 1u);
+              reso_cap[0] == c0 - 1u);
         render(1400, 0);
-        check("..back", reso_cap == RS_N);
+        check("..back", reso_cap[0] == RS_N);
         grain_cap = GR_CAP;
+        hear_step = 0;
     }
     chain_tracks(1);
     p = tp[1].dev[DEV_RESO];
@@ -8488,7 +8502,7 @@ static uint32_t drum_hit(uint32_t i, uint32_t acc, uint32_t choke_at, int32_t *o
             dk_choke(&v);
         for (k = 0; k < CTL; k++)                        /* (dk_run adds into its block: the voice alone here) */
             out[n + k] = 0;
-        dk_run(&c, &v, out + n, CTL);
+        dk_run(&c, &v, out + n, CTL, DK_QUIET);
         for (k = 0; k < CTL; k++)
             *peak = abs(out[n + k]) > *peak ? abs(out[n + k]) : *peak;
         n += CTL;
@@ -8538,7 +8552,7 @@ static void test_drum_voices(void)
                 dk_trigger(&v);
             for (j = 0; j < CTL; j++)
                 y[j] = 0;
-            dk_run(&c, &v, y, CTL);
+            dk_run(&c, &v, y, CTL, DK_QUIET);
             for (j = 0; j < CTL; j++) {
                 if (b >= 137u && abs(y[j] - last) > step)
                     step = abs(y[j] - last);
@@ -12160,22 +12174,211 @@ static void test_drum_shed(void)
     for (i = 0; i < 5u; i++)                             /* five instruments struck together */
         drm_strike(0, tp[0].drm, i == 0 ? 0u : i + 11u > 15u ? 15u : i + 11u, 0, 0);
     render(1, 0);
-    grain_cap = 4u;                                      /* (the grains and strings already shed) */
-    reso_cap = 2u;
+    grain_cap = 4u;                                      /* (the hearing floor at its top, the grains and strings
+                                                          * already shed) */
+    reso_cap[0] = reso_cap[1] = reso_cap[2] = reso_cap[3] = 2u;
+    hear_step = HEAR_STEPS;
     chain_shed();
     chain_shed();
     chain_shed();
-    check("overload past the grains and strings: the drum voices come down, 5 -> 2", drm_cap == 2u);
+    check("overload past the grains and strings: the drum voices come down, 5 -> 2", drm_cap[0] == 2u);
     render(40, 0);                                       /* (30 ms: 1.5 ms decays, past -60 dB in ~10) */
     for (live = 0, j = 0; j < DRM_NV; j++)
         live += drm_rt[0].v[j].live;
     check("..the voices over the cap fade out (a 1.5 ms decay), at most two ring", live <= 2u);
     for (b = 0; b < 1378u * 3u + 10u; b++)
         render(1, 0);
-    check("..three calm seconds: three voices back", drm_cap == 5u);
+    check("..three calm seconds: three voices back", drm_cap[0] == 5u);
     sys.playing = 0;
-    grain_cap = GR_CAP;
-    reso_cap = RS_N;
+    caps_full();
+    hear_step = 0;
+}
+
+/* the hearing floor (hear.c, 2026-10-19): what's too quiet to hear is dropped, the floor rising under load */
+static uint32_t hf_release(uint32_t level)           /* a SYNTH note's release on track 1 at level: blocks to silence */
+{
+    uint32_t b;
+    power_on();
+    track[1].mute = track[2].mute = track[3].mute = 1;
+    tp[0].src = SRC_SYNTH;
+    tp[0].syn[SY_REL] = 90;
+    track[0].level = (uint8_t)level;
+    sys.keys_live = 1;
+    sys.sel = 0;
+    fm1_in.notes = note_bit_of_white(0);
+    render(200, 0);
+    fm1_in.notes = 0;
+    for (b = 0; b < 400000u && syn_sounding(0); b++)
+        render(1, 0);
+    return b;
+}
+static void test_hearing_floor(void)
+{
+    char m[200];
+    uint32_t full, quiet, b, j, t;
+    int32_t f0, f1;
+    double want, got;
+    static int32_t l[CTL], r[CTL];
+    power_on();
+    sys.master_q12 = MASTER_FULL;
+    track[0].level = 112;                                /* (0 dB) */
+    render(1, 0);
+    check("the floor: MASTER full, 0 dB, the compressor off: -72 dBFS in the track (8), the rooms the same",
+          hear_fl[0] == HEAR_BASE && hear_rm == HEAR_BASE);
+    track[0].level = 72;                                 /* (-20 dB) */
+    sys.master_q12 = 2048;                               /* (-6 dB) */
+    render(1, 0);
+    snprintf(m, sizeof m, "..track 1 at -20 dB, MASTER -6 dB: 26 dB higher inside it (%d), the rooms 6 (%d)",
+             hear_fl[0], hear_rm);
+    check(m, hear_fl[0] >= 155 && hear_fl[0] <= 165 && hear_rm == 16);
+    sys.rec = 1u;                                        /* (REC armed on track 1) */
+    render(1, 0);
+    check("..REC armed on track 1: it's heard before its level (8), the others before MASTER",
+          hear_fl[0] == HEAR_BASE && hear_fl[1] == hear_through(HEAR_BASE, LEVEL_Q12[track[1].level]));
+    sys.rec = 0;
+    fx_usb_fixed = 1;
+    render(1, 0);
+    check("..USB LEVEL FIXED: USB hears the mix before MASTER, so MASTER doesn't count", hear_rm == HEAR_BASE);
+    fx_usb_fixed = 0;
+    sys.master_q12 = 0;
+    render(1, 0);
+    check("..MASTER at 0: nothing is heard", hear_fl[0] == HEAR_DEAF && hear_rm == HEAR_DEAF);
+
+    /* a release ends where it goes under the floor: sooner on a track turned down, as much sooner as its decay takes
+     * to fall that much further */
+    full = hf_release(112);
+    f0 = hear_fl[0];
+    quiet = hf_release(72);
+    f1 = hear_fl[0];
+    want = log((double)(1 << 24) / hear_end24(f1)) / log((double)(1 << 24) / hear_end24(f0));
+    got = (double)quiet / full;
+    snprintf(m, sizeof m, "SYNTH's release, track at 0 dB: %u blocks to silence; at -20 dB: %u (%.2f of it, the "
+             "floor's %.2f)", full, quiet, got, want);
+    check(m, quiet < full && got > want - 0.06 && got < want + 0.06);
+    power_on();
+    sys.master_q12 = MASTER_FULL;
+    render(1, 0);
+    check("..at MASTER full and 0 dB the end is where it always was (1 << 12, -72 dB)",
+          (track[0].level = 112, render(1, 0), hear_end24(hear_src(0, 1024)) == 1 << 12));
+
+    /* under load: the floor first, 6 dB a time, to -48 dBFS; then the caps; back in the other order */
+    power_on();
+    for (b = 0; b < HEAR_STEPS; b++)
+        chain_shed();
+    check("overload: the floor rises first, four 6 dB steps (-48 dBFS), the caps untouched",
+          hear_step == HEAR_STEPS && grain_cap == GR_CAP && reso_full() && drm_full());
+    chain_shed();
+    check("..then the grains", hear_step == HEAR_STEPS && grain_cap == GR_CAP - 2u);
+    for (b = 0; b < 1378u * 2u + 10u; b++)
+        render(1, 0);
+    check("..calm seconds give the grains back first, the floor staying up", grain_cap == GR_CAP &&
+          hear_step == HEAR_STEPS);
+    for (b = 0; b < 1378u * 2u + 10u; b++)
+        render(1, 0);
+    check("..then, a calm second after, the floor comes down, a step a second", hear_step == HEAR_STEPS - 2u);
+    hear_step = 0;
+
+    /* past the floor's top, the caps take from the quietest track first */
+    power_on();
+    tp[0].src = tp[1].src = SRC_DRUM;
+    track[0].level = 112;
+    track[1].level = 80;                                 /* (track 2 16 dB under track 1) */
+    track[2].mute = track[3].mute = 1;
+    for (b = 0; b < 60u; b++) {                          /* (both kits struck, their meters up) */
+        if (!(b % 20u))
+            for (t = 0; t < 2u; t++)
+                drm_strike(t, tp[t].drm, 0, 0, 0);
+        render(1, 0);
+    }
+    hear_step = HEAR_STEPS;
+    grain_cap = 4u;
+    for (t = 0; t < NTRK; t++)
+        reso_cap[t] = 2u;
+    chain_shed();
+    snprintf(m, sizeof m, "DRUM shed past the floor and strings: the quieter track's voice goes (T1 %u, T2 %u)",
+             drm_cap[0], drm_cap[1]);
+    check(m, drm_cap[0] == DRM_NV && drm_cap[1] == DRM_NV - 1u);
+    for (b = 0; b < 6u; b++)
+        chain_shed();
+    check("..down to two on the quieter before the louder gives one", drm_cap[1] == 2u && drm_cap[0] < DRM_NV);
+    caps_full();
+    hear_step = 0;
+
+    /* a track over its cap: its quietest voice is choked, not the last */
+    power_on();
+    tp[0].src = SRC_DRUM;
+    for (j = 0; j < DRM_NV; j++)                         /* five instruments, one of them a ghost note */
+        drm_strike(0, tp[0].drm, j == 0 ? 0u : 11u + j, 0, j == 2u);
+    render(8, 0);
+    {
+        drm_rt_t *dr = &drm_rt[0];
+        uint32_t q = DRM_NV, ql = 0, ch = 0;
+        for (j = 0; j < DRM_NV; j++)
+            if (dr->v[j].live && (q == DRM_NV || drm_loud(dr, j) < ql)) {
+                q = j;
+                ql = drm_loud(dr, j);
+            }
+        drm_cap[0] = DRM_NV - 1u;
+        render(1, 0);
+        for (j = 0; j < DRM_NV; j++)
+            ch += dr->v[j].choke;
+        snprintf(m, sizeof m, "..a kit over its cap chokes its quietest voice (voice %u), only that one", q);
+        check(m, q < DRM_NV && dr->v[q].choke && ch == 1u);
+    }
+    caps_full();
+
+    /* the grains: the pool's cut from the quieter track's share first */
+    power_on();
+    hear_pk[0] = 20000;
+    hear_pk[1] = 2000;
+    {
+        uint8_t sh0[NTRK], sh1[NTRK];
+        for (t = 0; t < 2u; t++) {                       /* (grains of the tracks' reels, playing) */
+            tp[t].dev[DEV_GRAIN][GP_WET] = 80;
+            tp[t].dev[DEV_GRAIN][GP_SCAN] = SCAN_TAPE;
+        }
+        track[2].mute = track[3].mute = 1;
+        sys.playing = 1;
+        render_poll(4);
+        hear_pk[0] = 20000;
+        hear_pk[1] = 2000;
+        gr_plan_into(sh0);
+        grain_cap = GR_CAP - 2u;
+        gr_plan_into(sh1);
+        snprintf(m, sizeof m, "GRAIN shed: the pool's cut comes off the quieter track (T1 %u -> %u, T2 %u -> %u)",
+                 sh0[0], sh1[0], sh0[1], sh1[1]);
+        check(m, sh0[1] && sh1[0] == sh0[0] && sh1[1] < sh0[1] &&
+                 (uint32_t)sh1[0] + sh1[1] <= GR_POOL[2] * (GR_CAP - 2u) / GR_CAP);
+    }
+    caps_full();
+
+    /* RIPPLE and SPACE rest on what's too quiet to hear */
+    power_on();
+    sys.master_q12 = MASTER_FULL;
+    track[0].level = 20;                                 /* (-46 dB) */
+    tp[0].dev[DEV_RESO][RP_WET] = 60;
+    tp[0].dev[DEV_SPACE][SP_DLY] = 40;
+    render_poll(10);
+    for (b = 0; b < 3000u; b++) {                        /* (rung down, then a whisper in: +-40) */
+        for (j = 0; j < CTL; j++)
+            l[j] = r[j] = b < 2000u ? 0 : (j & 1u) ? 40 : -40;
+        chain_hear();
+        reso_block(0, l, r, 0, 0, -1, CTL);
+        space_block(0, l, r, CTL, 4096);
+    }
+    snprintf(m, sizeof m, "a whisper (+-40) into a track at -46 dB: RIPPLE and the delay rest (floor %d)", hear_fl[0]);
+    check(m, reso[0].quiet > RS_LEN + CTL && space[0].quiet > 0);
+    track[0].level = 112;
+    for (b = 0; b < 50u; b++) {
+        for (j = 0; j < CTL; j++)
+            l[j] = r[j] = (j & 1u) ? 40 : -40;
+        chain_hear();
+        reso_block(0, l, r, 0, 0, -1, CTL);
+        space_block(0, l, r, CTL, 4096);
+    }
+    check("..the same at 0 dB and MASTER full: heard, they wake (as they always did)", reso[0].quiet == 0 &&
+          space[0].quiet == 0);
+    power_on();
 }
 
 int main(int argc, char **argv)
@@ -12267,6 +12470,7 @@ int main(int argc, char **argv)
     test_pj_keys();
     test_ambient_hall();
     test_drum_shed();
+    test_hearing_floor();
     test_input();
     test_settings();
     palette_set(UI_GREY_INDEX);                          /* (the screens are one ink now, whatever the palette) */

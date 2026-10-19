@@ -123,7 +123,13 @@ static room_t room[NROOM];
  * nothing: it stops working until sound comes in again, where it carries on from its lines as they are. The
  * filters in its loops are let go to 0 as it rests (a residue under the threshold can't hold it awake). */
 #define SP_QUIET_OUT 16
-static inline __attribute__((always_inline)) int32_t sp_loud(int32_t x) { return (uint32_t)(x + SP_QUIET_OUT) > 2u * SP_QUIET_OUT; }   /* |x| > 16 */
+static inline __attribute__((always_inline)) int32_t sp_loud(int32_t x, int32_t q)   /* |x| > q */
+{
+    return (uint32_t)(x + q) > 2u * (uint32_t)q;
+}
+/* the hearing floor (hear.c, 2026-10-19) as the line's: what comes out under it, or 16 if that's more (the base:
+ * as it was), is next to nothing; what goes in under a sixteenth of it (24 dB for the echoes to build) is silence */
+static inline __attribute__((always_inline)) int32_t sp_qout(int32_t f) { return f > SP_QUIET_OUT ? f : SP_QUIET_OUT; }
 
 /* SYNC: TIME as the tempo's divisions (96ths of a beat): 1/64 1/32 16T 1/16 8T 16D 1/8 4T 8D 1/4 4D 1/2. One the line
  * can't hold at the tempo (370 ms) plays halved until it fits (1/4 at 120 BPM: 1/8), so it stays on the grid */
@@ -606,13 +612,13 @@ static void HOT_CODE space_block(uint32_t t, int32_t *l, int32_t *r, uint32_t n,
     if (dl && tgt > (int32_t)(dl - 4u) << 8)
         tgt = (int32_t)(dl - 4u) << 8;
     {
-        int32_t m[CTL / 2], wl[CTL / 2], wr[CTL / 2], ol = S->pl, or_ = S->pr, in = 0, loud = 0;
-        int32_t pk = 0;
+        int32_t m[CTL / 2], wl[CTL / 2], wr[CTL / 2], ol = S->pl, or_ = S->pr, in, loud = 0;
+        int32_t pk = 0, fl = hear_fl[t], qo = sp_qout(fl);
         for (i = 0; i < h; i++) {                       /* mono, at half the rate */
             m[i] = sp_sat((l[2 * i] + r[2 * i] + l[2 * i + 1] + r[2 * i + 1]) >> 2);
-            in |= m[i];
             pk = m[i] > pk ? m[i] : -m[i] > pk ? -m[i] : pk;
         }
+        in = pk > fl >> 4;                              /* (at the floor's base: any sound at all, as it was) */
         S->dpk = pk;                                    /* (DUCK's, next block) */
         if (gv0 || gv1) {                               /* the send, ramped across the block */
             int32_t gq = gv0 << (CTL_LOG2 - 1), dg = gv1 - gv0;
@@ -658,7 +664,7 @@ static void HOT_CODE space_block(uint32_t t, int32_t *l, int32_t *r, uint32_t n,
             sp_delay(S, db, dlb, dl, tgt, off, kl, kh, fbg, gd0, gd1, m, wl, wr, &ch, sp_dfa[t]);
         }
         for (i = 0; i < h; i++) {                       /* back up to 44.1 kHz: halfway, then the sample */
-            loud |= sp_loud(wl[i]) | sp_loud(wr[i]);
+            loud |= sp_loud(wl[i], qo) | sp_loud(wr[i], qo);
             l[2 * i] += (ol + wl[i]) >> 1;
             r[2 * i] += (or_ + wr[i]) >> 1;
             l[2 * i + 1] += wl[i];
@@ -688,6 +694,7 @@ static void HOT_CODE space_rooms(int32_t *l, int32_t *r, uint32_t n)
         uint32_t qw = (uint32_t)clamp(q[RM_QUAL], 0, 1), tw = (uint32_t)clamp(q[RM_TYPE], 0, 3);
         uint32_t lo = R->live ? R->qual : qw, ns = h >> lo, pl, settle;   /* (a new QUAL waits for the fade) */
         int32_t tone = q[RM_TONE], kh = 0, damp = 6554, pre, in = 0, loud = 0, wl[CTL / 2], wr[CTL / 2], x[CTL / 2];
+        int32_t qo = sp_qout(hear_rm);                  /* (the hearing floor after the tracks' levels: sp_qout) */
         int plb;
         if (!(R->rev.ready && R->pre.ready)) {
             R->live = 0;
@@ -736,6 +743,12 @@ static void HOT_CODE space_rooms(int32_t *l, int32_t *r, uint32_t n)
             x[i] = lo ? (R->in[2 * i] + R->in[2 * i + 1]) >> 1 : R->in[i];
             x[i] = sp_sat(x[i]);
             in |= x[i];
+        }
+        if (in && hear_rm >> 4) {                       /* (a floor over 0: how loud, an OR of magnitudes, within 2x
+                                                         * of the peak; at its base any sound at all, as it was) */
+            for (in = 0, i = 0; i < ns; i += 2u)        /* (every other sample: near enough, 24 dB to spare) */
+                in |= x[i] < 0 ? -x[i] : x[i];
+            in = in > hear_rm >> 4;
         }
         for (i = 0; i < h; i++)
             R->in[i] = 0;
@@ -801,7 +814,7 @@ static void HOT_CODE space_rooms(int32_t *l, int32_t *r, uint32_t n)
         {
             int32_t ol = R->pl, or_ = R->pr;
             for (i = 0; i < ns; i++) {
-                loud |= sp_loud(wl[i]) | sp_loud(wr[i]);
+                loud |= sp_loud(wl[i], qo) | sp_loud(wr[i], qo);
                 if (lo) {                               /* 11.025 -> 44.1 kHz: a quarter of the way at a time */
                     int32_t dl = wl[i] - ol, dr = wr[i] - or_;
                     l[4 * i] += ol + (dl >> 2);

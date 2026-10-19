@@ -19,7 +19,8 @@
  * string is F1, 43.7 Hz), taken while WET is above 0 on a track in use and given back otherwise.
  *
  * Load: about 15 instructions a string a sample. Shedding (chain_shed) takes strings after grains: one at a time down
- * to two, one back a second later. Audio ISR, except reso_poll (the main loop: the memory). Integer only. */
+ * to two a track, the quietest track's first, one back a second later. Too quiet to hear (hear.c), they rest.
+ * Audio ISR, except reso_poll (the main loop: the memory). Integer only. */
 
 #define RS_N 4u                      /* strings a track */
 #define RS_NB 12u                    /* BANK's bands (three a string's chunk: shedding takes them three at a time) */
@@ -109,7 +110,8 @@ typedef struct {
 } reso_t;
 
 static reso_t reso[NTRK];
-static uint32_t reso_cap = RS_N;     /* strings that sound, lowered by chain_shed */
+static uint32_t reso_cap[NTRK] = {RS_N, RS_N, RS_N, RS_N};   /* each track's strings that sound, lowered by
+                                                                * chain_shed (the quietest track's first: reso_shed) */
 static uint32_t reso_calm;
 
 /* a string's delay line */
@@ -347,12 +349,17 @@ static void HOT_CODE reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t key
     const int16_t *p = TPD(t, DEV_RESO);
     int32_t wet1 = clamp(p[RP_WET], 0, 100), wet0 = R->wet, e[CTL], acc_e[CTL], acc_o[CTL], heard = 0;
     int32_t a = RS_TONE_A[clamp(p[RP_TONE], 0, 100)], sc = clamp(p[RP_SCAL], 0, RS_SCALES), root16;
-    uint32_t k, i, press = keys & ~R->keys, nstr = R->nch < reso_cap ? R->nch : reso_cap, t60 = rs_t60(p[RP_DEC]);
+    uint32_t k, i, press = keys & ~R->keys, nstr = R->nch < reso_cap[t] ? R->nch : reso_cap[t];
+    uint32_t t60 = rs_t60(p[RP_DEC]);
     int32_t mode = rs_mode(R), drv = clamp(p[RP_DRV], 0, 100), ripl = clamp(p[RP_RIPL], 0, 100), ig = 16384;
     int32_t fpos = rs_flow(R, clamp(p[RP_FLOW], 0, 100), mode);   /* FLOW: where across the spectrum (-1: still) */
     int32_t comb = mode == RM_COMB, gq = 256 + ((drv * 1311) >> 8);   /* (DRV's gain, 1 + DRV / 50: to 3 x) */
-    int tune = p[RP_KEYS] == RK_TUNE;
-    int32_t inq = 16384;                                /* (the input's share this block: COMB makes it up after) */                   /* (KEYS TUNE: a key or a step retunes, never plucks) */
+    int tune = p[RP_KEYS] == RK_TUNE;                   /* (KEYS TUNE: a key or a step retunes, never plucks) */
+    int32_t inq = 16384;                                /* (the input's share this block: COMB makes it up after) */
+    int32_t fl = hear_fl[t], ipk = 0;                   /* the hearing floor (hear.c): an input under fl / 16 (24 dB
+                                                         * for the strings to ring it up) doesn't wake them, and
+                                                         * they rest once they've rung down under fl / 4 (2 at the
+                                                         * floor's base: as it was) */
     if (mode == RM_BANK)
         nstr *= 3u;                                     /* (BANK: its bands, three a string's chunk) */
     if (drv)
@@ -438,12 +445,19 @@ static void HOT_CODE reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t key
                 e[i] = rs_shape(e[i], gq, ig);
         R->ic1 = ic1;
         R->ic2 = ic2;
+        if (heard && fl >> 4)                           /* (a floor over 0: how loud, an OR of magnitudes every
+                                                         * fourth sample, near enough with 24 dB to spare; at the
+                                                         * base any sound is heard, as it was) */
+            for (i = 0; i < n; i += 4u)
+                ipk |= (l[i] + r[i]) >> 1 < 0 ? -((l[i] + r[i]) >> 1) : (l[i] + r[i]) >> 1;
+        else
+            ipk = heard != 0;
         if (!heard && R->ic1 > -256 && R->ic1 < 256 && R->ic2 > -256 && R->ic2 < 256)
             R->ic1 = R->ic2 = 0;                        /* (silence in: the filter's integer residue let go. With RES
                                                          * up it held a few dozen for good, and DEC 100's strings rang
                                                          * it up to -16 dB with nothing playing: rs_settle) */
     }
-    if (!heard && R->quiet > RS_LEN + CTL)              /* resting: silence in, and the strings have rung down to
+    if (ipk <= fl >> 4 && R->quiet > RS_LEN + CTL)      /* resting: silence in, and the strings have rung down to
                                                          * next to nothing (|out| <= 2) for longer than a line is
                                                          * long: nothing left to ring, so none of their work (2026-10-11:
                                                          * half the CPU with nothing playing). A pluck or sound in
@@ -671,10 +685,13 @@ static void HOT_CODE reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t key
         R->w += n;                                       /* (w < RS_LEN, n a block: one wrap at most) */
         if (R->w >= RS_LEN)
             R->w -= RS_LEN;
-        for (i = 0; i < n && !heard; i++)
-            if (acc_e[i] > 2 || acc_e[i] < -2 || acc_o[i] > 2 || acc_o[i] < -2)
-                heard = 1;
-        if (heard)
+        int32_t q = fl >> 2 > 2 ? fl >> 2 : 2;          /* (rung down: under the floor, 12 dB to spare for WET's
+                                                         * make-up; 2 at its base, as it was) */
+        int loud = ipk > fl >> 4;                       /* (at the floor's base: any input at all, as it was) */
+        for (i = 0; i < n && !loud; i++)
+            if (acc_e[i] > q || acc_e[i] < -q || acc_o[i] > q || acc_o[i] < -q)
+                loud = 1;
+        if (loud)
             R->quiet = 0;
         else if ((R->quiet += n) > RS_LEN + CTL)
             for (k = 0; k < RS_NB; k++)
@@ -708,20 +725,42 @@ static void HOT_CODE reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t key
     }
 }
 
-/* audio ISR: shedding takes strings after grains (one at a time, down to two); a second without it gives one back */
-static void reso_shed(void)
+/* audio ISR: shedding takes strings after grains, one at a time down to two a track, from the quietest track as heard
+ * of those whose strings are on (hear.c hear_quietest; 2026-10-19: every track's went at once). Returns 0 when
+ * there's none left to take. A second without shedding gives one back, to the loudest track short of its four */
+static int reso_shed(void)
 {
-    if (reso_cap > 2u)
-        reso_cap--;
+    uint32_t t, m = 0;
+    int32_t q;
     reso_calm = 0;
+    for (t = 0; t < NTRK; t++)
+        if (reso[t].nch && reso[t].wet && reso_cap[t] > 2u)
+            m |= 1u << t;
+    q = hear_quietest(m);
+    if (q < 0)
+        return 0;
+    reso_cap[q]--;
+    return 1;
 }
 static void HOT_CODE reso_recover(void)
 {
-    if (++reso_calm >= 1378u && reso_cap < RS_N) {     /* (a string back, if there's room: chain_room) */
-        if (chain_room())
-            reso_cap++;
+    if (++reso_calm >= 1378u) {                         /* (a string back, if there's room: chain_room) */
+        uint32_t t, m = 0;
+        for (t = 0; t < NTRK; t++)
+            m |= (reso_cap[t] < RS_N) << t;
+        if (m && chain_room())
+            reso_cap[hear_loudest(m)]++;
         reso_calm = 0;
     }
+}
+/* every track's strings at four (nothing shed) */
+static int reso_full(void)
+{
+    uint32_t t;
+    for (t = 0; t < NTRK; t++)
+        if (reso_cap[t] < RS_N)
+            return 0;
+    return 1;
 }
 
 /* main loop, every pass: a track's strings while its RIPPLE is on (WET above 0, the track in use), taken from the

@@ -336,6 +336,7 @@ static void HOT_CODE syn_chord_voice(uint32_t t, uint32_t j, uint32_t k, int32_t
 #define SY_FLT(x) (fs ? tsvf_sat(&flt, (x), &ic1, &ic2, ft) : ft ? tsvf_mode(&flt, (x), &ic1, &ic2, ft) \
                       : tsvf_lp(&flt, (x), &ic1, &ic2))
 /* one block of one voice, added into out */
+static int32_t syn_end = 1 << 12;    /* this block's voices' envelope end, Q24 (the hearing floor's: syn_block) */
 static void HOT_CODE syn_voice(uint32_t t, syn_voice_t *v, int32_t *out, uint32_t n)
 {
     const int16_t *p = TPD(t, MA_SYN);
@@ -349,7 +350,7 @@ static void HOT_CODE syn_voice(uint32_t t, syn_voice_t *v, int32_t *out, uint32_
     int32_t trng = v->trng, tlp = v->tlp, tg = clamp(p[SY_TRAN], 0, 100) * 327;
     uint32_t ft, pw;
     int fs;                                             /* (RES high: the filter's soft limit, tsvf_sat) */
-    env_step(&v->env, &v->stage, p[SY_ATK], p[SY_DEC], p[SY_SUS], p[SY_REL], ety);   /* the envelope: a step a
+    env_step(&v->env, &v->stage, p[SY_ATK], p[SY_DEC], p[SY_SUS], p[SY_REL], ety, syn_end);   /* the envelope: a step a
                                                                                         * block (as Felucca's) */
     if (!v->stage) {                                        /* ENV 2: with the note; done with the voice */
         v->st2 = 0;
@@ -360,7 +361,7 @@ static void HOT_CODE syn_voice(uint32_t t, syn_voice_t *v, int32_t *out, uint32_
     } else if (v->stage == 3u && v->st2 && v->st2 != 3u) {
         v->st2 = 3;
     }
-    env_step(&v->e2, &v->st2, p[SY_ATK2], p[SY_DEC2], p[SY_SUS2], p[SY_REL2], ety);
+    env_step(&v->e2, &v->st2, p[SY_ATK2], p[SY_DEC2], p[SY_SUS2], p[SY_REL2], ety, 1 << 12);
     if (v->p16 != v->to16) {                                /* the glide: GLID's time for an octave and a half */
         int32_t st = p[SY_GLID] ? (int32_t)(ENV_LIN[p[SY_GLID] & 127] >> 14) : 1 << 16, d = v->to16 - v->p16;
         if (st < 1)
@@ -591,6 +592,7 @@ static void HOT_CODE syn_block(uint32_t t, uint32_t keys, const int32_t *rec, in
     syn_t *s = &syn[t];
     uint32_t on = keys & ~s->keys, off = s->keys & ~keys, nv = (uint32_t)clamp(TPD(t, MA_SYN)[SY_VOIC], 1, SYN_NV), j, k;
     (void)rec;
+    syn_end = hear_end24(hear_src(t, db_q10(TPD(t, MA_SYN)[SY_LVL])));   /* (its voices' end: the hearing floor) */
     for (j = 0; j < n; j++)
         out[j] = 0;
     s->keys = keys;

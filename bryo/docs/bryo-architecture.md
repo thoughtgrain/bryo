@@ -3598,6 +3598,90 @@ the delay over its range; SWEL's kick and its settling; CRKL on silence (the nee
 silence after it (WEAR 60, exactly 0); the delay inside the line at WOW FLUT SWEL 100; SKIP, STCK and BRAK on the cursor; FLOW starting no grains, GRNS keeping them. Two screen
 shots (warble, vinyl) are in the goldens and the manual.
 
+### The hearing floor: the quietest sounds drop first (2026-10-19)
+
+The ask: "Could we do some tricky optimizations where the quietest sounds just drop completely when cpu and ram gets
+overloaded?" From the questions after it: all three of what I proposed (drop the quietest first under load, stop
+working on what's too quiet to hear at any time, and give back the memory that holds only silence), "quiet" judged
+as heard, and memory reclaimed from silence only, never from quiet sound. This section is the CPU half; the memory
+half is its own section.
+
+**What was there.** Every part already had a point where it stopped working on its own sound, and every one of
+them was fixed against the sound itself: SYNTH's and POLY's voices ended at an envelope of 1/4096 (-72 dB under
+their own peak), DRUM's at -60 dB, RIPPLE and CHRONOS rested on exact silence in and next to nothing out, grains
+weren't started over blocks whose stored peak was 0. And under overload `chain_shed` capped the grain pool, then
+every track's strings, then every track's drum voices, by index: the voice that went was the last one in the list,
+however loud.
+
+**The floor** (`hear.c`). One number: what's under -72 dBFS at the output (`HEAR_BASE`, 8 in Q15) isn't heard.
+`chain_hear` (chain.c, once a block before the tracks) turns it into each track's terms, `hear_fl[t]`: the floor x
+4096 / the track's gain to the output, which is its level x the master compressor's gain right now (its make-up
+counts) x MASTER. The rooms get `hear_rm` (they come after the levels). Two exceptions keep recordings whole:
+with REC armed anywhere MASTER and the compressor don't count (REC IN takes the tracks after their levels and
+before those), and an armed track's own level doesn't either (its tape takes the source before it). USB LEVEL
+FIXED takes MASTER out too (USB hears the mix at full). The divides only happen when an input moved (a key of
+MASTER x compressor, the step and REC, then each track's level).
+
+Each part reads it in its own units:
+
+- **SYNTH, POLY** (`env_step` gets an `end`): a voice's envelope ends at `hear_end24(floor at the source's LVL)`,
+  the floor << 9, assuming the voice peaks at full scale (so never sooner than it could be heard), never later
+  than 1 << 12 (where it always ended), never past half. A held sustain never ends. At MASTER full and 0 dB that's
+  1 << 12 exactly, so nothing changes there.
+- **DRUM** (`dk_run` gets `q`): a part's envelope ends at `dk_qend`: the floor x 2^27 / the voice's `out`. I measured
+  that model against every kit instrument (output per unit of envelope, late in the decay): it's within 1.3x of the
+  real figure and on the side of keeping the sound. Never later than `DK_QUIET`. Cached per voice: a divide only
+  when the floor or the voice's level moves.
+- **GRAIN**: `gr_quiet` takes the least block peak heard, `hear_peak(floor, WET)`: a block counts as sound from
+  peak `(floor << 7) / WET - 1` up, the ADPCM's stored peak being |x| >> 7 and a buffer storing at half level. It's
+  worked out at the more of this block's and last block's WET (turning WET to 0 still ramps down from the old WET:
+  judging at 0 skipped sounding grains mid-ramp, a click the tests caught), once a block, only where a grain looks.
+- **RIPPLE**: an input under floor / 16 doesn't wake the strings (24 dB for a resonance to ring it up), and they
+  rest once rung down under floor / 4 (12 dB for WET's make-up). Both come to exactly the old tests at the floor's
+  base: any input at all, and |out| > 2.
+- **CHRONOS**: the delay and the rooms the same: an input under floor / 16 is silence, and what comes out under the
+  floor or 16 (as it was) is next to nothing.
+
+**Under load** (`chain_shed`). The floor goes first: 6 dB a shed (`hear_step`), four steps, to -48 dBFS, before any
+cap moves, so the faintest sounds anywhere drop before anything clearly heard. Then the caps, each now taking from
+the quietest track as heard first (`hear_quietest`, on `hear_pk[t]`, the track's meter after its level: MASTER and
+the compressor are the same for every track): the grain pool's cut comes off the quietest tracks' shares
+(`gr_plan_into` shares out the whole pool, then takes the cut, a track's grains all gone before the next quietest
+gives any); RIPPLE's strings and DRUM's voices are per track now (`reso_cap[t]`, `drm_cap[t]`), a shed lowering the
+quietest track's; a kit over its cap chokes its quietest voice (`drm_loud`: its louder envelope x its level), not
+the last one. Coming back is the other way round: the caps first, each to the loudest track short of its full
+count, then the floor, a step a calm second, and only a second after every cap is full. At full caps the voice
+allocation is exactly as before (DRUM's oldest-voice steal takes the oldest of all five, as it did), so the shedding
+change itself moves no fingerprint.
+
+**What it does to the sound.** At MASTER full and 0 dB, nothing: every end and every rest test is the old one. At
+the defaults (a track at -6 dB, MASTER at -6 dB, the boot's) the floor sits 12 dB higher inside the track, so the
+tails end 12 dB sooner under their peaks, at the same -72 dBFS at the output. Fourteen runs' fingerprints moved. By
+the samples some moved a lot (run 32, -10.8 dBFS at the peak of the difference), which is the voice slots: a voice
+freed a little sooner means the next note starts in a different one, at a different phase. By what you hear they
+didn't: over 23 ms windows above -50 dBFS, no run's loudness moved more than 0.43 dB, and no window more than 0.5.
+
+**What it saves.** Run 31, the factory scene (AMBIENT, long releases in its hall), 2,998 to 2,796; run 33 3,328 to
+3,125: 6.7 %, just from tails that were inaudible ending. Everywhere else it costs 4 to 16 a sample (the per-block
+bookkeeping: `chain_hear`, the floors' caches, RIPPLE's and the rooms' input level, taken every fourth or second
+sample only when the floor is over 0 for them). Under load the gain is the point: before, the first shed thinned
+grains you could hear; now it ends what you can't.
+
+**The audit.** One row flagged after this: SYNTH VOIC, an LFO switching the voice count. It isn't from the floor:
+the old code flags it too at three of four warm-up lengths (350, 450, 500 blocks; it passed at 400 by chance), and
+the new voice timing moved the phrase onto a flagging alignment. VOIC lets the voices over it go at a block edge,
+as a key let go does, and SYNTH's envelopes step once a block, so how much edge the audit sees depends on where the
+releases land in the phrase. `mod_audit.py` now names it as known (printed with its numbers and the reason, not
+counted) rather than me picking the warm-up that passes.
+
+Tests (`test_hearing_floor`): the floor at MASTER full and 0 dB (8), at -20 dB and MASTER -6 dB (26 dB higher; the
+rooms 6), with REC armed, USB LEVEL FIXED, MASTER 0 (deaf); a SYNTH release at -20 dB ending at 0.68 of its length
+at 0 dB, where the floor predicts 0.70; the end exactly 1 << 12 at full; the order under load and back (four floor
+steps, then the grains; the grains back first, then the floor a calm second later, a step a second); a quieter DRUM
+track losing its voices before the louder one; the quietest voice choked over a cap, only it; the grain pool's cut
+off the quieter track only; RIPPLE and the delay resting on a whisper (+-40) on a track at -46 dB, and waking on it
+at 0 dB and MASTER full. The shedding tests now set the floor to its top first.
+
 ## USB record mode (2026-10-08)
 
 Recording from the computer is a mode of its own, not a source a track plays through: you go in, record, put the

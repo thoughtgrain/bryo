@@ -129,6 +129,7 @@ Felucca's `felucca.c` did); `tests/bryo_host.c` includes the same files for the 
 | `arp.c` | the arpeggiator: the keys into one at a time, in time, before the source (notes, slices, drums); RIPPLE's arpeggio runs the same core (`arp_run`) |
 | `drum_voice.c`, `drum.c` | DRUM: the one synthesizer every instrument shares; the kit, the rhythms, SEED's versions, the player |
 | `grain.c` | GRAIN: the live buffer, the scheduler, the shared pool of grains |
+| `hear.c` | the hearing floor: what's too quiet to hear, in each part's terms; the quietest track (shedding) |
 | `grainfx.c` | GRAIN's WARBLE and VINYL forms: the line, the wow and flutter, AGE and WEAR, the surface, the glitches |
 | `reso.c`, `color.c`, `space.c` | RIPPLE, COLOR, CHRONOS |
 | `mixer.c` | the channel strips and the master compressor |
@@ -195,26 +196,27 @@ string every sample, about 15 a string: run 15 4,633 to 5,005 with sixteen strin
 now modulates RIPL and DRV among its 128 depths; and the checkpoint harness resets the master's states, the rooms
 and the shedding caps between runs, so every run is its own, which moved a few by a handful); then the day of 2026-10-14 (the bass drum's longer body, the resonators every sample, the
 cents loop, TRAN and BODY at 0; and the other session's CHRONOS and RIPPLE forms pulled in between: the two can't be
-told apart in these numbers):
+told apart in these numbers); then the hearing floor (2026-10-19: tails too quiet to hear end, 4 to 16 a sample of
+bookkeeping, and runs 31, 33 and 34, the AMBIENT scene's long releases, about 200 less each):
 
 | Run | What | Cost |
 | --- | --- | ---: |
-| 1 | four reels, nothing on | 1,020 |
-| 19 | a realistic four-track groove | 1,779 |
-| 24 | the groove, modulated the way I'd play it | 1,987 (91 of it the modulators) |
-| 21 | the groove's busiest moment | 2,660 |
-| 23 | GRAIN at its densest on one track | 3,043 |
-| 25 | every slot on every track, 128 depths | 2,806 (434 of it the modulators) |
-| 26 | DRUM busy alone (FUNK, VARY 100, FILL 100, long decays), the others plain reels | 1,361 |
-| 27 | the groove with a DRUM track in place of its drum reel | 2,003 |
-| 28 | four DRUM tracks at once, every voice (20) | 2,421 |
-| 15 | everything on, all four tracks | 5,267 |
-| 29 | the busiest groove's devices all on, the transport stopped (what "nothing playing" costs) | 700 |
-| 30 | one track heard (dense grains, strings with RIPL ARP, a room), the other three muted | 2,335 |
-| 31 | the factory scene as it boots (AMBIENT at 80 BPM in its hall, its chords held, nothing stepping, 2026-10-18) | 2,998 |
-| 32 | TEST, the project view's scene: every stage at work (GLITCH, at its scene tempo of 136 since 2026-10-17) | 2,896 |
-| 33 | the factory scene, T3 on VINYL over the whole sound (GLCH 60: a glitch most turns), T2 on WARBLE (SWEL 50) (2026-10-18) | 3,328 |
-| 34 | the factory scene, T3's grains through WARBLE (APPL GRNS) (2026-10-18) | 3,093 |
+| 1 | four reels, nothing on | 1,033 |
+| 19 | a realistic four-track groove | 1,791 |
+| 24 | the groove, modulated the way I'd play it | 1,999 (91 of it the modulators) |
+| 21 | the groove's busiest moment | 2,671 |
+| 23 | GRAIN at its densest on one track | 3,069 |
+| 25 | every slot on every track, 128 depths | 2,817 (434 of it the modulators) |
+| 26 | DRUM busy alone (FUNK, VARY 100, FILL 100, long decays), the others plain reels | 1,377 |
+| 27 | the groove with a DRUM track in place of its drum reel | 2,010 |
+| 28 | four DRUM tracks at once, every voice (20) | 2,441 |
+| 15 | everything on, all four tracks | 5,288 |
+| 29 | the busiest groove's devices all on, the transport stopped (what "nothing playing" costs) | 714 |
+| 30 | one track heard (dense grains, strings with RIPL ARP, a room), the other three muted | 2,350 |
+| 31 | the factory scene as it boots (AMBIENT at 80 BPM in its hall, its chords held, nothing stepping, 2026-10-18) | 2,796 |
+| 32 | TEST, the project view's scene: every stage at work (GLITCH, at its scene tempo of 136 since 2026-10-17) | 2,894 |
+| 33 | the factory scene, T3 on VINYL over the whole sound (GLCH 60: a glitch most turns), T2 on WARBLE (SWEL 50) (2026-10-18) | 3,126 |
+| 34 | the factory scene, T3's grains through WARBLE (APPL GRNS) (2026-10-18) | 2,891 |
 
 My target for a realistic four-track scene is 2,000. The first device reading (run 1, 2026-10-10: 25 %, in 5 % steps)
 puts the ratio at about 37.6 host instructions a sample per percent, if the load scales with the host's count: the
@@ -257,6 +259,12 @@ number.
   four), split by what each track's settings ask for when it runs short; what's left over is everyone's (since
   2026-10-11: a track alone has all 40, not just what RATE and SIZE ask). GRAIN 6's GRNS can hold a number for a
   track instead (1-40, taken from the AUTO tracks first, kept whatever the others do).
+- **2026-10-19: the hearing floor.** What's under -72 dBFS at the output, after the track's level, the master
+  compressor and MASTER, is dropped wherever it is: voices' and drums' tails end there, RIPPLE and CHRONOS rest under
+  it, grains aren't started on it (`hear.c`). Under load the floor rises first, 6 dB a step to -48 dBFS, so the
+  faintest sounds go before anything else; then the grain pool, strings and drum voices are capped from the quietest
+  track as heard, a kit losing its quietest voice. Recording keeps its sound whole (MASTER and an armed track's level
+  don't count). By loudness no fingerprint moved more than 0.43 dB; the AMBIENT scene costs 6.7 % less.
 - **2026-10-18: GRAIN's WARBLE and VINYL.** GRAIN has forms now, as RIPPLE does (EDIT held + SELECT on its pages,
   or FORM): GRAIN, WARBLE (a tape's WOW and FLUT, AGE, SWEL: each hit kicks the wobble deeper, then it settles) and
   VINYL (CRKL dust and pops, NOIS hiss, the record's warp, WEAR, and at each 1.8 s turn GLCH's chance of a SKIP, a

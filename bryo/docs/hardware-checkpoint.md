@@ -140,6 +140,7 @@ Write down the CPU reading for each, and anything you hear.
 | 31 | Power-cycle (the factory scene), PLAY. Then track 1 (DRUM): an LFO on one drum's level (on the KIT page hold the drum's white key, then LFO, KNOB 3 (LVL) to +40 %, let go). Then track 3, FX until CHRONOS 3 (room B's): QUAL to HI, then back to LO | the scene and the depth together without crackle, near 75 %; room B at HI about 2 % more and a little brighter | the CPU for the scene, with the depth, with room B at HI; does LO's tail sound dull or grainy? |
 | 32 | Track 2 on a cleared tape: hold REC and turn SELECT to 2 BARS, let go, tap REC, PLAY. Then turn the tempo from 120 to 100 and back | the take starts on the downbeat and stops by itself after 2 bars, then loops in time with the drums; TAPE 4 shows SYNC 2BR; at 100 BPM it slows (and drops in pitch) and stays on the beat | does the take start and end clean (no click at the seam)? does it stay in time after a minute? CPU |
 | 33 | The factory scene, PLAY. Track 3: EDIT, hold EDIT and turn SELECT to VINYL, CRKL 60, NOIS 40, WET 70; VINYL 3: GLCH 60, TYPE ALL. Then track 2: the same to WARBLE, WOW 45, SWEL 50. Then track 3 APPL GRNS (and GRAIN's form back for its grains) | track 3 crackles and hisses only while it plays, a skip, a stuck groove or a brake most turns, each fading in and out without a click; track 2's pitch wanders and lurches on the hits; on GRNS the grains wobble and the crackle follows them | does the crackle sound like dust (crisp) or like digital clicks? is a brake's slow-down smooth? CPU near 83 % (VINYL and WARBLE on FLOW), 77 % (GRNS) |
+| 34 | The factory scene, PLAY; read the CPU. Then stop and let the hall ring out. Then turn track 2 down to -20 dB and play a chord on it, letting go. Then load TEST, PLAY, and hold a busy moment until the CPU nears its limit (SETUP's stage lines) | the factory scene a few points under its old reading (its inaudible tails end); nothing missing that you could hear before; track 2's release ends sooner but you can't hear where; under load, the faintest tails and echoes go first, and only then do grains thin, on the quietest track | the CPU for the factory scene against 75 %; any tail you hear stop short, at what levels; does the load shedding still crackle, and when? |
 
 ## What the FM-1 read
 
@@ -167,8 +168,8 @@ under the address and undefined-behaviour sanitizers).
 | 22 | 1,750 | 47 % | | |
 | 29 | 810 | 22 % (was 46 %) | | |
 | 30 | 2,652 | 71 % (was 85 %) | | |
-| 31 | 3,226 (the factory scene, AMBIENT after 2026-10-15: bowed bells, longer grains and tails; 3,200 before it, measured as in the note of 2026-10-11 below; 2,998 by callgrind on 2026-10-17, after that day's changes; 2,925 then 2,998 on 2026-10-18, held chords, then nothing stepping) | 75 % (was 81 %) | | |
-| 33 | 3,328 (run 33: VINYL and WARBLE on the whole sound; 3,093 run 34, WARBLE on the grains) | 83 % (77 %) | | |
+| 31 | 3,226 (the factory scene, AMBIENT after 2026-10-15: bowed bells, longer grains and tails; 3,200 before it, measured as in the note of 2026-10-11 below; 2,998 by callgrind on 2026-10-17, after that day's changes; 2,925 then 2,998 on 2026-10-18, held chords, then nothing stepping; 2,796 on 2026-10-19, the hearing floor ending its inaudible tails) | 70 % (was 75 %) | | |
+| 33 | 3,126 (run 33: VINYL and WARBLE on the whole sound; 2,891 run 34, WARBLE on the grains; 3,328 and 3,093 before the hearing floor) | 78 % (72 %) | | |
 
 Measured again on 2026-10-17 (GATE 400, scene tempo, freeze to tape, p-locks, SPRD on the channel and COLOR):
 by callgrind, run 1 1,020, 15 5,267, 24 1,987, 25 2,806, 31 2,998, 32 2,896 (TEST now plays GLITCH at its 136

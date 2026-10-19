@@ -885,7 +885,7 @@ int main(int argc, char **argv)
         int n;
         wav_cap = 25u * 44100u * 2u;
         wav_buf = malloc(wav_cap * sizeof *wav_buf);
-        for (n = 1; n <= 30; n++) {
+        for (n = 1; n <= 34; n++) {
             char path[512];
             wav_n = wav_clip = 0;
             run(n, say, sizeof say);

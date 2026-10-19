@@ -1620,7 +1620,7 @@ static void vz_drm_sound(const int16_t *v, uint32_t i)
         for (j = 0; j < 8u; j++) {
             for (m = 0; m < CTL; m++)                                 /* (dk_run adds into its block) */
                 y[m] = 0;
-            dk_run(&c, &vo, y, CTL);
+            dk_run(&c, &vo, y, CTL, DK_QUIET);
             for (m = 0; m < CTL; m++)
                 a = y[m] > a ? y[m] : -y[m] > a ? -y[m] : a;
         }
