@@ -390,8 +390,11 @@ you turn it off.
 
 ### 3.8 The CPU meter
 
-On the mixer, bottom right: **CPU**, how hard Bryo is working, in 5 % steps. It turns bright at 85 %. Past that,
-Bryo starts dropping what you can't hear, to keep the sound clean:
+On the mixer, bottom right: **CPU**, how hard Bryo is working, in 5 % steps. It turns bright at 85 %. A glitch (the
+FM-1 running out of time for a block of sound) is the one thing Bryo won't trade for anything, so it starts letting
+sounds go well before that: from about 78 %, sooner and harder the closer it gets, and if a sudden burst (a big
+chord, a dense patch coming in) is heading for the limit, it acts in the middle of rendering, within 3 ms. What goes,
+in order:
 
 1. **The quietest sounds go first.** Bryo always stops working on anything under about -72 dBFS at the output (a
    release tail, a delay's last echoes, a string ringing down, grains reading near-silence). When the CPU runs out,

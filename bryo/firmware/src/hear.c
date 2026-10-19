@@ -78,6 +78,7 @@ static uint32_t hear_peak(int32_t f, int32_t g)
 /* Past the floor's top, the caps (grains, strings, drum voices) take from the quietest track first: each track's
  * peak as heard, after its level (chain.c's meter: the same for every track past that, MASTER and the compressor
  * being the mix's) */
+static uint8_t shed_rush;            /* ISR: blocks a rush's short fades still apply to (chain.c's load guard) */
 static int32_t hear_pk[NTRK];        /* ISR: each track's peak last block, after its level (chain.c chain_block) */
 
 /* the quietest track of those in mask (-1: none) */

@@ -106,7 +106,8 @@ typedef struct {
     uint32_t fph;                    /* FLOW's phase (Q32: up the spectrum over the first half, back down the rest) */
     int32_t rc[RS_N];                /* RIPL: each string's pitch offset this block, cents */
     uint8_t ncap;                    /* the strings the cap let sound last block (a drop: shedding, rs_fade) */
-    uint8_t fn, fl;                  /* .. shed: the strings still sounding while they fade, the blocks left */
+    uint8_t fn, fl, fsh;             /* .. shed: the strings still sounding while they fade, the blocks left, the
+                                      * fade's length (log 2 blocks: RS_FADE_SH, RS_RUSH_SH in a rush) */
     uint8_t mode_seen;               /* MODE last block: a change clears the lines (what rang in the old one would
                                       * be read wrong by the new) */
 } reso_t;
@@ -335,9 +336,11 @@ static uint32_t HOT_CODE reso_arp_block(uint32_t t, uint32_t keys, uint32_t base
     return arp_run(&reso_arp[t], a, p[RP_AMODE] != ARM_OFF, keys, base, n, note, t + 4u) & 1u;
 }
 
-#define RS_FADE 16u                  /* a shed string fades over 16 blocks (12 ms), then rests */
+#define RS_FADE 16u                  /* a shed string fades over 16 blocks (12 ms), then rests; */
+#define RS_FADE_SH 4u                /* .. 2^4 */
+#define RS_RUSH_SH 2u                /* .. in a rush (chain.c's load guard), over 4 (3 ms): the work stops sooner */
 /* audio ISR: a fading string's block (rs_fb0 zeroed it, its loop added into it) into the mix, at the fade's place:
- * fl blocks of RS_FADE left, ramped down across the block */
+ * fl blocks left of 2^sh, ramped down across the block */
 static inline __attribute__((always_inline)) int32_t *rs_fb0(int32_t *fb, uint32_t n)
 {
     uint32_t i;
@@ -345,9 +348,9 @@ static inline __attribute__((always_inline)) int32_t *rs_fb0(int32_t *fb, uint32
         fb[i] = 0;
     return fb;
 }
-static void rs_fade(int32_t *to, const int32_t *fb, uint32_t fl, uint32_t n)
+static void rs_fade(int32_t *to, const int32_t *fb, uint32_t fl, uint32_t sh, uint32_t n)
 {
-    int32_t g = (int32_t)fl * (32767 / RS_FADE), dg = (32767 / RS_FADE) >> CTL_LOG2, i;
+    int32_t g = (int32_t)fl * (32767 >> sh), dg = (32767 >> sh) >> CTL_LOG2, i;
     for (i = 0; i < (int32_t)n; i++, g -= dg)
         to[i] += ((fb[i] >> 2) * (g >> 1)) >> 12;       /* (DRV takes a string past 2^17: 2^16 x 2^14) */
 }
@@ -384,7 +387,8 @@ static void HOT_CODE reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t key
                                                          * over RS_FADE blocks, damped as a hand on them would be,
                                                          * then rest from silence (cut, a ringing string clicked) */
         R->fn = R->ncap;
-        R->fl = RS_FADE;
+        R->fsh = (uint8_t)(shed_rush ? RS_RUSH_SH : RS_FADE_SH);
+        R->fl = (uint8_t)(1u << R->fsh);
     }
     if (nstr >= R->fn)                                  /* (back under the cap, or none: no fade) */
         R->fl = 0;
@@ -597,7 +601,7 @@ static void HOT_CODE reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t key
             R->burst[k] = burst;
             R->lp[k] = last;
             if (k >= nstr)
-                rs_fade(k & 1u ? acc_o : acc_e, fb, R->fl, n);
+                rs_fade(k & 1u ? acc_o : acc_e, fb, R->fl, R->fsh, n);
             {                                           /* (its level for the screen, as a string's) */
                 uint32_t lv = (uint32_t)(last < 0 ? -last : last), l0 = R->lvl[k];
                 l0 -= (l0 + 7u) >> 3;                   /* (to 0: l0 >> 3 alone stalled under 8) */
@@ -701,7 +705,7 @@ static void HOT_CODE reso_block(uint32_t t, int32_t *l, int32_t *r, uint32_t key
         }
         R->lp[k] = lp;
         if (k >= nstr)
-            rs_fade(k & 1u ? acc_o : acc_e, fb, R->fl, n);
+            rs_fade(k & 1u ? acc_o : acc_e, fb, R->fl, R->fsh, n);
         {                                               /* (its level for the screen: a block's last sample, held) */
             uint32_t a = (uint32_t)(lp < 0 ? -lp : lp), l0 = R->lvl[k];
             l0 -= (l0 + 7u) >> 3;                   /* (to 0: l0 >> 3 alone stalled under 8) */

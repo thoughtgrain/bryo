@@ -274,3 +274,9 @@ part under the floor now fades at a 3 ms time constant instead of stopping, and 
 fades over 12 ms before it rests; both measured clean against the sound's own sharpest corner. The voices live a few
 milliseconds longer: 3 to 11 a sample on the DRUM runs, 22 on the factory scene (2,818, against 2,998 before the
 floor). A grain cut takes at most about half of any track's grains.
+
+**The load guard (2026-10-19).** Shedding used to wait for two halves over 85 % and take a step a half; a sudden jump
+could miss a deadline before it caught up. Now it starts at 78 %, takes two steps over 88 %, and checks inside each
+half after every block, shedding four steps at once with short fades when the render is heading past 92 % of its time
+(bryo-architecture.md, "The load guard"). It costs a tick read and a divide a block. On the FM-1 the measure that
+matters is `audio_late` staying at 0 under check 35 while `load_rush` climbs.

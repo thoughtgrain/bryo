@@ -49,15 +49,15 @@ static void audio_block(int32_t *out, uint32_t n)       /* the chain (chain.c), 
     }
 }
 
-/* Overload: two halves in a row above 85 % (the render plus TIMER5 nested in it), or one above 95 % (the deadline
- * nearly missed): take load away at the start of the next half (chain.c chain_shed), and once more each half while
- * it lasts. What's taken comes back only while the heaviest half of the last second stays under 70 % (sys.load_pk,
- * chain.c chain_room): before 2026-10-11 it came back a second after the last shed whatever the load, so a track
- * near the edge went over, shed, came back and went over again, a crackle a second. */
-static volatile uint8_t shed_req;
-static uint8_t shed_over;                              /* bit k: the half k halves ago was over 85 % */
-#define SHED_TICKS ((HALF_FRAMES * 1000000u / FS) * 85u / 100u * FM1_TICKS_PER_US)   /* 85 % of a half */
-#define SHED_NOW ((HALF_FRAMES * 1000000u / FS) * 95u / 100u * FM1_TICKS_PER_US)     /* 95 %: at once */
+/* Overload (the render plus TIMER5 nested in it, against a half's time): chain.c's load guard decides (shed_steps
+ * at a half's end, shed_rushing inside one, 2026-10-19: earlier and in proportion; it was two halves over 85 % or
+ * one over 95 %, a step a half, which a sudden jump outran). Steps decided at a half's end are taken at the start of
+ * the next (chain.c chain_shed); a rush inside a half is taken there and then, once a half. What's taken comes back
+ * only while the heaviest half of the last second stays under 70 % (sys.load_pk, chain_room): before 2026-10-11 it
+ * came back a second after the last shed whatever the load, so a track near the edge went over, shed, came back and
+ * went over again, a crackle a second. */
+static volatile uint8_t shed_req;                      /* steps to take at the next half's start */
+#define HALF_TICKS ((HALF_FRAMES * 1000000u / FS) * FM1_TICKS_PER_US)
 #define LOAD_WIN 172u                                  /* halves in the load peak's window: about a second */
 static uint32_t load_win_max, load_win_n;
 
@@ -65,10 +65,9 @@ static uint32_t load_win_max, load_win_n;
  * both; shed after 2 overloaded halves in a row (out of line: keeps the ISR's render loops as they were) */
 static __attribute__((noinline)) uint32_t shed_check(uint32_t all)
 {
-    uint32_t pct = all / ((HALF_FRAMES * 1000000u / FS) * FM1_TICKS_PER_US / 100u);
-    shed_over = (uint8_t)(shed_over << 1 | (all > SHED_TICKS));
-    if ((shed_over & 3u) == 3u || all > SHED_NOW)
-        shed_req = 1;
+    uint32_t pct = all / (HALF_TICKS / 100u), k = shed_steps(pct);
+    if (k > shed_req)
+        shed_req = (uint8_t)k;
     if (pct > load_win_max)                             /* the heaviest half this second, and at once if it's more */
         load_win_max = pct;
     if (pct > sys.load_pk)
@@ -94,14 +93,23 @@ void fm1_alnk0_irq(void)                       /* via isr_alnk0 (hal/fm1_isr.S) 
         uint32_t half = fm1_audio_free_half(), b, us;
         int32_t *o = &abuf[half * HALF_WORDS];
         if (shed_req) {
+            uint32_t k = shed_req;
             shed_req = 0;
-            chain_shed();
+            chain_shed_n(k, 0);
         }
 #if FELUCCA_UAC
         uac_render_start();
 #endif
-        for (b = 0; b < HALF_FRAMES; b += CTL) {
-            audio_block(o + 2u * b, CTL);
+        {
+            int rushed = 0;
+            for (b = 0; b < HALF_FRAMES; b += CTL) {
+                audio_block(o + 2u * b, CTL);
+                if (!rushed && shed_rushing((fm1_ticks() - t0) / (HALF_TICKS / 100u), b / CTL + 1u,
+                                            HALF_FRAMES / CTL)) {
+                    rushed = 1;                         /* (heading for the deadline: shed now, the fades short) */
+                    chain_shed_n(4u, 1);
+                }
+            }
         }
         fm1_audio_ack_half();
         audio_halves++;

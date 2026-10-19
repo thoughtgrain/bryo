@@ -195,6 +195,7 @@ static void power_on(void)
     reso_calm = 0;
     grain_calm = 0;
     hear_step = hear_calm = 0;                           /* (the hearing floor at its base) */
+    shed_hist = shed_rush = 0;                           /* (the load guard: no history, no rush) */
     chain_shed_count = 0;
     out_mute_req = 0;                                    /* (the output's fade: playing) */
     out_g = 32767;
@@ -12322,7 +12323,7 @@ static int32_t hf_corner(const int32_t *x, uint32_t b0, uint32_t b1)
 static void test_hearing_floor(void)
 {
     char m[200];
-    uint32_t full, quiet, b, j, t;
+    uint32_t full, quiet, b, j, t, k;
     int32_t f0, f1;
     double want, got;
     static int32_t l[CTL], r[CTL];
@@ -12384,6 +12385,24 @@ static void test_hearing_floor(void)
         render(1, 0);
     check("..then, a calm second after, the floor comes down, a step a second", hear_step == HEAR_STEPS - 2u);
     hear_step = 0;
+
+    /* the load guard (chain.c): earlier, in proportion, and inside a half */
+    shed_hist = 0;
+    {
+        uint32_t s1 = shed_steps(70), s2 = shed_steps(80), s3 = shed_steps(80), s4 = shed_steps(60), s5 = shed_steps(90);
+        snprintf(m, sizeof m, "the load guard: 70 %% nothing (%u); 80 %% once nothing (%u), twice a step (%u); 60 %% "
+                 "nothing (%u); 90 %% once two steps (%u)", s1, s2, s3, s4, s5);
+        check(m, s1 == 0u && s2 == 0u && s3 == 1u && s4 == 0u && s5 == 2u);
+    }
+    check("..inside a half: 1 block of 4 at 20 % heads for 80 %, nothing; at 24 % for 96 %, a rush; "
+          "3 blocks at 70 % for 93 %, a rush; the last block isn't looked at",
+          !shed_rushing(20, 1, 4) && shed_rushing(24, 1, 4) && shed_rushing(70, 3, 4) && !shed_rushing(99, 4, 4));
+    power_on();
+    chain_shed_n(4u, 1);
+    check("..a rush: four steps at once (the floor to its top, -48 dBFS), the fades short for two halves",
+          hear_step == HEAR_STEPS && shed_rush == 8u);
+    hear_step = 0;
+    shed_rush = 0;
 
     /* past the floor's top, the caps take from the quietest track first */
     power_on();
@@ -12501,6 +12520,24 @@ static void test_hearing_floor(void)
         snprintf(m, sizeof m, "..RIPPLE's strings shed 4 -> 2 fade out over 12 ms: the sharpest corner %d, the "
                  "strings' own %d", c1, c0);
         check(m, c1 <= 3 * c0 + 4 && reso[0].fl == 0u);
+        caps_full();
+        render(400, 0);                                  /* (the four strings back, ringing) */
+        render_poll(1);
+        fm1_in.notes = note_bit_of_white(0) | note_bit_of_white(4);
+        render(300, 0);
+        fm1_in.notes = 0;
+        render(400, x);
+        reso_cap[0] = 2u;                                /* (shed in a rush: the fade 4 blocks, not 16) */
+        shed_rush = 8u;
+        render(1, x + 400u * CTL);
+        k = reso[0].fl;
+        render(10, x + 401u * CTL);
+        c0 = hf_corner(x, 200u, 400u);
+        c1 = hf_corner(x, 400u, 411u);
+        snprintf(m, sizeof m, "..shed in a rush: the strings fade over 4 blocks (3 ms), not 16: the sharpest corner %d,"
+                 " the strings' own %d", c1, c0);
+        check(m, k == 3u && reso[0].fl == 0u && c1 <= 4 * c0 + 4);
+        shed_rush = 0;
         caps_full();
     }
     {                                                    /* the grains: a quiet track's cloud thins, never vanishes */

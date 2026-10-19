@@ -3692,6 +3692,33 @@ was before the floor). Tests: a DRUM tail the floor takes, and RIPPLE shed from 
 sharper than three times the sound's own; the pool cut to half leaving every track grains and the quietest about
 half of its own.
 
+**The load guard: before a glitch, not after** (the next follow-up: "before cpu reaches a glitch level we should
+fade out audio to reduce overheads, better to lose voices than cause glitches in audio"). A glitch is a half (128
+frames, 2.9 ms, four blocks) that isn't rendered by its deadline, and nothing shed after it takes it back. The old
+trigger was two halves over 85 % or one over 95 %, then a step a half: a sudden jump (a chord landing on a dense
+patch) outran it, with four floor steps and the caps still to go one half at a time. Now (`chain.c`, the decisions,
+so the host tests them; `audio.c` measures):
+
+- EARLY, two halves in a row over 78 %: a step (`shed_steps`). The floor goes first, so what goes is tails no one
+  hears.
+- FIRM, one half over 88 %: two steps at once.
+- RUSH, inside a half: after each of its first three blocks, the time so far over the blocks done (`shed_rushing`,
+  no divide: el x 4 > 92 x b) heading past 92 %: four steps there and then (`chain_shed_n(4, 1)`: the floor straight
+  to its top, or the next caps), once a half. And the fades it starts are short for the next two halves
+  (`shed_rush`): a RIPPLE string over 4 blocks (3 ms, `RS_RUSH_SH`) instead of 16, so its work stops before the next
+  half, still a fade (corner 8 against the strings' own 14). DRUM tails already go in about 6 ms, voices in a block.
+- Coming back is unchanged: while the heaviest half of the last second stays under 70 % (`chain_room`), the caps
+  then the floor, a step a calm second. 78 against 70 leaves room not to see-saw.
+
+The cost: a tick read and a divide a block in the ISR. The price: at 78 % sustained the floor rises a step where
+before nothing happened until 85, so a scene that sat at 80 % now ends its faintest tails sooner; that's the trade
+asked for. What it can't do: a grain already sounding plays out (cut, it would click), so under a grain-heavy jump
+the relief comes as they end. `load_rush` on the console counts the rushes, beside `load_shed` and `audio_late` (the
+deadlines missed), for the FM-1. Tests: the decision table (70 nothing; 80 once nothing, twice a step; 90 two
+steps), the projection (20 % after a block heads for 80, nothing; 24 for 96, a rush; 70 after three for 93, a rush;
+the last block not looked at), a rush taking the floor to its top at once, and RIPPLE shed in a rush fading over 4
+blocks without a click.
+
 **The audit.** One row flagged after this: SYNTH VOIC, an LFO switching the voice count. It isn't from the floor:
 the old code flags it too at three of four warm-up lengths (350, 450, 500 blocks; it passed at 400 by chance), and
 the new voice timing moved the phrase onto a flagging alignment. VOIC lets the voices over it go at a block edge,

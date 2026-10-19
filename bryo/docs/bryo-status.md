@@ -259,6 +259,11 @@ number.
   four), split by what each track's settings ask for when it runs short; what's left over is everyone's (since
   2026-10-11: a track alone has all 40, not just what RATE and SIZE ask). GRAIN 6's GRNS can hold a number for a
   track instead (1-40, taken from the AUTO tracks first, kept whatever the others do).
+- **2026-10-19: the load guard acts before a glitch.** Shedding starts at 78 % (two halves in a row), takes two
+  steps at once over 88 %, and inside a half, if the render is heading past 92 % of its time, takes four steps there
+  and then with short fades (RIPPLE's strings over 3 ms), so the work stops before the deadline: voices go, the audio
+  doesn't break. It was two halves over 85 % (or one over 95 %) and a step a half. `load_rush` on the console counts
+  the rushes.
 - **2026-10-19: dropping without disrupting.** What the floor and the caps take now goes gently: a DRUM tail
   under the floor fades out in about 6 ms (it was cut: a click every time), a shed RIPPLE string fades over 12 ms
   and comes back from silence (it was cut mid-ring, a click 25 times the strings' own sharpest corner), and the

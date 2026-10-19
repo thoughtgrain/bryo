@@ -33,6 +33,7 @@ typedef struct {                     /* ISR only */
 
 static track_rt_t track_rt[NTRK];
 static uint32_t chain_shed_count;
+static uint32_t chain_rush_count;    /* rushes (the load guard inside a half: chain_shed_n) */
 static int32_t arp_fd0[NTRK];        /* each track's arpeggio fade (arp_rt.fd) as of last block: the ramp's start */
 
 static void chain_init(void)
@@ -351,6 +352,8 @@ static void HOT_CODE chain_block(int32_t *out, uint32_t n)
     reso_recover();
     drm_recover();
     hear_recover();
+    if (shed_rush)
+        shed_rush--;
     space_rooms(l, r, n);                               /* the rooms A and B on what the tracks sent (space.c) */
     ld_mark(LD_ROOM);
     mix_comp(l, r, n);                                  /* the master compressor on the sum (mixer.c) */
@@ -389,6 +392,47 @@ static void chain_shed(void)
         grain_shed();
     else if (!reso_shed())                              /* (none of the strings left to take: a drum voice) */
         drm_shed();
+}
+
+/* The load guard (2026-10-19: "before cpu reaches a glitch level we should fade out audio to reduce overheads,
+ * better to lose voices than cause glitches in audio"). A half that misses its deadline is a glitch, and nothing
+ * shed after it can take it back, so it acts early and in proportion, and inside a half as well as after one:
+ *   EARLY  two halves in a row over 78 %: a step (the floor first: tails no one hears)
+ *   FIRM   one half over 88 %: two steps at once
+ *   RUSH   inside a half, after each block: where the half is heading (the time so far over the blocks done) past
+ *          92 %: four steps at once, there and then, and the fades the shedding starts short (RIPPLE's strings over
+ *          4 blocks, not 16), so the work stops within a few milliseconds instead of twelve; once a half
+ * What's taken comes back while the heaviest half of the last second stays under 70 % (chain_room). audio.c measures,
+ * these decide (here, so the host can test them) */
+#define SHED_EARLY 78u
+#define SHED_FIRM 88u
+#define SHED_RUSH 92u
+static uint8_t shed_hist;                              /* bit k: the half k halves ago was over EARLY */
+
+/* end of a half that took pct % of its time: the steps to shed at the start of the next */
+static uint32_t shed_steps(uint32_t pct)
+{
+    shed_hist = (uint8_t)(shed_hist << 1 | (pct > SHED_EARLY));
+    if (pct > SHED_FIRM)
+        return 2u;
+    return (shed_hist & 3u) == 3u ? 1u : 0u;
+}
+
+/* inside a half: b of its nb blocks done in el % of its time. Heading past RUSH (el / b x nb, no divide) */
+static int shed_rushing(uint32_t el, uint32_t b, uint32_t nb)
+{
+    return b && b < nb && el * nb > SHED_RUSH * b;
+}
+
+/* audio ISR: k steps of shedding at once; urgent: the fades they start short (a rush) */
+static void chain_shed_n(uint32_t k, int urgent)
+{
+    if (urgent) {
+        shed_rush = 8u;                                 /* (two halves' blocks: the strings shed now fade fast) */
+        chain_rush_count++;
+    }
+    while (k--)
+        chain_shed();
 }
 
 /* main loop: TRACKS set to n (GLO held + SELECT). The tracks above it park: they fade out in 2 ms and stop

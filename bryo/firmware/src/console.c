@@ -197,6 +197,7 @@ static void con_status(void)
     con_kv("audio_max_us", (int32_t)felucca_dbg.max_us);
     con_kv("audio_late", (int32_t)felucca_dbg.late);
     con_kv("load_shed", (int32_t)chain_shed_count);
+    con_kv("load_rush", (int32_t)chain_rush_count);      /* (shed inside a half, heading for the deadline) */
     con_kv("track", (int32_t)sys.sel + 1);
     con_kv("batt_raw", sys.batt_raw);
     con_kv("bpm", sys.bpm);
