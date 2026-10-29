@@ -14,16 +14,16 @@ should hear. Do them in order the first time; after that, jump to what you need.
 
 **Contents**
 
-0. [Before you start](#0-before-you-start): the panel, reading the screen, how pages work
+0. [Before you start](#0-before-you-start): the panel, reading the screen, how pages work, saving in short
 1. [First sounds](#1-first-sounds): power on, play, tempo, volume, mutes, picking a track
-2. [Playing with a tape](#2-playing-with-a-tape): slices, the loop, speed, reels
+2. [Playing with a tape](#2-playing-with-a-tape): slices, the loop, speed, the slices' envelope, repeat and warble, reels
 3. [The mixer](#3-the-mixer): levels, tone and pan, the compressor, the key and scale, SETUP, the CPU meter, scenes
 4. [Recording](#4-recording): clear a track, record onto it, overdub, undo
 5. [Other sources](#5-other-sources): SYNTH, POLY and DRUM; the arpeggiator; the black keys as notes
-6. [The effects](#6-the-effects): GRAIN, RIPPLE, COLOR, CHRONOS
+6. [The effects](#6-the-effects): GRAIN (and its forms, WARBLE and VINYL), RIPPLE, COLOR, CHRONOS
 7. [Modulation](#7-modulation): make knobs move by themselves
 8. [Getting back](#8-getting-back): reset a knob or a page, undo
-9. [Saving](#9-saving): projects, a blank project, the factory scene, track presets
+9. [Saving](#9-saving): projects, a blank project, the factory scene, track presets, your reels
 10. [With a computer](#10-with-a-computer): files over USB, recording the computer
 11. [When something goes wrong](#11-when-something-goes-wrong)
 12. [Quick reference](#12-quick-reference)
@@ -70,7 +70,7 @@ Everything it says is also said by a shape or a word, so you never need to tell 
 | Colour | Means |
 | --- | --- |
 | **Blue** page name | a page of the blue pads (HOME, EDIT, FX, GLO) |
-| **Purple** page name | a modulator's page (LFO, SEQ, ENV, ARP); a knob a modulator moves (its corner mark and the rail under it), and its depths while you hold a modulator's pad |
+| **Purple** page name | a modulator's or shaping page (LFO, SEQ, ENV, ARP); a knob a modulator moves (its corner mark and the rail under it), and its depths while you hold a modulator's pad |
 | **Orange** | sound happening now: grains playing, strings ringing, the room or echoes sounding, the note or step playing, the tape's playhead running, the mixer's meters |
 | **Red** | recording (the tempo bar, the REC tag); the CPU reading near its limit |
 | **Yellow** | something to know: not saved (the ✱), FROZEN, grains HELD |
@@ -86,11 +86,11 @@ come back to the one you used last. To switch effect, hold the pad and press OCT
 | Pad | Pages, in order |
 | --- | --- |
 | HOME | the source's pages (TAPE has 4; SYNTH 4; POLY 4; DRUM 3) |
-| EDIT | GRAIN 1-6 or RIPPLE 1-5 (RESO and 12-BAND: 1-6): **hold EDIT and press OCT+** for RIPPLE, **OCT-** for GRAIN |
+| EDIT | GRAIN 1-6 (WARBLE 1-2, VINYL 1-3) or RIPPLE 1-5 (RESO and 12-BAND: 1-6), then RIPL ARP and its rhythm: **hold EDIT and press OCT+** for RIPPLE, **OCT-** for GRAIN |
 | FX | COLOR 1-3 or CHRONOS 1-5: **hold FX and press OCT+** for CHRONOS, **OCT-** for COLOR |
 | ENV | the source's shaping pages: SYNTH's and POLY's AMP and FILTER, TAPE's slice envelope, DRUM's KIT and KIT 2 |
 | LFO, SEQ | a modulator's pages (LFO: M1, M2 or M3; SEQ: M4) |
-| ARP | the arpeggiator: 2 pages (RIPPLE's own arpeggio, RIPL ARP, is RIPPLE's last page) |
+| ARP | the arpeggiator: 3 pages, the third its rhythm (RIPPLE's own arpeggio, RIPL ARP, is on RIPPLE's pages) |
 | GLO | the mixer (EDIT then steps SCENES, CHANNEL, MASTER; **hold EDIT and press OCT+** for its settings, KEY and SETUP) |
 
 KNOB 1 to 4 always change the four values you see. There's nothing hidden.
@@ -103,7 +103,7 @@ goes dark. Press white key 3 to go to the third page. EDIT's keys run through GR
 and KNOB 4 brings an effect in. Holding LFO also lights OP1-OP3, the one it's on
 bright. Let go without pressing a key and the pad turns its page as usual.
 
-### 0.3 Saving, in short
+### 0.4 Saving, in short
 
 - **Nothing is kept until you tap SAVE.** The **✱** in the header says there are changes you haven't saved; it goes
   away when you save.
@@ -253,9 +253,9 @@ up, +7 a fifth. SPD and PTCH multiply, so set SPD at 100 % and play PTCH like a 
 On a SYNTH, POLY or DRUM track there's no tape to flip, so OP5 and OP6 step through your scenes instead: OP6 the
 next stored one, OP5 the one before, gliding there as a scene's key does ([3.9](#39-scenes-four-sounds-to-jump-or-morph-between)).
 
-REV is also on TAPE's page 3. Half speed is the same as PTCH −12, so it lives on OP6 only.
+REV is also on TAPE's page 2. Half speed is the same as PTCH −12, so it lives on OP6 only.
 
-<img src="img/tape2.png" width="240" alt="TAPE 3: DUB GAIN XFAD REV">
+<img src="img/tape2.png" width="240" alt="TAPE 2: DUB GAIN XFAD REV">
 
 ### 2.4b Shape the slices: TAPE's envelope
 
@@ -406,7 +406,7 @@ in order:
    its quietest voice.
 
 None of it is cut: a tail fades out in a few milliseconds, a string that goes is damped over 12 ms, and a grain
-cloud only ever thins (each track keeps about half its grains at the most), so what you hear is a little less, not a
+cloud only ever thins (each track keeps at least about half its grains), so what you hear is a little less, not a
 gap or a click.
 
 "Quiet" means quiet as you hear it, after the track's level, the master compressor and MASTER. Turn a track down and
@@ -418,8 +418,9 @@ count, and neither does an armed track's own level: what's recorded is kept in f
 A project has four **scenes**. Each one is a snapshot of how the project sounds: every track's source (TAPE,
 SYNTH, POLY or DRUM), every knob of its sound (the source's, GRAIN, RIPPLE, COLOR, CHRONOS, the channel strip), the
 track levels, the rooms, the **tempo**, the **arpeggiator's settings** (MODE, ORDR, RNGE, RATE switch at the
-midpoint; GATE, SWNG, GRND, FADE morph) and each modulator's **AMT** (morphing: a scene can quiet a modulator or bring
-it in). A scene doesn't hold what's playing: the tapes and reels, the drum patterns, the steps, the rest of the
+midpoint; GATE, SWNG, GRND, FADE morph), its **rhythm** (PATN, LEN, EVOL and the steps switch at the midpoint; VARY
+morphs) and each modulator's **AMT** (morphing: a scene can quiet a modulator or bring
+it in). A scene doesn't hold what's playing: the tapes and reels, the drum patterns, SEQ's steps, the rest of the
 modulation (the modulators' other knobs and their depths), the mutes, the notes the arpeggiators hold and the key all stay as they are when you change
 scenes. So one scene can hold a chord still (HOLD) while another steps through it.
 
@@ -508,7 +509,7 @@ A SYNTH line, a POLY phrase, a DRUM pattern or a cloud of grains you want to kee
 1. **Hold REC and press PLAY.** The track records itself for the bars set in 4.3 (two, if that's on FREE) from
    the next downbeat, and the transport starts if it was stopped. Keep playing through the bars.
 2. When the take is in, **the track switches to TAPE by itself** and loops it, in time, slices and all. The screen
-   says "BOUNCED, 4.0 SEC ON TAPE".
+   says "T2: BOUNCED, 4.0 SEC ON TAPE" (on track 2).
 
 A take already on the tape is cleared first (hold SAVE to get it back). On a TAPE track the bounce records the
 track itself through its effects (GRAIN, RIPPLE, COLOR, CHRONOS), so a tape can be printed with its effects on it.
@@ -528,8 +529,9 @@ GRAIN off there's nothing to keep, and the screen says so.
 
 ### 4.4 Record over a loop (overdub)
 
-**DUB** on the TAPE page (KNOB 4) sets how much of the old recording stays when you record over it: 0 replaces it,
-higher keeps more of it under the new sound.
+**DUB** on TAPE's second page (KNOB 1) sets how much of the old recording stays when you record over it: 0 replaces it,
+higher keeps more of it under the new sound. The same page has **GAIN** (what REC records at, −12 to +12 dB) and **XFAD** (how many
+milliseconds the loop's seam crossfades over, to hide the jump).
 
 1. On a track with a recording, set **DUB** to about +60 %.
 2. Press **REC** while it plays, and **REC** again to stop.
@@ -582,7 +584,7 @@ Press **HOME** again to go through its four pages, and **ENV** for its four shap
 | ENV 3, ENV 2 | **ATK2 DEC2 SUS2 REL2**: a second envelope, for the filter (or the drive, or the pitch) |
 | ENV 4, SHAPE | **ETYP** (the envelopes' type: below), the wave's own envelope depth on FM, PD, VOX and WT, **DEST** (where ENV 2 goes), **ENV** (how far, either way) |
 
-<img src="img/synth.png" width="240" alt="SYNTH: WAVE DTUN MIX NOIS"> <img src="img/synth_filter.png" width="240" alt="SYNTH's FILTER">
+<img src="img/synth.png" width="240" alt="SYNTH: WAVE INTV DTUN MIX"> <img src="img/synth_filter.png" width="240" alt="SYNTH's FILTER">
 <img src="img/synth_env2.png" width="240" alt="SYNTH's ENV 2"> <img src="img/synth_shape.png" width="240" alt="SYNTH's SHAPE page: ETYP LOOP, ENV 2 to the drive">
 <img src="img/synth_tuning.png" width="240" alt="SYNTH's VOICE page: TUNE and FINE over a cents meter">
 
@@ -615,7 +617,7 @@ under ENV, have it too): a transient, 3 ms of bright noise at the start of every
 front of the source's filter, so CUT shapes it: open, a click; low, a thump. It gives a soft sound an edge, a pad a
 pick, a kit more attack through the small speaker. 0 is the sound as it was.
 
-**CHRD** (page 6, every wave, FM and PD too): one key plays a chord on SYNTH's three voices: **MAJ**, **MIN**,
+**CHRD** (HOME 4, every wave, FM and PD too): one key plays a chord on SYNTH's three voices: **MAJ**, **MIN**,
 **SUS2**, **SUS4**, **DOM7**, **MAJ7**, **MIN7** (the sevenths play root, third and seventh, the way a pianist
 leaves out the fifth), **DIM**, **AUG**, **5TH**, **OCT**. The lowest key you hold is the chord's root: press another
 key below while holding and the chord slides there without restriking; let go of everything and it releases. The
@@ -627,8 +629,8 @@ pianos, plucks and growls. The pages relabel:
 
 | Page | Knobs |
 | --- | --- |
-| 1, the operators | **WAVE** (FM), **RATI** (the modulator's pitch against the note's: 0.5, 1, 1.41, 1.5, 2 ... 14; whole numbers sound harmonic, 1.41 and the halves like bells), **INDX** (how hard it bends: 0 a sine, up for brighter and gnarlier), **IENV** (how far the envelope pushes INDX: up for a pluck, bright at the strike and mellower after) |
-| 5, MORE | **FDBK** (the modulator fed back into itself: a new edge, then grit, then noise), **KTRK**, **DRV** |
+| HOME 1, the operators | **WAVE** (FM), **RATI** (the modulator's pitch against the note's: 0.5, 1, 1.41, 1.5, 2 ... 14; whole numbers sound harmonic, 1.41 and the halves like bells), **INDX** (how hard it bends: 0 a sine, up for brighter and gnarlier), **IENV** (how far the envelope pushes INDX: up for a pluck, bright at the strike and mellower after) |
+| HOME 3, MORE | **FDBK** (the modulator fed back into itself: a new edge, then grit, then noise), **DRV**, **TRAN** |
 
 AMP, FILTER, VOICE and LEVEL (CHRD, LVL) work as on every wave (open **CUT** to hear all of it). The picture draws the wave as INDX
 bends it now, and dotted as it's bent at the strike.
@@ -643,8 +645,8 @@ bends the more it becomes the shape you've picked. It sounds like a filter sweep
 
 | Page | Knobs |
 | --- | --- |
-| 1, the shape | **WAVE** (PD), **SHAP** (SAW, SQR, PLS, DSIN a double sine, SPLS a saw-pulse, and three resonant ones, RSAW RTRI RTRP), **AMT** (how far the phase bends: 0 a sine, 100 the whole shape; on the resonant shapes, how high the resonance sits), **AENV** (how far the envelope moves AMT: the CZ's sweep) |
-| 5, MORE | **NOIS**, **KTRK**, **DRV** |
+| HOME 1, the shape | **WAVE** (PD), **SHAP** (SAW, SQR, PLS, DSIN a double sine, SPLS a saw-pulse, and three resonant ones, RSAW RTRI RTRP), **AMT** (how far the phase bends: 0 a sine, 100 the whole shape; on the resonant shapes, how high the resonance sits), **AENV** (how far the envelope moves AMT: the CZ's sweep) |
+| HOME 3, MORE | **NOIS**, **DRV**, **TRAN** |
 
 **Try:** SAW, AMT 0, AENV +80, a medium DEC and SUS at 0: the classic CZ bass sweep. RSAW with AMT turned slowly:
 the resonant "wah" that made the CZ famous.
@@ -656,8 +658,8 @@ says **VOX SYNTH**).
 
 | Page | Knobs |
 | --- | --- |
-| 1, the vowel | **WAVE** (VOX), **VOWL** (A E I O U, and the sounds between), **SHFT** (every formant down or up: below 0 a bigger voice, above it a smaller one), **VENV** (how far the envelope moves the vowel: "wah", "ow") |
-| 5, MORE | **BRTH** (breath: noise through the same formants, a whisper at 100), **KTRK**, **DRV** |
+| HOME 1, the vowel | **WAVE** (VOX), **VOWL** (A E I O U, and the sounds between), **SHFT** (every formant down or up: below 0 a bigger voice, above it a smaller one), **VENV** (how far the envelope moves the vowel: "wah", "ow") |
+| HOME 3, MORE | **BRTH** (breath: noise through the same formants, a whisper at 100), **DRV**, **TRAN** |
 
 **Try:** VOWL on U, VENV +50, a slow DEC: "ooh-wah". Turn on **CHRD MIN7** for a choir pad, and **RIPPLE** after it.
 
@@ -668,8 +670,8 @@ among them, morphing smoothly from one to the next (the header says **WT SYNTH**
 
 | Page | Knobs |
 | --- | --- |
-| 1, the table | **WAVE** (WT), **TABL** (the table: **BASC** sine, triangle, saw, square, pulse; **HARM** one harmonic swept up; **FORM** a resonance swept up; or any reel, **TAPE** included, cut into eight cycles), **POS** (where in it), **PENV** (how far the envelope moves POS) |
-| 5, MORE | **NOIS**, **KTRK**, **DRV** |
+| HOME 1, the table | **WAVE** (WT), **TABL** (the table: **BASC** sine, triangle, saw, square, pulse; **HARM** one harmonic swept up; **FORM** a resonance swept up; or any reel, **TAPE** included, cut into eight cycles), **POS** (where in it), **PENV** (how far the envelope moves POS) |
+| HOME 3, MORE | **NOIS**, **DRV**, **TRAN** |
 
 A reel as a table: Bryo takes eight short windows evenly through it, makes each one loop, and plays them as the
 cycles of a tone, so a drum loop or a voice becomes an oscillator with its grain. Record something onto the track's
@@ -710,7 +712,7 @@ Its other HOME pages: **LOOP** (below), **TWIN** (below), **LEVEL** (VOIC ROOT F
 
 <img src="img/poly_tuning.png" width="240" alt="POLY's last page: VOIC ROOT FINE LVL">
 
-**TWIN: two sounds in one** (page 5). Give POLY a second reel, **B** (**RLB**), and **TWIN** decides how the two
+**TWIN: two sounds in one** (HOME 3). Give POLY a second reel, **B** (**RLB**), and **TWIN** decides how the two
 play together:
 
 - **MIX**: both at once in every note, **BLND** the balance (0 all A, 100 all B). A piano and a pad, a pluck and a
@@ -849,7 +851,7 @@ switch at the midpoint of a morph; VARY morphs).
 
 <img src="img/arp_rhythm.png" width="240" alt="ARP page 3, RHYTHM: 8TH, VARY 30 %, two rests played this round">
 
-**RIPL ARP (RIPPLE's last page): an arpeggio for the strings.** On RIPPLE (EDIT held + OCT+), press EDIT until the
+**RIPL ARP (on RIPPLE's pages): an arpeggio for the strings.** On RIPPLE (EDIT held + OCT+), press EDIT until the
 header says RIPL ARP (or hold EDIT and press white key 12; 13 on RESO and 12-BAND); the page after it is its rhythm,
 the same PATN LEN VARY EVOL and step keys as the ARP pad's page 3. Until 2026-10-18
 it was the ARP pad's third page; it moved so that everything RIPPLE does over time sits with RIPPLE. It's RIPPLE's own arpeggio, separate from the track's: each step plucks RIPPLE's four strings at
@@ -883,8 +885,8 @@ OP1–OP3 still works ([7.4](#74-choose-which-modulator-the-lfo-pad-controls)). 
 
 ## 6. The effects
 
-Every track goes through GRAIN, RIPPLE, COLOR and CHRONOS, in that order. They start switched off (WET at 0, DLY
-and VERB at 0), so turn them up to hear them.
+Every track goes through GRAIN, RIPPLE, COLOR and CHRONOS, in that order. They start out of the way (WET at 0 on GRAIN and RIPPLE, DLY
+and VERB at 0; COLOR's WET is at 100, but with DRV and CRSH at 0 it changes nothing), so turn them up to hear them.
 
 ### 6.1 GRAIN: turn it on
 
@@ -919,7 +921,7 @@ On **GRAIN 2**: **PTCH** their pitch in semitones, **SPRD** how wide in stereo, 
 start, **CONT** softens their edges.
 
 On **GRAIN 3**: **REV** plays some backwards, **PATN** the rhythm they fire in, **SCAL** holds their pitch to a scale
-and **PRND** gives each a random pitch. SCAL's list is the same as the mixer's KEY page, with **KEY** first: the
+and **PRND** gives each a random pitch. SCAL's list is **OFF**, then **KEY**, then the mixer's scales. On KEY the
 grains then follow whatever scale the project is in (every semitone while KEY's SCAL is OFF), so one change on the
 KEY page moves the grains too. The shift is held to the scale's intervals from the sound's own pitch.
 
@@ -945,8 +947,8 @@ On **GRAIN 4**, **SCAN** chooses:
 | **DLY** | what played a moment ago (OFST sets how long ago): a granular delay |
 | **TAPE** | straight from the track's tape |
 
-**FDBK** feeds the grains back into themselves. On any GRAIN page, the **white keys move the reading spot** to their
-sixteenth of the loop.
+**FDBK** feeds the grains back into themselves. On a TAPE track, on any GRAIN page, the **white keys move the reading
+spot** to their sixteenth of the loop (on the other sources they play, and so they do on WARBLE and VINYL with APPL FLOW).
 
 <img src="img/grain4.png" width="240" alt="GRAIN 4: SCAN WARP OFST FDBK">
 
@@ -1121,7 +1123,7 @@ forms. Each track has its own.
 8. **RIPPLE 5**: **MODE**, the form as a knob (the same as EDIT held + SELECT), and **VARY**: each pluck comes out a
    little different, in level and brightness. On COMB, STRM is here too. RESO and 12-BAND have a page 5 of the keys
    (**KEYS PLVL PICK STRM**) and a page 6 with VARY.
-9. To play a pattern on it, use **RIPL ARP**, RIPPLE's last page ([5.8](#58-arp-the-arpeggiator)).
+9. To play a pattern on it, use **RIPL ARP**, on RIPPLE's pages ([5.8](#58-arp-the-arpeggiator)).
 
 The picture shows it: while a string rings, the curve waves round its node in orange, as high as the string is
 loud and as tight as it is high, and the waves drift along with RIPL. On 12-BAND each band's meter lights orange
@@ -1168,7 +1170,7 @@ Bryo has two rooms, A and B, and the tracks share them: tracks 1-2 start on A, 3
 whether one track or four send to it, so a room per pair is the cheap way to put everything in a space. The room's
 knobs on CHRONOS 4 and 5 (all but ROOM itself) belong to the room, so turning them on one track changes it for every
 track on it; the label under the picture names the others when there are any ("B: T1 T2"). They're saved with the
-project, and they can't be modulated (the room is shared). A track preset keeps the track's room choice.
+project, and they can't be modulated (the room is shared). Loading a track preset leaves the room the track sends to as it was.
 
 <img src="img/space_long.png" width="240" alt="CHRONOS: TIME FDBK DLY VERB"> <img src="img/space2.png" width="240" alt="CHRONOS 2: SYNC TONE SPRD DUCK"> <img src="img/space4.png" width="240" alt="CHRONOS 4: ROOM TYPE SIZE DEC, T1 and T2 sharing room B"> <img src="img/space5.png" width="240" alt="CHRONOS 5: PRE RTON MOD QUAL">
 
@@ -1266,6 +1268,16 @@ line), **LIVE** in the corner. It runs while its page is up even before it moves
 and GAIN by watching it, then give it a depth.
 
 <img src="img/follow_live.png" width="240" alt="FOLLOW live on a DRUM track">
+
+**Every engine's knobs, page by page** (tap the pad again for the next page; AMT and OFS are always KNOB 3 and 4 of
+the last):
+
+| Engine | Pages |
+| --- | --- |
+| **LFO** | **RATE SHPE SKEW FOLD**; **CURV** (wider or narrower curves) **SMTH** (slews it: on RND, glides between its steps) **VAR** (each time round drifts from the last; 0 the same forever) **LEN** (RND's steps a loop; on the other shapes, the cycles before VAR's drift repeats); **SYNC** (FREE in Hz, or BPM: the tempo's divisions) **TRIG** (FREE, or KEY: a key restarts it) **FADE** (a fade-in); **PHAS SPRD AMT OFS** |
+| **ADSR** | **ATK DEC SUS REL**; **ACRV DCRV RCRV** (each stage's curve: 0 straight, − logarithmic, + exponential) **SPRD**; **VEL** (waits on velocity: the keys have none yet) **LOOP** (attack and decay cycle) **AMT OFS** |
+| **SEQ** | **LEN RATE SLEW** (glides between steps) **SWNG**; **DIR** (FWD REV PING RND) **TRIG** **PROB** (the chance a step plays) **STRT** (the first step); **SPRD AMT OFS** |
+| **FOLLOW** | **SRC** (SELF: this track's sound; T1-T4 another track's; USB the computer's) **GAIN RISE FALL**; **HOLD** (OFF, or sample-and-hold at 1/32 to 1/4) **SPRD AMT OFS** |
 
 ### 7.6 SEQ: set the steps
 
@@ -1481,38 +1493,46 @@ M-VAVE's updater puts the stock firmware back. Bryo's projects and tapes can't b
 | **SELECT** | tempo |
 | **MASTER** | volume |
 | **GLO** held + white key 1-4 | pick a track |
-| **GLO** tapped, **EDIT** | SCENES: white key 1-4 recalls (held + SAVE stores), KNOB 1-4 morphs |
 | **GLO** held + KNOB 1-4 | track levels |
 | **GLO** held + SELECT | how many tracks are on |
 | **GLO** tapped, then **EDIT** | SCENES, CHANNEL, MASTER; EDIT held + OCT+: KEY, SETUP (OCT-: back) |
+| on SCENES | white key 1-4 recalls (held + SAVE stores), KNOB 1-4 morphs |
 | **OP1-OP4** | mute tracks |
 | **OP5 / OP6** | the tape backwards / half speed (TAPE); the scene before / after (other sources) |
 | **PIT** tapped / held | tap the tempo / lean it back 4 % while held |
 | **GLO** (black key) held | lean the tempo forward 4 % while held |
 | **HOME** | the source's pages |
 | **HOME** held + SELECT | change the source |
+| **HOME** held + STRT / LEN / END | zoom in on that edge (TAPE, POLY) |
+| a pad held + a white key | jump to that page |
 | **EDIT** held + SELECT | the form of the device shown: RIPPLE's (RIPPLE, COMB, RESO, 12-BAND) or GRAIN's (GRAIN, WARBLE, VINYL) |
 | **EDIT** | GRAIN's or RIPPLE's pages, round; held + OCT- / OCT+: GRAIN / RIPPLE |
 | **FX** | COLOR's or CHRONOS's pages, round; held + OCT- / OCT+: COLOR / CHRONOS |
 | **ENV** | the source's shaping pages (envelope, filter, kit) |
 | **LFO SEQ** tapped | that modulator's pages (LFO: M1-M3, SEQ: M4) |
 | **LFO SEQ** held + a knob | how much that modulator moves the knob |
+| **LFO SEQ** held + black **MONO** held | clear that modulator's depths on the page |
+| **SEQ** held + a step's white key + a knob | a p-lock: that step's own depth |
 | **LFO** held + OP1 / OP2 / OP3 | which modulator LFO is: M1, M2, M3 |
 | **LFO** held + SELECT | the modulator's engine (LFO, ADSR, SEQ, FOLLOW) |
-| **ARP** | the arpeggiator (notes on SYNTH and POLY, slices on TAPE, drums on DRUM); RIPPLE's strings have their own, RIPL ARP, on RIPPLE's last page |
+| **ARP** | the arpeggiator (notes on SYNTH and POLY, slices on TAPE, drums on DRUM); page 3 is its rhythm. RIPPLE's strings have their own, RIPL ARP, on RIPPLE's pages, with a rhythm page after it |
 | **GLO** held + OCT+ | black keys: shortcuts or notes |
 | **GLO** tapped, **EDIT** held + OCT+, **EDIT** | SETUP: keys, knob speed, hold time, LEDs |
 | **REC** | record onto the track |
+| **REC** held + SELECT | record exactly that many bars |
+| **REC** held + **PLAY** | bounce: the track's own sound to its tape |
+| **REC** held + black **0** | freeze to tape: GRAIN's last bars become the tape |
 | **REC** held 1 s, stopped | record the computer |
 | **ALGORITHM** | what REC records |
-| black **POLY** held | clear the tape (DRUM: the pattern) |
+| black **POLY** held | clear the tape (DRUM: the pattern; ARP and RIPL ARP: their notes; PRESETS: delete the slot) |
 | black **MONO** held | clear the track's modulation |
 | black **0** | freeze GRAIN (held, or tapped to latch) |
 | **SCL** held + a knob | that knob to its default |
 | **SCL** held + the lit pad | the page to its defaults |
 | **SAVE** | save the project |
 | **SAVE** held | undo the last clear, reset or load |
-| **PRESETS** | projects; then EDIT for track presets, EDIT again for your reels |
+| **PRESETS** | projects; then EDIT for track presets, EDIT again for your reels; the white keys pick a slot |
 | **PRESETS**, an empty slot, **OCT+** | a new, blank project |
-| **PRESETS** past P6 (FACTORY), **OCT+** | the factory scene back |
+| **PRESETS** past P6 (FACTORY), **OCT+** | the factory scene back; one more is TEST, every stage at work |
 | **OCT− / OCT+** | octave (DRUM's pages: the bar) |
+| white keys, on ARP's page 3 | the rhythm's steps, on or off |

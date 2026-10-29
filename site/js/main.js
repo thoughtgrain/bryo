@@ -195,9 +195,12 @@
         { press: ["ARP"], turn: { K4: 45 }, screen: "arp_fade", label: "ARP / Page 2",
           alt: "ARP page 2: GATE SWNG GRND FADE, FADE at 331 ms",
           say: "Press ARP again for page 2 and turn KNOB 4 (FADE) up. Now when you let go, the notes keep stepping and fade away instead of stopping." },
+        { press: ["ARP"], turn: { K1: -58, K3: -54 }, screen: "arp_rhythm", label: "ARP / Rhythm",
+          alt: "ARP page 3, RHYTHM: 8TH, VARY 30 %",
+          say: "Press ARP again for page 3, RHYTHM. KNOB 1 picks a rhythm (8TH here) and KNOB 3 (VARY) lets each round stray from it. On this page the white keys switch steps on and off." },
         { hold: ["EDIT"], press: ["OCTUP", "EDIT", "EDIT"], screen: "arp_res", label: "RIPL ARP",
           alt: "RIPL ARP plucking RIPPLE's strings",
-          say: "RIPPLE has an arpeggio of its own. Hold EDIT and press OCT+ for RIPPLE, then press EDIT through to its last page, RIPL ARP." }
+          say: "RIPPLE has an arpeggio of its own. Hold EDIT and press OCT+ for RIPPLE, then press EDIT until the header says RIPL ARP." }
       ]
     }
   };

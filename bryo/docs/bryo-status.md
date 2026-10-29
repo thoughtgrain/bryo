@@ -1,6 +1,6 @@
 # Bryo: where it stands, and how to pick it up
 
-Updated 2026-10-12. This is the page I'd want to read first after a break, or hand to anyone joining: what Bryo
+Updated 2026-10-19. This is the page I'd want to read first after a break, or hand to anyone joining: what Bryo
 is right now, how it's put together, how to build, test and measure it, what I decided and why, and what's still
 open. It points into the longer docs instead of repeating them. When something here and the code disagree, the
 code wins, and this page needs fixing.
@@ -89,7 +89,7 @@ One core, no RTOS. Three contexts, and the rules between them are most of the ar
 
 - **The audio ISR** renders a control block (CTL = 32 samples, 0.73 ms at 44.1 kHz) at a time: `chain_block` in
   `chain.c`, which calls `mod_tick`, then each track's source and devices, the mixer, the master stage. The main loop
-  can't interrupt it. It sheds load above 85 % (grains first, then strings; never the tape).
+  can't interrupt it. It sheds load from 78 % (the quietest sounds first, then the quietest track's grains, strings and drum voices; never the tape).
 - **TIMER5** scans the input and services USB. It can nest inside the audio ISR only for the USB audio endpoints'
   service (`uac_service`, `uaco_service`); `usb_poll` never runs nested.
 - **The main loop** owns everything that allocates: the shared memory, the depth lists, the UI. Its rule for memory

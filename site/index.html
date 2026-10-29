@@ -24,7 +24,7 @@
         <img class="logo__mark pixelated" src="img/wordmark.svg" width="115" height="35" alt="Bryo, home">
       </a>
       <div class="header-actions">
-        <a class="icon-btn" href="https://github.com/thoughtgrain/moss-and-air" aria-label="Bryo on GitHub">
+        <a class="icon-btn" href="https://github.com/thoughtgrain/bryo" aria-label="Bryo on GitHub">
           <svg aria-hidden="true"><use href="img/icons.svg#github"/></svg>
         </a>
         <button class="icon-btn" type="button" data-menu-open aria-haspopup="dialog" aria-controls="menu" aria-expanded="false" aria-label="Open menu">
@@ -57,7 +57,7 @@
           <li><a href="./#get"><span>09</span>Get it</a></li>
           <li><a href="./#thanks"><span>10</span>Thanks, Felucca</a></li>
           <li><a href="docs.html"><span>//</span>Documentation</a></li>
-          <li><a href="https://github.com/thoughtgrain/moss-and-air"><span>&gt;&gt;</span>GitHub</a></li>
+          <li><a href="https://github.com/thoughtgrain/bryo"><span>&gt;&gt;</span>GitHub</a></li>
         </ul>
       </nav>
     </div>
@@ -67,7 +67,7 @@
     <div class="wrap product-bar__inner">
       <p class="product-bar__name">Bryo</p>
       <p class="product-bar__meta">FM-1 firmware · GPL-3.0</p>
-      <a class="btn" href="https://github.com/thoughtgrain/moss-and-air">Source on GitHub</a>
+      <a class="btn" href="https://github.com/thoughtgrain/bryo">Source on GitHub</a>
     </div>
   </div>
 
@@ -106,7 +106,7 @@
         <div class="prose">
           <p class="lead">Bryo is new firmware for the M-VAVE FM-1. It gives you four tracks. Each one starts with a sound and sends it through four effects, always in the same order.</p>
           <p>Let's start with the tape, because everything grows from it. A tape is a loop that lives in memory. Press PLAY and it plays. Press a white key and you hear one of its sixteen slices. Press REC and it records the other three tracks onto itself, so you can bounce an idea down and keep building on top.</p>
-          <p>The four tracks share about <strong>20 seconds</strong> of memory. A track only takes what it records, so three short loops leave room for one long one.</p>
+          <p>The four tracks share about <strong>20 seconds</strong> of memory. A track only takes what it records, so three short loops leave room for one long one, and the silent stretches of a take cost nothing at all.</p>
           <p>There are no menus. Each page shows four values, and the four knobs change those four values. Press a pad again to see its next page. Hold a pad and the white keys light up, one for each page, so you can jump straight there.</p>
           <p>Every screen on this site comes from the same code that runs on the FM-1. What you see here is what you'll see on the device. <a href="#tour">Watch it in action below.</a></p>
         </div>
@@ -191,6 +191,7 @@
               <h3>Grain <span class="tag px">Edit</span></h3>
               <p>GRAIN listens to the last few bars of the track and plays them back as tiny overlapping pieces. You can stretch them out, hold them on one spot, or let them trail behind with SCAN.</p>
               <p>Hold the black <strong>0</strong> key to freeze what it heard into a loop. Tap it instead and the freeze stays on until you tap again. Heard something good that already went by? Hold REC and press 0, and the last bars GRAIN heard become the track's tape.</p>
+              <p>GRAIN has two other forms (hold <strong>EDIT</strong> and turn <strong>SELECT</strong>): <strong>WARBLE</strong>, a tape machine with a tired motor that lurches as each hit lands, and <strong>VINYL</strong>, a record with its dust, its hiss, its warp and a needle that skips, sticks or brakes. Either one works on the whole sound or on the grains.</p>
             </div>
           </div>
 
@@ -203,7 +204,7 @@
               <h3>Ripple <span class="tag px">Edit</span></h3>
               <p>Something tuned that the track's sound rings through. Hold <strong>EDIT</strong> and turn <strong>SELECT</strong> to pick what: four plucked strings, a hollow COMB that only rings the odd harmonics, four resonant bands, or a 12-band filter bank that sorts whatever comes in into a chord.</p>
               <p>Each form comes out about as loud as what goes in, so turning WET up is a real change: a drum loop through the 12-band bank gets sorted into the chord's notes. The second page is the form's own. The strings get detune, drift, drive and pick. The comb gets POL, for a hollow or a metallic ring. The resonators get a spotlight (FOCS and WDTH), and FLOW, which walks the sound up and down through the bands by itself.</p>
-              <p>The notes come from a chord you choose, from major and minor to sevenths and power chords. On its page the white keys set the root. With KEYS on PLCK they pluck it too; on TUNE they only retune it, so what rings is the track's own sound. Its last page, RIPL ARP, plays it as an arpeggio.</p>
+              <p>The notes come from a chord you choose, from major and minor to sevenths and power chords. On its page the white keys set the root. With KEYS on PLCK they pluck it too; on TUNE they only retune it, so what rings is the track's own sound. Its RIPL ARP page plays it as an arpeggio, with a rhythm of its own on the page after.</p>
             </div>
           </div>
 
@@ -305,7 +306,7 @@
         <div class="band__media">
           <figure class="screen"><img class="pixelated" src="img/arp_add.png" width="480" height="480" alt="ARP in ADD mode with four notes piled up" loading="lazy"><figcaption class="px">ARP / Add</figcaption></figure>
           <div class="band__thumbs">
-            <figure class="screen"><img class="pixelated" src="img/arp.png" width="480" height="480" alt="ARP: two notes held, the one playing filled" loading="lazy"><figcaption class="px">Key</figcaption></figure>
+            <figure class="screen"><img class="pixelated" src="img/arp_rhythm.png" width="480" height="480" alt="ARP page 3, RHYTHM: 8TH, VARY 30 %" loading="lazy"><figcaption class="px">Rhythm</figcaption></figure>
             <figure class="screen"><img class="pixelated" src="img/arp_fade.png" width="480" height="480" alt="ARP page 2: GATE SWNG GRND FADE" loading="lazy"><figcaption class="px">Fade</figcaption></figure>
             <figure class="screen"><img class="pixelated" src="img/arp_res.png" width="480" height="480" alt="RIPL ARP plucking RIPPLE's strings" loading="lazy"><figcaption class="px">Ripl arp</figcaption></figure>
           </div>
@@ -316,7 +317,8 @@
           <p class="lead">Hold a few keys and the arpeggiator plays them one at a time, in time with the tempo.</p>
           <p>Every track has one. On SYNTH and POLY it plays notes, on TAPE it steps through slices, and on DRUM it walks the drums you hold. With SYNTH's CHRD on, every step is a whole chord.</p>
           <p><strong>KEY</strong> plays while you hold, <strong>LTCH</strong> keeps the chord going, <strong>ADD</strong> grows a pattern one key at a time, and <strong>HOLD</strong> keeps the chord sounding whole, a pad struck once. The keys light up with its notes; press a lit key to take that note out. On page 2, <strong>FADE</strong> lets it fade away after you let go, and GATE past 100&nbsp;% lets the notes ring into each other.</p>
-          <p>RIPPLE has an arpeggio of its own, <strong>RIPL ARP</strong>, on its last page.</p>
+          <p>Page 3 gives it a <strong>rhythm</strong>: pick one of eight (off-beats, a gallop, clave, sparse&hellip;), set how many steps it runs, and switch steps on and off with the white keys. A rest lets the time pass without moving the melody, and <strong>VARY</strong> and <strong>EVOL</strong> let each round stray from what's written, the way a player would.</p>
+          <p>RIPPLE has an arpeggio of its own, <strong>RIPL ARP</strong>, among its pages, with the same rhythm page after it.</p>
           <a class="more-link px" href="docs.html#arps">Arpeggiators in the docs &gt;</a>
         </div>
       </div>
@@ -345,10 +347,10 @@
         <dl class="specs">
           <div><dt class="px">Hardware</dt><dd>M-VAVE FM-1 (JieLi AC79), bare metal</dd></div>
           <div><dt class="px">Tracks</dt><dd>4, each with a source and the full chain</dd></div>
-          <div><dt class="px">Sources</dt><dd>TAPE (with freeze, wow and flutter); SYNTH (SIN TRI SQR SAW PLS, FM, PD, VOX, WT; two envelopes, chords); POLY (looping notes, TWIN); DRUM (1 to 4 bars)</dd></div>
-          <div><dt class="px">Effects</dt><dd>GRAIN; RIPPLE (strings, comb, resonators or a 12-band bank, with FLOW); COLOR; CHRONOS (a delay and two shared rooms: room, plate, hall or spring)</dd></div>
+          <div><dt class="px">Sources</dt><dd>TAPE (with repeat, wow and flutter); SYNTH (SIN TRI SQR SAW PLS, FM, PD, VOX, WT; two envelopes, chords); POLY (looping notes, TWIN); DRUM (1 to 4 bars)</dd></div>
+          <div><dt class="px">Effects</dt><dd>GRAIN (grains, WARBLE or VINYL); RIPPLE (strings, comb, resonators or a 12-band bank, with FLOW); COLOR; CHRONOS (a delay and two shared rooms: room, plate, hall or spring)</dd></div>
           <div><dt class="px">Modulation</dt><dd>4 per track: 3 that can each be an LFO, ADSR or FOLLOW, and a step sequencer with p-locks; up to 12 knobs each, stereo SPRD</dd></div>
-          <div><dt class="px">Arpeggiators</dt><dd>1 per track (notes, chords, slices or drums), plus RIPL ARP for RIPPLE</dd></div>
+          <div><dt class="px">Arpeggiators</dt><dd>1 per track (notes, chords, slices or drums), plus RIPL ARP for RIPPLE; each with a step rhythm (8 patterns, 1 to 16 steps, VARY and EVOL)</dd></div>
           <div><dt class="px">Scenes</dt><dd>4 per project, each with its own tempo: recall, step with OP5 and OP6, or morph between them with a knob</dd></div>
           <div><dt class="px">Recording</dt><dd>REC onto a tape, exact bars, overdub, bounce (REC + PLAY) and freeze to tape (REC + 0)</dd></div>
           <div><dt class="px">Tape memory</dt><dd>About 20&nbsp;s shared across the tracks, IMA ADPCM at 22.05&nbsp;kHz</dd></div>
@@ -372,7 +374,7 @@
           <p>If you're happy building firmware, you can try it today. Bryo keeps Felucca's update path exactly as it was, so you can always go back.</p>
           <div class="btn-row">
             <a class="btn btn--solid" href="docs.html#install">Install guide</a>
-            <a class="btn" href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/BUILDING.md">Building.md</a>
+            <a class="btn" href="https://github.com/thoughtgrain/bryo/blob/HEAD/bryo/BUILDING.md">Building.md</a>
           </div>
         </div>
       </div>
@@ -400,9 +402,9 @@
 
           <ul class="thanks__links">
             <li><a href="https://github.com/hugelton/Felucca">Felucca on GitHub <span class="px" aria-hidden="true">hugelton/Felucca &gt;</span></a></li>
-            <li><a href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/ACKNOWLEDGEMENTS.md">Acknowledgements <span class="px" aria-hidden="true">Read &gt;</span></a></li>
-            <li><a href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/NOTICE.md">GPL modification notice <span class="px" aria-hidden="true">Read &gt;</span></a></li>
-            <li><a href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/LICENSING.md">Everyone upstream credits <span class="px" aria-hidden="true">Read &gt;</span></a></li>
+            <li><a href="https://github.com/thoughtgrain/bryo/blob/HEAD/bryo/ACKNOWLEDGEMENTS.md">Acknowledgements <span class="px" aria-hidden="true">Read &gt;</span></a></li>
+            <li><a href="https://github.com/thoughtgrain/bryo/blob/HEAD/bryo/NOTICE.md">GPL modification notice <span class="px" aria-hidden="true">Read &gt;</span></a></li>
+            <li><a href="https://github.com/thoughtgrain/bryo/blob/HEAD/bryo/LICENSING.md">Everyone upstream credits <span class="px" aria-hidden="true">Read &gt;</span></a></li>
           </ul>
         </div>
       </div>
@@ -419,16 +421,16 @@
         <h2 class="px">Read</h2>
         <ul>
           <li><a href="docs.html">Documentation</a></li>
-          <li><a href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/docs/manual/README.md">The full manual</a></li>
-          <li><a href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/docs/bryo-status.md">Where it stands</a></li>
+          <li><a href="https://github.com/thoughtgrain/bryo/blob/HEAD/bryo/docs/manual/README.md">The full manual</a></li>
+          <li><a href="https://github.com/thoughtgrain/bryo/blob/HEAD/bryo/docs/bryo-status.md">Where it stands</a></li>
         </ul>
       </div>
       <div>
         <h2 class="px">Source</h2>
         <ul>
-          <li><a href="https://github.com/thoughtgrain/moss-and-air">thoughtgrain/moss-and-air</a></li>
+          <li><a href="https://github.com/thoughtgrain/bryo">thoughtgrain/bryo</a></li>
           <li><a href="https://github.com/hugelton/Felucca">hugelton/Felucca</a></li>
-          <li><a href="https://github.com/thoughtgrain/moss-and-air/blob/HEAD/bryo/LICENSE">Licence</a></li>
+          <li><a href="https://github.com/thoughtgrain/bryo/blob/HEAD/bryo/LICENSE">Licence</a></li>
         </ul>
       </div>
     </div>
