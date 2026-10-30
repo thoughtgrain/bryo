@@ -84,7 +84,13 @@ that step gives. Each entry in `tools/steps.json` names a screen (a png in `img/
 orange outline), `"hold"` (an orange fill: keep it down while you do the rest) or `["turn", degrees]` (the knob's
 pointer swung that far from 12 o'clock). The generator writes `img/steps/<id>.svg`; `dials` is the panel with all
 eight dials lit. Where a step's exact state has no render, the step shows the page it's on and says the value in
-words. The step SVGs are about 125 KB each before compression and load lazily.
+words.
+
+Only what a step uses is labelled. Everything it doesn't mark goes quiet, a faint outline with no caption, the
+same look the walkthrough uses, so the hands' part of the step is all you read. A step can name more controls to
+keep under `"show"` (ones its words mention without lighting, like SELECT for the tempo), and `"full": true` keeps
+the whole panel labelled (`dials` does). The panel's own notes go too, except "the four values on the screen" when
+a knob turns. Dropping the captions took the step SVGs to about 45 KB each before compression; they load lazily.
 
 ## The walkthrough ("Watch your hands")
 
@@ -92,7 +98,9 @@ The homepage's section 02 plays the FM-1 for you, so people see the whole idea (
 before reading about it. `initTour` in `js/main.js` fetches `img/panel.svg` and puts it inline; `gen_panel.py`
 gives every control a `<g id="ctl-NAME">` with its outline as `rect.hit` and a knob's pointer as `rect.ptr`, so
 CSS can light them (the names are listed at the top of the generator). Each routine in `TOUR` is a list of steps
-that **press**, **hold** and **turn** controls, then swap the screen. Every screen is a real render, and the steps
+that **press**, **hold** and **turn** controls, then swap the screen. Only a routine's own controls (and its
+`show` list) keep their labels; the rest go quiet, so the panel reads as the handful of controls that routine is
+about. Every screen is a real render, and the steps
 are ordered so the picture is always true. If the fetch fails, the plain `<img>` panel stays and the steps still
 work.
 

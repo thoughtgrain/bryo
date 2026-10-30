@@ -232,10 +232,38 @@ def mark(svg, cid, how):
     return svg[:start] + g + svg[end:]
 
 
+# ---- a step: only what it uses keeps its label ----
+# The controls the step marks (and any it lists in "show") stay as drawn; the rest of the panel stays as a faint
+# outline with no caption, as the homepage's walkthrough quiets them (css .tour__panel .ctl.is-quiet), so the
+# hands' part of the step is all you read. The panel's notes go too, except the knobs' when a knob turns.
+QUIET = "0.18"
+
+
+def quiet(svg, keep):
+    out, i = [], 0
+    for m in re.finditer(r'<g id="ctl-([A-Za-z0-9]+)" class="ctl">', svg):
+        if m.start() < i:
+            continue
+        end = group_end(svg, m.start())
+        g = svg[m.start():end]
+        if m.group(1) not in keep:
+            g = g.replace(' class="ctl">', f' class="ctl" opacity="{QUIET}">', 1)
+            g = re.sub(r'<g class="job">.*?</g>', "", g)        # (a caption holds paths only: no nested group)
+        out += [svg[i:m.start()], g]
+        i = end
+    svg = "".join(out) + svg[i:]
+    knobs = any(k in keep for k in ("K1", "K2", "K3", "K4"))
+    for nid in ("knobs", "keys", "more"):
+        if nid != "knobs" or not knobs:
+            svg = re.sub(rf'<g id="note-{nid}" class="note">.*?</g>', "", svg)
+    return svg
+
+
 def main():
     img = ROOT / "site" / "img"
     if len(sys.argv) > 2 and sys.argv[1] == "--steps":
-        # site/tools/steps.json: [{"id", "screen" (a site/img png), "alt", "marks": {NAME: "press"|"hold"|["turn", deg]}}]
+        # site/tools/steps.json: [{"id", "screen" (a site/img png), "alt", "marks": {NAME: "press"|"hold"|["turn", deg]},
+        #   "show": [NAME, ...] (also keep these labelled), "full": true (leave the whole panel labelled)}]
         steps = json.loads(Path(sys.argv[2]).read_text())
         outdir = img / "steps"
         outdir.mkdir(parents=True, exist_ok=True)
@@ -248,6 +276,8 @@ def main():
             svg = build(png, st.get("alt", "The FM-1 panel"))
             for cid, how in st["marks"].items():
                 svg = mark(svg, cid, how)
+            if not st.get("full"):
+                svg = quiet(svg, set(st["marks"]) | set(st.get("show", [])))
             path = outdir / f"{st['id']}.svg"
             path.write_text(svg)
             total += path.stat().st_size

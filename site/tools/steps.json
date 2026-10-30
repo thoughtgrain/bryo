@@ -1,15 +1,15 @@
 [
-  {"id": "dials", "screen": "tape", "alt": "The FM-1's eight dials lit: MASTER, SELECT, PRESETS and ALGORITHM top left, KNOB 1 to 4 top right",
+  {"id": "dials", "full": true, "screen": "tape", "alt": "The FM-1's eight dials lit: MASTER, SELECT, PRESETS and ALGORITHM top left, KNOB 1 to 4 top right",
    "marks": {"MASTER": ["turn", 0], "SELECT": ["turn", 0], "PRESETS": ["turn", 0], "ALGORITHM": ["turn", 0],
              "K1": ["turn", 0], "K2": ["turn", 0], "K3": ["turn", 0], "K4": ["turn", 0]}},
 
-  {"id": "song-1a", "screen": "projects", "alt": "PRESETS turned", "marks": {"PRESETS": ["turn", 45]}},
+  {"id": "song-1a", "show": ["W1", "W2", "W3", "W4", "W5", "W6"], "screen": "projects", "alt": "PRESETS turned", "marks": {"PRESETS": ["turn", 45]}},
   {"id": "song-1b", "screen": "project_new", "alt": "White key 3 then OCT+ pressed", "marks": {"W3": "press", "OCTUP": "press"}},
 
   {"id": "song-2a", "screen": "mixer_held", "alt": "GLO held, white key 1 pressed", "marks": {"GLO": "hold", "W1": "press"}},
   {"id": "song-2b", "screen": "drum", "alt": "HOME held, SELECT turned", "marks": {"HOME": "hold", "SELECT": ["turn", 90]}},
   {"id": "song-2c", "screen": "drum", "alt": "KNOB 1 and KNOB 2 turned", "marks": {"K1": ["turn", -60], "K2": ["turn", -100]}},
-  {"id": "song-2d", "screen": "drum_playing", "alt": "PLAY pressed, PIT tapped", "marks": {"PLAY": "press", "PIT": "press"}},
+  {"id": "song-2d", "show": ["SELECT"], "screen": "drum_playing", "alt": "PLAY pressed, PIT tapped", "marks": {"PLAY": "press", "PIT": "press"}},
   {"id": "song-2e", "screen": "drum_vary", "alt": "HOME pressed, KNOB 1 turned", "marks": {"HOME": "press", "K1": ["turn", 60]}},
 
   {"id": "song-3a", "screen": "synth", "alt": "GLO held with white key 2, then HOME held with SELECT turned", "marks": {"GLO": "hold", "W2": "press", "HOME": "hold", "SELECT": ["turn", -45]}},
@@ -33,8 +33,8 @@
   {"id": "song-6b", "screen": "mixer_scenes", "alt": "White key 1 held, SAVE tapped", "marks": {"W1": "hold", "SAVE": "press"}},
   {"id": "song-6c", "screen": "mixer_held", "alt": "SELECT turned, GLO held with KNOB 1 turned", "marks": {"SELECT": ["turn", 45], "GLO": "hold", "K1": ["turn", -60]}},
   {"id": "song-6d", "screen": "mixer_scenes", "alt": "White key 2 held, SAVE tapped", "marks": {"W2": "hold", "SAVE": "press"}},
-  {"id": "song-6e", "screen": "mixer_morph", "alt": "KNOB 2 turned halfway", "marks": {"K2": ["turn", 0]}},
-  {"id": "song-6f", "screen": "mixer_scenes", "alt": "White key 1, OP5 and OP6 pressed", "marks": {"W1": "press", "OP5": "press", "OP6": "press"}},
+  {"id": "song-6e", "show": ["K1"], "screen": "mixer_morph", "alt": "KNOB 2 turned halfway", "marks": {"K2": ["turn", 0]}},
+  {"id": "song-6f", "show": ["W2"], "screen": "mixer_scenes", "alt": "White key 1, OP5 and OP6 pressed", "marks": {"W1": "press", "OP5": "press", "OP6": "press"}},
 
   {"id": "song-7a", "screen": "mixer_scenes", "alt": "SAVE tapped", "marks": {"SAVE": "press"}}
 ]
