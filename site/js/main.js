@@ -125,7 +125,12 @@
    * presses (a flash), holds (lit for the step) or turns (the pointer moves to an angle) controls, then shows the
    * screen Bryo shows after it, on the panel's own screen and the big one beside it. If the fetch fails, the
    * <img> stays and the steps and screen still work. It plays by itself only while it's on screen, never with
-   * reduced motion, and stops for good once you step through it by hand. */
+   * reduced motion, and stops for good once you step through it by hand.
+   *
+   * Only what a routine uses keeps its label: the controls it presses, holds or turns in any step, plus its
+   * "show" list (the ones its words name, or the keys it plays on). The rest go quiet, dimmed and uncaptioned, so
+   * the Scenes routine reads as GLO, EDIT, KNOB 2, SAVE and the scene keys, not the whole panel. The set is the
+   * routine's, not the step's, so labels don't come and go while you follow along. */
   var TOUR = {
     pages: {
       start: {},
@@ -146,6 +151,7 @@
     },
     tape: {
       start: { K1: -135 },
+      show: ["K4"],
       steps: [
         { press: ["HOME"], screen: "tape", label: "Home / Tape", alt: "TAPE's first page: STRT LEN SPD PTCH",
           say: "Press HOME for TAPE. KNOB 4, PTCH, moves the loop in semitones, so you can play it like a transpose." },
@@ -170,6 +176,7 @@
     },
     scenes: {
       start: { K2: -135 },
+      show: ["W1", "W3", "W4"],
       steps: [
         { press: ["GLO"], screen: "mixer", label: "Glo / Mixer", alt: "The mixer",
           say: "Tap GLO. The mixer stays up." },
@@ -186,6 +193,7 @@
     },
     arp: {
       start: { K1: -45, K4: -135 },
+      show: ["W2", "W4", "W6", "W7", "W9", "W10", "W11", "W12", "W13", "W14", "W15", "W16"],
       steps: [
         { press: ["ARP"], hold: ["W1", "W5"], screen: "arp", label: "ARP / Key", alt: "ARP: two notes held",
           say: "Press ARP, with MODE on KEY, and hold two white keys. They play one at a time, in time. The filled bar is the one sounding." },
@@ -319,8 +327,25 @@
       schedule();
     }
 
+    // the routine's controls keep their labels; everything else on the panel goes quiet
+    function focus() {
+      if (!svg) return;
+      var r = TOUR[routine];
+      var used = {};
+      (r.show || []).forEach(function (n) { used[n] = true; });
+      r.steps.forEach(function (st) {
+        (st.press || []).concat(st.hold || [], Object.keys(st.turn || {})).forEach(function (n) { used[n] = true; });
+      });
+      $$(".ctl", svg).forEach(function (g) {
+        g.classList.toggle("is-quiet", !used[g.id.slice(4)]);
+      });
+      var knobs = used.K1 || used.K2 || used.K3 || used.K4;
+      $$(".note", svg).forEach(function (n) { n.classList.toggle("is-quiet", !(n.id === "note-knobs" && knobs)); });
+    }
+
     function setRoutine(name, announce) {
       routine = name;
+      focus();
       routineBtns.forEach(function (b) {
         b.setAttribute("aria-pressed", b.getAttribute("data-routine") === name ? "true" : "false");
       });
@@ -386,6 +411,7 @@
         svg = document.importNode(el, true);
         panelBox.innerHTML = "";
         panelBox.appendChild(svg);
+        focus();
         go(index, false);                      // light the step that's showing
       }).catch(function (err) {
         if (window.console) console.warn("bryo-site: the walkthrough keeps the static panel:", err);

@@ -17,8 +17,10 @@ drawn dim and says so (none is, since 2026-10-18). Run it again when a control's
 
 Every control is a group, <g id="ctl-NAME" class="ctl">, its outline the rect with class "hit", and a knob's
 pointer a rect with class "ptr" whose transform-origin is the knob's centre. The screen's <image> is
-id="panel-screen". The homepage's walkthrough (js/main.js, initTour) lights, presses and turns them by those names
-and swaps the screen; as an <img> (the docs) they're inert. Names: MASTER SELECT PRESETS ALGORITHM OCTDN OCTUP,
+id="panel-screen". A control's caption is a <g class="job"> inside its group, and the panel's notes are
+<g class="note" id="note-knobs|keys|more">, so the walkthrough can quiet what a routine doesn't use. The
+homepage's walkthrough (js/main.js, initTour) lights, presses and turns them by those names and swaps the screen;
+as an <img> (the docs) they're inert. Names: MASTER SELECT PRESETS ALGORITHM OCTDN OCTUP,
 K1-K4, the pads by their labels (FX SCL ENV LFO EDIT GLO HOME SAVE ARP SEQ PLAY REC), the black keys OP1-OP6 PIT
 BGLO MONO POLY ZERO, the white keys W1-W16.
 """
@@ -84,13 +86,23 @@ def group(cid, body):
     return f'<g id="ctl-{cid}" class="ctl">{body}</g>'
 
 
+def job_g(body):
+    """a control's caption: the walkthrough hides it while a routine doesn't use the control"""
+    return f'<g class="job">{body}</g>'
+
+
+def note(nid, body):
+    """one of the panel's own notes, which the walkthrough shows only where they help the routine"""
+    return f'<g id="note-{nid}" class="note">{body}</g>'
+
+
 def knob(x, y, name, job, job_fill=LIVE, cid=None):
     return group(cid or name, "".join([
         f'<rect class="hit" x="{x - 19}" y="{y - 19}" width="38" height="38" fill="none" stroke="{WIRE}" stroke-width="1.5"/>',
         f'<rect class="ptr" x="{x - 2}" y="{y - 15}" width="4" height="14" fill="{INK}" '
         f'style="transform-origin:{x}px {y}px"/>',
         text(name, x, y + 28, 1.5, INK, bold=True),
-        text(job, x, y + 44, 1.5, job_fill) if job else "",
+        job_g(text(job, x, y + 44, 1.5, job_fill)) if job else "",
     ]))
 
 
@@ -98,7 +110,7 @@ def pad(x, y, name, job, edge):
     return group(name, "".join([
         f'<rect class="hit" x="{x - 32}" y="{y}" width="64" height="30" fill="none" stroke="{edge}" stroke-width="2"/>',
         text(name, x, y + 8, 2, INK, bold=True),
-        lines(job, x, y + 38, 1.5, SOFT) if job else "",
+        job_g(lines(job, x, y + 38, 1.5, SOFT)) if job else "",
     ]))
 
 
@@ -120,7 +132,7 @@ def build(screen_png, title="The FM-1 panel, labelled for Bryo"):
     for x, name, job, cid in ((70, "OCT-", "OCTAVE DOWN", "OCTDN"), (178, "OCT+", "OCTAVE UP", "OCTUP")):
         out.append(group(cid, f'<rect class="hit" x="{x - 30}" y="200" width="60" height="26" fill="none" '
                               f'stroke="{WIRE}" stroke-width="1.5"/>'
-                              + text(name, x, 206, 2, INK, bold=True) + text(job, x, 234, 1.5, SOFT)))
+                              + text(name, x, 206, 2, INK, bold=True) + job_g(text(job, x, 234, 1.5, SOFT))))
 
     # the screen, a real render at 0.8x its 240 px
     out += [f'<rect x="252" y="14" width="204" height="204" fill="#000" stroke="{WIRE}" stroke-width="1.5"/>',
@@ -130,7 +142,7 @@ def build(screen_png, title="The FM-1 panel, labelled for Bryo"):
     # KNOB 1-4: the four values on the screen
     for i, x in enumerate((520, 620, 720, 820)):
         out.append(knob(x, 40, f"KNOB {i + 1}", "", cid=f"K{i + 1}"))
-    out.append(text("THE FOUR VALUES ON THE SCREEN", 670, 82, 1.5, LIVE))
+    out.append(note("knobs", text("THE FOUR VALUES ON THE SCREEN", 670, 82, 1.5, LIVE)))
 
     # the pads, as they sit on the panel; the edge is the colour the screen gives their pages
     xs = (504, 584, 664, 744, 824, 904)
@@ -153,7 +165,7 @@ def build(screen_png, title="The FM-1 panel, labelled for Bryo"):
         dim = c == DIM
         dash = ' stroke-dasharray="3 3"' if dim else ""
         cid = {"GLO": "BGLO", "0": "ZERO"}.get(n, n)
-        out.append(group(cid, lines(j, x, 272, 1.5, c)
+        out.append(group(cid, job_g(lines(j, x, 272, 1.5, c))
                          + f'<rect class="hit" x="{x - 21}" y="304" width="42" height="52" fill="none" '
                            f'stroke="{EDGE if dim else WIRE}" stroke-width="1.5"{dash}/>'
                          + text(n, x, 323 if len(n) < 4 else 325, 2 if len(n) < 4 else 1.5, DIM if dim else INK,
@@ -165,8 +177,10 @@ def build(screen_png, title="The FM-1 panel, labelled for Bryo"):
                                       f'stroke="{EDGE}" stroke-width="1.5"/>'
                          + text(str(k + 1), x + (step - 7) / 2, 456, 2, INK, bold=True)))
 
-    out.append(text("WHITE KEYS: SLICES (TAPE) / NOTES (SYNTH POLY) / THE KIT (DRUM)", W / 2, 506, 1.5, SOFT))
-    out.append(text("GLO HELD + WHITE 1-4: PICK THE TRACK.  OP5 OP6: SCENES OFF TAPE.  PIT HELD: -4%", W / 2, 522, 1.5, DIM))
+    out.append(note("keys", text("WHITE KEYS: SLICES (TAPE) / NOTES (SYNTH POLY) / THE KIT (DRUM)",
+                                 W / 2, 506, 1.5, SOFT)))
+    out.append(note("more", text("GLO HELD + WHITE 1-4: PICK THE TRACK.  OP5 OP6: SCENES OFF TAPE.  PIT HELD: -4%",
+                                 W / 2, 522, 1.5, DIM)))
     out.append("</svg>\n")
     return "".join(out)
 
@@ -177,12 +191,27 @@ def build(screen_png, title="The FM-1 panel, labelled for Bryo"):
 MARK_STROKE = 4
 
 
+def group_end(svg, start):
+    """where the group opening at start closes (its caption is a group of its own inside it)"""
+    depth, i = 0, start
+    while True:
+        o, c = svg.find("<g ", i + 1), svg.find("</g>", i + 1)
+        if c < 0:
+            sys.exit("gen_panel: an unclosed group")
+        if 0 <= o < c:
+            depth, i = depth + 1, o
+        elif depth:
+            depth, i = depth - 1, c
+        else:
+            return c
+
+
 def mark(svg, cid, how):
     mode, angle = (how, None) if isinstance(how, str) else (how[0], how[1])
     start = svg.find(f'<g id="ctl-{cid}" class="ctl">')
     if start < 0:
         sys.exit(f"gen_panel: no control {cid}")
-    end = svg.find("</g>", start)
+    end = group_end(svg, start)
     g = svg[start:end]
     hit = re.search(r'<rect class="hit"[^>]*/>', g).group(0)
     lit = re.sub(r'stroke="[^"]*"', f'stroke="{LIVE}"', hit)

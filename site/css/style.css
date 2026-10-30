@@ -995,6 +995,12 @@ tr:last-child td { border-bottom: 0; }
 /* turned: the knob's outline and pointer in orange while it moves */
 .tour__panel .ctl.is-turn .hit { stroke: var(--orange); stroke-width: 3; }
 .tour__panel .ctl.is-turn .ptr { fill: var(--orange); }
+/* a routine's own controls keep their labels; the rest of the panel stays as a faint outline, uncaptioned */
+.tour__panel .ctl,
+.tour__panel .note { transition: opacity 200ms linear; }
+.tour__panel .ctl.is-quiet { opacity: 0.18; }
+.tour__panel .ctl.is-quiet .job,
+.tour__panel .note.is-quiet { opacity: 0; }
 
 .tour__screen { grid-area: screen; width: 100%; }
 
