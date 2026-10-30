@@ -1,0 +1,326 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bryo, 4-track sound sculpting for the FM-1</title>
+  <meta name="description" content="Bryo is open firmware that turns the M-VAVE FM-1 into a four-track instrument for sculpting sound: tape, synth, poly and drum sources, four effects, modulators, arpeggiators and scenes. A fork of Felucca.">
+  <meta name="theme-color" content="#121212">
+  <link rel="icon" href="img/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap">
+  <link rel="preload" href="fonts/bryo-px5.woff" as="font" type="font/woff" crossorigin>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="js/main.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap site-header__inner">
+      <a class="logo" href="./">
+        <img class="logo__mark pixelated" src="img/wordmark.svg" width="115" height="35" alt="Bryo, home">
+      </a>
+      <div class="header-actions">
+        <a class="icon-btn" href="https://github.com/thoughtgrain/bryo" aria-label="Bryo on GitHub">
+          <svg aria-hidden="true"><use href="img/icons.svg#github"/></svg>
+        </a>
+        <button class="icon-btn" type="button" data-menu-open aria-haspopup="dialog" aria-controls="menu" aria-expanded="false" aria-label="Open menu">
+          <svg aria-hidden="true"><use href="img/icons.svg#menu"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <dialog class="menu" id="menu" aria-label="Site menu">
+    <div class="wrap">
+      <div class="menu__top">
+        <a class="logo" href="./">
+          <img class="logo__mark pixelated" src="img/wordmark.svg" width="115" height="35" alt="Bryo, home">
+        </a>
+        <button class="icon-btn" type="button" data-menu-close aria-label="Close menu">
+          <svg aria-hidden="true"><use href="img/icons.svg#close"/></svg>
+        </button>
+      </div>
+      <nav aria-label="Main">
+        <ul class="menu__list">
+          <li><a href="./#instrument"><span>01</span>Instrument</a></li>
+          <li><a href="./#start"><span>02</span>Quick start</a></li>
+          <li><a href="./#tour"><span>03</span>Watch your hands</a></li>
+          <li><a href="./#inside"><span>04</span>What's inside</a></li>
+          <li><a href="./#s4"><span>05</span>Torso S-4</a></li>
+          <li><a href="./#thanks"><span>06</span>Thanks, Felucca</a></li>
+          <li><a href="docs.html"><span>//</span>Documentation</a></li>
+          <li><a href="https://github.com/thoughtgrain/bryo"><span>&gt;&gt;</span>GitHub</a></li>
+        </ul>
+      </nav>
+    </div>
+  </dialog>
+
+  <div class="product-bar">
+    <div class="wrap product-bar__inner">
+      <p class="product-bar__name">Bryo</p>
+      <p class="product-bar__meta">FM-1 firmware · GPL-3.0</p>
+      <a class="btn" href="https://github.com/thoughtgrain/bryo">Source on GitHub</a>
+    </div>
+  </div>
+
+  <main id="main">
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="wrap hero__inner">
+        <div>
+          <p class="hero__kicker px">Firmware for the M-VAVE FM-1</p>
+          <h1 class="hero__title" id="hero-title">Moss grows on tape.</h1>
+          <p class="hero__lede">Bryo turns the FM-1 into a four-track instrument for growing sounds. Play a loop, record over it, and let it drift. Everything is a pad and a knob away.</p>
+          <div class="btn-row">
+            <a class="btn btn--solid" href="#start">Quick start</a>
+            <a class="btn" href="docs.html">Read the docs</a>
+          </div>
+        </div>
+
+        <div class="device" data-screens
+             data-list='[["img/boot.png","Boot","Boot screen: BRYO, 4-track sound sculpting"],["img/tape.png","Home / Tape","The TAPE page: the reel, the loop bracketed IN to OUT"],["img/tape_frze.png","Home / Tape tools","TAPE repeating: the held window framed in orange"],["img/synth_fm.png","Home / FM Synth","SYNTH as a two-operator FM synth"],["img/grain_playing.png","Edit / Grain","GRAIN with grains playing, lit in orange"],["img/reso_live.png","Edit / Ripple","RIPPLE: four strings ringing"],["img/space_live.png","FX / Chronos","CHRONOS: echoes and the tail of the room, in orange"],["img/arp_add.png","ARP","The arpeggiator with four notes piled up"],["img/mixer_morph.png","Glo / Scenes","SCENES: knob 2 halfway to scene 2"],["img/mod1.png","LFO / M1","An LFO modulator drawing its wave"]]'>
+          <figure class="device__screen">
+            <img class="pixelated" src="img/boot.png" width="480" height="480" alt="Bryo's boot screen: BRYO, 4-track sound sculpting" data-screen-img>
+          </figure>
+          <div class="device__controls">
+            <p class="device__label px" data-screen-label aria-hidden="true">Boot</p>
+            <button class="btn device__pause" type="button" data-screen-toggle aria-pressed="false">Pause</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="instrument" aria-labelledby="instrument-title">
+      <div class="wrap split">
+        <div>
+          <span class="section__num px"><span class="slash" aria-hidden="true">/</span> 01</span>
+          <h2 class="section__title" id="instrument-title">4 Track Sound Sculpting Instrument</h2>
+        </div>
+        <div class="prose">
+          <p class="lead">Bryo is new firmware for the M-VAVE FM-1. It gives you four tracks. Each one starts with a sound and sends it through four effects, always in the same order.</p>
+          <p>Everything grows from the tape, a loop that lives in memory. There are no menus: each page shows four values and the four knobs change them. Every screen on this site comes from the code that runs on the device.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="start" aria-labelledby="start-title">
+      <div class="wrap">
+        <span class="section__num px"><span class="slash" aria-hidden="true">/</span> 02</span>
+        <h2 class="section__title" id="start-title">Quick start</h2>
+        <div class="prose">
+          <p>There's no release yet. Bryo runs on a real FM-1 now, and I'd like it played for a while before anyone trusts it with their music. If you're happy building firmware, you can try it today, and Felucca's update path stays exactly as it was, so you can always go back.</p>
+        </div>
+
+        <ol class="quick">
+          <li class="quick__step">
+            <span class="quick__num px" aria-hidden="true">01</span>
+            <h3 class="quick__title"><a href="docs.html#install">Install</a></h3>
+            <p>Build the firmware and put it on the FM-1, from the command line or the web installer.</p>
+            <span class="quick__go px" aria-hidden="true">Install guide &gt;</span>
+          </li>
+          <li class="quick__step">
+            <span class="quick__num px" aria-hidden="true">02</span>
+            <h3 class="quick__title"><a href="docs.html#first">First sounds</a></h3>
+            <p>Find your way around the pads and the screen, and get each source making noise.</p>
+            <span class="quick__go px" aria-hidden="true">Start playing &gt;</span>
+          </li>
+          <li class="quick__step">
+            <span class="quick__num px" aria-hidden="true">03</span>
+            <h3 class="quick__title"><a href="docs.html#song">Your first song</a></h3>
+            <p>Fifteen minutes from an empty project to a loop, a beat and a scene to drift into.</p>
+            <span class="quick__go px" aria-hidden="true">15-minute guide &gt;</span>
+          </li>
+        </ol>
+
+        <p class="quick__more"><a class="more-link px" href="docs.html#reference">Quick reference &gt;</a> <a class="more-link px" href="https://github.com/thoughtgrain/bryo/blob/HEAD/bryo/BUILDING.md">Building.md &gt;</a></p>
+      </div>
+    </section>
+
+    <section class="section" id="tour" aria-labelledby="tour-title">
+      <div class="wrap">
+        <span class="section__num px"><span class="slash" aria-hidden="true">/</span> 03</span>
+        <h2 class="section__title" id="tour-title">Watch your hands</h2>
+        <div class="prose">
+          <p>Here's the FM-1 with Bryo on it. Pick a routine and follow along: the pads and keys light up as they're pressed, the knobs turn, and the screen shows what Bryo shows at each step.</p>
+        </div>
+
+        <div class="tour" data-tour>
+          <div class="tour__routines" role="group" aria-label="Routines">
+            <button class="btn tour__routine" type="button" data-routine="pages" aria-pressed="true">Pages</button>
+            <button class="btn tour__routine" type="button" data-routine="tape" aria-pressed="false">Tape</button>
+            <button class="btn tour__routine" type="button" data-routine="grain" aria-pressed="false">Grains</button>
+            <button class="btn tour__routine" type="button" data-routine="scenes" aria-pressed="false">Scenes</button>
+            <button class="btn tour__routine" type="button" data-routine="arp" aria-pressed="false">Arp</button>
+          </div>
+
+          <div class="tour__stage">
+            <div class="tour__panel" data-tour-panel>
+              <img src="img/panel.svg" width="960" height="540" alt="The FM-1's panel, labelled for Bryo.">
+            </div>
+            <figure class="screen tour__screen">
+              <img class="pixelated" src="img/tape.png" width="480" height="480" alt="The TAPE page" data-tour-screen>
+              <figcaption class="px" data-tour-label>Home / Tape</figcaption>
+            </figure>
+            <div class="tour__caption">
+              <div class="tour__progress" role="group" aria-label="Steps" data-tour-progress></div>
+              <p class="tour__say" data-tour-say>Press HOME. You're on the track's source, here the TAPE page.</p>
+              <div class="tour__controls">
+                <button class="btn" type="button" data-tour-prev aria-label="Previous step">&lt;</button>
+                <button class="btn" type="button" data-tour-play aria-pressed="false">Pause</button>
+                <button class="btn" type="button" data-tour-next aria-label="Next step">&gt;</button>
+              </div>
+              <p class="visually-hidden" aria-live="polite" data-tour-live></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="inside" aria-labelledby="inside-title">
+      <div class="wrap">
+        <span class="section__num px"><span class="slash" aria-hidden="true">/</span> 04</span>
+        <h2 class="section__title" id="inside-title">What's inside</h2>
+        <div class="prose">
+          <p>A sound always takes the same path: a source, then GRAIN, RIPPLE, COLOR and CHRONOS. Around that line sit the things that keep it moving. Each one has its own page in the docs.</p>
+        </div>
+
+        <ul class="inside">
+          <li class="inside__item">
+            <img class="pixelated" src="img/tape_frze.png" width="480" height="480" alt="" loading="lazy">
+            <h3 class="inside__name px"><a href="docs.html#sources">Sources</a></h3>
+            <p>A tape loop, a nine-wave synth, a sampler across the keys, or a CR-78-style drum machine.</p>
+          </li>
+          <li class="inside__item">
+            <img class="pixelated" src="img/grain_playing.png" width="480" height="480" alt="" loading="lazy">
+            <h3 class="inside__name px"><a href="docs.html#effects">Grain</a></h3>
+            <p>The last few bars, played back as tiny pieces. Or WARBLE's tired motor, or VINYL's dust.</p>
+          </li>
+          <li class="inside__item">
+            <img class="pixelated" src="img/reso_live.png" width="480" height="480" alt="" loading="lazy">
+            <h3 class="inside__name px"><a href="docs.html#effects">Ripple</a></h3>
+            <p>Strings, a comb or a filter bank, tuned to a chord the sound rings through.</p>
+          </li>
+          <li class="inside__item">
+            <img class="pixelated" src="img/color.png" width="480" height="480" alt="" loading="lazy">
+            <h3 class="inside__name px"><a href="docs.html#effects">Color</a></h3>
+            <p>Drive, bit crush, noise that follows the sound, and a tilt EQ.</p>
+          </li>
+          <li class="inside__item">
+            <img class="pixelated" src="img/space_live.png" width="480" height="480" alt="" loading="lazy">
+            <h3 class="inside__name px"><a href="docs.html#effects">Chronos</a></h3>
+            <p>A delay that ages like tape, and two rooms the tracks share.</p>
+          </li>
+          <li class="inside__item">
+            <img class="pixelated" src="img/mod1.png" width="480" height="480" alt="" loading="lazy">
+            <h3 class="inside__name px"><a href="docs.html#pages">Modulation</a></h3>
+            <p>Four per track: LFOs, envelopes, a follower and a step sequencer with p-locks.</p>
+          </li>
+          <li class="inside__item">
+            <img class="pixelated" src="img/arp_add.png" width="480" height="480" alt="" loading="lazy">
+            <h3 class="inside__name px"><a href="docs.html#arps">Arpeggiators</a></h3>
+            <p>One per track, with a step rhythm that strays the way a player would.</p>
+          </li>
+          <li class="inside__item">
+            <img class="pixelated" src="img/mixer_morph.png" width="480" height="480" alt="" loading="lazy">
+            <h3 class="inside__name px"><a href="docs.html#mixer">Scenes</a></h3>
+            <p>Four snapshots of the whole project. Tap to glide, or turn a knob to morph.</p>
+          </li>
+        </ul>
+
+        <details class="fold" id="specs">
+          <summary class="px">Full specs</summary>
+          <dl class="specs">
+            <div><dt class="px">Hardware</dt><dd>M-VAVE FM-1 (JieLi AC79), bare metal</dd></div>
+            <div><dt class="px">Tracks</dt><dd>4, each with a source and the full chain</dd></div>
+            <div><dt class="px">Sources</dt><dd>TAPE (with repeat, wow and flutter); SYNTH (SIN TRI SQR SAW PLS, FM, PD, VOX, WT; two envelopes, chords); POLY (looping notes, TWIN); DRUM (1 to 4 bars)</dd></div>
+            <div><dt class="px">Effects</dt><dd>GRAIN (grains, WARBLE or VINYL); RIPPLE (strings, comb, resonators or a 12-band bank, with FLOW); COLOR; CHRONOS (a delay and two shared rooms: room, plate, hall or spring)</dd></div>
+            <div><dt class="px">Modulation</dt><dd>4 per track: 3 that can each be an LFO, ADSR or FOLLOW, and a step sequencer with p-locks; up to 12 knobs each, stereo SPRD</dd></div>
+            <div><dt class="px">Arpeggiators</dt><dd>1 per track (notes, chords, slices or drums), plus RIPL ARP for RIPPLE; each with a step rhythm (8 patterns, 1 to 16 steps, VARY and EVOL)</dd></div>
+            <div><dt class="px">Scenes</dt><dd>4 per project, each with its own tempo: recall, step with OP5 and OP6, or morph between them with a knob</dd></div>
+            <div><dt class="px">Recording</dt><dd>REC onto a tape, exact bars, overdub, bounce (REC + PLAY) and freeze to tape (REC + 0)</dd></div>
+            <div><dt class="px">Tape memory</dt><dd>About 20&nbsp;s shared across the tracks, IMA ADPCM at 22.05&nbsp;kHz</dd></div>
+            <div><dt class="px">Mixer</dt><dd>Level, LOW, HIGH, FILT and PAN per track; a master compressor; the project's key and 15 scales</dd></div>
+            <div><dt class="px">Storage</dt><dd>6 projects, 8 track presets plus 8 factory ones, 4 factory reels plus 6 of yours</dd></div>
+            <div><dt class="px">USB</dt><dd>Shows up as a drive called BRYO (WAV in and out), and records what the computer plays</dd></div>
+            <div><dt class="px">Status</dt><dd>Phases 1 to 9 of 10 built; running on an FM-1 since 2026-10-10</dd></div>
+            <div><dt class="px">Licence</dt><dd>GPL-3.0-only, same as Felucca</dd></div>
+          </dl>
+        </details>
+      </div>
+    </section>
+
+    <section class="section nod" id="s4" aria-labelledby="s4-title">
+      <div class="wrap split">
+        <div>
+          <span class="section__num px"><span class="slash" aria-hidden="true">/</span> 05</span>
+          <h2 class="section__title" id="s4-title">Built in the S-4's image</h2>
+          <p class="nod__mark px" aria-hidden="true">S-4</p>
+        </div>
+        <div class="prose">
+          <p class="lead">Bryo owes its whole shape to the <a href="https://torsoelectronics.com/">Torso Electronics S-4</a>.</p>
+          <p>Four tracks, a sound at the head of each, a fixed line of devices after it, and a page of four values under four knobs: that's the S-4's idea, and it's the best one I've played. I own two of them. Bryo is my attempt to carry that way of working onto a little FM-1, and it only gets part of the way there.</p>
+          <p>If you like how Bryo works, buy an S-4. It's the real thing: a deeper instrument, a beautiful piece of hardware, and made by a small team that deserves the support.</p>
+          <div class="btn-row">
+            <a class="btn btn--solid" href="https://torsoelectronics.com/">Get an S-4 from Torso</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section thanks" id="thanks" aria-labelledby="thanks-title">
+      <div class="wrap split">
+        <div>
+          <span class="section__num px"><span class="slash" aria-hidden="true">/</span> 06</span>
+          <h2 class="section__title" id="thanks-title">Thank you, Felucca</h2>
+        </div>
+        <div class="prose">
+          <p class="lead">Bryo exists because <a href="https://github.com/hugelton/Felucca">Felucca</a> exists.</p>
+          <p><a href="https://github.com/kurogedelic">Leo Kuroshita (@kurogedelic)</a> and Hügelton Instruments worked out how the FM-1 works, wrote firmware for it from scratch, and shared all of it under the GPL. Bryo started from Felucca <strong>1.0.3</strong> (<code>b22a24b</code>) and still runs on its hardware layer, update loader, USB and storage. If Bryo is useful to you, please thank them too.</p>
+
+          <div class="thanks__card">
+            <h3>Support the people who made this</h3>
+            <p>Sponsoring Hügelton helps keep projects like Felucca going.</p>
+            <div class="btn-row">
+              <a class="btn btn--solid" href="https://github.com/sponsors/hugelton">Sponsor on GitHub</a>
+              <a class="btn" href="https://hugelton.itch.io/felucca">Felucca on itch.io</a>
+            </div>
+          </div>
+
+          <ul class="thanks__links">
+            <li><a href="https://github.com/thoughtgrain/bryo/blob/HEAD/bryo/ACKNOWLEDGEMENTS.md">Acknowledgements <span class="px" aria-hidden="true">Read &gt;</span></a></li>
+            <li><a href="https://github.com/thoughtgrain/bryo/blob/HEAD/bryo/NOTICE.md">GPL modification notice <span class="px" aria-hidden="true">Read &gt;</span></a></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap site-footer__grid">
+      <div>
+        <h2 class="px">Bryo</h2>
+        <p>Firmware for the M-VAVE FM-1, a fork of <a href="https://github.com/hugelton/Felucca">Felucca</a> by Leo Kuroshita / Hügelton Instruments. GPL-3.0-only. Bryo is an independent project and isn't affiliated with M-VAVE or Torso Electronics. The name: <em>bryon</em> is Greek for moss.</p>
+      </div>
+      <div>
+        <h2 class="px">Read</h2>
+        <ul>
+          <li><a href="docs.html">Documentation</a></li>
+          <li><a href="https://github.com/thoughtgrain/bryo/blob/HEAD/bryo/docs/manual/README.md">The full manual</a></li>
+          <li><a href="https://github.com/thoughtgrain/bryo/blob/HEAD/bryo/docs/bryo-status.md">Where it stands</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2 class="px">Source</h2>
+        <ul>
+          <li><a href="https://github.com/thoughtgrain/bryo">thoughtgrain/bryo</a></li>
+          <li><a href="https://github.com/hugelton/Felucca">hugelton/Felucca</a></li>
+          <li><a href="https://github.com/thoughtgrain/bryo/blob/HEAD/bryo/LICENSE">Licence</a></li>
+        </ul>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>
