@@ -9,8 +9,8 @@ HTML, CSS and JavaScript. No framework, no build step, no `node_modules`. GitHub
 
 ```
 site/
-├── index.html        the landing page: the instrument, the walkthrough, the chain, sources, modulation,
-│                     arpeggiators, scenes, specs, getting it, thanks to Felucca
+├── index.html        the landing page, kept short: the instrument, a quick start into the docs, the
+│                     walkthrough, what's inside (specs folded), the Torso S-4 nod, thanks to Felucca
 ├── docs.html         the short guide: install, the panel, a first song, the sources and effects, the mixer,
 │                     recording, saving, a quick reference, building, credits
 ├── css/style.css     every style, with the colour and type tokens at the top
